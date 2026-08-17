@@ -95,22 +95,22 @@ light:
     restore_mode: ALWAYS_ON
 
 # Touchscreen XPT2046 (resistiv)
-touchscreen:
-  - platform: xpt2046
-    display: my_tft
-    id: touch
-    cs_pin: GPIO16  # dein Touch-CS-Pin
-    interrupt_pin: GPIO17  # (optional, für IRQ – wenn vorhanden)
-    spi_id: spi_bus
-    update_interval: 50ms
-    calibration:
-      x_min: 200
-      x_max: 3900
-      y_min: 200
-      y_max: 3900
-    on_touch:
-      then:
-        - logger.log: "Touch pressed"
+#touchscreen:
+#  - platform: xpt2046
+#    display: my_tft
+#    id: touch
+#    cs_pin: GPIO16  # dein Touch-CS-Pin
+#    interrupt_pin: GPIO17  # (optional, für IRQ – wenn vorhanden)
+#    spi_id: spi_bus
+#    update_interval: 50ms
+#    calibration:
+#      x_min: 200
+#      x_max: 3900
+#      y_min: 200
+#      y_max: 3900
+#    on_touch:
+#      then:
+#        - logger.log: "Touch pressed"
       
 display:
   - platform: ili9xxx
@@ -167,6 +167,16 @@ debug:
   update_interval: 5s
 
 globals:
+  - id: encoder_mode
+    type: int
+    restore_value: no
+    initial_value: '0'
+
+  - id: charger_local_on
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+
   # Temporäre Variablen zum Test
   - id: ac_voltage
     type: float
@@ -485,6 +495,41 @@ script:
       - delay: 20s
       # Detect Data Board-3
       - script.execute: detect_data_board_3
+
+  - id: apply_dc_sum_power
+    mode: restart
+    then:
+      - lambda: |-
+          float voltage = id(can_voltage_input).state;
+          float power_kw = id(dc_sum_power_set).state;
+
+          if (isnan(voltage) || voltage < 1.0) {
+            ESP_LOGW("encoder", "Invalid DC voltage - cannot calculate current");
+            return;
+          }
+
+          // Total DC power distributed equally across 3 rectifiers
+          float current_per_rectifier =
+              (power_kw * 1000.0f) / (voltage * 3.0f);
+
+          // Existing configuration allows max. 75 A
+          if (current_per_rectifier > 75.0f)
+            current_per_rectifier = 75.0f;
+
+          if (current_per_rectifier < 1.0f)
+            current_per_rectifier = 1.0f;
+
+          ESP_LOGI(
+            "encoder",
+            "DC Sum Power %.2f kW @ %.2f V -> %.1f A per rectifier",
+            power_kw,
+            voltage,
+            current_per_rectifier
+          );
+
+          auto call = id(can_amp_input).make_call();
+          call.set_value(current_per_rectifier);
+          call.perform();
 
 canbus:
   - platform: esp32_can
@@ -1160,6 +1205,54 @@ sensor:
     unit_of_measurement: "dBm"
     device_class: signal_strength
 
+  - platform: rotary_encoder
+    id: local_encoder
+
+    pin_a:
+      number: GPIO17
+      mode:
+        input: true
+        pullup: true
+
+    pin_b:
+      number: GPIO18
+      mode:
+        input: true
+        pullup: true
+
+    resolution: 1
+    internal: true
+
+    on_clockwise:
+      then:
+        - if:
+            condition:
+              lambda: 'return id(encoder_mode) == 0;'
+            then:
+              - number.increment:
+                  id: can_voltage_input
+                  cycle: false
+              - script.execute: apply_dc_sum_power
+            else:
+              - number.increment:
+                  id: dc_sum_power_set
+                  cycle: false
+
+    on_anticlockwise:
+      then:
+        - if:
+            condition:
+              lambda: 'return id(encoder_mode) == 0;'
+            then:
+              - number.decrement:
+                  id: can_voltage_input
+                  cycle: false
+              - script.execute: apply_dc_sum_power
+            else:
+              - number.decrement:
+                  id: dc_sum_power_set
+                  cycle: false
+
   - platform: template
     name: "Input Temperature Board-1"
     id: input_temperature_sensor_device1
@@ -1820,6 +1913,87 @@ number:
               can_data[6] = (fallback_scaled_value >> 8) & 0xFF;  // Encode the high byte in the 7th byte
               can_data[7] = fallback_scaled_value & 0xFF;         // Encode the low byte in the 8th byte
               return can_data;
+
+  - platform: template
+    name: "DC Sum Power Set"
+    id: dc_sum_power_set
+    unit_of_measurement: "kW"
+    min_value: 0.5
+    max_value: 12.0
+    step: 0.25
+    optimistic: true
+    restore_value: true
+    initial_value: 3.0
+    mode: BOX
+
+    on_value:
+      then:
+        - script.execute: apply_dc_sum_power
+
+binary_sensor:
+  - platform: gpio
+    id: local_encoder_button
+    internal: true
+
+    pin:
+      number: GPIO2
+      mode:
+        input: true
+        pullup: true
+      inverted: true
+
+    filters:
+      - delayed_on: 20ms
+      - delayed_off: 20ms
+
+    on_multi_click:
+
+      # Kurzer Druck:
+      # Auswahl Voltage <-> Power
+      - timing:
+          - ON for 50ms to 800ms
+          - OFF for at least 50ms
+        then:
+          - lambda: |-
+              id(encoder_mode) = !id(encoder_mode);
+
+              ESP_LOGI(
+                "encoder",
+                "Selected: %s",
+                id(encoder_mode) == 0
+                  ? "DC Voltage"
+                  : "DC Sum Power"
+              );
+
+      # Langer Druck:
+      # Charger ON/OFF
+      - timing:
+          - ON for at least 1500ms
+        then:
+          - if:
+              condition:
+                lambda: 'return !id(charger_local_on);'
+              then:
+                - script.execute: apply_dc_sum_power
+
+                - canbus.send:
+                    use_extended_id: true
+                    can_id: 0x108080FE
+                    data: [0x01, 0x32, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+
+                - lambda: |-
+                    id(charger_local_on) = true;
+                    ESP_LOGI("encoder", "Local charger START");
+
+              else:
+                - canbus.send:
+                    use_extended_id: true
+                    can_id: 0x108080FE
+                    data: [0x01, 0x32, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00]
+
+                - lambda: |-
+                    id(charger_local_on) = false;
+                    ESP_LOGI("encoder", "Local charger STOP");
 
 interval:
   # Interval for sending the first CAN message every 05 seconds
