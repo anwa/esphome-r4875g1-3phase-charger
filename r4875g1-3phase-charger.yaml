@@ -3,6 +3,67 @@
 # Flash: 16 MB Quad SPI
 # PSRAM: 8 MB Octal SPI
 
+# ==============================================================================
+# THREE-PHASE R4875G1 CHARGER CONTROLLER - ARCHITECTURE OVERVIEW
+# ==============================================================================
+# This ESPHome firmware controls three Huawei R4875G1 rectifier modules used as
+# a three-phase battery charger. Each rectifier is supplied from one AC phase;
+# their DC outputs are connected in parallel to the same battery bus.
+#
+# DATA PATH
+# ---------
+#   R4875G1 Module 1 / 2 / 3
+#          |
+#          | extended 29-bit CAN frames @ 125 kbit/s
+#          v
+#   ESP32-S3 CAN decoder
+#          |
+#          +--> individual module telemetry sensors
+#          |      AC/DC power, voltage, current, frequency, temperatures, state
+#          |
+#          +--> per-module CAN watchdogs (can_com_ok_1..3)
+#          |
+#          +--> CAN-aware combined AC/DC power sensors
+#          |
+#          +--> TFT display / Home Assistant / MQTT
+#
+# LOCAL BLACKSTART CONTROL PATH
+# -----------------------------
+#   Rotary encoder + push button
+#          |
+#          +--> choose DC voltage or total DC power
+#          +--> calculate equal current setpoint for all three modules
+#          +--> broadcast voltage/current setpoints over CAN
+#          +--> long press starts/stops all modules
+#
+# OFFLINE OPERATION
+# -----------------
+# Wi-Fi, MQTT and Home Assistant are optional for core charger operation.
+# Network reboot timeouts are disabled so a dead or isolated site network cannot
+# prevent the ESP32 from controlling the charger during a blackstart.
+#
+# CAN VALUE SCALING
+# -----------------
+# Most voltage/telemetry values use a fixed-point scale of 1024:
+#     engineering_value = raw_CAN_value / 1024
+#     raw_CAN_value     = engineering_value * 1024
+#
+# Current commands use amp_scaling_factor. That factor is derived from the
+# detected maximum-current capability of Module 1.
+#
+# COMMUNICATION HEALTH
+# --------------------
+# Each valid cyclic telemetry frame refreshes last_can_rx_1..3. If no telemetry
+# is seen from a module for 3 seconds, its can_com_ok_x binary sensor becomes
+# false. Display and combined-power logic then ignore stale values from that
+# module instead of presenting them as live data.
+# ==============================================================================
+# ==============================================================================
+# ESPHOME DEVICE IDENTITY AND BOOT ACTIONS
+# ==============================================================================
+# Defines the device identity used by ESPHome/Home Assistant. The boot hook
+# starts the display inactivity timer so the backlight will eventually switch off
+# even if the user never touches the encoder after power-up.
 esphome:
   name: hg-dg-technik-charger3ph
   friendly_name: HG⁄DG⁄Technik⁄Charger-3Ph
@@ -11,6 +72,12 @@ esphome:
     then:
       - script.execute: display_inactivity_timer
 
+# ==============================================================================
+# ESP32-S3 HARDWARE, FLASH AND FRAMEWORK
+# ==============================================================================
+# Hardware settings for the Androegg ESP32-S3 UNO / ESP32-S3-WROOM-1-N16R8:
+# 16 MB Quad-SPI flash, 8 MB Octal PSRAM and 240 MHz CPU. ESP-IDF is used as the
+# framework because it provides the native ESP32-S3 feature set used here.
 esp32:
   variant: esp32s3
 
@@ -27,11 +94,21 @@ esp32:
     advanced:
       execute_from_psram: true
 
+# ==============================================================================
+# EXTERNAL PSRAM
+# ==============================================================================
+# Explicitly enables the module's 8 MB Octal PSRAM at 80 MHz. The large TFT
+# framebuffer and Wi-Fi allocations benefit significantly from this memory.
 psram:
   mode: octal
   speed: 80MHz
   ignore_not_found: false
 
+# ==============================================================================
+# LOGGING
+# ==============================================================================
+# Runtime logs are sent over UART0 through the board's USB/UART interface.
+# INFO provides useful diagnostics without the volume of full DEBUG logging.
 logger:
   level: INFO
   baud_rate: 115200
@@ -39,25 +116,45 @@ logger:
   logs:
     component: ERROR
 
+# ==============================================================================
+# LOCAL ESPHOME WEB SERVER
+# ==============================================================================
+# Exposes entities and controls directly from the ESP32 whenever IP networking
+# is available. Local blackstart operation does not depend on this web server.
 web_server:
   version: 3
 
+# ==============================================================================
+# HOME ASSISTANT NATIVE API
+# ==============================================================================
+# Encrypted ESPHome API. reboot_timeout is disabled deliberately: a missing
+# Home Assistant instance must never reboot a charger needed for blackstart.
 api:
   encryption:
     key: !secret api_encryption_key
   reboot_timeout: 0s
 
+# ==============================================================================
+# OVER-THE-AIR FIRMWARE UPDATE
+# ==============================================================================
+# Enables normal ESPHome OTA updates after the first USB installation.
 ota:
   - platform: esphome
 
+# ==============================================================================
+# WI-FI
+# ==============================================================================
+# Wi-Fi credentials come from secrets.yaml. Power saving is disabled for stable
+# latency. reboot_timeout: 0s keeps the controller alive indefinitely when Wi-Fi
+# is unavailable, which is essential for offline blackstart operation.
 wifi:
   ssid: !secret wifi_ssid
   password: !secret wifi_password
 
-  # Gerät wird dauerhaft versorgt -> maximale WLAN-Stabilität
+  # The device is permanently powered: disable Wi-Fi power saving for maximum link stability.
   power_save_mode: none
 
-  # 8 MB PSRAM auch für WiFi-Allokationen verwenden
+  # Allow Wi-Fi buffers/allocations to use the available 8 MB PSRAM.
   use_psram: true
   reboot_timeout: 0s
 
@@ -65,8 +162,18 @@ wifi:
     ssid: HG⁄DG⁄Technik⁄C Fallback Hotspot
     password: !secret fallback_ap_password
 
+# ==============================================================================
+# FALLBACK CAPTIVE PORTAL
+# ==============================================================================
+# Works with the fallback access point above if the configured infrastructure
+# Wi-Fi cannot be reached.
 captive_portal:
 
+# ==============================================================================
+# TIME SYNCHRONIZATION
+# ==============================================================================
+# SNTP supplies Europe/Berlin local time for the TFT clock and daily energy
+# integration. The minute callback also forces an occasional display refresh.
 time:
   - platform: sntp
     id: sntp_time
@@ -81,13 +188,23 @@ time:
           - lambda: |-
               ESP_LOGI("zeit", "Uhrzeit: %02d:%02d:%02d", id(sntp_time).now().hour, id(sntp_time).now().minute, id(sntp_time).now().second);
       - seconds: 0
-        minutes: /1  # jede Minute
+        minutes: /1  # Refresh the display once per minute.
         then:
           - component.update: my_tft
 
+# ==============================================================================
+# ESPHOME DEBUG METRICS
+# ==============================================================================
+# Enables internal diagnostic values such as heap, loop timing, PSRAM and CPU
+# frequency that are published further down in the sensor section.
 debug:
   update_interval: 5s
 
+# ==============================================================================
+# MQTT CLIENT
+# ==============================================================================
+# Provides additional command topics besides the native API. MQTT is optional:
+# reboot_timeout is disabled so broker failure cannot affect local charging.
 mqtt:
   id: mqtt_client
   broker: !secret mqtt_host
@@ -95,12 +212,22 @@ mqtt:
   password: !secret mqtt_password
   reboot_timeout: 0s
 
+# ==============================================================================
+# I2C BUS
+# ==============================================================================
+# I2C is reserved on GPIO10/GPIO9 with scanning enabled. GPIO8 is intentionally
+# not used because the Androegg board has an onboard WS2812 connected there.
 i2c:
   - id: bus_a
     sda: GPIO10
     scl: GPIO9
     scan: true
 
+# ==============================================================================
+# SPI BUS
+# ==============================================================================
+# Shared hardware SPI bus for the ILI9488 TFT and the optional XPT2046 touch
+# controller. Each peripheral uses its own chip-select line.
 spi:
   id: spi_bus
   clk_pin: GPIO13  # SCK
@@ -108,12 +235,23 @@ spi:
   miso_pin: GPIO12 # SDO(MISI)
 
 # Define a PWM output on the ESP32
+
+# ==============================================================================
+# DISPLAY BACKLIGHT PWM
+# ==============================================================================
+# LEDC hardware PWM on GPIO4 drives the TFT backlight brightness.
 output:
   - platform: ledc
     pin: GPIO4  # LED
     id: backlight_pwm
 
 # Define a monochromatic, dimmable light for the backlight
+
+# ==============================================================================
+# DISPLAY BACKLIGHT LIGHT ENTITY
+# ==============================================================================
+# Wraps the PWM output as an ESPHome monochromatic light so automations can use
+# brightness values and smooth transition/fade times.
 light:
   - platform: monochromatic
     output: backlight_pwm
@@ -121,13 +259,13 @@ light:
     id: back_light
     restore_mode: ALWAYS_ON
 
-# Touchscreen XPT2046 (resistiv)
+# Optional XPT2046 resistive touchscreen (currently disabled).
 #touchscreen:
 #  - platform: xpt2046
 #    display: my_tft
 #    id: touch
-#    cs_pin: GPIO16  # dein Touch-CS-Pin
-#    interrupt_pin: GPIO17  # (optional, für IRQ – wenn vorhanden)
+#    cs_pin: GPIO16  # Touch controller chip-select pin.
+#    interrupt_pin: GPIO17  # Optional IRQ pin; GPIO17 is currently used by the rotary encoder.
 #    spi_id: spi_bus
 #    update_interval: 50ms
 #    calibration:
@@ -139,6 +277,14 @@ light:
 #      then:
 #        - logger.log: "Touch pressed"
       
+
+# ==============================================================================
+# ILI9488 480x320 LOCAL TFT
+# ==============================================================================
+# Main local user interface. It is intentionally usable without Wi-Fi and shows
+# CAN-aware telemetry, per-module communication faults, rectifier state and the
+# rotary-encoder setpoints. The 500 ms refresh interval balances responsiveness
+# against SPI/display workload.
 display:
   - platform: ili9xxx
     model: ili9488
@@ -156,6 +302,8 @@ display:
       mirror_x: true
     update_interval: 500ms
     lambda: |-
+      // Full-screen redraw: clear the framebuffer first so shorter new values
+      // cannot leave pixels from a previous longer string behind.
       it.fill(Color::WHITE);
       it.print(
         10, 10,
@@ -176,6 +324,9 @@ display:
       // AC Input - use all modules with valid CAN communication
       // -----------------------------------------------------------------
 
+      // Build the AC summary only from modules that are both CAN-online and have
+      // all required numeric AC telemetry values. This allows clean 3/3, 2/3 or
+      // 1/3 operation when individual rectifiers disappear from the CAN bus.
       int ac_modules_ok = 0;
 
       float ac_voltage_sum = 0.0f;
@@ -292,6 +443,8 @@ display:
           "No charger module reachable"
         );
       }
+      // combined_dc_power_sensor is CAN-aware, so stale power from a disconnected
+      // rectifier is automatically excluded from this total.
       it.printf(10, 125,
         id(font_small_bold),
         id(color_red),
@@ -373,6 +526,8 @@ display:
       );
 
       // Actual rectifier status
+      // Count actual ON states reported by the modules. This value is also useful
+      // to show partial operation such as 1/3 or 2/3 modules running.
       int rectifiers_on = 0;
 
       if (id(power_state_sensor_1).state == "ON") rectifiers_on++;
@@ -412,6 +567,8 @@ display:
       // Encoder selection
       // -----------------------------------------------------------------
 
+      // The active encoder-edit field is rendered bold/blue; the inactive field
+      // remains visible in normal black text for context.
       if (id(encoder_mode) == 0) {
 
         // Voltage selected
@@ -452,16 +609,28 @@ display:
           id(can_amp_set).state
         );
       }
+      // Footer diagnostics are controller-side values and remain useful even if
+      // every rectifier is offline.
       it.printf(10, 300, id(font_footer), id(color_black), "IP: %s", id(ip_address).state.c_str());
       it.printf(200, 300, id(font_footer), id(color_black), "CPU Temp: %.1f °C", id(cpu_temp).state);
       it.printf(390, 300, id(font_footer), id(color_black), "WiFi: %.1f dBm", id(wifi_sig).state);
 
+# ==============================================================================
+# GLOBAL RUNTIME STATE
+# ==============================================================================
+# Non-entity state used by protocol decoding, discovery, watchdog timing and
+# local UI logic. None of these variables independently transmit CAN frames.
 globals:
+  # Selects what the rotary encoder edits locally.
+  # 0 = DC voltage, 1 = total DC power. It is not restored so the UI starts in a
+  # known mode after boot.
   - id: encoder_mode
     type: int
     restore_value: no
     initial_value: '0'
 
+  # Local/legacy charger-state flag. Actual long-press start/stop
+  # decisions currently use the live power_state_sensor_1..3 values instead.
   - id: charger_local_on
     type: bool
     restore_value: no
@@ -469,137 +638,182 @@ globals:
 
   # Last valid cyclic CAN telemetry frame received from each charger module.
   # Used by can_com_ok_1..3 to detect stale/lost communication.
+  # Timestamp (millis) of the last valid cyclic telemetry frame from
+  # Module 1. Used only by the communication watchdog.
   - id: last_can_rx_1
     type: uint32_t
     restore_value: no
     initial_value: '0'
 
+  # Same watchdog timestamp for Module 2.
   - id: last_can_rx_2
     type: uint32_t
     restore_value: no
     initial_value: '0'
 
+  # Same watchdog timestamp for Module 3.
   - id: last_can_rx_3
     type: uint32_t
     restore_value: no
     initial_value: '0'
 
+  # Current-command scale factor. It is initialized to 15 and
+  # updated from the detected Module 1 current capability.
   - id: amp_scaling_factor
     type: float
     initial_value: "15.0"
     restore_value: True
     
+  # Fixed-point protocol scale used by voltage and most
+  # telemetry fields. 1024 means one engineering unit equals 1024 raw counts.
   - id: voltage_scaling_factor
     type: int
     initial_value: "1024"
     restore_value: True
 
+  # Discovery flag: maximum-current capability for Module 1
+  # has been received during the current search.
   - id: max_current_found_1
     type: bool
     restore_value: no
     initial_value: "false"
 
+  # Discovery flag for Module 2 maximum-current capability.
   - id: max_current_found_2
     type: bool
     restore_value: no
     initial_value: "false"
 
+  # Discovery flag for Module 3 maximum-current capability.
   - id: max_current_found_3
     type: bool
     restore_value: no
     initial_value: "false"
 
+  # Discovery flag: valid shelf/slot addressing data for Module 1
+  # has been received.
   - id: data_found_1
     type: bool
     restore_value: no
     initial_value: "false"
 
+  # Discovery flag for Module 2 addressing data.
   - id: data_found_2
     type: bool
     restore_value: no
     initial_value: "false"
 
+  # Discovery flag for Module 3 addressing data.
   - id: data_found_3
     type: bool
     restore_value: no
     initial_value: "false"
 
+  # Temporary ASCII buffer used to assemble Module 1's
+  # multi-frame property response before parsing it into text sensors.
   - id: module_properties_1
     type: std::string
     restore_value: no
     initial_value: '""'
 
+  # Temporary property-message buffer for Module 2.
   - id: module_properties_2
     type: std::string
     restore_value: no
     initial_value: '""'
 
+  # Temporary property-message buffer for Module 3.
   - id: module_properties_3
     type: std::string
     restore_value: no
     initial_value: '""'
 
+  # True only after all expected Module 1 property
+  # keys were parsed successfully; discovery retries until this becomes true.
   - id: module_properties_complete_1
     type: bool
     restore_value: no
     initial_value: 'false'
 
+  # Completion flag for Module 2 properties.
   - id: module_properties_complete_2
     type: bool
     restore_value: no
     initial_value: "false"
 
+  # Completion flag for Module 3 properties.
   - id: module_properties_complete_3
     type: bool
     restore_value: no
     initial_value: "false"
 
+  # Fail-safe retry counter for Module 1 property requests.
   - id: frame_counter_bp_1
     type: int
     restore_value: no
     initial_value: '0'
 
+  # Fail-safe retry counter for Module 2 property requests.
   - id: frame_counter_bp_2
     type: int
     restore_value: no
     initial_value: '0'
 
+  # Fail-safe retry counter for Module 3 property requests.
   - id: frame_counter_bp_3
     type: int
     restore_value: no
     initial_value: '0'
 
+  # Counts Module 1 property payload frames for
+  # diagnostic logging while a multi-frame message is being assembled.
   - id: frame_counter_msg_start_1
     type: int
     restore_value: no
     initial_value: '0'
 
+  # Property payload-frame counter for Module 2.
   - id: frame_counter_msg_start_2
     type: int
     restore_value: no
     initial_value: '0'
 
+  # Property payload-frame counter for Module 3.
   - id: frame_counter_msg_start_3
     type: int
     restore_value: no
     initial_value: '0'
 
+  # Fail-safe retry counter for Module 1 capability/address search.
   - id: search_counter_1
     type: int
     restore_value: no
     initial_value: '0'
 
+  # Fail-safe retry counter for Module 2 capability/address search.
   - id: search_counter_2
     type: int
     restore_value: no
     initial_value: '0'
 
+  # Fail-safe retry counter for Module 3 capability/address search.
   - id: search_counter_3
     type: int
     restore_value: no
     initial_value: '0'
 
+# ==============================================================================
+# REUSABLE AUTOMATION SCRIPTS
+# ==============================================================================
+# Multi-step operations for discovery, power-to-current conversion, blackstart
+# sequencing and backlight timeout handling.
 script:
+  # --------------------------------------------------------------------------
+  # detect_module_1_properties
+  # --------------------------------------------------------------------------
+  # Requests Module 1's static multi-frame property block.
+  # Up to three requests are sent. CAN handlers assemble the answer and set
+  # module_properties_complete_1 when all required fields are present.
   - id: detect_module_1_properties
     mode: single
     then:
@@ -626,6 +840,10 @@ script:
             ESP_LOGW("module_properties_1", "Fail-safe triggered: Loop stopped after 3 attempts.");
           }
         
+  # --------------------------------------------------------------------------
+  # detect_module_2_properties
+  # --------------------------------------------------------------------------
+  # Same static-property discovery sequence for Module 2.
   - id: detect_module_2_properties
     mode: single
     then:
@@ -652,6 +870,10 @@ script:
             ESP_LOGW("module_properties_2", "Fail-safe triggered: Loop stopped after 3 attempts.");
           }
 
+  # --------------------------------------------------------------------------
+  # detect_module_3_properties
+  # --------------------------------------------------------------------------
+  # Same static-property discovery sequence for Module 3.
   - id: detect_module_3_properties
     mode: single
     then:
@@ -678,6 +900,12 @@ script:
             ESP_LOGW("module_properties_3", "Fail-safe triggered: Loop stopped after 3 attempts.");
           }
 
+  # --------------------------------------------------------------------------
+  # detect_data_module_1
+  # --------------------------------------------------------------------------
+  # Requests Module 1 capability/address data until both the
+  # maximum-current and shelf/slot information have been found or retries are
+  # exhausted.
   - id: detect_data_module_1
     then:
       - lambda: |-
@@ -701,6 +929,10 @@ script:
             ESP_LOGW("canbus", "Fail-safe triggered: Loop stopped after 20 attempts.");
           }
 
+  # --------------------------------------------------------------------------
+  # detect_data_module_2
+  # --------------------------------------------------------------------------
+  # Capability/address discovery for Module 2.
   - id: detect_data_module_2
     then:
       - lambda: |-
@@ -724,6 +956,10 @@ script:
             ESP_LOGW("canbus", "Fail-safe triggered: Loop stopped after 20 attempts.");
           }
 
+  # --------------------------------------------------------------------------
+  # detect_data_module_3
+  # --------------------------------------------------------------------------
+  # Capability/address discovery for Module 3.
   - id: detect_data_module_3
     then:
       - lambda: |-
@@ -747,6 +983,12 @@ script:
             ESP_LOGW("canbus", "Fail-safe triggered: Loop stopped after 20 attempts.");
           }
 
+  # --------------------------------------------------------------------------
+  # setup_sequence
+  # --------------------------------------------------------------------------
+  # Runs full discovery in a controlled order: properties for all
+  # three modules, then capability/address data. Delays reduce overlapping replies
+  # and make the sequence easier to diagnose on the CAN bus.
   - id: setup_sequence
     mode: single
     then:
@@ -765,10 +1007,19 @@ script:
       # Detect Data Module-3
       - script.execute: detect_data_module_3
 
+  # --------------------------------------------------------------------------
+  # apply_dc_sum_power
+  # --------------------------------------------------------------------------
+  # Converts the requested total DC power into an equal current
+  # target for each of the three parallel rectifiers:
+  # I_each = P_total / (3 * V_DC).
+  # The result is limited to 1..75 A and applied through can_amp_set.
   - id: apply_dc_sum_power
     mode: restart
     then:
       - lambda: |-
+          // Read the canonical setpoint entities shared by local encoder, web/API and
+          // MQTT control paths.
           float voltage = id(can_voltage_set).state;
           float power_kw = id(dc_sum_power_set).state;
 
@@ -778,6 +1029,8 @@ script:
           }
 
           // Total DC power distributed equally across 3 rectifiers
+          // Three parallel modules are expected to share the total requested power
+          // equally, hence the division by both voltage and module count (3).
           float current_per_rectifier =
               (power_kw * 1000.0f) / (voltage * 3.0f);
 
@@ -796,10 +1049,18 @@ script:
             current_per_rectifier
           );
 
+          // Use NumberCall so the normal can_amp_set automation performs the final
+          // validation and CAN transmission; do not bypass that centralized path.
           auto call = id(can_amp_set).make_call();
           call.set_value(current_per_rectifier);
           call.perform();
 
+  # --------------------------------------------------------------------------
+  # blackstart_start
+  # --------------------------------------------------------------------------
+  # Offline START sequence. Recalculates current, explicitly sends
+  # voltage, explicitly sends current, waits for the setpoints to be accepted and
+  # then broadcasts the ON command. No network connection is required.
   - id: blackstart_start
     mode: single
     then:
@@ -859,6 +1120,10 @@ script:
           format: "BLACKSTART: Rectifiers switched ON"
 
 
+  # --------------------------------------------------------------------------
+  # blackstart_stop
+  # --------------------------------------------------------------------------
+  # Offline STOP sequence. Broadcasts the OFF command to all modules.
   - id: blackstart_stop
     mode: single
     then:
@@ -874,6 +1139,12 @@ script:
   # ------------------------------------------------------------------
   # Display backlight inactivity timer
   # ------------------------------------------------------------------
+  # --------------------------------------------------------------------------
+  # display_inactivity_timer
+  # --------------------------------------------------------------------------
+  # Restartable inactivity timer. Any encoder movement or
+  # button press restarts it and wakes the backlight. After five minutes without
+  # input, the backlight fades out over ten seconds.
   - id: display_inactivity_timer
     mode: restart
     then:
@@ -889,8 +1160,14 @@ script:
       # Slowly fade out backlight
       - light.turn_off:
           id: back_light
-          transition_length: 5s
+          transition_length: 10s
           
+
+# ==============================================================================
+# CAN BUS INTERFACE AND FRAME DECODERS
+# ==============================================================================
+# Uses the ESP32-S3 native CAN/TWAI peripheral at 125 kbit/s. The R4875G1
+# protocol uses extended 29-bit CAN IDs. Module number is encoded in the ID.
 canbus:
   - platform: esp32_can
     tx_pin: GPIO19
@@ -901,6 +1178,9 @@ canbus:
     on_frame:
       # Handler for CAN ID 0x1081D27F (Packet x)
       # Handle module 1 properties message start
+      # ----------------------------------------------------------------------
+      # CAN RX 0x1081D27F
+      # Module 1 property-message START/DATA frame. Six payload bytes are appended to the ASCII property buffer.
       - can_id: 0x1081D27F
         use_extended_id: true
         then:
@@ -931,6 +1211,9 @@ canbus:
 
       # Handler for CAN ID 0x1082D27F (Packet x)
       # Handle module 2 properties message start
+      # ----------------------------------------------------------------------
+      # CAN RX 0x1082D27F
+      # Module 2 property-message START/DATA frame.
       - can_id: 0x1082D27F
         use_extended_id: true
         then:
@@ -961,6 +1244,9 @@ canbus:
 
       # Handler for CAN ID 0x1083D27F (Packet x)
       # Handle module 3 properties message start
+      # ----------------------------------------------------------------------
+      # CAN RX 0x1083D27F
+      # Module 3 property-message START/DATA frame.
       - can_id: 0x1083D27F
         use_extended_id: true
         then:
@@ -991,6 +1277,9 @@ canbus:
 
       # Handler for CAN ID 0x1081D27E (Packet x)
       # Signal end of module 1 properties message
+      # ----------------------------------------------------------------------
+      # CAN RX 0x1081D27E
+      # Module 1 property-message END frame. Final bytes are appended, key/value fields are parsed and text sensors are published.
       - can_id: 0x1081D27E
         use_extended_id: true
         then:
@@ -1023,6 +1312,9 @@ canbus:
                 bool* flag;
               };
 
+              // Map ASCII protocol keys to ESPHome text sensors. The final
+              // Manufactured field is also used as a completion marker so the
+              // discovery script can tell whether the property set was complete.
               KeySensorPair mappings[] = {
                 {"ModuleType=", id(module_type_sensor_1), nullptr},
                 {"BarCode=", id(barcode_sensor_1), nullptr},
@@ -1060,6 +1352,9 @@ canbus:
 
       # Handler for CAN ID 0x1082D27E (Packet x)
       # Signal end of module 2 properties message
+      # ----------------------------------------------------------------------
+      # CAN RX 0x1082D27E
+      # Module 2 property-message END frame and parser.
       - can_id: 0x1082D27E
         use_extended_id: true
         then:
@@ -1092,6 +1387,9 @@ canbus:
                 bool* flag;
               };
 
+              // Map ASCII protocol keys to ESPHome text sensors. The final
+              // Manufactured field is also used as a completion marker so the
+              // discovery script can tell whether the property set was complete.
               KeySensorPair mappings[] = {
                 {"ModuleType=", id(module_type_sensor_2), nullptr},
                 {"BarCode=", id(barcode_sensor_2), nullptr},
@@ -1129,6 +1427,9 @@ canbus:
 
       # Handler for CAN ID 0x1083D27E (Packet x)
       # Signal end of module 3 properties message
+      # ----------------------------------------------------------------------
+      # CAN RX 0x1083D27E
+      # Module 3 property-message END frame and parser.
       - can_id: 0x1083D27E
         use_extended_id: true
         then:
@@ -1161,6 +1462,9 @@ canbus:
                 bool* flag;
               };
 
+              // Map ASCII protocol keys to ESPHome text sensors. The final
+              // Manufactured field is also used as a completion marker so the
+              // discovery script can tell whether the property set was complete.
               KeySensorPair mappings[] = {
                 {"ModuleType=", id(module_type_sensor_3), nullptr},
                 {"BarCode=", id(barcode_sensor_3), nullptr},
@@ -1198,6 +1502,9 @@ canbus:
 
       # Handler for CAN ID 0x1081407F (Packet x)
       # Handle messages from Module 1
+      # ----------------------------------------------------------------------
+      # CAN RX 0x1081407F
+      # Module 1 cyclic telemetry. Also refreshes last_can_rx_1, making this frame family the Module 1 communication heartbeat.
       - can_id: 0x1081407F
         use_extended_id: true
         then:
@@ -1206,6 +1513,11 @@ canbus:
                 // Valid cyclic telemetry received: refresh CAN communication watchdog.
                 id(last_can_rx_1) = millis();
 
+                // Cyclic telemetry frame layout used below:
+                //   x[0]    = message class (0x01 for decoded measurement data)
+                //   x[1]    = parameter selector (power/frequency/current/etc.)
+                //   x[4..7] = unsigned 32-bit big-endian raw value
+                // The destination template sensor applies the engineering scale.
                 const uint8_t byte_0 = static_cast<uint8_t>(x[0]);
                 const uint8_t byte_1 = static_cast<uint8_t>(x[1]);
                 const uint32_t value = (static_cast<uint32_t>(x[4]) << 24) | 
@@ -1232,6 +1544,9 @@ canbus:
 
       # Handler for CAN ID 0x1082407F (Packet x)
       # Handle messages from Module 2
+      # ----------------------------------------------------------------------
+      # CAN RX 0x1082407F
+      # Module 2 cyclic telemetry and communication heartbeat.
       - can_id: 0x1082407F
         use_extended_id: true
         then:
@@ -1240,6 +1555,11 @@ canbus:
                 // Valid cyclic telemetry received: refresh CAN communication watchdog.
                 id(last_can_rx_2) = millis();
 
+                // Cyclic telemetry frame layout used below:
+                //   x[0]    = message class (0x01 for decoded measurement data)
+                //   x[1]    = parameter selector (power/frequency/current/etc.)
+                //   x[4..7] = unsigned 32-bit big-endian raw value
+                // The destination template sensor applies the engineering scale.
                 const uint8_t byte_0 = static_cast<uint8_t>(x[0]);
                 const uint8_t byte_1 = static_cast<uint8_t>(x[1]);
                 const uint32_t value = (static_cast<uint32_t>(x[4]) << 24) | 
@@ -1266,6 +1586,9 @@ canbus:
 
       # Handler for CAN ID 0x1083407F (Packet x)
       # Handle messages from Module 3
+      # ----------------------------------------------------------------------
+      # CAN RX 0x1083407F
+      # Module 3 cyclic telemetry and communication heartbeat.
       - can_id: 0x1083407F
         use_extended_id: true
         then:
@@ -1274,6 +1597,11 @@ canbus:
                 // Valid cyclic telemetry received: refresh CAN communication watchdog.
                 id(last_can_rx_3) = millis();
 
+                // Cyclic telemetry frame layout used below:
+                //   x[0]    = message class (0x01 for decoded measurement data)
+                //   x[1]    = parameter selector (power/frequency/current/etc.)
+                //   x[4..7] = unsigned 32-bit big-endian raw value
+                // The destination template sensor applies the engineering scale.
                 const uint8_t byte_0 = static_cast<uint8_t>(x[0]);
                 const uint8_t byte_1 = static_cast<uint8_t>(x[1]);
                 const uint32_t value = (static_cast<uint32_t>(x[4]) << 24) | 
@@ -1300,6 +1628,9 @@ canbus:
 
       # Handler for CAN ID 0x1081507F (Packet 1)
       # Max current for Module 1
+      # ----------------------------------------------------------------------
+      # CAN RX 0x1081507F
+      # Module 1 capability packet. Packet 1 reports maximum output current and is used to derive amp_scaling_factor.
       - can_id: 0x1081507F
         use_extended_id: true
         then:
@@ -1330,6 +1661,9 @@ canbus:
 
       # Handler for CAN ID 0x1082507F (Packet 1)
       # Max current for Module 2
+      # ----------------------------------------------------------------------
+      # CAN RX 0x1082507F
+      # Module 2 maximum-current capability packet.
       - can_id: 0x1082507F
         use_extended_id: true
         then:
@@ -1351,6 +1685,9 @@ canbus:
 
       # Handler for CAN ID 0x1083507F (Packet 1)
       # Max current for Module 3
+      # ----------------------------------------------------------------------
+      # CAN RX 0x1083507F
+      # Module 3 maximum-current capability packet.
       - can_id: 0x1083507F
         use_extended_id: true
         then:
@@ -1372,6 +1709,9 @@ canbus:
 
       # Handler for CAN ID 0x1081507E (Packet 6)
       # Pin 11/12 for Module 1
+      # ----------------------------------------------------------------------
+      # CAN RX 0x1081507E
+      # Module 1 shelf/slot addressing data. Bytes 2 and 3 are published as Pin 11/12 values.
       - can_id: 0x1081507E
         use_extended_id: true
         then:
@@ -1399,6 +1739,9 @@ canbus:
 
       # Handler for CAN ID 0x1082507E (Packet 6)
       # Pin 11/12 for Module 2
+      # ----------------------------------------------------------------------
+      # CAN RX 0x1082507E
+      # Module 2 shelf/slot addressing data.
       - can_id: 0x1082507E
         use_extended_id: true
         then:
@@ -1425,6 +1768,9 @@ canbus:
 
       # Handler for CAN ID 0x1083507E (Packet 6)
       # Pin 11/12 for Module 3
+      # ----------------------------------------------------------------------
+      # CAN RX 0x1083507E
+      # Module 3 shelf/slot addressing data.
       - can_id: 0x1083507E
         use_extended_id: true
         then:
@@ -1451,6 +1797,9 @@ canbus:
 
       # Handler for CAN ID 0x1001117E (Packet x)
       # Alt Values Module 1
+      # ----------------------------------------------------------------------
+      # CAN RX 0x1001117E
+      # Module 1 alternate-current and power-state frame. Maps state/error bytes to ON, OFF or ERROR.
       - can_id: 0x1001117E
         use_extended_id: true
         then:
@@ -1490,6 +1839,9 @@ canbus:
 
       # Handler for CAN ID 0x1002117E (Packet x)
       # Alt Values Module 2
+      # ----------------------------------------------------------------------
+      # CAN RX 0x1002117E
+      # Module 2 alternate-current and power-state frame.
       - can_id: 0x1002117E
         use_extended_id: true
         then:
@@ -1529,6 +1881,9 @@ canbus:
 
       # Handler for CAN ID 0x1003117E (Packet x)
       # Alt Values Module 3
+      # ----------------------------------------------------------------------
+      # CAN RX 0x1003117E
+      # Module 3 alternate-current and power-state frame.
       - can_id: 0x1003117E
         use_extended_id: true
         then:
@@ -1566,7 +1921,15 @@ canbus:
                 }
               }
 
+# ==============================================================================
+# NUMERIC SENSORS
+# ==============================================================================
+# Contains controller diagnostics, rotary encoder input, all decoded numeric
+# rectifier telemetry, CAN-aware aggregate power and daily energy counters.
 sensor:
+  # --------------------------------------------------------------------------
+  # Heap Free
+  # ESPHome internal diagnostics: free heap, largest block, loop time, free PSRAM and CPU frequency.
   - platform: debug
     free:
       name: "Heap Free"
@@ -1579,16 +1942,25 @@ sensor:
     cpu_frequency:
       name: "CPU Frequency"
 
+  # --------------------------------------------------------------------------
+  # ESP32 Internal Temperature Sensor
+  # ESP32 controller-die temperature. This is not a rectifier temperature.
   - platform: internal_temperature
     name: "Contoler CPU Temperatur"
     id: cpu_temp
     icon: mdi:thermometer
     update_interval: 10s
 
+  # --------------------------------------------------------------------------
+  # Uptime Sensor
+  # Controller uptime in seconds since the last ESP32 boot.
   - platform: uptime
     type: seconds
     name: Uptime Sensor
 
+  # --------------------------------------------------------------------------
+  # WiFi RSSI
+  # Wi-Fi RSSI diagnostic, also displayed in the TFT footer.
   - platform: wifi_signal
     name: "WiFi RSSI"
     id: wifi_sig
@@ -1597,6 +1969,9 @@ sensor:
     unit_of_measurement: "dBm"
     device_class: signal_strength
 
+  # --------------------------------------------------------------------------
+  # local_encoder
+  # Physical local rotary encoder on GPIO17/GPIO18. In voltage mode it changes can_voltage_set and recalculates current to preserve total power; in power mode it changes dc_sum_power_set. Every movement wakes/restarts the backlight timer.
   - platform: rotary_encoder
     id: local_encoder
 
@@ -1648,6 +2023,9 @@ sensor:
                   id: dc_sum_power_set
                   cycle: false
 
+  # --------------------------------------------------------------------------
+  # Input Temperature Module-1
+  # Rectifier input temperature decoded from cyclic CAN telemetry and scaled by 1/1024.
   - platform: template
     name: "Input Temperature Module-1"
     id: input_temperature_sensor_1
@@ -1659,6 +2037,9 @@ sensor:
           return x / id(voltage_scaling_factor);  
     icon: "mdi:thermometer"
 
+  # --------------------------------------------------------------------------
+  # Input Temperature Module-2
+  # Rectifier input temperature decoded from cyclic CAN telemetry and scaled by 1/1024.
   - platform: template
     name: "Input Temperature Module-2"
     id: input_temperature_sensor_2
@@ -1670,6 +2051,9 @@ sensor:
           return x / id(voltage_scaling_factor);  
     icon: "mdi:thermometer"
 
+  # --------------------------------------------------------------------------
+  # Input Temperature Module-3
+  # Rectifier input temperature decoded from cyclic CAN telemetry and scaled by 1/1024.
   - platform: template
     name: "Input Temperature Module-3"
     id: input_temperature_sensor_3
@@ -1681,60 +2065,93 @@ sensor:
           return x / id(voltage_scaling_factor);  
     icon: "mdi:thermometer"
 
+  # --------------------------------------------------------------------------
+  # Scaling Factor Module-1
+  # Diagnostic publication of the dynamically detected current scaling factor.
   - platform: template
     name: "Scaling Factor Module-1"
     id: sf_value
     icon: "mdi:information-outline"
     update_interval: never
 
+  # --------------------------------------------------------------------------
+  # Pin 11 Module-1
+  # Shelf/address diagnostic extracted from the module capability/address response.
   - platform: template
     name: "Pin 11 Module-1"
     id: pin11_sensor_1
     update_interval: never
 
+  # --------------------------------------------------------------------------
+  # Pin 11 Module-2
+  # Shelf/address diagnostic extracted from the module capability/address response.
   - platform: template
     name: "Pin 11 Module-2"
     id: pin11_sensor_2
     update_interval: never
 
+  # --------------------------------------------------------------------------
+  # Pin 11 Module-3
+  # Shelf/address diagnostic extracted from the module capability/address response.
   - platform: template
     name: "Pin 11 Module-3"
     id: pin11_sensor_3
     update_interval: never
 
+  # --------------------------------------------------------------------------
+  # Pin 12 Module-1
+  # Slot/address diagnostic extracted from the module capability/address response.
   - platform: template
     name: "Pin 12 Module-1"
     id: pin12_sensor_1
     update_interval: never
 
+  # --------------------------------------------------------------------------
+  # Pin 12 Module-2
+  # Slot/address diagnostic extracted from the module capability/address response.
   - platform: template
     name: "Pin 12 Module-2"
     id: pin12_sensor_2
     update_interval: never
+  # --------------------------------------------------------------------------
+  # Pin 12 Module-3
+  # Slot/address diagnostic extracted from the module capability/address response.
   - platform: template
 
     name: "Pin 12 Module-3"
     id: pin12_sensor_3
     update_interval: never
 
+  # --------------------------------------------------------------------------
+  # Max Current Capability Module-1
+  # Maximum output-current capability reported by this rectifier during discovery.
   - platform: template
     name: "Max Current Capability Module-1"
     id: max_current_sensor_1
     unit_of_measurement: "A"
     update_interval: never
 
+  # --------------------------------------------------------------------------
+  # Max Current Capability Module-2
+  # Maximum output-current capability reported by this rectifier during discovery.
   - platform: template
     name: "Max Current Capability Module-2"
     id: max_current_sensor_2
     unit_of_measurement: "A"
     update_interval: never
 
+  # --------------------------------------------------------------------------
+  # Max Current Capability Module-3
+  # Maximum output-current capability reported by this rectifier during discovery.
   - platform: template
     name: "Max Current Capability Module-3"
     id: max_current_sensor_3
     unit_of_measurement: "A"
     update_interval: never
 
+  # --------------------------------------------------------------------------
+  # Output Current alt Module-1
+  # Alternate DC current reading from the 0x100x117E frame, scaled with amp_scaling_factor.
   - platform: template
     name: "Output Current alt Module-1"
     id: alt_amp_sensor_1
@@ -1746,6 +2163,9 @@ sensor:
     icon: "mdi:current-dc"
     update_interval: 3s
 
+  # --------------------------------------------------------------------------
+  # Output Current alt Module-2
+  # Alternate DC current reading from the 0x100x117E frame, scaled with amp_scaling_factor.
   - platform: template
     name: "Output Current alt Module-2"
     id: alt_amp_sensor_2
@@ -1757,6 +2177,9 @@ sensor:
     icon: "mdi:current-dc"
     update_interval: 3s
 
+  # --------------------------------------------------------------------------
+  # Output Current alt Module-3
+  # Alternate DC current reading from the 0x100x117E frame, scaled with amp_scaling_factor.
   - platform: template
     name: "Output Current alt Module-3"
     id: alt_amp_sensor_3
@@ -1768,6 +2191,9 @@ sensor:
     icon: "mdi:current-dc"
     update_interval: 3s
 
+  # --------------------------------------------------------------------------
+  # AC Power In Module-1
+  # Individual rectifier AC input power from telemetry selector 0x70; raw value is divided by 1024.
   - platform: template
     name: "AC Power In Module-1"
     id: ac_power_in_sensor_1
@@ -1779,6 +2205,9 @@ sensor:
     icon: "mdi:flash"
     update_interval: 3s  # Updates every second
 
+  # --------------------------------------------------------------------------
+  # AC Power In Module-2
+  # Individual rectifier AC input power from telemetry selector 0x70; raw value is divided by 1024.
   - platform: template
     name: "AC Power In Module-2"
     id: ac_power_in_sensor_2
@@ -1790,6 +2219,9 @@ sensor:
     icon: "mdi:flash"
     update_interval: 3s  # Updates every second
 
+  # --------------------------------------------------------------------------
+  # AC Power In Module-3
+  # Individual rectifier AC input power from telemetry selector 0x70; raw value is divided by 1024.
   - platform: template
     name: "AC Power In Module-3"
     id: ac_power_in_sensor_3
@@ -1801,6 +2233,9 @@ sensor:
     icon: "mdi:flash"
     update_interval: 3s  # Updates every second
 
+  # --------------------------------------------------------------------------
+  # DC Power Out Module-1
+  # Individual rectifier DC output power from telemetry selector 0x73; raw value is divided by 1024.
   - platform: template
     name: "DC Power Out Module-1"
     id: dc_power_out_sensor_1
@@ -1812,6 +2247,9 @@ sensor:
     icon: "mdi:flash"
     update_interval: 3s  # Updates every second
 
+  # --------------------------------------------------------------------------
+  # DC Power Out Module-2
+  # Individual rectifier DC output power from telemetry selector 0x73; raw value is divided by 1024.
   - platform: template
     name: "DC Power Out Module-2"
     id: dc_power_out_sensor_2
@@ -1823,6 +2261,9 @@ sensor:
     icon: "mdi:flash"
     update_interval: 3s  # Updates every second
 
+  # --------------------------------------------------------------------------
+  # DC Power Out Module-3
+  # Individual rectifier DC output power from telemetry selector 0x73; raw value is divided by 1024.
   - platform: template
     name: "DC Power Out Module-3"
     id: dc_power_out_sensor_3
@@ -1834,6 +2275,9 @@ sensor:
     icon: "mdi:flash"
     update_interval: 3s  # Updates every second
 
+  # --------------------------------------------------------------------------
+  # Grid Frequency Module-1
+  # Individual rectifier AC input frequency from telemetry selector 0x71; raw value is divided by 1024.
   - platform: template
     name: "Grid Frequency Module-1"
     id: grid_frequency_sensor_1
@@ -1845,6 +2289,9 @@ sensor:
     icon: "mdi:transmission-tower-import"
     update_interval: 3s
 
+  # --------------------------------------------------------------------------
+  # Grid Frequency Module-2
+  # Individual rectifier AC input frequency from telemetry selector 0x71; raw value is divided by 1024.
   - platform: template
     name: "Grid Frequency Module-2"
     id: grid_frequency_sensor_2
@@ -1856,6 +2303,9 @@ sensor:
     icon: "mdi:transmission-tower-import"
     update_interval: 3s
 
+  # --------------------------------------------------------------------------
+  # Grid Frequency Module-3
+  # Individual rectifier AC input frequency from telemetry selector 0x71; raw value is divided by 1024.
   - platform: template
     name: "Grid Frequency Module-3"
     id: grid_frequency_sensor_3
@@ -1867,6 +2317,9 @@ sensor:
     icon: "mdi:transmission-tower-import"
     update_interval: 3s
 
+  # --------------------------------------------------------------------------
+  # Input Current Module-1
+  # Individual rectifier AC input current from telemetry selector 0x72; raw value is divided by 1024.
   - platform: template
     name: "Input Current Module-1"
     id: input_current_sensor_1
@@ -1878,6 +2331,9 @@ sensor:
     icon: "mdi:current-ac"
     update_interval: 3s
 
+  # --------------------------------------------------------------------------
+  # Input Current Module-2
+  # Individual rectifier AC input current from telemetry selector 0x72; raw value is divided by 1024.
   - platform: template
     name: "Input Current Module-2"
     id: input_current_sensor_2
@@ -1889,6 +2345,9 @@ sensor:
     icon: "mdi:current-ac"
     update_interval: 3s
 
+  # --------------------------------------------------------------------------
+  # Input Current Module-3
+  # Individual rectifier AC input current from telemetry selector 0x72; raw value is divided by 1024.
   - platform: template
     name: "Input Current Module-3"
     id: input_current_sensor_3
@@ -1900,6 +2359,9 @@ sensor:
     icon: "mdi:current-ac"
     update_interval: 3s
 
+  # --------------------------------------------------------------------------
+  # Output Voltage Module-1
+  # Individual rectifier DC output voltage from telemetry selector 0x75; raw value is divided by 1024.
   - platform: template
     name: "Output Voltage Module-1"
     id: output_voltage_sensor_1
@@ -1911,6 +2373,9 @@ sensor:
     icon: "mdi:current-dc"
     update_interval: 3s
 
+  # --------------------------------------------------------------------------
+  # Output Voltage Module-2
+  # Individual rectifier DC output voltage from telemetry selector 0x75; raw value is divided by 1024.
   - platform: template
     name: "Output Voltage Module-2"
     id: output_voltage_sensor_2
@@ -1922,6 +2387,9 @@ sensor:
     icon: "mdi:current-dc"
     update_interval: 3s
 
+  # --------------------------------------------------------------------------
+  # Output Voltage Module-3
+  # Individual rectifier DC output voltage from telemetry selector 0x75; raw value is divided by 1024.
   - platform: template
     name: "Output Voltage Module-3"
     id: output_voltage_sensor_3
@@ -1933,6 +2401,9 @@ sensor:
     icon: "mdi:current-dc"
     update_interval: 3s
 
+  # --------------------------------------------------------------------------
+  # Input Grid Voltage Module-1
+  # Individual rectifier AC input voltage from telemetry selector 0x78; raw value is divided by 1024.
   - platform: template
     name: "Input Grid Voltage Module-1"
     id: input_grid_voltage_sensor_1
@@ -1944,6 +2415,9 @@ sensor:
     icon: "mdi:sine-wave"
     update_interval: 10s
 
+  # --------------------------------------------------------------------------
+  # Input Grid Voltage Module-2
+  # Individual rectifier AC input voltage from telemetry selector 0x78; raw value is divided by 1024.
   - platform: template
     name: "Input Grid Voltage Module-2"
     id: input_grid_voltage_sensor_2
@@ -1955,6 +2429,9 @@ sensor:
     icon: "mdi:sine-wave"
     update_interval: 3s
 
+  # --------------------------------------------------------------------------
+  # Input Grid Voltage Module-3
+  # Individual rectifier AC input voltage from telemetry selector 0x78; raw value is divided by 1024.
   - platform: template
     name: "Input Grid Voltage Module-3"
     id: input_grid_voltage_sensor_3
@@ -1966,6 +2443,9 @@ sensor:
     icon: "mdi:sine-wave"
     update_interval: 3s
 
+  # --------------------------------------------------------------------------
+  # Output Temperature Module-1
+  # Rectifier output temperature from telemetry selector 0x7F. The on_value safety automation sends an individual OFF command if this module exceeds 90 °C.
   - platform: template
     name: "Output Temperature Module-1"
     id: output_temperature_sensor_1
@@ -1990,6 +2470,9 @@ sensor:
                   level: INFO
                   format: "Temperature exceeded 90°C. Sent CAN OFF message."
 
+  # --------------------------------------------------------------------------
+  # Output Temperature Module-2
+  # Rectifier output temperature from telemetry selector 0x7F. The on_value safety automation sends an individual OFF command if this module exceeds 90 °C.
   - platform: template
     name: "Output Temperature Module-2"
     id: output_temperature_sensor_2
@@ -2014,6 +2497,9 @@ sensor:
                   level: INFO
                   format: "Temperature exceeded 90°C. Sent CAN OFF message."
 
+  # --------------------------------------------------------------------------
+  # Output Temperature Module-3
+  # Rectifier output temperature from telemetry selector 0x7F. The on_value safety automation sends an individual OFF command if this module exceeds 90 °C.
   - platform: template
     name: "Output Temperature Module-3"
     id: output_temperature_sensor_3
@@ -2038,6 +2524,9 @@ sensor:
                   level: INFO
                   format: "Temperature exceeded 90°C. Sent CAN OFF message."
 
+  # --------------------------------------------------------------------------
+  # Output Current Module-1
+  # Main rectifier DC output current from telemetry selector 0x81; raw value is divided by 1024.
   - platform: template
     name: "Output Current Module-1"
     id: output_current_sensor_1
@@ -2049,6 +2538,9 @@ sensor:
     icon: "mdi:current-dc"
     update_interval: 3s
 
+  # --------------------------------------------------------------------------
+  # Output Current Module-2
+  # Main rectifier DC output current from telemetry selector 0x81; raw value is divided by 1024.
   - platform: template
     name: "Output Current Module-2"
     id: output_current_sensor_2
@@ -2060,6 +2552,9 @@ sensor:
     icon: "mdi:current-dc"
     update_interval: 3s
 
+  # --------------------------------------------------------------------------
+  # Output Current Module-3
+  # Main rectifier DC output current from telemetry selector 0x81; raw value is divided by 1024.
   - platform: template
     name: "Output Current Module-3"
     id: output_current_sensor_3
@@ -2071,6 +2566,9 @@ sensor:
     icon: "mdi:current-dc"
     update_interval: 3s
 
+  # --------------------------------------------------------------------------
+  # Set Max Output Current Module-1
+  # Module-reported active maximum-current setpoint from telemetry selector 0x76, scaled with amp_scaling_factor.
   - platform: template
     name: "Set Max Output Current Module-1"
     id: set_max_output_current_sensor_1
@@ -2082,6 +2580,9 @@ sensor:
     icon: "mdi:current-ac"
     update_interval: 3s
 
+  # --------------------------------------------------------------------------
+  # Set Max Output Current Module-2
+  # Module-reported active maximum-current setpoint from telemetry selector 0x76, scaled with amp_scaling_factor.
   - platform: template
     name: "Set Max Output Current Module-2"
     id: set_max_output_current_sensor_2
@@ -2093,6 +2594,9 @@ sensor:
     icon: "mdi:current-ac"
     update_interval: 3s
 
+  # --------------------------------------------------------------------------
+  # Set Max Output Current Module-3
+  # Module-reported active maximum-current setpoint from telemetry selector 0x76, scaled with amp_scaling_factor.
   - platform: template
     name: "Set Max Output Current Module-3"
     id: set_max_output_current_sensor_3
@@ -2106,6 +2610,9 @@ sensor:
 
   # Combined AC Power sensor
   # Only modules with valid CAN communication are included.
+  # --------------------------------------------------------------------------
+  # Combined AC Power Module-1-2-3
+  # CAN-aware AC power total. Only currently reachable modules with numeric values are summed. If none are valid, NAN is returned so the entity becomes unavailable instead of reporting a false 0 kW.
   - platform: template
     name: "Combined AC Power Module-1-2-3"
     id: combined_ac_power_sensor
@@ -2146,6 +2653,9 @@ sensor:
 
   # Combined DC Power sensor
   # Only modules with valid CAN communication are included.
+  # --------------------------------------------------------------------------
+  # Combined DC Power Module-1-2-3
+  # CAN-aware DC power total with the same stale-data protection as the AC total. The lambda sums watts and the multiply filter converts W to kW.
   - platform: template
     name: "Combined DC Power Module-1-2-3"
     id: combined_dc_power_sensor
@@ -2185,6 +2695,9 @@ sensor:
     icon: "mdi:flash"
 
   # Combined Daily AC Energy kWh sensor
+  # --------------------------------------------------------------------------
+  # AC Power In Total (kWh)
+  # Daily AC energy integrator driven by the CAN-aware combined AC power sensor and SNTP time.
   - platform: total_daily_energy
     name: "AC Power In Total (kWh)"
     power_id: combined_ac_power_sensor
@@ -2194,6 +2707,9 @@ sensor:
     icon: "mdi:counter"
 
   # Combined Daily DC Energy kWh sensor
+  # --------------------------------------------------------------------------
+  # DC Power Out Total (kWh)
+  # Daily DC energy integrator driven by the CAN-aware combined DC power sensor and SNTP time.
   - platform: total_daily_energy
     name: "DC Power Out Total (kWh)"
     power_id: combined_dc_power_sensor
@@ -2202,7 +2718,18 @@ sensor:
     accuracy_decimals: 3
     icon: "mdi:counter"
 
+# ==============================================================================
+# USER-ADJUSTABLE SETPOINTS
+# ==============================================================================
+# Canonical voltage/current/fallback/power controls. Web, Home Assistant, MQTT
+# and the encoder ultimately update these entities so CAN encoding remains
+# centralized in one place.
 number:
+  # --------------------------------------------------------------------------
+  # CAN Voltage Set
+  # Primary broadcast DC voltage setpoint (49..58 V, 0.1 V steps).
+  # The value is encoded as V * voltage_scaling_factor and sent in bytes 6..7 of
+  # broadcast CAN ID 0x108080FE.
   - platform: template
     name: "CAN Voltage Set"
     id: can_voltage_set
@@ -2216,6 +2743,7 @@ number:
     on_value:
       then:
         - lambda: |-
+            // Encode engineering volts into the rectifier's fixed-point CAN format.
             float voltage_value = id(can_voltage_set).state;
             int scaled_value = (int)(voltage_value * id(voltage_scaling_factor));
             
@@ -2234,6 +2762,11 @@ number:
               return can_data;
 
   # Amp Setting
+  # --------------------------------------------------------------------------
+  # CAN Amp Set
+  # Primary per-rectifier current setpoint. The requested current is
+  # validated against the detected module model/capability, encoded using
+  # amp_scaling_factor and broadcast with command selector 0x03.
   - platform: template
     name: "CAN Amp Set"
     id: can_amp_set
@@ -2249,6 +2782,8 @@ number:
       then:
         - delay: 0.01s
         - lambda: |-
+            // Validate the requested current against the detected rectifier model before
+            // creating the raw CAN setpoint.
             float amp_value = id(can_amp_set).state;
             float max_amps = 75;  // Default max amps
             if (id(amp_scaling_factor) == 15) {
@@ -2283,6 +2818,10 @@ number:
               return can_data;
 
   # Fallback Amp Setting
+  # --------------------------------------------------------------------------
+  # Fallback Amp Set
+  # Fallback current parameter. Uses the same model-dependent
+  # current validation but command selector 0x04.
   - platform: template
     name: "Fallback Amp Set"
     id: fallback_amp_set
@@ -2298,6 +2837,7 @@ number:
       then:
         - delay: 0.01s
         - lambda: |-
+            // Fallback current uses the same model-dependent current limit.
             float fallback_amp_value = id(fallback_amp_set).state;
             float max_amps = 75;  // Default max amps
             if (id(amp_scaling_factor) == 15) {
@@ -2332,6 +2872,10 @@ number:
               return can_data;
 
   # Fallback Voltage Setting
+  # --------------------------------------------------------------------------
+  # Fallback Voltage Set
+  # Fallback voltage parameter. Encoded with the same
+  # V * 1024 fixed-point representation and command selector 0x01.
   - platform: template
     name: "Fallback Voltage Set"
     id: fallback_voltage_set
@@ -2345,6 +2889,7 @@ number:
     on_value:
       then:
         - lambda: |-
+            // Fallback voltage uses the same V * 1024 representation as active voltage.
             float fallback_voltage_value = id(fallback_voltage_set).state;  // Get the fallback voltage value
             int fallback_scaled_value = (int)(fallback_voltage_value * id(voltage_scaling_factor));  // Scale the voltage value
             
@@ -2363,6 +2908,11 @@ number:
               can_data[7] = fallback_scaled_value & 0xFF;         // Encode the low byte in the 8th byte
               return can_data;
 
+  # --------------------------------------------------------------------------
+  # DC Sum Power Set
+  # Convenience total-power target for local operation. This is
+  # not a native rectifier parameter; changing it runs apply_dc_sum_power, which
+  # derives an equal current target for all three modules.
   - platform: template
     name: "DC Sum Power Set"
     id: dc_sum_power_set
@@ -2379,7 +2929,15 @@ number:
       then:
         - script.execute: apply_dc_sum_power
 
+# ==============================================================================
+# LOCAL BUTTON AND CAN CONNECTIVITY
+# ==============================================================================
+# Includes the rotary encoder push button and three connectivity watchdogs that
+# indicate whether fresh cyclic telemetry is arriving from each rectifier.
 binary_sensor:
+  # --------------------------------------------------------------------------
+  # local_encoder_button
+  # Physical encoder push button on GPIO2. The internal pull-up makes the input active-low. A 30 ms delayed_on_off filter debounces the switch. on_press wakes the display; short press changes encoder mode; >=3 s long press starts/stops the rectifiers.
   - platform: gpio
     id: local_encoder_button
     internal: true
@@ -2402,8 +2960,8 @@ binary_sensor:
 
     on_multi_click:
 
-      # Kurzer Druck:
-      # Auswahl Voltage <-> Power
+      # Short press:
+      # Toggle encoder editing mode: DC Voltage <-> Total DC Power.
       - timing:
           - ON for 50ms to 2800ms
           - OFF for at least 50ms
@@ -2419,8 +2977,8 @@ binary_sensor:
                   : "DC Sum Power"
               );
           - component.update: my_tft
-      # Langer Druck:
-      # Charger ON/OFF
+      # Long press:
+      # Toggle all rectifier modules ON/OFF for local blackstart control.
       - timing:
           - ON for at least 3000ms
         then:
@@ -2442,6 +3000,9 @@ binary_sensor:
   # considered online when a valid cyclic telemetry frame was received within
   # the last 3 seconds. Unsigned subtraction keeps this safe across millis()
   # wrap-around.
+  # --------------------------------------------------------------------------
+  # CAN Communication Module-1
+  # CAN connectivity watchdog for Module 1. True only when a valid cyclic telemetry frame was received within the last 3000 ms. Unsigned millis() subtraction remains correct across wrap-around.
   - platform: template
     id: can_com_ok_1
     name: "CAN Communication Module-1"
@@ -2451,6 +3012,9 @@ binary_sensor:
       return id(last_can_rx_1) != 0 &&
              (uint32_t) (millis() - id(last_can_rx_1)) < 3000U;
 
+  # --------------------------------------------------------------------------
+  # CAN Communication Module-2
+  # CAN connectivity watchdog for Module 2. True only when a valid cyclic telemetry frame was received within the last 3000 ms. Unsigned millis() subtraction remains correct across wrap-around.
   - platform: template
     id: can_com_ok_2
     name: "CAN Communication Module-2"
@@ -2460,6 +3024,9 @@ binary_sensor:
       return id(last_can_rx_2) != 0 &&
              (uint32_t) (millis() - id(last_can_rx_2)) < 3000U;
 
+  # --------------------------------------------------------------------------
+  # CAN Communication Module-3
+  # CAN connectivity watchdog for Module 3. True only when a valid cyclic telemetry frame was received within the last 3000 ms. Unsigned millis() subtraction remains correct across wrap-around.
   - platform: template
     id: can_com_ok_3
     name: "CAN Communication Module-3"
@@ -2469,8 +3036,16 @@ binary_sensor:
       return id(last_can_rx_3) != 0 &&
              (uint32_t) (millis() - id(last_can_rx_3)) < 3000U;
 
+# ==============================================================================
+# PERIODIC CAN TRAFFIC
+# ==============================================================================
+# Polls live telemetry frequently and periodically reasserts active voltage and
+# current setpoints so modules that restart can recover the requested settings.
 interval:
   # Interval for sending the first CAN message every 05 seconds
+  # --------------------------------------------------------------------------
+  # Periodic task: 577ms
+  # Fast cyclic telemetry polling. Module 1 is requested first; Modules 2 and 3 are staggered by 183 ms and 193 ms to spread CAN traffic instead of creating one large burst.
   - interval: 577ms
     then:
       - canbus.send:
@@ -2489,6 +3064,9 @@ interval:
           data: [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
 
   # Interval for sending voltage CAN message every 30 seconds
+  # --------------------------------------------------------------------------
+  # Periodic task: 30s
+  # Reasserts the broadcast DC voltage setpoint every 30 seconds so restarted/late modules recover it.
   - interval: 30s
     then:
       - canbus.send:
@@ -2503,6 +3081,9 @@ interval:
             return can_data;
 
   # Interval for sending Amp setting CAN message every 10 seconds
+  # --------------------------------------------------------------------------
+  # Periodic task: 30s
+  # Reasserts the broadcast current setpoint every 30 seconds for the same recovery reason.
   - interval: 30s
     then:
       - canbus.send:
@@ -2519,7 +3100,14 @@ interval:
 
 
 # Define a button component for turning ON
+
+# ==============================================================================
+# MANUAL CONTROL BUTTON ENTITIES
+# ==============================================================================
+# Home Assistant/web controls for broadcast and individual ON/OFF commands,
+# fan overrides and manual module discovery.
 button:
+  # Broadcast ON command to all three rectifiers.
   - platform: template
     name: "!ON!"
     on_press:
@@ -2529,6 +3117,7 @@ button:
             can_id: 0x108080FE
             data: [0x01, 0x32, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
 
+  # Individual ON command for one rectifier; useful for diagnostics and service.
   - platform: template
     name: "ON Module-1"
     on_press:
@@ -2538,6 +3127,7 @@ button:
             can_id: 0x108180FE
             data: [0x01, 0x32, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
 
+  # Individual ON command for one rectifier; useful for diagnostics and service.
   - platform: template
     name: "ON Module-2"
     on_press:
@@ -2547,6 +3137,7 @@ button:
             can_id: 0x108280FE
             data: [0x01, 0x32, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
 
+  # Individual ON command for one rectifier; useful for diagnostics and service.
   - platform: template
     name: "ON Module-3"
     on_press:
@@ -2557,6 +3148,7 @@ button:
             data: [0x01, 0x32, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
 
 # Define a button component for turning OFF
+  # Broadcast OFF command to all three rectifiers.
   - platform: template
     name: "!OFF!"
     on_press:
@@ -2566,6 +3158,7 @@ button:
             can_id: 0x108080FE
             data: [0x01, 0x32, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00]
 
+  # Individual OFF command for one rectifier.
   - platform: template
     name: "OFF Module-1"
     on_press:
@@ -2574,6 +3167,7 @@ button:
             use_extended_id: true
             can_id: 0x108180FE
             data: [0x01, 0x32, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00]
+  # Individual OFF command for one rectifier.
   - platform: template
     name: "OFF Module-2"
     on_press:
@@ -2583,6 +3177,7 @@ button:
             can_id: 0x108280FE
             data: [0x01, 0x32, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00]
 
+  # Individual OFF command for one rectifier.
   - platform: template
     name: "OFF Module-3"
     on_press:
@@ -2593,6 +3188,7 @@ button:
             data: [0x01, 0x32, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00]
 
 # Define a button component for setting the fan to full speed
+  # Broadcast fan override: force full fan speed on all rectifiers.
   - platform: template
     name: "Fan Full Speed Button"
     on_press:
@@ -2602,6 +3198,7 @@ button:
             can_id: 0x108080FE
             data: [0x01, 0x34, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00]
 
+  # Per-module full-speed fan override.
   - platform: template
     name: "Fan UNIT-1 Full Speed Button"
     on_press:
@@ -2611,6 +3208,7 @@ button:
             can_id: 0x108180FE
             data: [0x01, 0x34, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00]
 
+  # Per-module full-speed fan override.
   - platform: template
     name: "Fan UNIT-2 Full Speed Button"
     on_press:
@@ -2620,6 +3218,7 @@ button:
             can_id: 0x108280FE
             data: [0x01, 0x34, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00]
 
+  # Per-module full-speed fan override.
   - platform: template
     name: "Fan UNIT-3 Full Speed Button"
     on_press:
@@ -2630,6 +3229,7 @@ button:
             data: [0x01, 0x34, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00]
 
 # Define a button component for setting the fan to auto mode
+  # Broadcast command returning all rectifier fans to automatic control.
   - platform: template
     name: "Fan Auto Mode Button"
     on_press:
@@ -2640,92 +3240,119 @@ button:
             data: [0x01, 0x34, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
 
 
+  # Manually launches the full module property/capability discovery sequence.
   - platform: template
     name: "SETUP"
     on_press:
       then:
         - script.execute: setup_sequence
 
+# ==============================================================================
+# TEXT / STATUS SENSORS AND MQTT COMMAND INPUTS
+# ==============================================================================
+# Publishes device/module text information and receives custom MQTT command
+# topics that feed the same canonical setpoint entities used elsewhere.
 text_sensor:
+  # Publishes IP/network information; the IP address is also shown in the TFT footer.
   - platform: wifi_info
     ip_address:
       id: ip_address
+  # Publishes the running ESPHome firmware version.
   - platform: version
     name: "ESPHome Version"
+  # Publishes ESPHome device information and the last reset reason.
   - platform: debug
     device:
       name: "Device Info"
     reset_reason:
       name: "Reset Reason"
 
+  # Human-readable ON/OFF/ERROR state decoded from the module's 0x100x117E frame.
   - platform: template
     id: power_state_sensor_1
     name: "Pwr Module-1"
     
+  # Human-readable ON/OFF/ERROR state decoded from the module's 0x100x117E frame.
   - platform: template
     id: power_state_sensor_2
     name: "Pwr Module-2"
 
+  # Human-readable ON/OFF/ERROR state decoded from the module's 0x100x117E frame.
   - platform: template
     id: power_state_sensor_3
     name: "Pwr Module-3"
 
+  # Static module type parsed from the multi-frame property response.
   - platform: template
     name: "Type Module-1"
     id: module_type_sensor_1
 
+  # Static module type parsed from the multi-frame property response.
   - platform: template
     name: "Type Module-2"
     id: module_type_sensor_2
 
+  # Static module type parsed from the multi-frame property response.
   - platform: template
     name: "Type Module-3"
     id: module_type_sensor_3
 
+  # Module barcode parsed from the property response.
   - platform: template
     name: "Barcode Module-1"
     id: barcode_sensor_1
 
+  # Module barcode parsed from the property response.
   - platform: template
     name: "Barcode Module-2"
     id: barcode_sensor_2
 
+  # Module barcode parsed from the property response.
   - platform: template
     name: "Barcode Module-3"
     id: barcode_sensor_3
 
+  # Module item/part number parsed from the property response.
   - platform: template
     name: "Item Number Module-1"
     id: item_no_sensor_1
 
+  # Module item/part number parsed from the property response.
   - platform: template
     name: "Item Number Module-2"
     id: item_no_sensor_2
 
+  # Module item/part number parsed from the property response.
   - platform: template
     name: "Item Number Module-3"
     id: item_no_sensor_3
 
+  # Module description parsed from the property response.
   - platform: template
     name: "Description Module-1"
     id: description_sensor_1
 
+  # Module description parsed from the property response.
   - platform: template
     name: "Description Module-2"
     id: description_sensor_2
 
+  # Module description parsed from the property response.
   - platform: template
     name: "Description Module-3"
     id: description_sensor_3
 
+  # Manufacturing information parsed from the property response.
   - platform: template
     name: "Mfg Module-1"
     id: manufactured_sensor_1
 
+  # Manufacturing information parsed from the property response.
   - platform: template
     name: "Mfg Module-2"
     id: manufactured_sensor_2
 
+  # Manufacturing information parsed from the property response.
   - platform: template
     name: "Mfg Module-3"
     id: manufactured_sensor_3
@@ -2733,6 +3360,7 @@ text_sensor:
 ###################################################################################################################################
 ##This Block must be added to enable voltage and currrent SET topics when using the mqtt: component
 ## Subscribe to MQTT topic to update CAN voltage
+  # MQTT voltage command. Payload is parsed/validated and then published into can_voltage_set.
   - platform: mqtt_subscribe
     name: "CAN Voltage MQTT"
     id: mqtt_voltage_input
@@ -2751,6 +3379,7 @@ text_sensor:
               ESP_LOGW("custom", "Received out-of-range voltage value: %.1fV", mqtt_voltage);
             }
   # Subscribe to MQTT topic to update CAN amps
+  # MQTT current command. Payload is parsed/validated and then published into can_amp_set.
   - platform: mqtt_subscribe
     name: "CAN Amps MQTT"
     id: mqtt_amp_input
@@ -2769,6 +3398,7 @@ text_sensor:
               ESP_LOGW("custom", "Received out-of-range amp value: %.1fA", mqtt_amp);
             }
   # Subscribe to MQTT topic to update Fallback Voltage
+  # MQTT fallback-voltage command feeding fallback_voltage_set.
   - platform: mqtt_subscribe
     name: "Fallback Voltage MQTT"
     id: mqtt_fallback_voltage
@@ -2787,6 +3417,7 @@ text_sensor:
               ESP_LOGW("custom", "Received out-of-range fallback voltage value: %.1fV", fallback_voltage);
             }
   # Subscribe to MQTT topic to update Fallback Amps
+  # MQTT fallback-current command feeding fallback_amp_set.
   - platform: mqtt_subscribe
     name: "Fallback Amps MQTT"
     id: mqtt_fallback_amp
@@ -2806,10 +3437,17 @@ text_sensor:
             }
  #############################################################################################################################
  
+
+# ==============================================================================
+# DISPLAY FONTS
+# ==============================================================================
+# Roboto fonts are embedded at compile time with an explicit glyph list to
+# reduce flash usage while supporting every character used by the TFT UI.
 font:
   - file:
       type: gfonts
       family: Roboto
+    # 12 px footer font for IP address, CPU temperature and Wi-Fi RSSI.
     id: font_footer
     size: 12
     glyphs: "äöüÄÖÜßabcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!§$%&=?<> .,:-_/()°µ@€²³"
@@ -2817,6 +3455,7 @@ font:
   - file:
       type: gfonts
       family: Roboto
+    # 20 px normal UI font for telemetry and labels.
     id: font_small
     size: 20
     glyphs: "äöüÄÖÜßabcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!§$%&=?<> .,:-_/()°µ@€²³"
@@ -2825,6 +3464,7 @@ font:
       type: gfonts
       family: Roboto
       weight: bold
+    # 20 px bold UI font for headings, selected values and fault messages.
     id: font_small_bold
     size: 20
     glyphs: "äöüÄÖÜßabcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!§$%&=?<> .,:-_/()°µ@€²³"
@@ -2832,23 +3472,33 @@ font:
   - file:
       type: gfonts
       family: Roboto
+    # 28 px title font.
     id: font_large
     size: 28
     glyphs: "äöüÄÖÜßabcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!§$%&=?<> .,:-_/()°µ@€²³"
 
+# ==============================================================================
+# DISPLAY COLORS
+# ==============================================================================
+# Named colors used by the TFT lambda for normal text, warnings, healthy state
+# and the currently selected encoder parameter.
 color:
+  # Normal text on the white background.
   - id: color_black
     red: 0%
     green: 0%
     blue: 0%
+  # Faults/warnings and DC-output emphasis.
   - id: color_red
     red: 100%
     green: 0%
     blue: 0%
+  # Healthy/running state and the setpoint-section heading.
   - id: color_green
     red: 0%
     green: 100%
     blue: 0%
+  # AC emphasis, partial-state information and active encoder selection.
   - id: color_blue
     red: 0%
     green: 0%
