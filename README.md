@@ -161,7 +161,7 @@ If substantial portions of upstream code are copied or adapted, retain the appli
                           +--------------> ESPHome Web UI
 ```
 
-The ESP32 does not carry the CAN physical layer directly. A suitable **3.3 V CAN transceiver** is required between the ESP32 CAN TX/RX signals and CAN-H/CAN-L.
+The ESP32 does not carry the CAN physical layer directly. This build uses an **SN65HVD230 3.3 V CAN transceiver module** between the ESP32 CAN TX/RX signals and CAN-H/CAN-L; the exact module is linked in the [CAN Interface](#can-interface) section.
 
 ---
 
@@ -289,7 +289,14 @@ The calculated current is limited to **75 A per module** in the current firmware
 
 The ESP32-S3 contains the CAN/TWAI controller, but an external physical-layer transceiver is required.
 
-Use a **3.3 V compatible CAN transceiver**, for example an SN65HVD230/VP230-class device or another suitable transceiver for your hardware design.
+This project uses the following 3.3 V CAN transceiver module:
+
+- **[CAN Bus Module SN65HVD230 Transceiver](https://www.ebay.de/itm/187121483571?mkevt=1&mkpid=0&emsid=e11412.m144671.l197929&mkcid=7&ch=osgood&euid=a3c94179b4b74512bcd68a2bfb44fee2&bu=43162872420&exe=0&ext=0&osub=-1%7E1&crd=20260816180453&segname=11412)**
+- Transceiver IC: **SN65HVD230**
+- Logic supply: **3.3 V**
+- Purpose: converts the ESP32-S3 CAN/TWAI TX/RX logic signals to the differential **CAN-H / CAN-L** physical bus used by the three rectifier modules.
+
+The SN65HVD230 is a suitable match for the ESP32-S3 because it is designed for 3.3 V logic operation. Other electrically compatible CAN transceivers can also be used, but the wiring and supply requirements may differ.
 
 Current GPIO assignment:
 
@@ -866,7 +873,7 @@ Because failed modules are excluded from combined power calculations, stale meas
 
 - ESPHome **2026.7.4 or newer**
 - ESP32-S3-WROOM-1-N16R8 controller board
-- suitable 3.3 V CAN transceiver
+- **[CAN Bus Module SN65HVD230 Transceiver](https://www.ebay.de/itm/187121483571?mkevt=1&mkpid=0&emsid=e11412.m144671.l197929&mkcid=7&ch=osgood&euid=a3c94179b4b74512bcd68a2bfb44fee2&bu=43162872420&exe=0&ext=0&osub=-1%7E1&crd=20260816180453&segname=11412)** or another suitable 3.3 V CAN transceiver
 - ILI9488 display if local display functionality is required
 - rotary encoder with push button if local blackstart control is required
 - one to three compatible rectifier modules; this project is specifically developed for three R4875G1 units
