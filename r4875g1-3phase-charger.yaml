@@ -42,6 +42,7 @@ web_server:
 api:
   encryption:
     key: !secret api_encryption_key
+  reboot_timeout: 0s
 
 ota:
   - platform: esphome
@@ -55,6 +56,7 @@ wifi:
 
   # 8 MB PSRAM auch für WiFi-Allokationen verwenden
   use_psram: true
+  reboot_timeout: 0s
 
   ap:
     ssid: HG⁄DG⁄Technik⁄C Fallback Hotspot
@@ -67,6 +69,7 @@ mqtt:
   broker: !secret mqtt_host
   username: !secret mqtt_username
   password: !secret mqtt_password
+  reboot_timeout: 0s
 
 i2c:
   - id: bus_a
@@ -530,6 +533,77 @@ script:
           auto call = id(can_amp_input).make_call();
           call.set_value(current_per_rectifier);
           call.perform();
+
+  - id: blackstart_start
+    mode: single
+    then:
+      # Calculate current from voltage and total power
+      - script.execute: apply_dc_sum_power
+      - script.wait: apply_dc_sum_power
+
+      # Send voltage explicitly
+      - canbus.send:
+          use_extended_id: true
+          can_id: 0x108080FE
+          data: !lambda |-
+            std::vector<uint8_t> can_data(8, 0x00);
+
+            can_data[0] = 0x01;
+
+            int scaled_value =
+                (int)(id(can_voltage_input).state *
+                      id(voltage_scaling_factor));
+
+            can_data[6] = (scaled_value >> 8) & 0xFF;
+            can_data[7] = scaled_value & 0xFF;
+
+            return can_data;
+
+      - delay: 50ms
+
+      # Send calculated current explicitly
+      - canbus.send:
+          use_extended_id: true
+          can_id: 0x108080FE
+          data: !lambda |-
+            std::vector<uint8_t> can_data(8, 0x00);
+
+            can_data[0] = 0x01;
+            can_data[1] = 0x03;
+
+            int scaled_value =
+                (int)(id(can_amp_input).state *
+                      id(amp_scaling_factor));
+
+            can_data[6] = (scaled_value >> 8) & 0xFF;
+            can_data[7] = scaled_value & 0xFF;
+
+            return can_data;
+
+      - delay: 250ms
+
+      # Start all rectifiers
+      - canbus.send:
+          use_extended_id: true
+          can_id: 0x108080FE
+          data: [0x01, 0x32, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+
+      - logger.log:
+          level: INFO
+          format: "BLACKSTART: Rectifiers switched ON"
+
+
+  - id: blackstart_stop
+    mode: single
+    then:
+      - canbus.send:
+          use_extended_id: true
+          can_id: 0x108080FE
+          data: [0x01, 0x32, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00]
+
+      - logger.log:
+          level: INFO
+          format: "BLACKSTART: Rectifiers switched OFF"
 
 canbus:
   - platform: esp32_can
@@ -1918,12 +1992,12 @@ number:
     name: "DC Sum Power Set"
     id: dc_sum_power_set
     unit_of_measurement: "kW"
-    min_value: 0.5
-    max_value: 12.0
+    min_value: 0.25
+    max_value: 11.0
     step: 0.25
     optimistic: true
     restore_value: true
-    initial_value: 3.0
+    initial_value: 1.0
     mode: BOX
 
     on_value:
@@ -1968,32 +2042,19 @@ binary_sensor:
       # Langer Druck:
       # Charger ON/OFF
       - timing:
-          - ON for at least 1500ms
+          - ON for at least 3000ms
         then:
           - if:
               condition:
-                lambda: 'return !id(charger_local_on);'
+                lambda: |-
+                  return
+                    id(power_state_sensor1).state == "ON" ||
+                    id(power_state_sensor2).state == "ON" ||
+                    id(power_state_sensor3).state == "ON";
               then:
-                - script.execute: apply_dc_sum_power
-
-                - canbus.send:
-                    use_extended_id: true
-                    can_id: 0x108080FE
-                    data: [0x01, 0x32, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
-
-                - lambda: |-
-                    id(charger_local_on) = true;
-                    ESP_LOGI("encoder", "Local charger START");
-
+                - script.execute: blackstart_stop
               else:
-                - canbus.send:
-                    use_extended_id: true
-                    can_id: 0x108080FE
-                    data: [0x01, 0x32, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00]
-
-                - lambda: |-
-                    id(charger_local_on) = false;
-                    ESP_LOGI("encoder", "Local charger STOP");
+                - script.execute: blackstart_start
 
 interval:
   # Interval for sending the first CAN message every 05 seconds
