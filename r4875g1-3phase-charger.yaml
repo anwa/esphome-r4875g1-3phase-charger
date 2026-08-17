@@ -2105,6 +2105,7 @@ sensor:
     update_interval: 3s
 
   # Combined AC Power sensor
+  # Only modules with valid CAN communication are included.
   - platform: template
     name: "Combined AC Power Module-1-2-3"
     id: combined_ac_power_sensor
@@ -2112,22 +2113,75 @@ sensor:
     accuracy_decimals: 2
     filters:
       - multiply: 0.001
-    update_interval: 3s  # Updates every second
+    update_interval: 1s
     lambda: |-
-      return id(ac_power_in_sensor_1).state + id(ac_power_in_sensor_2).state + id(ac_power_in_sensor_3).state;
+      float power = 0.0f;
+      int valid_modules = 0;
+
+      if (id(can_com_ok_1).state &&
+          !isnan(id(ac_power_in_sensor_1).state)) {
+        power += id(ac_power_in_sensor_1).state;
+        valid_modules++;
+      }
+
+      if (id(can_com_ok_2).state &&
+          !isnan(id(ac_power_in_sensor_2).state)) {
+        power += id(ac_power_in_sensor_2).state;
+        valid_modules++;
+      }
+
+      if (id(can_com_ok_3).state &&
+          !isnan(id(ac_power_in_sensor_3).state)) {
+        power += id(ac_power_in_sensor_3).state;
+        valid_modules++;
+      }
+
+      // No valid CAN data available
+      if (valid_modules == 0) {
+        return NAN;
+      }
+
+      return power;
     icon: "mdi:flash"
 
   # Combined DC Power sensor
+  # Only modules with valid CAN communication are included.
   - platform: template
     name: "Combined DC Power Module-1-2-3"
     id: combined_dc_power_sensor
     unit_of_measurement: "kW"
     accuracy_decimals: 2
-    update_interval: 3s  # Updates every second
     filters:
       - multiply: 0.001
+    update_interval: 1s
     lambda: |-
-      return id(dc_power_out_sensor_1).state + id(dc_power_out_sensor_2).state + id(dc_power_out_sensor_3).state;
+      float power = 0.0f;
+      int valid_modules = 0;
+
+      if (id(can_com_ok_1).state &&
+          !isnan(id(dc_power_out_sensor_1).state)) {
+        power += id(dc_power_out_sensor_1).state;
+        valid_modules++;
+      }
+
+      if (id(can_com_ok_2).state &&
+          !isnan(id(dc_power_out_sensor_2).state)) {
+        power += id(dc_power_out_sensor_2).state;
+        valid_modules++;
+      }
+
+      if (id(can_com_ok_3).state &&
+          !isnan(id(dc_power_out_sensor_3).state)) {
+        power += id(dc_power_out_sensor_3).state;
+        valid_modules++;
+      }
+
+      // No valid CAN data available
+      if (valid_modules == 0) {
+        return NAN;
+      }
+
+      return power;
     icon: "mdi:flash"
 
   # Combined Daily AC Energy kWh sensor
