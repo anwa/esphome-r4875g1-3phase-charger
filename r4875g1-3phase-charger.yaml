@@ -1,5 +1,7 @@
-# Board: Espressif ESP32-S3-DevKitC-1-N16R8V (16 MB Flash Quad, 8 MB PSRAM Octal)
-# Definition: definitions/boards/esp32-s3-devkitc1-n16r8/manifest.yaml
+# Board: Androegg ESP32-S3 UNO
+# Module: ESP32-S3-WROOM-1-N16R8
+# Flash: 16 MB Quad SPI
+# PSRAM: 8 MB Octal SPI
 
 esphome:
   name: hg-dg-technik-charger3ph
@@ -8,12 +10,14 @@ esphome:
 
 esp32:
   variant: esp32s3
+
   flash_size: 16MB
   flash_mode: qio
   flash_frequency: 80MHz
   cpu_frequency: 240MHz
 
   toolchain: esp-idf
+
   framework:
     type: esp-idf
     version: recommended
@@ -24,7 +28,7 @@ psram:
   mode: octal
   speed: 80MHz
   ignore_not_found: false
-  
+
 logger:
   level: INFO
   baud_rate: 115200
@@ -37,7 +41,7 @@ web_server:
 
 api:
   encryption:
-    key: "E7ruqNQ7VmQqGHwSNuDjCynZl+7Sz0UcAYXSvlzXoaU="
+    key: !secret api_encryption_key
 
 ota:
   - platform: esphome
@@ -45,21 +49,28 @@ ota:
 wifi:
   ssid: !secret wifi_ssid
   password: !secret wifi_password
+
+  # Gerät wird dauerhaft versorgt -> maximale WLAN-Stabilität
+  power_save_mode: none
+
+  # 8 MB PSRAM auch für WiFi-Allokationen verwenden
+  use_psram: true
+
   ap:
     ssid: HG⁄DG⁄Technik⁄C Fallback Hotspot
-    password: "7aeXsQf7sM7D"
+    password: !secret fallback_ap_password
 
 captive_portal:
 
 mqtt:
-   id: mqtt_client
-   broker: !secret mqtt_host
-   username: !secret mqtt_username
-   password: !secret mqtt_password
+  id: mqtt_client
+  broker: !secret mqtt_host
+  username: !secret mqtt_username
+  password: !secret mqtt_password
 
 i2c:
   - id: bus_a
-    sda: GPIO8
+    sda: GPIO10
     scl: GPIO9
     scan: true
 
@@ -113,7 +124,9 @@ display:
     dimensions:
       height: 320
       width: 480
-    rotation: 90
+    transform:
+      swap_xy: true
+      mirror_x: true
     update_interval: 1s
     lambda: |-
       it.fill(Color::WHITE);
@@ -748,7 +761,7 @@ canbus:
                 id(board_properties3) += frame_data;
               }
               ESP_LOGI("board_properties3", "Total Frames Captured: %d", id(frame_counter_msg_start3));
-              ESP_LOGI("board_properties3", "Final Board Properties: %s", id(board_properties2).c_str());
+              ESP_LOGI("board_properties3", "Final Board Properties: %s", id(board_properties3).c_str());
 
               auto extract_value = [](const std::string &data, const std::string &key) -> std::string {
                 size_t start = data.find(key);
@@ -778,7 +791,7 @@ canbus:
               bool all_keys_found = true;
 
               for (const auto& mapping : mappings) {
-                std::string value = extract_value(id(board_properties2), mapping.key);
+                std::string value = extract_value(id(board_properties3), mapping.key);
                 if (!value.empty()) {
                   ESP_LOGI("board_properties3", "Extracted %s: %s", mapping.key, value.c_str());
                   mapping.sensor->publish_state(value.c_str());
@@ -946,7 +959,7 @@ canbus:
               if (packet_number == 1) {
                 uint8_t max_current_raw = packet_data[5];
                 float max_current = max_current_raw / 2; // Adjust scaling factor if necessary
-                ESP_LOGI("canbus", "Board 2 Max current capability: %.1f A", max_current);
+                ESP_LOGI("canbus", "Board 3 Max current capability: %.1f A", max_current);
                 id(max_current_sensor3).publish_state(max_current);
                 id(max_current_found_board_3) = true; // Set the flag to true
               }
