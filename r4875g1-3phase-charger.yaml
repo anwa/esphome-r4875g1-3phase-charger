@@ -64,6 +64,27 @@ wifi:
 
 captive_portal:
 
+time:
+  - platform: sntp
+    id: sntp_time
+    timezone: Europe/Berlin
+    servers:
+      - 0.de.pool.ntp.org
+      - 1.de.pool.ntp.org
+      - 2.de.pool.ntp.org
+    on_time:
+      - seconds: 0
+        then:
+          - lambda: |-
+              ESP_LOGI("zeit", "Uhrzeit: %02d:%02d:%02d", id(sntp_time).now().hour, id(sntp_time).now().minute, id(sntp_time).now().second);
+      - seconds: 0
+        minutes: /1  # jede Minute
+        then:
+          - component.update: my_tft
+
+debug:
+  update_interval: 5s
+
 mqtt:
   id: mqtt_client
   broker: !secret mqtt_host
@@ -133,18 +154,73 @@ display:
     update_interval: 500ms
     lambda: |-
       it.fill(Color::WHITE);
-      it.print(10, 10, id(font_large), id(color_black), "3 Phase Battery Charger R4875G1");
-      it.strftime(10, 40, id(font_small), id(color_black), "%d.%m.%Y %H:%M", id(sntp_time).now());
-      it.printf(10, 70, id(font_small_bold), id(color_blue), "AC Input: %.3f kW", id(combined_ac_power_sensor).state);
-      it.printf(10, 95, id(font_small), id(color_black), "%.1f V - %.1f A - %.1f Hz - %.0f kW", id(ac_voltage), id(ac_current), id(ac_frequency), id(combined_ac_power_sensor).state);
-      it.printf(10, 125, id(font_small_bold), id(color_red), "DC Output: %.3f kW", id(combined_dc_power_sensor).state);
-      it.printf(10, 150, id(font_small), id(color_black), "L1: %.2f V - %.1f A - %.0f W - %.1f °C / %.1f °C", id(dc_voltage), id(dc_current), id(dc_power), id(input_temperature_sensor_device1).state, id(output_temperature_sensor_device1).state);
-      it.printf(10, 170, id(font_small), id(color_black), "L2: %.2f V - %.1f A - %.0f W - %.1f °C / %.1f °C", id(dc_voltage), id(dc_current), id(dc_power), id(input_temperature_sensor_device2).state, id(output_temperature_sensor_device2).state);
-      it.printf(10, 190, id(font_small), id(color_black), "L3: %.2f V - %.1f A - %.0f W - %.1f °C / %.1f °C", id(dc_voltage), id(dc_current), id(dc_power), id(input_temperature_sensor_device3).state, id(output_temperature_sensor_device3).state);
+      it.print(
+        10, 10,
+        id(font_large),
+        id(color_black),
+        "3 Phase Battery Charger R4875G1"
+      );
+      it.strftime(
+        10, 40,
+        id(font_small),
+        id(color_black),
+        "%d.%m.%Y %H:%M",
+        id(sntp_time).now()
+      );
+      it.printf(10, 70,
+        id(font_small_bold),
+        id(color_blue),
+        "AC Input: %.3f kW",
+        id(combined_ac_power_sensor).state
+        );
+      it.printf(10, 95,
+        id(font_small),
+        id(color_black),
+        "%.1f V - %.1f A - %.1f Hz - %.0f kW",
+        id(ac_voltage),
+        id(ac_current),
+        id(ac_frequency),
+        id(combined_ac_power_sensor).state
+      );
+      it.printf(10, 125,
+        id(font_small_bold),
+        id(color_red),
+        "DC Output: %.3f kW",
+        id(combined_dc_power_sensor).state
+      );
+      it.printf(10, 150,
+        id(font_small),
+        id(color_black),
+        "L1: %.2f V - %.1f A - %.0f W - %.1f °C / %.1f °C",
+        id(dc_voltage),
+        id(dc_current),
+        id(dc_power),
+        id(input_temperature_sensor_device1).state,
+        id(output_temperature_sensor_device1).state
+      );
+      it.printf(10, 170,
+        id(font_small),
+        id(color_black),
+        "L2: %.2f V - %.1f A - %.0f W - %.1f °C / %.1f °C",
+        id(dc_voltage),
+        id(dc_current),
+        id(dc_power),
+        id(input_temperature_sensor_device2).state,
+        id(output_temperature_sensor_device2).state
+      );
+      it.printf(10, 190,
+        id(font_small),
+        id(color_black),
+        "L3: %.2f V - %.1f A - %.0f W - %.1f °C / %.1f °C",
+        id(dc_voltage),
+        id(dc_current),
+        id(dc_power),
+        id(input_temperature_sensor_device3).state,
+        id(output_temperature_sensor_device3).state
+      );
       // -----------------------------------------------------------------
       // Local / Blackstart setpoints
       // -----------------------------------------------------------------
-
       it.print(
         10, 220,
         id(font_small_bold),
@@ -235,27 +311,6 @@ display:
       it.printf(10, 300, id(font_footer), id(color_black), "IP: %s", id(ip_address).state.c_str());
       it.printf(200, 300, id(font_footer), id(color_black), "CPU Temp: %.1f °C", id(cpu_temp).state);
       it.printf(390, 300, id(font_footer), id(color_black), "WiFi: %.1f dBm", id(wifi_sig).state);
-
-time:
-  - platform: sntp
-    id: sntp_time
-    timezone: Europe/Berlin
-    servers:
-      - 0.de.pool.ntp.org
-      - 1.de.pool.ntp.org
-      - 2.de.pool.ntp.org
-    on_time:
-      - seconds: 0
-        then:
-          - lambda: |-
-              ESP_LOGI("zeit", "Uhrzeit: %02d:%02d:%02d", id(sntp_time).now().hour, id(sntp_time).now().minute, id(sntp_time).now().second);
-      - seconds: 0
-        minutes: /1  # jede Minute
-        then:
-          - component.update: my_tft
-
-debug:
-  update_interval: 5s
 
 globals:
   - id: encoder_mode
