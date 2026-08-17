@@ -172,25 +172,126 @@ display:
         id(sntp_time).now()
       );
 
-      it.printf(
-        10, 70,
-        id(font_small_bold),
-        id(color_blue),
-        "AC Input: %.3f kW",
-        id(combined_ac_power_sensor).state
+      // -----------------------------------------------------------------
+      // AC Input - use all modules with valid CAN communication
+      // -----------------------------------------------------------------
+
+      int ac_modules_ok = 0;
+
+      float ac_voltage_sum = 0.0f;
+      float ac_current_sum = 0.0f;
+      float ac_frequency_sum = 0.0f;
+      float ac_power_sum = 0.0f;
+
+
+      // Module 1
+      if (id(can_com_ok_1).state) {
+
+        if (!isnan(id(input_grid_voltage_sensor_1).state) &&
+            !isnan(id(input_current_sensor_1).state) &&
+            !isnan(id(grid_frequency_sensor_1).state) &&
+            !isnan(id(ac_power_in_sensor_1).state)) {
+
+          ac_voltage_sum += id(input_grid_voltage_sensor_1).state;
+          ac_current_sum += id(input_current_sensor_1).state;
+          ac_frequency_sum += id(grid_frequency_sensor_1).state;
+          ac_power_sum += id(ac_power_in_sensor_1).state;
+
+          ac_modules_ok++;
+        }
+      }
+
+      // Module 2
+      if (id(can_com_ok_2).state) {
+
+        if (!isnan(id(input_grid_voltage_sensor_2).state) &&
+            !isnan(id(input_current_sensor_2).state) &&
+            !isnan(id(grid_frequency_sensor_2).state) &&
+            !isnan(id(ac_power_in_sensor_2).state)) {
+
+          ac_voltage_sum += id(input_grid_voltage_sensor_2).state;
+          ac_current_sum += id(input_current_sensor_2).state;
+          ac_frequency_sum += id(grid_frequency_sensor_2).state;
+          ac_power_sum += id(ac_power_in_sensor_2).state;
+
+          ac_modules_ok++;
+        }
+      }
+
+      // Module 3
+      if (id(can_com_ok_3).state) {
+
+        if (!isnan(id(input_grid_voltage_sensor_3).state) &&
+            !isnan(id(input_current_sensor_3).state) &&
+            !isnan(id(grid_frequency_sensor_3).state) &&
+            !isnan(id(ac_power_in_sensor_3).state)) {
+
+          ac_voltage_sum += id(input_grid_voltage_sensor_3).state;
+          ac_current_sum += id(input_current_sensor_3).state;
+          ac_frequency_sum += id(grid_frequency_sensor_3).state;
+          ac_power_sum += id(ac_power_in_sensor_3).state;
+
+          ac_modules_ok++;
+        }
+      }
+
+      // -----------------------------------------------------------------
+      // Display AC values
+      // -----------------------------------------------------------------
+
+      if (ac_modules_ok > 0) {
+
+        float ac_voltage_avg =
+            ac_voltage_sum / ac_modules_ok;
+
+        float ac_current_avg =
+            ac_current_sum / ac_modules_ok;
+
+        float ac_frequency_avg =
+            ac_frequency_sum / ac_modules_ok;
+
+        float ac_power_kw =
+            ac_power_sum / 1000.0f;
+
+
+        // Header
+        it.printf(
+          10, 70,
+          id(font_small_bold),
+          id(color_blue),
+          "AC Input: %.3f kW  (%d/3)",
+          ac_power_kw,
+          ac_modules_ok
         );
 
-      it.printf(
-        10, 95,
-        id(font_small),
-        id(color_black),
-        "%.1f V - %.1f A - %.1f Hz - %.0f kW",
-        id(input_grid_voltage_sensor_1).state,
-        id(input_current_sensor_1).state,
-        id(grid_frequency_sensor_1).state,
-        id(combined_ac_power_sensor).state
-      );
 
+        // Details
+        it.printf(
+          10, 95,
+          id(font_small),
+          id(color_black),
+          "%.1f V - %.1f A - %.1f Hz",
+          ac_voltage_avg,
+          ac_current_avg,
+          ac_frequency_avg
+        );
+
+      } else {
+
+        it.print(
+          10, 70,
+          id(font_small_bold),
+          id(color_red),
+          "AC Input: CAN bus communication fault!"
+        );
+
+        it.print(
+          10, 95,
+          id(font_small),
+          id(color_red),
+          "No charger module reachable"
+        );
+      }
       it.printf(10, 125,
         id(font_small_bold),
         id(color_red),
