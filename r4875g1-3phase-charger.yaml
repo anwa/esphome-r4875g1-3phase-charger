@@ -195,8 +195,8 @@ display:
         id(dc_voltage),
         id(dc_current),
         id(dc_power),
-        id(input_temperature_sensor_device1).state,
-        id(output_temperature_sensor_device1).state
+        id(input_temperature_sensor_1).state,
+        id(output_temperature_sensor_1).state
       );
       it.printf(10, 170,
         id(font_small),
@@ -205,8 +205,8 @@ display:
         id(dc_voltage),
         id(dc_current),
         id(dc_power),
-        id(input_temperature_sensor_device2).state,
-        id(output_temperature_sensor_device2).state
+        id(input_temperature_sensor_2).state,
+        id(output_temperature_sensor_2).state
       );
       it.printf(10, 190,
         id(font_small),
@@ -215,8 +215,8 @@ display:
         id(dc_voltage),
         id(dc_current),
         id(dc_power),
-        id(input_temperature_sensor_device3).state,
-        id(output_temperature_sensor_device3).state
+        id(input_temperature_sensor_3).state,
+        id(output_temperature_sensor_3).state
       );
       // -----------------------------------------------------------------
       // Local / Blackstart setpoints
@@ -231,9 +231,9 @@ display:
       // Actual rectifier status
       int rectifiers_on = 0;
 
-      if (id(power_state_sensor1).state == "ON") rectifiers_on++;
-      if (id(power_state_sensor2).state == "ON") rectifiers_on++;
-      if (id(power_state_sensor3).state == "ON") rectifiers_on++;
+      if (id(power_state_sensor_1).state == "ON") rectifiers_on++;
+      if (id(power_state_sensor_2).state == "ON") rectifiers_on++;
+      if (id(power_state_sensor_3).state == "ON") rectifiers_on++;
 
       if (rectifiers_on == 3) {
 
@@ -276,7 +276,7 @@ display:
           id(font_small_bold),
           id(color_blue),
           "> DC Voltage: %.1f V",
-          id(can_voltage_input).state
+          id(can_voltage_set).state
         );
 
         it.printf(
@@ -285,7 +285,7 @@ display:
           id(color_black),
           "  DC Power: %.2f kW  -  %.1f A/unit",
           id(dc_sum_power_set).state,
-          id(can_amp_input).state
+          id(can_amp_set).state
         );
 
       } else {
@@ -296,7 +296,7 @@ display:
           id(font_small),
           id(color_black),
           "  DC Voltage: %.1f V",
-          id(can_voltage_input).state
+          id(can_voltage_set).state
         );
 
         it.printf(
@@ -305,7 +305,7 @@ display:
           id(color_blue),
           "> DC Power: %.2f kW  -  %.1f A/unit",
           id(dc_sum_power_set).state,
-          id(can_amp_input).state
+          id(can_amp_set).state
         );
       }
       it.printf(10, 300, id(font_footer), id(color_black), "IP: %s", id(ip_address).state.c_str());
@@ -371,122 +371,122 @@ globals:
     initial_value: "1024"
     restore_value: True
 
-  - id: max_current_found_board_1
+  - id: max_current_found_1
     type: bool
     restore_value: no
     initial_value: "false"
 
-  - id: max_current_found_board_2
+  - id: max_current_found_2
     type: bool
     restore_value: no
     initial_value: "false"
 
-  - id: max_current_found_board_3
+  - id: max_current_found_3
     type: bool
     restore_value: no
     initial_value: "false"
 
-  - id: data_found_board_1
+  - id: data_found_1
     type: bool
     restore_value: no
     initial_value: "false"
 
-  - id: data_found_board_2
+  - id: data_found_2
     type: bool
     restore_value: no
     initial_value: "false"
 
-  - id: data_found_board_3
+  - id: data_found_3
     type: bool
     restore_value: no
     initial_value: "false"
 
-  - id: board_properties1
+  - id: module_properties_1
     type: std::string
     restore_value: no
     initial_value: '""'
 
-  - id: board_properties2
+  - id: module_properties_2
     type: std::string
     restore_value: no
     initial_value: '""'
 
-  - id: board_properties3
+  - id: module_properties_3
     type: std::string
     restore_value: no
     initial_value: '""'
 
-  - id: board_properties_complete1
+  - id: module_properties_complete_1
     type: bool
     restore_value: no
     initial_value: 'false'
 
-  - id: board_properties_complete2
+  - id: module_properties_complete_2
     type: bool
     restore_value: no
     initial_value: "false"
 
-  - id: board_properties_complete3
+  - id: module_properties_complete_3
     type: bool
     restore_value: no
     initial_value: "false"
 
-  - id: frame_counter_bp1
+  - id: frame_counter_bp_1
     type: int
     restore_value: no
     initial_value: '0'
 
-  - id: frame_counter_bp2
+  - id: frame_counter_bp_2
     type: int
     restore_value: no
     initial_value: '0'
 
-  - id: frame_counter_bp3
+  - id: frame_counter_bp_3
     type: int
     restore_value: no
     initial_value: '0'
 
-  - id: frame_counter_msg_start1
+  - id: frame_counter_msg_start_1
     type: int
     restore_value: no
     initial_value: '0'
 
-  - id: frame_counter_msg_start2
+  - id: frame_counter_msg_start_2
     type: int
     restore_value: no
     initial_value: '0'
 
-  - id: frame_counter_msg_start3
+  - id: frame_counter_msg_start_3
     type: int
     restore_value: no
     initial_value: '0'
 
-  - id: search_counter_board_1
+  - id: search_counter_1
     type: int
     restore_value: no
     initial_value: '0'
 
-  - id: search_counter_board_2
+  - id: search_counter_2
     type: int
     restore_value: no
     initial_value: '0'
 
-  - id: search_counter_board_3
+  - id: search_counter_3
     type: int
     restore_value: no
     initial_value: '0'
 
 script:
-  - id: detect_board_1_properties
+  - id: detect_module_1_properties
     mode: single
     then:
       - lambda: |-
-          id(board_properties_complete1) = false; // Reset the completion flag before starting
-          id(frame_counter_bp1) = 0; // Reset the frame counter
+          id(module_properties_complete_1) = false; // Reset the completion flag before starting
+          id(frame_counter_bp_1) = 0; // Reset the frame counter
       - while:
           condition:
             lambda: |-
-              return !id(board_properties_complete1) && id(frame_counter_bp1) < 3;
+              return !id(module_properties_complete_1) && id(frame_counter_bp_1) < 3;
           then:
             - canbus.send:
                 can_id: 0x1081D2FE
@@ -494,25 +494,25 @@ script:
                 data: [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
             - delay: 1s
             - lambda: |-
-                id(frame_counter_bp1) += 1; // Increment the frame counter
-                ESP_LOGI("board_properties", "Frame Counter: %d", id(frame_counter_bp1));
+                id(frame_counter_bp_1) += 1; // Increment the frame counter
+                ESP_LOGI("module_properties", "Frame Counter: %d", id(frame_counter_bp_1));
       - lambda: |-
-          if (id(board_properties_complete1)) {
-            ESP_LOGI("board_properties", "Board properties detected successfully.");
+          if (id(module_properties_complete_1)) {
+            ESP_LOGI("module_properties", "Module properties detected successfully.");
           } else {
-            ESP_LOGW("board_properties1", "Fail-safe triggered: Loop stopped after 3 attempts.");
+            ESP_LOGW("module_properties_1", "Fail-safe triggered: Loop stopped after 3 attempts.");
           }
         
-  - id: detect_board_2_properties
+  - id: detect_module_2_properties
     mode: single
     then:
       - lambda: |-
-          id(board_properties_complete2) = false; // Reset the completion flag before starting
-          id(frame_counter_bp2) = 0; // Reset the frame counter
+          id(module_properties_complete_2) = false; // Reset the completion flag before starting
+          id(frame_counter_bp_2) = 0; // Reset the frame counter
       - while:
           condition:
             lambda: |-
-              return !id(board_properties_complete2) && id(frame_counter_bp2) < 3;
+              return !id(module_properties_complete_2) && id(frame_counter_bp_2) < 3;
           then:
             - canbus.send:
                 can_id: 0x1082D2FE
@@ -520,25 +520,25 @@ script:
                 data: [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
             - delay: 1s
             - lambda: |-
-                id(frame_counter_bp2) += 1; // Increment the frame counter
-                ESP_LOGI("board_properties2", "Frame Counter: %d", id(frame_counter_bp2));
+                id(frame_counter_bp_2) += 1; // Increment the frame counter
+                ESP_LOGI("module_properties_2", "Frame Counter: %d", id(frame_counter_bp_2));
       - lambda: |-
-          if (id(board_properties_complete2)) {
-            ESP_LOGI("board_properties2", "Board properties detected successfully.");
+          if (id(module_properties_complete_2)) {
+            ESP_LOGI("module_properties_2", "Module properties detected successfully.");
           } else {
-            ESP_LOGW("board_properties2", "Fail-safe triggered: Loop stopped after 3 attempts.");
+            ESP_LOGW("module_properties_2", "Fail-safe triggered: Loop stopped after 3 attempts.");
           }
 
-  - id: detect_board_3_properties
+  - id: detect_module_3_properties
     mode: single
     then:
       - lambda: |-
-          id(board_properties_complete3) = false; // Reset the completion flag before starting
-          id(frame_counter_bp3) = 0; // Reset the frame counter
+          id(module_properties_complete_3) = false; // Reset the completion flag before starting
+          id(frame_counter_bp_3) = 0; // Reset the frame counter
       - while:
           condition:
             lambda: |-
-              return !id(board_properties_complete3) && id(frame_counter_bp3) < 3;
+              return !id(module_properties_complete_3) && id(frame_counter_bp_3) < 3;
           then:
             - canbus.send:
                 can_id: 0x1083D2FE
@@ -546,25 +546,25 @@ script:
                 data: [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
             - delay: 1s
             - lambda: |-
-                id(frame_counter_bp3) += 1; // Increment the frame counter
-                ESP_LOGI("board_properties3", "Frame Counter: %d", id(frame_counter_bp3));
+                id(frame_counter_bp_3) += 1; // Increment the frame counter
+                ESP_LOGI("module_properties_3", "Frame Counter: %d", id(frame_counter_bp_3));
       - lambda: |-
-          if (id(board_properties_complete3)) {
-            ESP_LOGI("board_properties3", "Board properties detected successfully.");
+          if (id(module_properties_complete_3)) {
+            ESP_LOGI("module_properties_3", "Module properties detected successfully.");
           } else {
-            ESP_LOGW("board_properties3", "Fail-safe triggered: Loop stopped after 3 attempts.");
+            ESP_LOGW("module_properties_3", "Fail-safe triggered: Loop stopped after 3 attempts.");
           }
 
-  - id: detect_data_board_1
+  - id: detect_data_module_1
     then:
       - lambda: |-
-          id(max_current_found_board_1) = false; // Reset the flag before starting
-          id(data_found_board_1) = false; // Reset the flag before starting
-          id(search_counter_board_1) = 0; // Initialize a fail-safe counter
+          id(max_current_found_1) = false; // Reset the flag before starting
+          id(data_found_1) = false; // Reset the flag before starting
+          id(search_counter_1) = 0; // Initialize a fail-safe counter
       - while:
           condition:
             lambda: |-
-              return !(id(max_current_found_board_1) && id(data_found_board_1)) && id(search_counter_board_1) < 10;
+              return !(id(max_current_found_1) && id(data_found_1)) && id(search_counter_1) < 10;
           then:
             - canbus.send:
                 can_id: 0x108150fe
@@ -572,22 +572,22 @@ script:
                 data: [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
             - delay: 1s
             - lambda: |-
-                id(search_counter_board_1) += 1; // Increment the fail-safe counter
+                id(search_counter_1) += 1; // Increment the fail-safe counter
       - lambda: |-
-          if (id(search_counter_board_1) >= 20) {
+          if (id(search_counter_1) >= 20) {
             ESP_LOGW("canbus", "Fail-safe triggered: Loop stopped after 20 attempts.");
           }
 
-  - id: detect_data_board_2
+  - id: detect_data_module_2
     then:
       - lambda: |-
-          id(max_current_found_board_2) = false; // Reset the flag before starting
-          id(data_found_board_2) = false; // Reset the flag before starting
-          id(search_counter_board_2) = 0; // Initialize a fail-safe counter
+          id(max_current_found_2) = false; // Reset the flag before starting
+          id(data_found_2) = false; // Reset the flag before starting
+          id(search_counter_2) = 0; // Initialize a fail-safe counter
       - while:
           condition:
             lambda: |-
-              return !(id(max_current_found_board_2) && id(data_found_board_2)) && id(search_counter_board_2) < 10;
+              return !(id(max_current_found_2) && id(data_found_2)) && id(search_counter_2) < 10;
           then:
             - canbus.send:
                 can_id: 0x108250fe
@@ -595,22 +595,22 @@ script:
                 data: [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
             - delay: 1s
             - lambda: |-
-                id(search_counter_board_2) += 1; // Increment the fail-safe counter
+                id(search_counter_2) += 1; // Increment the fail-safe counter
       - lambda: |-
-          if (id(search_counter_board_2) >= 20) {
+          if (id(search_counter_2) >= 20) {
             ESP_LOGW("canbus", "Fail-safe triggered: Loop stopped after 20 attempts.");
           }
 
-  - id: detect_data_board_3
+  - id: detect_data_module_3
     then:
       - lambda: |-
-          id(max_current_found_board_3) = false; // Reset the flag before starting
-          id(data_found_board_3) = false; // Reset the flag before starting
-          id(search_counter_board_3) = 0; // Initialize a fail-safe counter
+          id(max_current_found_3) = false; // Reset the flag before starting
+          id(data_found_3) = false; // Reset the flag before starting
+          id(search_counter_3) = 0; // Initialize a fail-safe counter
       - while:
           condition:
             lambda: |-
-              return !(id(max_current_found_board_3) && id(data_found_board_3)) && id(search_counter_board_3) < 10;
+              return !(id(max_current_found_3) && id(data_found_3)) && id(search_counter_3) < 10;
           then:
             - canbus.send:
                 can_id: 0x108350fe
@@ -618,35 +618,35 @@ script:
                 data: [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
             - delay: 1s
             - lambda: |-
-                id(search_counter_board_3) += 1; // Increment the fail-safe counter
+                id(search_counter_3) += 1; // Increment the fail-safe counter
       - lambda: |-
-          if (id(search_counter_board_3) >= 20) {
+          if (id(search_counter_3) >= 20) {
             ESP_LOGW("canbus", "Fail-safe triggered: Loop stopped after 20 attempts.");
           }
 
   - id: setup_sequence
     mode: single
     then:
-      - script.execute: detect_board_1_properties
+      - script.execute: detect_module_1_properties
       - delay: 5s
-      - script.execute: detect_board_2_properties
+      - script.execute: detect_module_2_properties
       - delay: 5s
-      - script.execute: detect_board_3_properties
+      - script.execute: detect_module_3_properties
       - delay: 5s      
-      # Detect Data Board-1
-      - script.execute: detect_data_board_1
+      # Detect Data Module-1
+      - script.execute: detect_data_module_1
       - delay: 20s
-      # Detect Data Board-2
-      - script.execute: detect_data_board_2
+      # Detect Data Module-2
+      - script.execute: detect_data_module_2
       - delay: 20s
-      # Detect Data Board-3
-      - script.execute: detect_data_board_3
+      # Detect Data Module-3
+      - script.execute: detect_data_module_3
 
   - id: apply_dc_sum_power
     mode: restart
     then:
       - lambda: |-
-          float voltage = id(can_voltage_input).state;
+          float voltage = id(can_voltage_set).state;
           float power_kw = id(dc_sum_power_set).state;
 
           if (isnan(voltage) || voltage < 1.0) {
@@ -673,7 +673,7 @@ script:
             current_per_rectifier
           );
 
-          auto call = id(can_amp_input).make_call();
+          auto call = id(can_amp_set).make_call();
           call.set_value(current_per_rectifier);
           call.perform();
 
@@ -694,7 +694,7 @@ script:
             can_data[0] = 0x01;
 
             int scaled_value =
-                (int)(id(can_voltage_input).state *
+                (int)(id(can_voltage_set).state *
                       id(voltage_scaling_factor));
 
             can_data[6] = (scaled_value >> 8) & 0xFF;
@@ -715,7 +715,7 @@ script:
             can_data[1] = 0x03;
 
             int scaled_value =
-                (int)(id(can_amp_input).state *
+                (int)(id(can_amp_set).state *
                       id(amp_scaling_factor));
 
             can_data[6] = (scaled_value >> 8) & 0xFF;
@@ -756,6 +756,305 @@ canbus:
     bit_rate: 125kbps
     use_extended_id: true
     on_frame:
+      # Handler for CAN ID 0x1081D27F (Packet x)
+      # Handle module 1 properties message start
+      - can_id: 0x1081D27F
+        use_extended_id: true
+        then:
+          - lambda: |-
+              static bool message_started = false;
+
+              if (x.size() == 8) {
+                if ((uint8_t)x[0] == 0x00 && (uint8_t)x[1] == 0x01) {
+                  id(module_properties_1) = "";  // Clear existing string
+                  id(module_properties_complete_1) = false;
+                  message_started = true;
+                  id(frame_counter_msg_start_1) = 0;  // Reset global frame counter
+                  ESP_LOGI("module_properties_1", "Message Start Detected");
+                }
+
+                if (message_started) {
+                  // Extract and append all payload bytes starting from x[2]
+                  std::string frame_data((char*)&x[2], 6);  // 6 bytes of payload
+                  id(module_properties_1) += frame_data;
+
+                  // Increment global frame counter
+                  id(frame_counter_msg_start_1)++;
+
+                  // Log for debugging purposes
+                  ESP_LOGD("module_properties_1", "Captured Frame #%d: %s", id(frame_counter_msg_start_1), frame_data.c_str());
+                }
+              }
+
+      # Handler for CAN ID 0x1082D27F (Packet x)
+      # Handle module 2 properties message start
+      - can_id: 0x1082D27F
+        use_extended_id: true
+        then:
+          - lambda: |-
+              static bool message_started = false;
+
+              if (x.size() == 8) {
+                if ((uint8_t)x[0] == 0x00 && (uint8_t)x[1] == 0x01) {
+                  id(module_properties_2) = "";  // Clear existing string
+                  id(module_properties_complete_2) = false;
+                  message_started = true;
+                  id(frame_counter_msg_start_2) = 0;  // Reset global frame counter
+                  ESP_LOGI("module_properties_2", "Message Start Detected");
+                }
+
+                if (message_started) {
+                  // Extract and append all payload bytes starting from x[2]
+                  std::string frame_data((char*)&x[2], 6);  // 6 bytes of payload
+                  id(module_properties_2) += frame_data;
+
+                  // Increment global frame counter
+                  id(frame_counter_msg_start_2)++;
+
+                  // Log for debugging purposes
+                  ESP_LOGD("module_properties_2", "Captured Frame #%d: %s", id(frame_counter_msg_start_2), frame_data.c_str());
+                }
+              }
+
+      # Handler for CAN ID 0x1083D27F (Packet x)
+      # Handle module 3 properties message start
+      - can_id: 0x1083D27F
+        use_extended_id: true
+        then:
+          - lambda: |-
+              static bool message_started = false;
+
+              if (x.size() == 8) {
+                if ((uint8_t)x[0] == 0x00 && (uint8_t)x[1] == 0x01) {
+                  id(module_properties_3) = "";  // Clear existing string
+                  id(module_properties_complete_3) = false;
+                  message_started = true;
+                  id(frame_counter_msg_start_3) = 0;  // Reset global frame counter
+                  ESP_LOGI("module_properties_3", "Message Start Detected");
+                }
+
+                if (message_started) {
+                  // Extract and append all payload bytes starting from x[2]
+                  std::string frame_data((char*)&x[2], 6);  // 6 bytes of payload
+                  id(module_properties_3) += frame_data;
+
+                  // Increment global frame counter
+                  id(frame_counter_msg_start_3)++;
+
+                  // Log for debugging purposes
+                  ESP_LOGD("module_properties_3", "Captured Frame #%d: %s", id(frame_counter_msg_start_3), frame_data.c_str());
+                }
+              }
+
+      # Handler for CAN ID 0x1081D27E (Packet x)
+      # Signal end of module 1 properties message
+      - can_id: 0x1081D27E
+        use_extended_id: true
+        then:
+          - lambda: |-
+              // Check if this frame contains additional payload data
+              if (x.size() > 2) {  // Payload starts at x[2], so size must be > 2
+                std::string frame_data((char*)&x[2], x.size() - 2);
+                ESP_LOGI("module_properties_1", "End Message Frame Data: %s", frame_data.c_str());
+
+                // Append any remaining data to module_properties_1
+                id(module_properties_1) += frame_data;
+              }
+              ESP_LOGI("module_properties_1", "Total Frames Captured: %d", id(frame_counter_msg_start_1));
+              ESP_LOGI("module_properties_1", "Final Module Properties: %s", id(module_properties_1).c_str());
+
+              auto extract_value = [](const std::string &data, const std::string &key) -> std::string {
+                size_t start = data.find(key);
+                if (start == std::string::npos) return "";
+                start += key.size();
+                size_t end = data.find_first_of("\r\n", start);
+                if (end == std::string::npos) {
+                  end = data.size();
+                }
+                return data.substr(start, end - start);
+              };
+
+              struct KeySensorPair {
+                const char* key;
+                esphome::template_::TemplateTextSensor* sensor;
+                bool* flag;
+              };
+
+              KeySensorPair mappings[] = {
+                {"ModuleType=", id(module_type_sensor_1), nullptr},
+                {"BarCode=", id(barcode_sensor_1), nullptr},
+                {"Item=", id(item_no_sensor_1), nullptr},
+                {"Description=", id(description_sensor_1), nullptr},
+                {"Manufactured=", id(manufactured_sensor_1), &id(module_properties_complete_1)}
+              };
+
+              bool all_keys_found = true;
+
+              for (const auto& mapping : mappings) {
+                std::string value = extract_value(id(module_properties_1), mapping.key);
+                if (!value.empty()) {
+                  ESP_LOGI("module_properties_1", "Extracted %s: %s", mapping.key, value.c_str());
+                  mapping.sensor->publish_state(value.c_str());
+                  if (mapping.flag) {
+                    *(mapping.flag) = true;
+                  }
+                } else {
+                  ESP_LOGW("module_properties_1", "Key %s not found or empty", mapping.key);
+                  all_keys_found = false;
+                  if (mapping.flag) {
+                    *(mapping.flag) = false; // Reset the flag for missing keys
+                  }
+                }
+              }
+
+              if (all_keys_found) {
+                id(module_properties_complete_1) = true; // Mark completion only if all keys are found
+                ESP_LOGI("module_properties_1", "All required keys found. Marking as complete.");
+              } else {
+                id(module_properties_complete_1) = false; // Explicitly reset the flag if keys are missing
+                ESP_LOGI("module_properties_1", "Not all keys found. Will continue processing.");
+              }
+
+      # Handler for CAN ID 0x1082D27E (Packet x)
+      # Signal end of module 2 properties message
+      - can_id: 0x1082D27E
+        use_extended_id: true
+        then:
+          - lambda: |-
+              // Check if this frame contains additional payload data
+              if (x.size() > 2) {  // Payload starts at x[2], so size must be > 2
+                std::string frame_data((char*)&x[2], x.size() - 2);
+                ESP_LOGI("module_properties_2", "End Message Frame Data: %s", frame_data.c_str());
+
+                // Append any remaining data to module_properties_2
+                id(module_properties_2) += frame_data;
+              }
+              ESP_LOGI("module_properties_2", "Total Frames Captured: %d", id(frame_counter_msg_start_2));
+              ESP_LOGI("module_properties_2", "Final Module Properties: %s", id(module_properties_2).c_str());
+
+              auto extract_value = [](const std::string &data, const std::string &key) -> std::string {
+                size_t start = data.find(key);
+                if (start == std::string::npos) return "";
+                start += key.size();
+                size_t end = data.find_first_of("\r\n", start);
+                if (end == std::string::npos) {
+                  end = data.size();
+                }
+                return data.substr(start, end - start);
+              };
+
+              struct KeySensorPair {
+                const char* key;
+                esphome::template_::TemplateTextSensor* sensor;
+                bool* flag;
+              };
+
+              KeySensorPair mappings[] = {
+                {"ModuleType=", id(module_type_sensor_2), nullptr},
+                {"BarCode=", id(barcode_sensor_2), nullptr},
+                {"Item=", id(item_no_sensor_2), nullptr},
+                {"Description=", id(description_sensor_2), nullptr},
+                {"Manufactured=", id(manufactured_sensor_2), &id(module_properties_complete_2)}
+              };
+
+              bool all_keys_found = true;
+
+              for (const auto& mapping : mappings) {
+                std::string value = extract_value(id(module_properties_2), mapping.key);
+                if (!value.empty()) {
+                  ESP_LOGI("module_properties_2", "Extracted %s: %s", mapping.key, value.c_str());
+                  mapping.sensor->publish_state(value.c_str());
+                  if (mapping.flag) {
+                    *(mapping.flag) = true;
+                  }
+                } else {
+                  ESP_LOGW("module_properties_2", "Key %s not found or empty", mapping.key);
+                  all_keys_found = false;
+                  if (mapping.flag) {
+                    *(mapping.flag) = false; // Reset the flag for missing keys
+                  }
+                }
+              }
+
+              if (all_keys_found) {
+                id(module_properties_complete_2) = true; // Mark completion only if all keys are found
+                ESP_LOGI("module_properties_2", "All required keys found. Marking as complete.");
+              } else {
+                id(module_properties_complete_2) = false; // Explicitly reset the flag if keys are missing
+                ESP_LOGI("module_properties_2", "Not all keys found. Will continue processing.");
+              }
+
+      # Handler for CAN ID 0x1083D27E (Packet x)
+      # Signal end of module 3 properties message
+      - can_id: 0x1083D27E
+        use_extended_id: true
+        then:
+          - lambda: |-
+              // Check if this frame contains additional payload data
+              if (x.size() > 2) {  // Payload starts at x[2], so size must be > 2
+                std::string frame_data((char*)&x[2], x.size() - 2);
+                ESP_LOGI("module_properties_3", "End Message Frame Data: %s", frame_data.c_str());
+
+                // Append any remaining data to module_properties_2
+                id(module_properties_3) += frame_data;
+              }
+              ESP_LOGI("module_properties_3", "Total Frames Captured: %d", id(frame_counter_msg_start_3));
+              ESP_LOGI("module_properties_3", "Final Module Properties: %s", id(module_properties_3).c_str());
+
+              auto extract_value = [](const std::string &data, const std::string &key) -> std::string {
+                size_t start = data.find(key);
+                if (start == std::string::npos) return "";
+                start += key.size();
+                size_t end = data.find_first_of("\r\n", start);
+                if (end == std::string::npos) {
+                  end = data.size();
+                }
+                return data.substr(start, end - start);
+              };
+
+              struct KeySensorPair {
+                const char* key;
+                esphome::template_::TemplateTextSensor* sensor;
+                bool* flag;
+              };
+
+              KeySensorPair mappings[] = {
+                {"ModuleType=", id(module_type_sensor_3), nullptr},
+                {"BarCode=", id(barcode_sensor_3), nullptr},
+                {"Item=", id(item_no_sensor_3), nullptr},
+                {"Description=", id(description_sensor_3), nullptr},
+                {"Manufactured=", id(manufactured_sensor_3), &id(module_properties_complete_3)}
+              };
+
+              bool all_keys_found = true;
+
+              for (const auto& mapping : mappings) {
+                std::string value = extract_value(id(module_properties_3), mapping.key);
+                if (!value.empty()) {
+                  ESP_LOGI("module_properties_3", "Extracted %s: %s", mapping.key, value.c_str());
+                  mapping.sensor->publish_state(value.c_str());
+                  if (mapping.flag) {
+                    *(mapping.flag) = true;
+                  }
+                } else {
+                  ESP_LOGW("module_properties_3", "Key %s not found or empty", mapping.key);
+                  all_keys_found = false;
+                  if (mapping.flag) {
+                    *(mapping.flag) = false; // Reset the flag for missing keys
+                  }
+                }
+              }
+
+              if (all_keys_found) {
+                id(module_properties_complete_3) = true; // Mark completion only if all keys are found
+                ESP_LOGI("module_properties_3", "All required keys found. Marking as complete.");
+              } else {
+                id(module_properties_complete_3) = false; // Explicitly reset the flag if keys are missing
+                ESP_LOGI("module_properties_3", "Not all keys found. Will continue processing.");
+              }
+
+      # Handler for CAN ID 0x1081407F (Packet x)
+      # Handle messages from Module 1
       - can_id: 0x1081407F
         use_extended_id: true
         then:
@@ -770,413 +1069,23 @@ canbus:
                 switch (byte_0) {
                   case 0x01:
                     switch (byte_1) {
-                      case 0x70: id(ac_power_in_sensor1).publish_state(value); break;
-                      case 0x71: id(grid_frequency_sensor1).publish_state(value); break;
-                      case 0x72: id(input_current_sensor1).publish_state(value); break;
-                      case 0x73: id(dc_power_out_sensor1).publish_state(value); break;
-                      case 0x75: id(output_voltage_sensor1).publish_state(value); break;
-                      case 0x76: id(set_max_output_current_sensor1).publish_state(value); break;
-                      case 0x78: id(input_grid_voltage_sensor1).publish_state(value); break;
-                      case 0x7F: id(output_temperature_sensor_device1).publish_state(value); break;
-                      case 0x81: id(output_current_sensor1).publish_state(value); break;
-                      case 0x80: id(input_temperature_sensor_device1).publish_state(value); break;
+                      case 0x70: id(ac_power_in_sensor_1).publish_state(value); break;
+                      case 0x71: id(grid_frequency_sensor_1).publish_state(value); break;
+                      case 0x72: id(input_current_sensor_1).publish_state(value); break;
+                      case 0x73: id(dc_power_out_sensor_1).publish_state(value); break;
+                      case 0x75: id(output_voltage_sensor_1).publish_state(value); break;
+                      case 0x76: id(set_max_output_current_sensor_1).publish_state(value); break;
+                      case 0x78: id(input_grid_voltage_sensor_1).publish_state(value); break;
+                      case 0x7F: id(output_temperature_sensor_1).publish_state(value); break;
+                      case 0x81: id(output_current_sensor_1).publish_state(value); break;
+                      case 0x80: id(input_temperature_sensor_1).publish_state(value); break;
                     }
                     break;
                 }
               }
 
-      # Handle board 1 properties message start
-      - can_id: 0x1081D27F
-        use_extended_id: true
-        then:
-          - lambda: |-
-              static bool message_started = false;
-
-              if (x.size() == 8) {
-                if ((uint8_t)x[0] == 0x00 && (uint8_t)x[1] == 0x01) {
-                  id(board_properties1) = "";  // Clear existing string
-                  id(board_properties_complete1) = false;
-                  message_started = true;
-                  id(frame_counter_msg_start1) = 0;  // Reset global frame counter
-                  ESP_LOGI("board_properties1", "Message Start Detected");
-                }
-
-                if (message_started) {
-                  // Extract and append all payload bytes starting from x[2]
-                  std::string frame_data((char*)&x[2], 6);  // 6 bytes of payload
-                  id(board_properties1) += frame_data;
-
-                  // Increment global frame counter
-                  id(frame_counter_msg_start1)++;
-
-                  // Log for debugging purposes
-                  ESP_LOGD("board_properties1", "Captured Frame #%d: %s", id(frame_counter_msg_start1), frame_data.c_str());
-                }
-              }
-
-      # Signal end of board 1 properties message
-      - can_id: 0x1081D27E
-        use_extended_id: true
-        then:
-          - lambda: |-
-              // Check if this frame contains additional payload data
-              if (x.size() > 2) {  // Payload starts at x[2], so size must be > 2
-                std::string frame_data((char*)&x[2], x.size() - 2);
-                ESP_LOGI("board_properties1", "End Message Frame Data: %s", frame_data.c_str());
-
-                // Append any remaining data to board_properties1
-                id(board_properties1) += frame_data;
-              }
-              ESP_LOGI("board_properties1", "Total Frames Captured: %d", id(frame_counter_msg_start1));
-              ESP_LOGI("board_properties1", "Final Board Properties: %s", id(board_properties1).c_str());
-
-              auto extract_value = [](const std::string &data, const std::string &key) -> std::string {
-                size_t start = data.find(key);
-                if (start == std::string::npos) return "";
-                start += key.size();
-                size_t end = data.find_first_of("\r\n", start);
-                if (end == std::string::npos) {
-                  end = data.size();
-                }
-                return data.substr(start, end - start);
-              };
-
-              struct KeySensorPair {
-                const char* key;
-                esphome::template_::TemplateTextSensor* sensor;
-                bool* flag;
-              };
-
-              KeySensorPair mappings[] = {
-                {"BoardType=", id(board_type_sensor_1), nullptr},
-                {"BarCode=", id(barcode_sensor_1), nullptr},
-                {"Item=", id(item_no_sensor_1), nullptr},
-                {"Description=", id(description_sensor_1), nullptr},
-                {"Manufactured=", id(manufactured_sensor_1), &id(board_properties_complete1)}
-              };
-
-              bool all_keys_found = true;
-
-              for (const auto& mapping : mappings) {
-                std::string value = extract_value(id(board_properties1), mapping.key);
-                if (!value.empty()) {
-                  ESP_LOGI("board_properties1", "Extracted %s: %s", mapping.key, value.c_str());
-                  mapping.sensor->publish_state(value.c_str());
-                  if (mapping.flag) {
-                    *(mapping.flag) = true;
-                  }
-                } else {
-                  ESP_LOGW("board_properties1", "Key %s not found or empty", mapping.key);
-                  all_keys_found = false;
-                  if (mapping.flag) {
-                    *(mapping.flag) = false; // Reset the flag for missing keys
-                  }
-                }
-              }
-
-              if (all_keys_found) {
-                id(board_properties_complete1) = true; // Mark completion only if all keys are found
-                ESP_LOGI("board_properties1", "All required keys found. Marking as complete.");
-              } else {
-                id(board_properties_complete1) = false; // Explicitly reset the flag if keys are missing
-                ESP_LOGI("board_properties1", "Not all keys found. Will continue processing.");
-              }
-
-      # Handle board 2 properties message start
-      - can_id: 0x1082D27F
-        use_extended_id: true
-        then:
-          - lambda: |-
-              static bool message_started = false;
-
-              if (x.size() == 8) {
-                if ((uint8_t)x[0] == 0x00 && (uint8_t)x[1] == 0x01) {
-                  id(board_properties2) = "";  // Clear existing string
-                  id(board_properties_complete2) = false;
-                  message_started = true;
-                  id(frame_counter_msg_start2) = 0;  // Reset global frame counter
-                  ESP_LOGI("board_properties2", "Message Start Detected");
-                }
-
-                if (message_started) {
-                  // Extract and append all payload bytes starting from x[2]
-                  std::string frame_data((char*)&x[2], 6);  // 6 bytes of payload
-                  id(board_properties2) += frame_data;
-
-                  // Increment global frame counter
-                  id(frame_counter_msg_start2)++;
-
-                  // Log for debugging purposes
-                  ESP_LOGD("board_properties2", "Captured Frame #%d: %s", id(frame_counter_msg_start2), frame_data.c_str());
-                }
-              }
-
-      # Signal end of board 2 properties message
-      - can_id: 0x1082D27E
-        use_extended_id: true
-        then:
-          - lambda: |-
-              // Check if this frame contains additional payload data
-              if (x.size() > 2) {  // Payload starts at x[2], so size must be > 2
-                std::string frame_data((char*)&x[2], x.size() - 2);
-                ESP_LOGI("board_properties2", "End Message Frame Data: %s", frame_data.c_str());
-
-                // Append any remaining data to board_properties2
-                id(board_properties2) += frame_data;
-              }
-              ESP_LOGI("board_properties2", "Total Frames Captured: %d", id(frame_counter_msg_start2));
-              ESP_LOGI("board_properties2", "Final Board Properties: %s", id(board_properties2).c_str());
-
-              auto extract_value = [](const std::string &data, const std::string &key) -> std::string {
-                size_t start = data.find(key);
-                if (start == std::string::npos) return "";
-                start += key.size();
-                size_t end = data.find_first_of("\r\n", start);
-                if (end == std::string::npos) {
-                  end = data.size();
-                }
-                return data.substr(start, end - start);
-              };
-
-              struct KeySensorPair {
-                const char* key;
-                esphome::template_::TemplateTextSensor* sensor;
-                bool* flag;
-              };
-
-              KeySensorPair mappings[] = {
-                {"BoardType=", id(board_type_sensor_2), nullptr},
-                {"BarCode=", id(barcode_sensor_2), nullptr},
-                {"Item=", id(item_no_sensor_2), nullptr},
-                {"Description=", id(description_sensor_2), nullptr},
-                {"Manufactured=", id(manufactured_sensor_2), &id(board_properties_complete2)}
-              };
-
-              bool all_keys_found = true;
-
-              for (const auto& mapping : mappings) {
-                std::string value = extract_value(id(board_properties2), mapping.key);
-                if (!value.empty()) {
-                  ESP_LOGI("board_properties2", "Extracted %s: %s", mapping.key, value.c_str());
-                  mapping.sensor->publish_state(value.c_str());
-                  if (mapping.flag) {
-                    *(mapping.flag) = true;
-                  }
-                } else {
-                  ESP_LOGW("board_properties2", "Key %s not found or empty", mapping.key);
-                  all_keys_found = false;
-                  if (mapping.flag) {
-                    *(mapping.flag) = false; // Reset the flag for missing keys
-                  }
-                }
-              }
-
-              if (all_keys_found) {
-                id(board_properties_complete2) = true; // Mark completion only if all keys are found
-                ESP_LOGI("board_properties2", "All required keys found. Marking as complete.");
-              } else {
-                id(board_properties_complete2) = false; // Explicitly reset the flag if keys are missing
-                ESP_LOGI("board_properties2", "Not all keys found. Will continue processing.");
-              }
-
-
-      # Handle board 3 properties message start
-      - can_id: 0x1083D27F
-        use_extended_id: true
-        then:
-          - lambda: |-
-              static bool message_started = false;
-
-              if (x.size() == 8) {
-                if ((uint8_t)x[0] == 0x00 && (uint8_t)x[1] == 0x01) {
-                  id(board_properties3) = "";  // Clear existing string
-                  id(board_properties_complete3) = false;
-                  message_started = true;
-                  id(frame_counter_msg_start3) = 0;  // Reset global frame counter
-                  ESP_LOGI("board_properties3", "Message Start Detected");
-                }
-
-                if (message_started) {
-                  // Extract and append all payload bytes starting from x[2]
-                  std::string frame_data((char*)&x[2], 6);  // 6 bytes of payload
-                  id(board_properties3) += frame_data;
-
-                  // Increment global frame counter
-                  id(frame_counter_msg_start3)++;
-
-                  // Log for debugging purposes
-                  ESP_LOGD("board_properties3", "Captured Frame #%d: %s", id(frame_counter_msg_start3), frame_data.c_str());
-                }
-              }
-
-      # Signal end of board 3 properties message
-      - can_id: 0x1083D27E
-        use_extended_id: true
-        then:
-          - lambda: |-
-              // Check if this frame contains additional payload data
-              if (x.size() > 2) {  // Payload starts at x[2], so size must be > 2
-                std::string frame_data((char*)&x[2], x.size() - 2);
-                ESP_LOGI("board_properties3", "End Message Frame Data: %s", frame_data.c_str());
-
-                // Append any remaining data to board_properties2
-                id(board_properties3) += frame_data;
-              }
-              ESP_LOGI("board_properties3", "Total Frames Captured: %d", id(frame_counter_msg_start3));
-              ESP_LOGI("board_properties3", "Final Board Properties: %s", id(board_properties3).c_str());
-
-              auto extract_value = [](const std::string &data, const std::string &key) -> std::string {
-                size_t start = data.find(key);
-                if (start == std::string::npos) return "";
-                start += key.size();
-                size_t end = data.find_first_of("\r\n", start);
-                if (end == std::string::npos) {
-                  end = data.size();
-                }
-                return data.substr(start, end - start);
-              };
-
-              struct KeySensorPair {
-                const char* key;
-                esphome::template_::TemplateTextSensor* sensor;
-                bool* flag;
-              };
-
-              KeySensorPair mappings[] = {
-                {"BoardType=", id(board_type_sensor_3), nullptr},
-                {"BarCode=", id(barcode_sensor_3), nullptr},
-                {"Item=", id(item_no_sensor_3), nullptr},
-                {"Description=", id(description_sensor_3), nullptr},
-                {"Manufactured=", id(manufactured_sensor_3), &id(board_properties_complete3)}
-              };
-
-              bool all_keys_found = true;
-
-              for (const auto& mapping : mappings) {
-                std::string value = extract_value(id(board_properties3), mapping.key);
-                if (!value.empty()) {
-                  ESP_LOGI("board_properties3", "Extracted %s: %s", mapping.key, value.c_str());
-                  mapping.sensor->publish_state(value.c_str());
-                  if (mapping.flag) {
-                    *(mapping.flag) = true;
-                  }
-                } else {
-                  ESP_LOGW("board_properties3", "Key %s not found or empty", mapping.key);
-                  all_keys_found = false;
-                  if (mapping.flag) {
-                    *(mapping.flag) = false; // Reset the flag for missing keys
-                  }
-                }
-              }
-
-              if (all_keys_found) {
-                id(board_properties_complete3) = true; // Mark completion only if all keys are found
-                ESP_LOGI("board_properties3", "All required keys found. Marking as complete.");
-              } else {
-                id(board_properties_complete3) = false; // Explicitly reset the flag if keys are missing
-                ESP_LOGI("board_properties3", "Not all keys found. Will continue processing.");
-              }
-
-
-      # Handler for CAN ID 0x1081507F (Packet 1)
-      - can_id: 0x1081507F
-        use_extended_id: true
-        then:
-          - lambda: |-
-              if (id(max_current_found_board_1)) {
-                return; // Skip processing if already found
-              }
-
-              uint8_t packet_number = x.data()[1];
-              uint8_t packet_data[8];
-              memcpy(packet_data, x.data(), 8);
-              if (packet_number == 1) {
-                uint8_t max_current_raw = packet_data[5];
-                float max_current = max_current_raw / 2; // Adjust scaling factor if necessary
-                ESP_LOGI("canbus", "Board 1 Max current capability: %.1f A", max_current);
-                id(max_current_sensor).publish_state(max_current);
-                id(max_current_found_board_1) = true; // Set the flag to true
-
-                // Calculate and update amp_scaling_factor
-                if (max_current > 0) {
-                  id(amp_scaling_factor) = 1024.0 / max_current;
-                  ESP_LOGI("canbus", "New amp_scaling_factor: %.3f", id(amp_scaling_factor));
-                  id(sf_value).publish_state(id(amp_scaling_factor));
-                } else {
-                  ESP_LOGW("canbus", "Max current is zero. Cannot calculate amp_scaling_factor.");
-                }
-              }
-      - can_id: 0x1081507E
-        use_extended_id: true
-        then:
-          - lambda: |-
-              if (id(data_found_board_1)) {
-                ESP_LOGI("canbus", "Data already found. Skipping further processing.");
-                return; // Skip processing if already found
-              }
-
-              ESP_LOGI("canbus", "Board 1 Received CAN message 0x1081507E (Packet 6)");
-
-              uint8_t packet_data[8];
-              memcpy(packet_data, x.data(), 8);
-
-              uint8_t pin11 = packet_data[2];
-              uint8_t pin12 = packet_data[3];
-              ESP_LOGI("canbus", "Board 1 Pin 11: %d, Pin 12: %d", pin11, pin12);
-
-              id(pin11_sensor).publish_state(pin11);
-              id(pin12_sensor).publish_state(pin12);
-
-              if ((pin11 >= 1 && pin11 <= 4) && (pin12 >= 1 && pin12 <= 4)) {
-                id(data_found_board_1) = true; // Set the flag to true
-              }
-
-
-      # Handlers for Board 2
-      - can_id: 0x1082507F
-        use_extended_id: true
-        then:
-          - lambda: |-
-              if (id(max_current_found_board_2)) {
-                return; // Skip processing if already found
-              }
-
-              uint8_t packet_number = x.data()[1];
-              uint8_t packet_data[8];
-              memcpy(packet_data, x.data(), 8);
-              if (packet_number == 1) {
-                uint8_t max_current_raw = packet_data[5];
-                float max_current = max_current_raw / 2; // Adjust scaling factor if necessary
-                ESP_LOGI("canbus", "Board 2 Max current capability: %.1f A", max_current);
-                id(max_current_sensor2).publish_state(max_current);
-                id(max_current_found_board_2) = true; // Set the flag to true
-              }
-
-      - can_id: 0x1082507E
-        use_extended_id: true
-        then:
-          - lambda: |-
-              if (id(data_found_board_2)) {
-                return; // Skip processing if already found
-              }
-
-              ESP_LOGI("canbus", "Board 2 Received CAN message 0x1082507E (Packet 6)");
-
-              uint8_t packet_data[8];
-              memcpy(packet_data, x.data(), 8);
-
-              uint8_t pin11 = packet_data[2];
-              uint8_t pin12 = packet_data[3];
-              ESP_LOGI("canbus", "Board 2 Pin 11: %d, Pin 12: %d", pin11, pin12);
-
-              id(pin11_sensor2).publish_state(pin11);
-              id(pin12_sensor2).publish_state(pin12);
-
-              if ((pin11 >= 1 && pin11 <= 4) && (pin12 >= 1 && pin12 <= 4)) {
-                id(data_found_board_2) = true; // Set the flag to true
-              }
-
-      # Handle messages from the second device
+      # Handler for CAN ID 0x1082407F (Packet x)
+      # Handle messages from Module 2
       - can_id: 0x1082407F
         use_extended_id: true
         then:
@@ -1191,66 +1100,23 @@ canbus:
                 switch (byte_0) {
                   case 0x01:
                     switch (byte_1) {
-                      case 0x70: id(ac_power_in_sensor_device2).publish_state(value); break;
-                      case 0x71: id(grid_frequency_sensor_device2).publish_state(value); break;
-                      case 0x72: id(input_current_sensor_device2).publish_state(value); break;
-                      case 0x73: id(dc_power_out_sensor_device2).publish_state(value); break;
-                      case 0x75: id(output_voltage_sensor_device2).publish_state(value); break;
-                      case 0x76: id(set_max_output_current_sensor_device2).publish_state(value); break;
-                      case 0x78: id(input_grid_voltage_sensor_device2).publish_state(value); break;
-                      case 0x7F: id(output_temperature_sensor_device2).publish_state(value); break;
-                      case 0x81: id(output_current_sensor_device2).publish_state(value); break;
-                      case 0x80: id(input_temperature_sensor_device2).publish_state(value); break;
+                      case 0x70: id(ac_power_in_sensor_2).publish_state(value); break;
+                      case 0x71: id(grid_frequency_sensor_2).publish_state(value); break;
+                      case 0x72: id(input_current_sensor_2).publish_state(value); break;
+                      case 0x73: id(dc_power_out_sensor_2).publish_state(value); break;
+                      case 0x75: id(output_voltage_sensor_2).publish_state(value); break;
+                      case 0x76: id(set_max_output_current_sensor_2).publish_state(value); break;
+                      case 0x78: id(input_grid_voltage_sensor_2).publish_state(value); break;
+                      case 0x7F: id(output_temperature_sensor_2).publish_state(value); break;
+                      case 0x81: id(output_current_sensor_2).publish_state(value); break;
+                      case 0x80: id(input_temperature_sensor_2).publish_state(value); break;
                     }
                     break;
                 }
               }
 
-      # Handlers for Board 3
-      - can_id: 0x1083507F
-        use_extended_id: true
-        then:
-          - lambda: |-
-              if (id(max_current_found_board_3)) {
-                return; // Skip processing if already found
-              }
-
-              uint8_t packet_number = x.data()[1];
-              uint8_t packet_data[8];
-              memcpy(packet_data, x.data(), 8);
-              if (packet_number == 1) {
-                uint8_t max_current_raw = packet_data[5];
-                float max_current = max_current_raw / 2; // Adjust scaling factor if necessary
-                ESP_LOGI("canbus", "Board 3 Max current capability: %.1f A", max_current);
-                id(max_current_sensor3).publish_state(max_current);
-                id(max_current_found_board_3) = true; // Set the flag to true
-              }
-
-      - can_id: 0x1083507E
-        use_extended_id: true
-        then:
-          - lambda: |-
-              if (id(data_found_board_3)) {
-                return; // Skip processing if already found
-              }
-
-              ESP_LOGI("canbus", "Board 3 Received CAN message 0x1083507E (Packet 6)");
-
-              uint8_t packet_data[8];
-              memcpy(packet_data, x.data(), 8);
-
-              uint8_t pin11 = packet_data[2];
-              uint8_t pin12 = packet_data[3];
-              ESP_LOGI("canbus", "Board 3 Pin 11: %d, Pin 12: %d", pin11, pin12);
-
-              id(pin11_sensor3).publish_state(pin11);
-              id(pin12_sensor3).publish_state(pin12);
-
-              if ((pin11 >= 1 && pin11 <= 4) && (pin12 >= 1 && pin12 <= 4)) {
-                id(data_found_board_3) = true; // Set the flag to true
-              }
-
-      # Handle messages from the third device
+      # Handler for CAN ID 0x1083407F (Packet x)
+      # Handle messages from Module 3
       - can_id: 0x1083407F
         use_extended_id: true
         then:
@@ -1265,21 +1131,174 @@ canbus:
                 switch (byte_0) {
                   case 0x01:
                     switch (byte_1) {
-                      case 0x70: id(ac_power_in_sensor_device3).publish_state(value); break;
-                      case 0x71: id(grid_frequency_sensor_device3).publish_state(value); break;
-                      case 0x72: id(input_current_sensor_device3).publish_state(value); break;
-                      case 0x73: id(dc_power_out_sensor_device3).publish_state(value); break;
-                      case 0x75: id(output_voltage_sensor_device3).publish_state(value); break;
-                      case 0x76: id(set_max_output_current_sensor_device3).publish_state(value); break;
-                      case 0x78: id(input_grid_voltage_sensor_device3).publish_state(value); break;
-                      case 0x7F: id(output_temperature_sensor_device3).publish_state(value); break;
-                      case 0x81: id(output_current_sensor_device3).publish_state(value); break;
-                      case 0x80: id(input_temperature_sensor_device3).publish_state(value); break;
+                      case 0x70: id(ac_power_in_sensor_3).publish_state(value); break;
+                      case 0x71: id(grid_frequency_sensor_3).publish_state(value); break;
+                      case 0x72: id(input_current_sensor_3).publish_state(value); break;
+                      case 0x73: id(dc_power_out_sensor_3).publish_state(value); break;
+                      case 0x75: id(output_voltage_sensor_3).publish_state(value); break;
+                      case 0x76: id(set_max_output_current_sensor_3).publish_state(value); break;
+                      case 0x78: id(input_grid_voltage_sensor_3).publish_state(value); break;
+                      case 0x7F: id(output_temperature_sensor_3).publish_state(value); break;
+                      case 0x81: id(output_current_sensor_3).publish_state(value); break;
+                      case 0x80: id(input_temperature_sensor_3).publish_state(value); break;
                     }
                     break;
                 }
               }
 
+      # Handler for CAN ID 0x1081507F (Packet 1)
+      # Max current for Module 1
+      - can_id: 0x1081507F
+        use_extended_id: true
+        then:
+          - lambda: |-
+              if (id(max_current_found_1)) {
+                return; // Skip processing if already found
+              }
+
+              uint8_t packet_number = x.data()[1];
+              uint8_t packet_data[8];
+              memcpy(packet_data, x.data(), 8);
+              if (packet_number == 1) {
+                uint8_t max_current_raw = packet_data[5];
+                float max_current = max_current_raw / 2; // Adjust scaling factor if necessary
+                ESP_LOGI("canbus", "Module 1 Max current capability: %.1f A", max_current);
+                id(max_current_sensor_1).publish_state(max_current);
+                id(max_current_found_1) = true; // Set the flag to true
+
+                // Calculate and update amp_scaling_factor
+                if (max_current > 0) {
+                  id(amp_scaling_factor) = 1024.0 / max_current;
+                  ESP_LOGI("canbus", "New amp_scaling_factor: %.3f", id(amp_scaling_factor));
+                  id(sf_value).publish_state(id(amp_scaling_factor));
+                } else {
+                  ESP_LOGW("canbus", "Max current is zero. Cannot calculate amp_scaling_factor.");
+                }
+              }
+
+      # Handler for CAN ID 0x1082507F (Packet 1)
+      # Max current for Module 2
+      - can_id: 0x1082507F
+        use_extended_id: true
+        then:
+          - lambda: |-
+              if (id(max_current_found_2)) {
+                return; // Skip processing if already found
+              }
+
+              uint8_t packet_number = x.data()[1];
+              uint8_t packet_data[8];
+              memcpy(packet_data, x.data(), 8);
+              if (packet_number == 1) {
+                uint8_t max_current_raw = packet_data[5];
+                float max_current = max_current_raw / 2; // Adjust scaling factor if necessary
+                ESP_LOGI("canbus", "Module 2 Max current capability: %.1f A", max_current);
+                id(max_current_sensor_2).publish_state(max_current);
+                id(max_current_found_2) = true; // Set the flag to true
+              }
+
+      # Handler for CAN ID 0x1083507F (Packet 1)
+      # Max current for Module 3
+      - can_id: 0x1083507F
+        use_extended_id: true
+        then:
+          - lambda: |-
+              if (id(max_current_found_3)) {
+                return; // Skip processing if already found
+              }
+
+              uint8_t packet_number = x.data()[1];
+              uint8_t packet_data[8];
+              memcpy(packet_data, x.data(), 8);
+              if (packet_number == 1) {
+                uint8_t max_current_raw = packet_data[5];
+                float max_current = max_current_raw / 2; // Adjust scaling factor if necessary
+                ESP_LOGI("canbus", "Module 3 Max current capability: %.1f A", max_current);
+                id(max_current_sensor_3).publish_state(max_current);
+                id(max_current_found_3) = true; // Set the flag to true
+              }
+
+      # Handler for CAN ID 0x1081507E (Packet 6)
+      # Pin 11/12 for Module 1
+      - can_id: 0x1081507E
+        use_extended_id: true
+        then:
+          - lambda: |-
+              if (id(data_found_1)) {
+                ESP_LOGI("canbus", "Data already found. Skipping further processing.");
+                return; // Skip processing if already found
+              }
+
+              ESP_LOGI("canbus", "Module 1 Received CAN message 0x1081507E (Packet 6)");
+
+              uint8_t packet_data[8];
+              memcpy(packet_data, x.data(), 8);
+
+              uint8_t pin11 = packet_data[2];
+              uint8_t pin12 = packet_data[3];
+              ESP_LOGI("canbus", "Module 1 Pin 11: %d, Pin 12: %d", pin11, pin12);
+
+              id(pin11_sensor_1).publish_state(pin11);
+              id(pin12_sensor_1).publish_state(pin12);
+
+              if ((pin11 >= 1 && pin11 <= 4) && (pin12 >= 1 && pin12 <= 4)) {
+                id(data_found_1) = true; // Set the flag to true
+              }
+
+      # Handler for CAN ID 0x1082507E (Packet 6)
+      # Pin 11/12 for Module 2
+      - can_id: 0x1082507E
+        use_extended_id: true
+        then:
+          - lambda: |-
+              if (id(data_found_2)) {
+                return; // Skip processing if already found
+              }
+
+              ESP_LOGI("canbus", "Module 2 Received CAN message 0x1082507E (Packet 6)");
+
+              uint8_t packet_data[8];
+              memcpy(packet_data, x.data(), 8);
+
+              uint8_t pin11 = packet_data[2];
+              uint8_t pin12 = packet_data[3];
+              ESP_LOGI("canbus", "Module 2 Pin 11: %d, Pin 12: %d", pin11, pin12);
+
+              id(pin11_sensor_2).publish_state(pin11);
+              id(pin12_sensor_2).publish_state(pin12);
+
+              if ((pin11 >= 1 && pin11 <= 4) && (pin12 >= 1 && pin12 <= 4)) {
+                id(data_found_2) = true; // Set the flag to true
+              }
+
+      # Handler for CAN ID 0x1083507E (Packet 6)
+      # Pin 11/12 for Module 3
+      - can_id: 0x1083507E
+        use_extended_id: true
+        then:
+          - lambda: |-
+              if (id(data_found_3)) {
+                return; // Skip processing if already found
+              }
+
+              ESP_LOGI("canbus", "Module 3 Received CAN message 0x1083507E (Packet 6)");
+
+              uint8_t packet_data[8];
+              memcpy(packet_data, x.data(), 8);
+
+              uint8_t pin11 = packet_data[2];
+              uint8_t pin12 = packet_data[3];
+              ESP_LOGI("canbus", "Module 3 Pin 11: %d, Pin 12: %d", pin11, pin12);
+
+              id(pin11_sensor_3).publish_state(pin11);
+              id(pin12_sensor_3).publish_state(pin12);
+
+              if ((pin11 >= 1 && pin11 <= 4) && (pin12 >= 1 && pin12 <= 4)) {
+                id(data_found_3) = true; // Set the flag to true
+              }
+
+      # Handler for CAN ID 0x1001117E (Packet x)
+      # Alt Values Module 1
       - can_id: 0x1001117E
         use_extended_id: true
         then:
@@ -1296,7 +1315,7 @@ canbus:
 
                 // Publish alt AMP value only if it has changed
                 if (alt_amp_value != last_alt_amp_value_1) {
-                  id(alt_amp_sensor1).publish_state(alt_amp_value);
+                  id(alt_amp_sensor_1).publish_state(alt_amp_value);
                   last_alt_amp_value_1 = alt_amp_value;
                 }
 
@@ -1312,11 +1331,13 @@ canbus:
 
                 // Publish power state only if it has changed
                 if (new_power_state != last_power_state_1) {
-                  id(power_state_sensor1).publish_state(new_power_state.c_str());
+                  id(power_state_sensor_1).publish_state(new_power_state.c_str());
                   last_power_state_1 = new_power_state;
                 }
               }
 
+      # Handler for CAN ID 0x1002117E (Packet x)
+      # Alt Values Module 2
       - can_id: 0x1002117E
         use_extended_id: true
         then:
@@ -1333,7 +1354,7 @@ canbus:
 
                 // Publish alt AMP value only if it has changed
                 if (alt_amp_value != last_alt_amp_value_2) {
-                  id(alt_amp_sensor2).publish_state(alt_amp_value);
+                  id(alt_amp_sensor_2).publish_state(alt_amp_value);
                   last_alt_amp_value_2 = alt_amp_value;
                 }
 
@@ -1349,11 +1370,13 @@ canbus:
 
                 // Publish power state only if it has changed
                 if (new_power_state != last_power_state_2) {
-                  id(power_state_sensor2).publish_state(new_power_state.c_str());
+                  id(power_state_sensor_2).publish_state(new_power_state.c_str());
                   last_power_state_2 = new_power_state;
                 }
               }
 
+      # Handler for CAN ID 0x1003117E (Packet x)
+      # Alt Values Module 3
       - can_id: 0x1003117E
         use_extended_id: true
         then:
@@ -1370,7 +1393,7 @@ canbus:
 
                 // Publish alt AMP value only if it has changed
                 if (alt_amp_value != last_alt_amp_value_3) {
-                  id(alt_amp_sensor3).publish_state(alt_amp_value);
+                  id(alt_amp_sensor_3).publish_state(alt_amp_value);
                   last_alt_amp_value_3 = alt_amp_value;
                 }
 
@@ -1386,7 +1409,7 @@ canbus:
 
                 // Publish power state only if it has changed
                 if (new_power_state != last_power_state_3) {
-                  id(power_state_sensor3).publish_state(new_power_state.c_str());
+                  id(power_state_sensor_3).publish_state(new_power_state.c_str());
                   last_power_state_3 = new_power_state;
                 }
               }
@@ -1447,7 +1470,7 @@ sensor:
               lambda: 'return id(encoder_mode) == 0;'
             then:
               - number.increment:
-                  id: can_voltage_input
+                  id: can_voltage_set
                   cycle: false
               - script.execute: apply_dc_sum_power
             else:
@@ -1462,7 +1485,7 @@ sensor:
               lambda: 'return id(encoder_mode) == 0;'
             then:
               - number.decrement:
-                  id: can_voltage_input
+                  id: can_voltage_set
                   cycle: false
               - script.execute: apply_dc_sum_power
             else:
@@ -1471,8 +1494,8 @@ sensor:
                   cycle: false
   
   - platform: template
-    name: "Input Temperature Board-1"
-    id: input_temperature_sensor_device1
+    name: "Input Temperature Module-1"
+    id: input_temperature_sensor_1
     unit_of_measurement: "°C"
     accuracy_decimals: 1
     update_interval: 3s
@@ -1482,8 +1505,8 @@ sensor:
     icon: "mdi:thermometer"
 
   - platform: template
-    name: "Input Temperature Board-2"
-    id: input_temperature_sensor_device2
+    name: "Input Temperature Module-2"
+    id: input_temperature_sensor_2
     unit_of_measurement: "°C"
     accuracy_decimals: 1
     update_interval: 3s
@@ -1493,8 +1516,8 @@ sensor:
     icon: "mdi:thermometer"
 
   - platform: template
-    name: "Input Temperature Board-3"
-    id: input_temperature_sensor_device3
+    name: "Input Temperature Module-3"
+    id: input_temperature_sensor_3
     unit_of_measurement: "°C"
     accuracy_decimals: 1
     update_interval: 3s
@@ -1504,73 +1527,62 @@ sensor:
     icon: "mdi:thermometer"
 
   - platform: template
-    name: "Scaling Factor Board-1"
+    name: "Scaling Factor Module-1"
     id: sf_value
     icon: "mdi:information-outline"
     update_interval: never
 
   - platform: template
-    name: "Pin 11 Shelf Board-1"
-    id: pin11_sensor
+    name: "Pin 11 Module-1"
+    id: pin11_sensor_1
     update_interval: never
 
   - platform: template
-    name: "Pin 11 Shelf Board-2"
-    id: pin11_sensor2
+    name: "Pin 11 Module-2"
+    id: pin11_sensor_2
     update_interval: never
 
   - platform: template
-    name: "Pin 11 Shelf Board-3"
-    id: pin11_sensor3
+    name: "Pin 11 Module-3"
+    id: pin11_sensor_3
     update_interval: never
 
   - platform: template
-    name: "Pin 12 SLOT Board-1"
-    id: pin12_sensor
+    name: "Pin 12 Module-1"
+    id: pin12_sensor_1
     update_interval: never
 
   - platform: template
-    name: "Pin 12 SLOT Board-2"
-    id: pin12_sensor2
+    name: "Pin 12 Module-2"
+    id: pin12_sensor_2
     update_interval: never
   - platform: template
 
-    name: "Pin 12 SLOT Board-3"
-    id: pin12_sensor3
+    name: "Pin 12 Module-3"
+    id: pin12_sensor_3
     update_interval: never
 
   - platform: template
-    name: "Max Current Capability Board-1"
-    id: max_current_sensor
+    name: "Max Current Capability Module-1"
+    id: max_current_sensor_1
     unit_of_measurement: "A"
     update_interval: never
 
   - platform: template
-    name: "Max Current Capability Board-2"
-    id: max_current_sensor2
+    name: "Max Current Capability Module-2"
+    id: max_current_sensor_2
     unit_of_measurement: "A"
     update_interval: never
 
   - platform: template
-    name: "Max Current Capability Board-3"
-    id: max_current_sensor3
+    name: "Max Current Capability Module-3"
+    id: max_current_sensor_3
     unit_of_measurement: "A"
     update_interval: never
 
   - platform: template
-    name: "Output Current alt Board-1"
-    id: alt_amp_sensor1
-    unit_of_measurement: "A"
-    accuracy_decimals: 1
-    filters:
-      - lambda: |-
-          return x / id(amp_scaling_factor);  
-    icon: "mdi:current-dc"
-    update_interval: 3s
-
-  - platform: template
-    name: "Output Current alt Board-2"
-    id: alt_amp_sensor2
+    name: "Output Current alt Module-1"
+    id: alt_amp_sensor_1
     unit_of_measurement: "A"
     accuracy_decimals: 1
     filters:
@@ -1580,8 +1592,8 @@ sensor:
     update_interval: 3s
 
   - platform: template
-    name: "Output Current alt Board-3"
-    id: alt_amp_sensor3
+    name: "Output Current alt Module-2"
+    id: alt_amp_sensor_2
     unit_of_measurement: "A"
     accuracy_decimals: 1
     filters:
@@ -1591,8 +1603,19 @@ sensor:
     update_interval: 3s
 
   - platform: template
-    name: "AC Power In Board-1"
-    id: ac_power_in_sensor1
+    name: "Output Current alt Module-3"
+    id: alt_amp_sensor_3
+    unit_of_measurement: "A"
+    accuracy_decimals: 1
+    filters:
+      - lambda: |-
+          return x / id(amp_scaling_factor);  
+    icon: "mdi:current-dc"
+    update_interval: 3s
+
+  - platform: template
+    name: "AC Power In Module-1"
+    id: ac_power_in_sensor_1
     unit_of_measurement: "W"
     accuracy_decimals: 2
     filters:
@@ -1602,8 +1625,8 @@ sensor:
     update_interval: 3s  # Updates every second
 
   - platform: template
-    name: "DC Power Out Board-1"
-    id: dc_power_out_sensor1
+    name: "AC Power In Module-2"
+    id: ac_power_in_sensor_2
     unit_of_measurement: "W"
     accuracy_decimals: 2
     filters:
@@ -1613,8 +1636,52 @@ sensor:
     update_interval: 3s  # Updates every second
 
   - platform: template
-    name: "Grid Frequency Board-1"
-    id: grid_frequency_sensor1
+    name: "AC Power In Module-3"
+    id: ac_power_in_sensor_3
+    unit_of_measurement: "W"
+    accuracy_decimals: 2
+    filters:
+      - lambda: |-
+          return x / id(voltage_scaling_factor);  
+    icon: "mdi:flash"
+    update_interval: 3s  # Updates every second
+
+  - platform: template
+    name: "DC Power Out Module-1"
+    id: dc_power_out_sensor_1
+    unit_of_measurement: "W"
+    accuracy_decimals: 2
+    filters:
+      - lambda: |-
+          return x / id(voltage_scaling_factor);  
+    icon: "mdi:flash"
+    update_interval: 3s  # Updates every second
+
+  - platform: template
+    name: "DC Power Out Module-2"
+    id: dc_power_out_sensor_2
+    unit_of_measurement: "W"
+    accuracy_decimals: 2
+    filters:
+      - lambda: |-
+          return x / id(voltage_scaling_factor);  
+    icon: "mdi:flash"
+    update_interval: 3s  # Updates every second
+
+  - platform: template
+    name: "DC Power Out Module-3"
+    id: dc_power_out_sensor_3
+    unit_of_measurement: "W"
+    accuracy_decimals: 2
+    filters:
+      - lambda: |-
+          return x / id(voltage_scaling_factor);  
+    icon: "mdi:flash"
+    update_interval: 3s  # Updates every second
+
+  - platform: template
+    name: "Grid Frequency Module-1"
+    id: grid_frequency_sensor_1
     unit_of_measurement: "Hz"
     accuracy_decimals: 1
     filters:
@@ -1624,8 +1691,30 @@ sensor:
     update_interval: 3s
 
   - platform: template
-    name: "Input Current Board-1"
-    id: input_current_sensor1
+    name: "Grid Frequency Module-2"
+    id: grid_frequency_sensor_2
+    unit_of_measurement: "Hz"
+    accuracy_decimals: 1
+    filters:
+      - lambda: |-
+          return x / id(voltage_scaling_factor);  
+    icon: "mdi:transmission-tower-import"
+    update_interval: 3s
+
+  - platform: template
+    name: "Grid Frequency Module-3"
+    id: grid_frequency_sensor_3
+    unit_of_measurement: "Hz"
+    accuracy_decimals: 1
+    filters:
+      - lambda: |-
+          return x / id(voltage_scaling_factor);  
+    icon: "mdi:transmission-tower-import"
+    update_interval: 3s
+
+  - platform: template
+    name: "Input Current Module-1"
+    id: input_current_sensor_1
     unit_of_measurement: "A"
     accuracy_decimals: 1
     filters:
@@ -1635,8 +1724,30 @@ sensor:
     update_interval: 3s
 
   - platform: template
-    name: "Output Voltage Board-1"
-    id: output_voltage_sensor1
+    name: "Input Current Module-2"
+    id: input_current_sensor_2
+    unit_of_measurement: "A"
+    accuracy_decimals: 1
+    filters:
+      - lambda: |-
+          return x / id(voltage_scaling_factor);  
+    icon: "mdi:current-ac"
+    update_interval: 3s
+
+  - platform: template
+    name: "Input Current Module-3"
+    id: input_current_sensor_3
+    unit_of_measurement: "A"
+    accuracy_decimals: 1
+    filters:
+      - lambda: |-
+          return x / id(voltage_scaling_factor);  
+    icon: "mdi:current-ac"
+    update_interval: 3s
+
+  - platform: template
+    name: "Output Voltage Module-1"
+    id: output_voltage_sensor_1
     unit_of_measurement: "V"
     accuracy_decimals: 1
     filters:
@@ -1646,8 +1757,30 @@ sensor:
     update_interval: 3s
 
   - platform: template
-    name: "Input Grid Voltage Board-1"
-    id: input_grid_voltage_sensor1
+    name: "Output Voltage Module-2"
+    id: output_voltage_sensor_2
+    unit_of_measurement: "V"
+    accuracy_decimals: 1
+    filters:
+      - lambda: |-
+          return x / id(voltage_scaling_factor);  
+    icon: "mdi:current-dc"
+    update_interval: 3s
+
+  - platform: template
+    name: "Output Voltage Module-3"
+    id: output_voltage_sensor_3
+    unit_of_measurement: "V"
+    accuracy_decimals: 1
+    filters:
+      - lambda: |-
+          return x / id(voltage_scaling_factor);  
+    icon: "mdi:current-dc"
+    update_interval: 3s
+
+  - platform: template
+    name: "Input Grid Voltage Module-1"
+    id: input_grid_voltage_sensor_1
     unit_of_measurement: "V"
     accuracy_decimals: 2
     filters:
@@ -1657,8 +1790,30 @@ sensor:
     update_interval: 10s
 
   - platform: template
-    name: "Output Temperature Board-1"
-    id: output_temperature_sensor_device1
+    name: "Input Grid Voltage Module-2"
+    id: input_grid_voltage_sensor_2
+    unit_of_measurement: "V"
+    accuracy_decimals: 2
+    filters:
+      - lambda: |-
+          return x / id(voltage_scaling_factor);  
+    icon: "mdi:sine-wave"
+    update_interval: 3s
+
+  - platform: template
+    name: "Input Grid Voltage Module-3"
+    id: input_grid_voltage_sensor_3
+    unit_of_measurement: "V"
+    accuracy_decimals: 2
+    filters:
+      - lambda: |-
+          return x / id(voltage_scaling_factor);  
+    icon: "mdi:sine-wave"
+    update_interval: 3s
+
+  - platform: template
+    name: "Output Temperature Module-1"
+    id: output_temperature_sensor_1
     unit_of_measurement: "°C"
     accuracy_decimals: 1
     update_interval: 3s
@@ -1670,7 +1825,7 @@ sensor:
       then:
         - if:
             condition:
-              lambda: 'return id(output_temperature_sensor_device1).state > 90.0;'
+              lambda: 'return id(output_temperature_sensor_1).state > 90.0;'
             then:
               - canbus.send:
                   use_extended_id: true
@@ -1681,8 +1836,56 @@ sensor:
                   format: "Temperature exceeded 90°C. Sent CAN OFF message."
 
   - platform: template
-    name: "Output Current Board-1"
-    id: output_current_sensor1
+    name: "Output Temperature Module-2"
+    id: output_temperature_sensor_2
+    unit_of_measurement: "°C"
+    accuracy_decimals: 1
+    update_interval: 3s
+    filters:
+      - lambda: |-
+          return x / id(voltage_scaling_factor);  
+    icon: "mdi:thermometer"
+    on_value:
+      then:
+        - if:
+            condition:
+              lambda: 'return id(output_temperature_sensor_2).state > 90.0;'
+            then:
+              - canbus.send:
+                  use_extended_id: true
+                  can_id: 0x108280FE
+                  data: [1, 50, 0, 1, 0, 0, 0, 0]
+              - logger.log:
+                  level: INFO
+                  format: "Temperature exceeded 90°C. Sent CAN OFF message."
+
+  - platform: template
+    name: "Output Temperature Module-3"
+    id: output_temperature_sensor_3
+    unit_of_measurement: "°C"
+    accuracy_decimals: 1
+    update_interval: 3s
+    filters:
+      - lambda: |-
+          return x / id(voltage_scaling_factor);  
+    icon: "mdi:thermometer"
+    on_value:
+      then:
+        - if:
+            condition:
+              lambda: 'return id(output_temperature_sensor_3).state > 90.0;'
+            then:
+              - canbus.send:
+                  use_extended_id: true
+                  can_id: 0x108380FE
+                  data: [1, 50, 0, 1, 0, 0, 0, 0]
+              - logger.log:
+                  level: INFO
+                  format: "Temperature exceeded 90°C. Sent CAN OFF message."
+
+  - platform: template
+    name: "Output Current Module-1"
+    id: output_current_sensor_1
     unit_of_measurement: "A"
     accuracy_decimals: 1
     filters:
@@ -1692,8 +1895,30 @@ sensor:
     update_interval: 3s
 
   - platform: template
-    name: "Set Max Output Current Board-1"
-    id: set_max_output_current_sensor1
+    name: "Output Current Module-2"
+    id: output_current_sensor_2
+    unit_of_measurement: "A"
+    accuracy_decimals: 1
+    filters:
+      - lambda: |-
+          return x / id(voltage_scaling_factor);  
+    icon: "mdi:current-dc"
+    update_interval: 3s
+
+  - platform: template
+    name: "Output Current Module-3"
+    id: output_current_sensor_3
+    unit_of_measurement: "A"
+    accuracy_decimals: 1
+    filters:
+      - lambda: |-
+          return x / id(voltage_scaling_factor);  
+    icon: "mdi:current-dc"
+    update_interval: 3s
+
+  - platform: template
+    name: "Set Max Output Current Module-1"
+    id: set_max_output_current_sensor_1
     unit_of_measurement: "A"
     accuracy_decimals: 1
     filters:
@@ -1703,30 +1928,30 @@ sensor:
     update_interval: 3s
 
   - platform: template
-    name: "AC Power In Board-2"
-    id: ac_power_in_sensor_device2
-    unit_of_measurement: "W"
-    accuracy_decimals: 2
+    name: "Set Max Output Current Module-2"
+    id: set_max_output_current_sensor_2
+    unit_of_measurement: "A"
+    accuracy_decimals: 1
     filters:
       - lambda: |-
-          return x / id(voltage_scaling_factor);  
-    icon: "mdi:flash"
-    update_interval: 3s  # Updates every second
+          return x / id(amp_scaling_factor);  
+    icon: "mdi:current-ac"
+    update_interval: 3s
 
   - platform: template
-    name: "AC Power In Board-3"
-    id: ac_power_in_sensor_device3
-    unit_of_measurement: "W"
-    accuracy_decimals: 2
+    name: "Set Max Output Current Module-3"
+    id: set_max_output_current_sensor_3
+    unit_of_measurement: "A"
+    accuracy_decimals: 1
     filters:
       - lambda: |-
-          return x / id(voltage_scaling_factor);  
-    icon: "mdi:flash"
-    update_interval: 3s  # Updates every second
+          return x / id(amp_scaling_factor);  
+    icon: "mdi:current-ac"
+    update_interval: 3s
 
   # Combined AC Power sensor
   - platform: template
-    name: "Combined AC Power Board-1-2-3"
+    name: "Combined AC Power Module-1-2-3"
     id: combined_ac_power_sensor
     unit_of_measurement: "kW"
     accuracy_decimals: 2
@@ -1734,34 +1959,12 @@ sensor:
       - multiply: 0.001
     update_interval: 3s  # Updates every second
     lambda: |-
-      return id(ac_power_in_sensor1).state + id(ac_power_in_sensor_device2).state + id(ac_power_in_sensor_device3).state;
+      return id(ac_power_in_sensor_1).state + id(ac_power_in_sensor_2).state + id(ac_power_in_sensor_3).state;
     icon: "mdi:flash"
-
-  - platform: template
-    name: "DC Power Out Board-2"
-    id: dc_power_out_sensor_device2
-    unit_of_measurement: "W"
-    accuracy_decimals: 2
-    filters:
-      - lambda: |-
-          return x / id(voltage_scaling_factor);  
-    icon: "mdi:flash"
-    update_interval: 3s  # Updates every second
-
-  - platform: template
-    name: "DC Power Out Board-3"
-    id: dc_power_out_sensor_device3
-    unit_of_measurement: "W"
-    accuracy_decimals: 2
-    filters:
-      - lambda: |-
-          return x / id(voltage_scaling_factor);  
-    icon: "mdi:flash"
-    update_interval: 3s  # Updates every second
 
   # Combined DC Power sensor
   - platform: template
-    name: "Combined DC Power Board-1-2-3"
+    name: "Combined DC Power Module-1-2-3"
     id: combined_dc_power_sensor
     unit_of_measurement: "kW"
     accuracy_decimals: 2
@@ -1769,7 +1972,7 @@ sensor:
     filters:
       - multiply: 0.001
     lambda: |-
-      return id(dc_power_out_sensor1).state + id(dc_power_out_sensor_device2).state + id(dc_power_out_sensor_device3).state;
+      return id(dc_power_out_sensor_1).state + id(dc_power_out_sensor_2).state + id(dc_power_out_sensor_3).state;
     icon: "mdi:flash"
 
   # Combined Daily AC Energy kWh sensor
@@ -1790,190 +1993,10 @@ sensor:
     accuracy_decimals: 3
     icon: "mdi:counter"
 
-  - platform: template
-    name: "Grid Frequency Board-2"
-    id: grid_frequency_sensor_device2
-    unit_of_measurement: "Hz"
-    accuracy_decimals: 1
-    filters:
-      - lambda: |-
-          return x / id(voltage_scaling_factor);  
-    icon: "mdi:transmission-tower-import"
-    update_interval: 3s
-
-  - platform: template
-    name: "Input Current Board-2"
-    id: input_current_sensor_device2
-    unit_of_measurement: "A"
-    accuracy_decimals: 1
-    filters:
-      - lambda: |-
-          return x / id(voltage_scaling_factor);  
-    icon: "mdi:current-ac"
-    update_interval: 3s
-
-  - platform: template
-    name: "Output Voltage Board-2"
-    id: output_voltage_sensor_device2
-    unit_of_measurement: "V"
-    accuracy_decimals: 1
-    filters:
-      - lambda: |-
-          return x / id(voltage_scaling_factor);  
-    icon: "mdi:current-dc"
-    update_interval: 3s
-
-  - platform: template
-    name: "Input Grid Voltage Board-2"
-    id: input_grid_voltage_sensor_device2
-    unit_of_measurement: "V"
-    accuracy_decimals: 2
-    filters:
-      - lambda: |-
-          return x / id(voltage_scaling_factor);  
-    icon: "mdi:sine-wave"
-    update_interval: 3s
-
-  - platform: template
-    name: "Output Temperature Board-2"
-    id: output_temperature_sensor_device2
-    unit_of_measurement: "°C"
-    accuracy_decimals: 1
-    update_interval: 3s
-    filters:
-      - lambda: |-
-          return x / id(voltage_scaling_factor);  
-    icon: "mdi:thermometer"
-    on_value:
-      then:
-        - if:
-            condition:
-              lambda: 'return id(output_temperature_sensor_device2).state > 90.0;'
-            then:
-              - canbus.send:
-                  use_extended_id: true
-                  can_id: 0x108280FE
-                  data: [1, 50, 0, 1, 0, 0, 0, 0]
-              - logger.log:
-                  level: INFO
-                  format: "Temperature exceeded 90°C. Sent CAN OFF message."
-
-  - platform: template
-    name: "Output Current Board-2"
-    id: output_current_sensor_device2
-    unit_of_measurement: "A"
-    accuracy_decimals: 1
-    filters:
-      - lambda: |-
-          return x / id(voltage_scaling_factor);  
-    icon: "mdi:current-dc"
-    update_interval: 3s
-
-  - platform: template
-    name: "Set Max Output Current Board-2"
-    id: set_max_output_current_sensor_device2
-    unit_of_measurement: "A"
-    accuracy_decimals: 1
-    filters:
-      - lambda: |-
-          return x / id(amp_scaling_factor);  
-    icon: "mdi:current-ac"
-    update_interval: 3s
-
-  - platform: template
-    name: "Grid Frequency Board-3"
-    id: grid_frequency_sensor_device3
-    unit_of_measurement: "Hz"
-    accuracy_decimals: 1
-    filters:
-      - lambda: |-
-          return x / id(voltage_scaling_factor);  
-    icon: "mdi:transmission-tower-import"
-    update_interval: 3s
-
-  - platform: template
-    name: "Input Current Board-3"
-    id: input_current_sensor_device3
-    unit_of_measurement: "A"
-    accuracy_decimals: 1
-    filters:
-      - lambda: |-
-          return x / id(voltage_scaling_factor);  
-    icon: "mdi:current-ac"
-    update_interval: 3s
-
-  - platform: template
-    name: "Output Voltage Board-3"
-    id: output_voltage_sensor_device3
-    unit_of_measurement: "V"
-    accuracy_decimals: 1
-    filters:
-      - lambda: |-
-          return x / id(voltage_scaling_factor);  
-    icon: "mdi:current-dc"
-    update_interval: 3s
-
-  - platform: template
-    name: "Input Grid Voltage Board-3"
-    id: input_grid_voltage_sensor_device3
-    unit_of_measurement: "V"
-    accuracy_decimals: 2
-    filters:
-      - lambda: |-
-          return x / id(voltage_scaling_factor);  
-    icon: "mdi:sine-wave"
-    update_interval: 3s
-
-  - platform: template
-    name: "Output Temperature Board-3"
-    id: output_temperature_sensor_device3
-    unit_of_measurement: "°C"
-    accuracy_decimals: 1
-    update_interval: 3s
-    filters:
-      - lambda: |-
-          return x / id(voltage_scaling_factor);  
-    icon: "mdi:thermometer"
-    on_value:
-      then:
-        - if:
-            condition:
-              lambda: 'return id(output_temperature_sensor_device3).state > 90.0;'
-            then:
-              - canbus.send:
-                  use_extended_id: true
-                  can_id: 0x108380FE
-                  data: [1, 50, 0, 1, 0, 0, 0, 0]
-              - logger.log:
-                  level: INFO
-                  format: "Temperature exceeded 90°C. Sent CAN OFF message."
-
-  - platform: template
-    name: "Output Current Board-3"
-    id: output_current_sensor_device3
-    unit_of_measurement: "A"
-    accuracy_decimals: 1
-    filters:
-      - lambda: |-
-          return x / id(voltage_scaling_factor);  
-    icon: "mdi:current-dc"
-    update_interval: 3s
-
-  - platform: template
-    name: "Set Max Output Current Board-3"
-    id: set_max_output_current_sensor_device3
-    unit_of_measurement: "A"
-    accuracy_decimals: 1
-    filters:
-      - lambda: |-
-          return x / id(amp_scaling_factor);  
-    icon: "mdi:current-ac"
-    update_interval: 3s
-
 number:
   - platform: template
     name: "CAN Voltage Set"
-    id: can_voltage_input
+    id: can_voltage_set
     min_value: 49
     max_value: 58
     step: 0.1
@@ -1984,7 +2007,7 @@ number:
     on_value:
       then:
         - lambda: |-
-            float voltage_value = id(can_voltage_input).state;
+            float voltage_value = id(can_voltage_set).state;
             int scaled_value = (int)(voltage_value * id(voltage_scaling_factor));
             
             uint8_t high_byte = (scaled_value >> 8) & 0xFF;
@@ -1996,7 +2019,7 @@ number:
             data: !lambda |-
               std::vector<uint8_t> can_data(8, 0x00);
               can_data[0] = 0x01;
-              int scaled_value = (int)(id(can_voltage_input).state * id(voltage_scaling_factor));
+              int scaled_value = (int)(id(can_voltage_set).state * id(voltage_scaling_factor));
               can_data[6] = (scaled_value >> 8) & 0xFF;
               can_data[7] = scaled_value & 0xFF;
               return can_data;
@@ -2004,7 +2027,7 @@ number:
   # Amp Setting
   - platform: template
     name: "CAN Amp Set"
-    id: can_amp_input
+    id: can_amp_set
     min_value: 1
     max_value: 75 
     step: 1
@@ -2017,7 +2040,7 @@ number:
       then:
         - delay: 0.01s
         - lambda: |-
-            float amp_value = id(can_amp_input).state;
+            float amp_value = id(can_amp_set).state;
             float max_amps = 75;  // Default max amps
             if (id(amp_scaling_factor) == 15) {
               max_amps = 75;
@@ -2029,7 +2052,7 @@ number:
 
             if (amp_value > max_amps) {
               ESP_LOGW("custom", "Entered Amp %.1f exceeds max limit %.1f for model, resetting.", amp_value, max_amps);
-              id(can_amp_input).publish_state(max_amps);  // Reset to max value
+              id(can_amp_set).publish_state(max_amps);  // Reset to max value
               return;
             }
 
@@ -2045,7 +2068,7 @@ number:
               std::vector<uint8_t> can_data(8, 0x00);
               can_data[0] = 0x01;
               can_data[1] = 0x03;
-              int scaled_value = (int)(id(can_amp_input).state * id(amp_scaling_factor));
+              int scaled_value = (int)(id(can_amp_set).state * id(amp_scaling_factor));
               can_data[6] = (scaled_value >> 8) & 0xFF;
               can_data[7] = scaled_value & 0xFF;
               return can_data;
@@ -2053,7 +2076,7 @@ number:
   # Fallback Amp Setting
   - platform: template
     name: "Fallback Amp Set"
-    id: fallback_amp_input
+    id: fallback_amp_set
     min_value: 1
     max_value: 75  
     step: 1
@@ -2066,7 +2089,7 @@ number:
       then:
         - delay: 0.01s
         - lambda: |-
-            float fallback_amp_value = id(fallback_amp_input).state;
+            float fallback_amp_value = id(fallback_amp_set).state;
             float max_amps = 75;  // Default max amps
             if (id(amp_scaling_factor) == 15) {
               max_amps = 75;
@@ -2078,7 +2101,7 @@ number:
 
             if (fallback_amp_value > max_amps) {
               ESP_LOGW("custom", "Entered Fallback Amp %.1f exceeds max limit %.1f for model, resetting.", fallback_amp_value, max_amps);
-              id(fallback_amp_input).publish_state(max_amps);  // Reset to max value
+              id(fallback_amp_set).publish_state(max_amps);  // Reset to max value
               return;
             }
 
@@ -2094,7 +2117,7 @@ number:
               std::vector<uint8_t> can_data(8, 0x00);
               can_data[0] = 0x01;
               can_data[1] = 0x04;
-              int scaled_value = (int)(id(fallback_amp_input).state * id(amp_scaling_factor));
+              int scaled_value = (int)(id(fallback_amp_set).state * id(amp_scaling_factor));
               can_data[6] = (scaled_value >> 8) & 0xFF;
               can_data[7] = scaled_value & 0xFF;
               return can_data;
@@ -2102,7 +2125,7 @@ number:
   # Fallback Voltage Setting
   - platform: template
     name: "Fallback Voltage Set"
-    id: fallback_voltage_input
+    id: fallback_voltage_set
     min_value: 49
     max_value: 58  # Adjust as needed for your voltage range
     step: 0.1  # 0.1V steps
@@ -2113,7 +2136,7 @@ number:
     on_value:
       then:
         - lambda: |-
-            float fallback_voltage_value = id(fallback_voltage_input).state;  // Get the fallback voltage value
+            float fallback_voltage_value = id(fallback_voltage_set).state;  // Get the fallback voltage value
             int fallback_scaled_value = (int)(fallback_voltage_value * id(voltage_scaling_factor));  // Scale the voltage value
             
             uint8_t high_byte = (fallback_scaled_value >> 8) & 0xFF;  // Get high byte
@@ -2126,7 +2149,7 @@ number:
               std::vector<uint8_t> can_data(8, 0x00);  // Initialize with 8 zeros
               can_data[0] = 0x01;  // First byte is always 0x01
               can_data[1] = 0x01;  // Second byte is 0x01 for the Fallback Voltage setting
-              int fallback_scaled_value = (int)(id(fallback_voltage_input).state * id(voltage_scaling_factor));  // Scale the voltage value
+              int fallback_scaled_value = (int)(id(fallback_voltage_set).state * id(voltage_scaling_factor));  // Scale the voltage value
               can_data[6] = (fallback_scaled_value >> 8) & 0xFF;  // Encode the high byte in the 7th byte
               can_data[7] = fallback_scaled_value & 0xFF;         // Encode the low byte in the 8th byte
               return can_data;
@@ -2190,9 +2213,9 @@ binary_sensor:
               condition:
                 lambda: |-
                   return
-                    id(power_state_sensor1).state == "ON" ||
-                    id(power_state_sensor2).state == "ON" ||
-                    id(power_state_sensor3).state == "ON";
+                    id(power_state_sensor_1).state == "ON" ||
+                    id(power_state_sensor_2).state == "ON" ||
+                    id(power_state_sensor_3).state == "ON";
               then:
                 - script.execute: blackstart_stop
               else:
@@ -2226,7 +2249,7 @@ interval:
           data: !lambda |-
             std::vector<uint8_t> can_data(8, 0x00);  // Initialize with 8 zeros
             can_data[0] = 0x01;  // First byte is always 0x01
-            int scaled_value = (int)(id(can_voltage_input).state * id(voltage_scaling_factor));  // Scale the voltage value
+            int scaled_value = (int)(id(can_voltage_set).state * id(voltage_scaling_factor));  // Scale the voltage value
             can_data[6] = (scaled_value >> 8) & 0xFF;  // Encode the high byte in the 7th byte
             can_data[7] = scaled_value & 0xFF;         // Encode the low byte in the 8th byte
             return can_data;
@@ -2241,7 +2264,7 @@ interval:
             std::vector<uint8_t> can_data(8, 0x00);  // Initialize with 8 zeros
             can_data[0] = 0x01;  // First byte is always 0x01
             can_data[1] = 0x03;  // Second byte is 0x03
-            int scaled_value = (int)(id(can_amp_input).state * id(amp_scaling_factor));  // Scale the Amp value
+            int scaled_value = (int)(id(can_amp_set).state * id(amp_scaling_factor));  // Scale the Amp value
             can_data[6] = (scaled_value >> 8) & 0xFF;  // Encode the high byte in the 7th byte
             can_data[7] = scaled_value & 0xFF;         // Encode the low byte in the 8th byte
             return can_data;
@@ -2259,7 +2282,7 @@ button:
             data: [0x01, 0x32, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
 
   - platform: template
-    name: "ON Board-1"
+    name: "ON Module-1"
     on_press:
       then:
         - canbus.send:
@@ -2268,7 +2291,7 @@ button:
             data: [0x01, 0x32, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
 
   - platform: template
-    name: "ON Board-2"
+    name: "ON Module-2"
     on_press:
       then:
         - canbus.send:
@@ -2277,7 +2300,7 @@ button:
             data: [0x01, 0x32, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
 
   - platform: template
-    name: "ON Board-3"
+    name: "ON Module-3"
     on_press:
       then:
         - canbus.send:
@@ -2296,7 +2319,7 @@ button:
             data: [0x01, 0x32, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00]
 
   - platform: template
-    name: "OFF Board-1"
+    name: "OFF Module-1"
     on_press:
       then:
         - canbus.send:
@@ -2304,7 +2327,7 @@ button:
             can_id: 0x108180FE
             data: [0x01, 0x32, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00]
   - platform: template
-    name: "OFF Board-2"
+    name: "OFF Module-2"
     on_press:
       then:
         - canbus.send:
@@ -2313,7 +2336,7 @@ button:
             data: [0x01, 0x32, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00]
 
   - platform: template
-    name: "OFF Board-3"
+    name: "OFF Module-3"
     on_press:
       then:
         - canbus.send:
@@ -2386,76 +2409,77 @@ text_sensor:
       name: "Device Info"
     reset_reason:
       name: "Reset Reason"
+
   - platform: template
-    id: power_state_sensor1
-    name: "Pwr Board-1"
+    id: power_state_sensor_1
+    name: "Pwr Module-1"
     
   - platform: template
-    id: power_state_sensor2
-    name: "Pwr Board-2"
+    id: power_state_sensor_2
+    name: "Pwr Module-2"
 
   - platform: template
-    id: power_state_sensor3
-    name: "Pwr Board-3"
+    id: power_state_sensor_3
+    name: "Pwr Module-3"
 
   - platform: template
-    name: "Type Board-1"
-    id: board_type_sensor_1
+    name: "Type Module-1"
+    id: module_type_sensor_1
 
   - platform: template
-    name: "Type Board-2"
-    id: board_type_sensor_2
+    name: "Type Module-2"
+    id: module_type_sensor_2
 
   - platform: template
-    name: "Type Board-3"
-    id: board_type_sensor_3
+    name: "Type Module-3"
+    id: module_type_sensor_3
 
   - platform: template
-    name: "Barcode Board-1"
+    name: "Barcode Module-1"
     id: barcode_sensor_1
 
   - platform: template
-    name: "Barcode Board-2"
+    name: "Barcode Module-2"
     id: barcode_sensor_2
 
   - platform: template
-    name: "Barcode Board-3"
+    name: "Barcode Module-3"
     id: barcode_sensor_3
 
   - platform: template
-    name: "Item Number Board-1"
+    name: "Item Number Module-1"
     id: item_no_sensor_1
 
   - platform: template
-    name: "Item Number Board-2"
+    name: "Item Number Module-2"
     id: item_no_sensor_2
 
   - platform: template
-    name: "Item Number Board-3"
+    name: "Item Number Module-3"
     id: item_no_sensor_3
 
   - platform: template
-    name: "Description Board-1"
+    name: "Description Module-1"
     id: description_sensor_1
 
   - platform: template
-    name: "Description Board-2"
+    name: "Description Module-2"
     id: description_sensor_2
 
   - platform: template
-    name: "Description Board-3"
+    name: "Description Module-3"
     id: description_sensor_3
 
   - platform: template
-    name: "Mfg Board-1"
+    name: "Mfg Module-1"
     id: manufactured_sensor_1
 
   - platform: template
-    name: "Mfg Board-2"
+    name: "Mfg Module-2"
     id: manufactured_sensor_2
 
   - platform: template
-    name: "Mfg Board-3"
+    name: "Mfg Module-3"
     id: manufactured_sensor_3
 
 ###################################################################################################################################
@@ -2474,7 +2498,7 @@ text_sensor:
             float mqtt_voltage = atof(x.c_str());
             // Update the number input with the new value
             if (mqtt_voltage >= 49.0 && mqtt_voltage <= 58.0) {
-              id(can_voltage_input).publish_state(mqtt_voltage);
+              id(can_voltage_set).publish_state(mqtt_voltage);
             } else {
               ESP_LOGW("custom", "Received out-of-range voltage value: %.1fV", mqtt_voltage);
             }
@@ -2492,7 +2516,7 @@ text_sensor:
             float mqtt_amp = atof(x.c_str());
             // Update the number input with the new value
             if (mqtt_amp >= 1.0 && mqtt_amp <= 75.0) {
-              id(can_amp_input).publish_state(mqtt_amp);
+              id(can_amp_set).publish_state(mqtt_amp);
             } else {
               ESP_LOGW("custom", "Received out-of-range amp value: %.1fA", mqtt_amp);
             }
@@ -2510,7 +2534,7 @@ text_sensor:
             float fallback_voltage = atof(x.c_str());
             // Update the number input with the new value
             if (fallback_voltage >= 49.0 && fallback_voltage <= 58.0) {
-              id(fallback_voltage_input).publish_state(fallback_voltage);
+              id(fallback_voltage_set).publish_state(fallback_voltage);
             } else {
               ESP_LOGW("custom", "Received out-of-range fallback voltage value: %.1fV", fallback_voltage);
             }
@@ -2528,7 +2552,7 @@ text_sensor:
             float fallback_amp = atof(x.c_str());
             // Update the number input with the new value
             if (fallback_amp >= 1.0 && fallback_amp <= 75.0) {
-              id(fallback_amp_input).publish_state(fallback_amp);
+              id(fallback_amp_set).publish_state(fallback_amp);
             } else {
               ESP_LOGW("custom", "Received out-of-range fallback amp value: %.1fA", fallback_amp);
             }
