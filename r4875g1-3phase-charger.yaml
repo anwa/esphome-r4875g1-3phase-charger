@@ -7,6 +7,9 @@ esphome:
   name: hg-dg-technik-charger3ph
   friendly_name: HG⁄DG⁄Technik⁄Charger-3Ph
   min_version: 2026.7.4
+  on_boot:
+    then:
+      - script.execute: display_inactivity_timer
 
 esp32:
   variant: esp32s3
@@ -767,6 +770,26 @@ script:
           level: INFO
           format: "BLACKSTART: Rectifiers switched OFF"
 
+  # ------------------------------------------------------------------
+  # Display backlight inactivity timer
+  # ------------------------------------------------------------------
+  - id: display_inactivity_timer
+    mode: restart
+    then:
+      # Wake display / keep backlight on
+      - light.turn_on:
+          id: back_light
+          brightness: 100%
+          transition_length: 200ms
+
+      # Wait for 5 minutes without user input
+      - delay: 5min
+
+      # Slowly fade out backlight
+      - light.turn_off:
+          id: back_light
+          transition_length: 5s
+          
 canbus:
   - platform: esp32_can
     tx_pin: GPIO19
@@ -1493,6 +1516,8 @@ sensor:
 
     on_clockwise:
       then:
+        - script.execute: display_inactivity_timer
+
         - if:
             condition:
               lambda: 'return id(encoder_mode) == 0;'
@@ -1503,24 +1528,25 @@ sensor:
               - script.execute: apply_dc_sum_power
             else:
               - number.increment:
+                  id: dc_sum_power_set
+                  cycle: false
+    on_anticlockwise:
+      then:
+        - script.execute: display_inactivity_timer
+
+        - if:
+            condition:
+              lambda: 'return id(encoder_mode) == 0;'
+            then:
+              - number.decrement:
+                  id: can_voltage_set
+                  cycle: false
+              - script.execute: apply_dc_sum_power
+            else:
+              - number.decrement:
                   id: dc_sum_power_set
                   cycle: false
 
-    on_anticlockwise:
-      then:
-        - if:
-            condition:
-              lambda: 'return id(encoder_mode) == 0;'
-            then:
-              - number.decrement:
-                  id: can_voltage_set
-                  cycle: false
-              - script.execute: apply_dc_sum_power
-            else:
-              - number.decrement:
-                  id: dc_sum_power_set
-                  cycle: false
-  
   - platform: template
     name: "Input Temperature Module-1"
     id: input_temperature_sensor_1
@@ -2212,6 +2238,12 @@ binary_sensor:
 
     filters:
       - delayed_on_off: 30ms
+
+    # Every physical button press wakes the display
+    # and resets the 5-minute inactivity timer.
+    on_press:
+      then:
+        - script.execute: display_inactivity_timer
 
     on_multi_click:
 
