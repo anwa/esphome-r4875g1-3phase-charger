@@ -130,7 +130,7 @@ display:
     transform:
       swap_xy: true
       mirror_x: true
-    update_interval: 1s
+    update_interval: 500ms
     lambda: |-
       it.fill(Color::WHITE);
       it.print(10, 10, id(font_large), id(color_black), "3 Phase Battery Charger R4875G1");
@@ -1399,7 +1399,7 @@ sensor:
               - number.increment:
                   id: dc_sum_power_set
                   cycle: false
-        - component.update: my_tft
+
     on_anticlockwise:
       then:
         - if:
@@ -1414,7 +1414,6 @@ sensor:
               - number.decrement:
                   id: dc_sum_power_set
                   cycle: false
-        - component.update: my_tft
   
   - platform: template
     name: "Input Temperature Board-1"
@@ -2082,7 +2081,7 @@ number:
     id: dc_sum_power_set
     unit_of_measurement: "kW"
     min_value: 0.25
-    max_value: 11.0
+    max_value: 12.0
     step: 0.25
     optimistic: true
     restore_value: true
@@ -2106,15 +2105,14 @@ binary_sensor:
       inverted: true
 
     filters:
-      - delayed_on: 20ms
-      - delayed_off: 20ms
+      - delayed_on_off: 30ms
 
     on_multi_click:
 
       # Kurzer Druck:
       # Auswahl Voltage <-> Power
       - timing:
-          - ON for 50ms to 800ms
+          - ON for 50ms to 2800ms
           - OFF for at least 50ms
         then:
           - lambda: |-
