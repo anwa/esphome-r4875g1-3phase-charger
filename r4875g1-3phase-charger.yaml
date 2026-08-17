@@ -141,9 +141,97 @@ display:
       it.printf(10, 150, id(font_small), id(color_black), "L1: %.2f V - %.1f A - %.0f W - %.1f °C / %.1f °C", id(dc_voltage), id(dc_current), id(dc_power), id(input_temperature_sensor_device1).state, id(output_temperature_sensor_device1).state);
       it.printf(10, 170, id(font_small), id(color_black), "L2: %.2f V - %.1f A - %.0f W - %.1f °C / %.1f °C", id(dc_voltage), id(dc_current), id(dc_power), id(input_temperature_sensor_device2).state, id(output_temperature_sensor_device2).state);
       it.printf(10, 190, id(font_small), id(color_black), "L3: %.2f V - %.1f A - %.0f W - %.1f °C / %.1f °C", id(dc_voltage), id(dc_current), id(dc_power), id(input_temperature_sensor_device3).state, id(output_temperature_sensor_device3).state);
-      it.print(10, 220, id(font_small_bold), id(color_green), "Setpoints:");
-      it.printf(10, 245, id(font_small), id(color_black), "%.2f V - %.1f A", id(dc_voltage), id(dc_current));
-      it.print(10, 265, id(font_small), "Line 11");
+      // -----------------------------------------------------------------
+      // Local / Blackstart setpoints
+      // -----------------------------------------------------------------
+
+      it.print(
+        10, 220,
+        id(font_small_bold),
+        id(color_green),
+        "Setpoints:"
+      );
+
+      // Actual rectifier status
+      int rectifiers_on = 0;
+
+      if (id(power_state_sensor1).state == "ON") rectifiers_on++;
+      if (id(power_state_sensor2).state == "ON") rectifiers_on++;
+      if (id(power_state_sensor3).state == "ON") rectifiers_on++;
+
+      if (rectifiers_on == 3) {
+
+        it.print(
+          375, 220,
+          id(font_small_bold),
+          id(color_green),
+          "3/3 ON"
+        );
+
+      } else if (rectifiers_on == 0) {
+
+        it.print(
+          410, 220,
+          id(font_small_bold),
+          id(color_red),
+          "OFF"
+        );
+
+      } else {
+
+        it.printf(
+          375, 220,
+          id(font_small_bold),
+          id(color_blue),
+          "%d/3 ON",
+          rectifiers_on
+        );
+      }
+
+      // -----------------------------------------------------------------
+      // Encoder selection
+      // -----------------------------------------------------------------
+
+      if (id(encoder_mode) == 0) {
+
+        // Voltage selected
+        it.printf(
+          10, 245,
+          id(font_small_bold),
+          id(color_blue),
+          "> DC Voltage: %.1f V",
+          id(can_voltage_input).state
+        );
+
+        it.printf(
+          10, 270,
+          id(font_small),
+          id(color_black),
+          "  DC Power: %.2f kW  -  %.1f A/unit",
+          id(dc_sum_power_set).state,
+          id(can_amp_input).state
+        );
+
+      } else {
+
+        // Sum power selected
+        it.printf(
+          10, 245,
+          id(font_small),
+          id(color_black),
+          "  DC Voltage: %.1f V",
+          id(can_voltage_input).state
+        );
+
+        it.printf(
+          10, 270,
+          id(font_small_bold),
+          id(color_blue),
+          "> DC Power: %.2f kW  -  %.1f A/unit",
+          id(dc_sum_power_set).state,
+          id(can_amp_input).state
+        );
+      }
       it.printf(10, 300, id(font_footer), id(color_black), "IP: %s", id(ip_address).state.c_str());
       it.printf(200, 300, id(font_footer), id(color_black), "CPU Temp: %.1f °C", id(cpu_temp).state);
       it.printf(390, 300, id(font_footer), id(color_black), "WiFi: %.1f dBm", id(wifi_sig).state);
@@ -1311,7 +1399,7 @@ sensor:
               - number.increment:
                   id: dc_sum_power_set
                   cycle: false
-
+        - component.update: my_tft
     on_anticlockwise:
       then:
         - if:
@@ -1326,7 +1414,8 @@ sensor:
               - number.decrement:
                   id: dc_sum_power_set
                   cycle: false
-
+        - component.update: my_tft
+  
   - platform: template
     name: "Input Temperature Board-1"
     id: input_temperature_sensor_device1
@@ -2038,7 +2127,7 @@ binary_sensor:
                   ? "DC Voltage"
                   : "DC Sum Power"
               );
-
+          - component.update: my_tft
       # Langer Druck:
       # Charger ON/OFF
       - timing:
