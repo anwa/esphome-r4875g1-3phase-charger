@@ -177,9 +177,9 @@ display:
         id(font_small),
         id(color_black),
         "%.1f V - %.1f A - %.1f Hz - %.0f kW",
-        id(ac_voltage),
-        id(ac_current),
-        id(ac_frequency),
+        id(input_grid_voltage_sensor_1).state,
+        id(input_current_sensor_1).state,
+        id(grid_frequency_sensor_1).state,
         id(combined_ac_power_sensor).state
       );
       it.printf(10, 125,
@@ -192,9 +192,9 @@ display:
         id(font_small),
         id(color_black),
         "L1: %.2f V - %.1f A - %.0f W - %.1f °C / %.1f °C",
-        id(dc_voltage),
-        id(dc_current),
-        id(dc_power),
+        id(output_voltage_sensor_1).state,
+        id(output_current_sensor_1).state,
+        id(dc_power_out_sensor_1).state,
         id(input_temperature_sensor_1).state,
         id(output_temperature_sensor_1).state
       );
@@ -202,9 +202,9 @@ display:
         id(font_small),
         id(color_black),
         "L2: %.2f V - %.1f A - %.0f W - %.1f °C / %.1f °C",
-        id(dc_voltage),
-        id(dc_current),
-        id(dc_power),
+        id(output_voltage_sensor_2).state,
+        id(output_current_sensor_2).state,
+        id(dc_power_out_sensor_2).state,
         id(input_temperature_sensor_2).state,
         id(output_temperature_sensor_2).state
       );
@@ -212,9 +212,9 @@ display:
         id(font_small),
         id(color_black),
         "L3: %.2f V - %.1f A - %.0f W - %.1f °C / %.1f °C",
-        id(dc_voltage),
-        id(dc_current),
-        id(dc_power),
+        id(output_voltage_sensor_3).state,
+        id(output_current_sensor_3).state,
+        id(dc_power_out_sensor_3).state,
         id(input_temperature_sensor_3).state,
         id(output_temperature_sensor_3).state
       );
@@ -2559,25 +2559,34 @@ text_sensor:
  #############################################################################################################################
  
 font:
-  - file: "gfonts://Roboto"
+  - file:
+      type: gfonts
+      family: Roboto
     id: font_footer
     size: 12
-    glyphs: "äöüÄÖÜßabcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!§$%&=? .,:-_/()°µ@€²³"
-  - file: "gfonts://Roboto"
+    glyphs: "äöüÄÖÜßabcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!§$%&=?<> .,:-_/()°µ@€²³"
+
+  - file:
+      type: gfonts
+      family: Roboto
     id: font_small
     size: 20
-    glyphs: "äöüÄÖÜßabcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!§$%&=? .,:-_/()°µ@€²³"
+    glyphs: "äöüÄÖÜßabcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!§$%&=?<> .,:-_/()°µ@€²³"
+
   - file:
       type: gfonts
       family: Roboto
       weight: bold
     id: font_small_bold
     size: 20
-    glyphs: "äöüÄÖÜßabcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!§$%&=? .,:-_/()°µ@€²³"
-  - file: "gfonts://Roboto"
+    glyphs: "äöüÄÖÜßabcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!§$%&=?<> .,:-_/()°µ@€²³"
+
+  - file:
+      type: gfonts
+      family: Roboto
     id: font_large
     size: 28
-    glyphs: "äöüÄÖÜßabcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!§$%&=? .,:-_/()°µ@€²³"
+    glyphs: "äöüÄÖÜßabcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!§$%&=?<> .,:-_/()°µ@€²³"
 
 color:
   - id: color_black
