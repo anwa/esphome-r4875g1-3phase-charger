@@ -160,6 +160,7 @@ display:
         id(color_black),
         "3 Phase Battery Charger R4875G1"
       );
+
       it.strftime(
         10, 40,
         id(font_small),
@@ -167,13 +168,17 @@ display:
         "%d.%m.%Y %H:%M",
         id(sntp_time).now()
       );
-      it.printf(10, 70,
+
+      it.printf(
+        10, 70,
         id(font_small_bold),
         id(color_blue),
         "AC Input: %.3f kW",
         id(combined_ac_power_sensor).state
         );
-      it.printf(10, 95,
+
+      it.printf(
+        10, 95,
         id(font_small),
         id(color_black),
         "%.1f V - %.1f A - %.1f Hz - %.0f kW",
@@ -182,42 +187,77 @@ display:
         id(grid_frequency_sensor_1).state,
         id(combined_ac_power_sensor).state
       );
+
       it.printf(10, 125,
         id(font_small_bold),
         id(color_red),
         "DC Output: %.3f kW",
         id(combined_dc_power_sensor).state
       );
-      it.printf(10, 150,
-        id(font_small),
-        id(color_black),
-        "L1: %.2f V - %.1f A - %.0f W - %.1f °C / %.1f °C",
-        id(output_voltage_sensor_1).state,
-        id(output_current_sensor_1).state,
-        id(dc_power_out_sensor_1).state,
-        id(input_temperature_sensor_1).state,
-        id(output_temperature_sensor_1).state
-      );
-      it.printf(10, 170,
-        id(font_small),
-        id(color_black),
-        "L2: %.2f V - %.1f A - %.0f W - %.1f °C / %.1f °C",
-        id(output_voltage_sensor_2).state,
-        id(output_current_sensor_2).state,
-        id(dc_power_out_sensor_2).state,
-        id(input_temperature_sensor_2).state,
-        id(output_temperature_sensor_2).state
-      );
-      it.printf(10, 190,
-        id(font_small),
-        id(color_black),
-        "L3: %.2f V - %.1f A - %.0f W - %.1f °C / %.1f °C",
-        id(output_voltage_sensor_3).state,
-        id(output_current_sensor_3).state,
-        id(dc_power_out_sensor_3).state,
-        id(input_temperature_sensor_3).state,
-        id(output_temperature_sensor_3).state
-      );
+
+      if (id(can_com_ok_1).state) {
+        it.printf(
+          10, 150,
+          id(font_small),
+          id(color_black),
+          "L1: %.2f V - %.1f A - %.0f W - %.1f °C / %.1f °C",
+          id(output_voltage_sensor_1).state,
+          id(output_current_sensor_1).state,
+          id(dc_power_out_sensor_1).state,
+          id(input_temperature_sensor_1).state,
+          id(output_temperature_sensor_1).state
+        );
+      } else {
+        it.print(
+          10, 150,
+          id(font_small_bold),
+          id(color_red),
+          "L1: CAN bus communication fault!"
+        );
+      }
+
+      if (id(can_com_ok_2).state) {
+        it.printf(
+          10, 170,
+          id(font_small),
+          id(color_black),
+          "L2: %.2f V - %.1f A - %.0f W - %.1f °C / %.1f °C",
+          id(output_voltage_sensor_2).state,
+          id(output_current_sensor_2).state,
+          id(dc_power_out_sensor_2).state,
+          id(input_temperature_sensor_2).state,
+          id(output_temperature_sensor_2).state
+        );
+      } else {
+        it.print(
+          10, 170,
+          id(font_small_bold),
+          id(color_red),
+          "L2: CAN bus communication fault!"
+        );
+      }
+
+      if (id(can_com_ok_3).state) {
+        it.printf(
+          10, 190,
+          id(font_small),
+          id(color_black),
+          "L3: %.2f V - %.1f A - %.0f W - %.1f °C / %.1f °C",
+          id(output_voltage_sensor_3).state,
+          id(output_current_sensor_3).state,
+          id(dc_power_out_sensor_3).state,
+          id(input_temperature_sensor_3).state,
+          id(output_temperature_sensor_3).state
+        );
+      } else {
+        it.print(
+          10, 190,
+          id(font_small_bold),
+          id(color_red),
+          "L3: CAN bus communication fault!"
+        );
+      }
+
       // -----------------------------------------------------------------
       // Local / Blackstart setpoints
       // -----------------------------------------------------------------
@@ -323,44 +363,23 @@ globals:
     restore_value: no
     initial_value: 'false'
 
-  # Temporäre Variablen zum Test
-  - id: ac_voltage
-    type: float
-    restore_value: true
-    initial_value: "230.84"
-  - id: ac_current
-    type: float
-    restore_value: true
-    initial_value: "21.69"
-  - id: ac_frequency
-    type: float
-    restore_value: true
-    initial_value: "50.052"
-  - id: ac_power
-    type: float
-    restore_value: true
-    initial_value: "3632.2"
-  - id: dc_voltage
-    type: float
-    restore_value: true
-    initial_value: "56.84"
-  - id: dc_current
-    type: float
-    restore_value: true
-    initial_value: "69.3437"
-  - id: dc_power
-    type: float
-    restore_value: true
-    initial_value: "3941.5"
-  - id: in_temp
-    type: float
-    restore_value: true
-    initial_value: "56.35"
-  - id: out_temp
-    type: float
-    restore_value: true
-    initial_value: "62.59"
-  # 3 Phase
+  # Last valid cyclic CAN telemetry frame received from each charger module.
+  # Used by can_com_ok_1..3 to detect stale/lost communication.
+  - id: last_can_rx_1
+    type: uint32_t
+    restore_value: no
+    initial_value: '0'
+
+  - id: last_can_rx_2
+    type: uint32_t
+    restore_value: no
+    initial_value: '0'
+
+  - id: last_can_rx_3
+    type: uint32_t
+    restore_value: no
+    initial_value: '0'
+
   - id: amp_scaling_factor
     type: float
     initial_value: "15.0"
@@ -1060,6 +1079,9 @@ canbus:
         then:
           - lambda: |-
               if (x.size() >= 8) {
+                // Valid cyclic telemetry received: refresh CAN communication watchdog.
+                id(last_can_rx_1) = millis();
+
                 const uint8_t byte_0 = static_cast<uint8_t>(x[0]);
                 const uint8_t byte_1 = static_cast<uint8_t>(x[1]);
                 const uint32_t value = (static_cast<uint32_t>(x[4]) << 24) | 
@@ -1091,6 +1113,9 @@ canbus:
         then:
           - lambda: |-
               if (x.size() >= 8) {
+                // Valid cyclic telemetry received: refresh CAN communication watchdog.
+                id(last_can_rx_2) = millis();
+
                 const uint8_t byte_0 = static_cast<uint8_t>(x[0]);
                 const uint8_t byte_1 = static_cast<uint8_t>(x[1]);
                 const uint32_t value = (static_cast<uint32_t>(x[4]) << 24) | 
@@ -1122,6 +1147,9 @@ canbus:
         then:
           - lambda: |-
               if (x.size() >= 8) {
+                // Valid cyclic telemetry received: refresh CAN communication watchdog.
+                id(last_can_rx_3) = millis();
+
                 const uint8_t byte_0 = static_cast<uint8_t>(x[0]);
                 const uint8_t byte_1 = static_cast<uint8_t>(x[1]);
                 const uint32_t value = (static_cast<uint32_t>(x[4]) << 24) | 
@@ -2220,6 +2248,39 @@ binary_sensor:
                 - script.execute: blackstart_stop
               else:
                 - script.execute: blackstart_start
+
+  # CAN communication watchdogs
+  #
+  # The charger modules are queried several times per second. A module is
+  # considered online when a valid cyclic telemetry frame was received within
+  # the last 3 seconds. Unsigned subtraction keeps this safe across millis()
+  # wrap-around.
+  - platform: template
+    id: can_com_ok_1
+    name: "CAN Communication Module-1"
+    device_class: connectivity
+    entity_category: diagnostic
+    lambda: |-
+      return id(last_can_rx_1) != 0 &&
+             (uint32_t) (millis() - id(last_can_rx_1)) < 3000U;
+
+  - platform: template
+    id: can_com_ok_2
+    name: "CAN Communication Module-2"
+    device_class: connectivity
+    entity_category: diagnostic
+    lambda: |-
+      return id(last_can_rx_2) != 0 &&
+             (uint32_t) (millis() - id(last_can_rx_2)) < 3000U;
+
+  - platform: template
+    id: can_com_ok_3
+    name: "CAN Communication Module-3"
+    device_class: connectivity
+    entity_category: diagnostic
+    lambda: |-
+      return id(last_can_rx_3) != 0 &&
+             (uint32_t) (millis() - id(last_can_rx_3)) < 3000U;
 
 interval:
   # Interval for sending the first CAN message every 05 seconds
