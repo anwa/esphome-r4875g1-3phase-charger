@@ -48,7 +48,7 @@
 #     engineering_value = raw_CAN_value / 1024
 #     raw_CAN_value     = engineering_value * 1024
 #
-# Current commands use amp_scaling_factor. That factor is derived from the
+# Current commands use current_scaling_factor. That factor is derived from the
 # detected maximum-current capability of Module 1.
 #
 # COMMUNICATION HEALTH
@@ -586,7 +586,7 @@ display:
           id(color_black),
           "  DC Power: %.2f kW  -  %.1f A/unit",
           id(dc_sum_power_set).state,
-          id(can_amp_set).state
+          id(set_dc_current).state
         );
 
       } else {
@@ -606,7 +606,7 @@ display:
           id(color_blue),
           "> DC Power: %.2f kW  -  %.1f A/unit",
           id(dc_sum_power_set).state,
-          id(can_amp_set).state
+          id(set_dc_current).state
         );
       }
       // Footer diagnostics are controller-side values and remain useful even if
@@ -659,7 +659,7 @@ globals:
 
   # Current-command scale factor. It is initialized to 15 and
   # updated from the detected Module 1 current capability.
-  - id: amp_scaling_factor
+  - id: current_scaling_factor
     type: float
     initial_value: "15.0"
     restore_value: True
@@ -1033,7 +1033,7 @@ script:
   # Converts the requested total DC power into an equal current
   # target for each of the three parallel rectifiers:
   # I_each = P_total / (3 * V_DC).
-  # The result is limited to 1..75 A and applied through can_amp_set.
+  # The result is limited to 1..75 A and applied through set_dc_current.
   - id: apply_dc_sum_power
     mode: restart
     then:
@@ -1043,7 +1043,7 @@ script:
           float voltage = id(can_voltage_set).state;
           float power_kw = id(dc_sum_power_set).state;
 
-          if (isnan(voltage) || voltage < 1.0) {
+          if (isnan(voltage) || voltage < 48.0) {
             ESP_LOGW("encoder", "Invalid DC voltage - cannot calculate current");
             return;
           }
@@ -1069,9 +1069,9 @@ script:
             current_per_rectifier
           );
 
-          // Use NumberCall so the normal can_amp_set automation performs the final
+          // Use NumberCall so the normal set_dc_current automation performs the final
           // validation and CAN transmission; do not bypass that centralized path.
-          auto call = id(can_amp_set).make_call();
+          auto call = id(set_dc_current).make_call();
           call.set_value(current_per_rectifier);
           call.perform();
 
@@ -1119,8 +1119,8 @@ script:
             can_data[1] = 0x03;
 
             int scaled_value =
-                (int)(id(can_amp_set).state *
-                      id(amp_scaling_factor));
+                (int)(id(set_dc_current).state *
+                      id(current_scaling_factor));
 
             can_data[6] = (scaled_value >> 8) & 0xFF;
             can_data[7] = scaled_value & 0xFF;
@@ -1248,7 +1248,7 @@ canbus:
                   id(module_properties_complete_1) = false;
                   message_started = true;
                   id(frame_counter_msg_start_1) = 0;  // Reset global frame counter
-                  ESP_LOGI("module_properties_1", "Message Start Detected");
+                  ESP_LOGI("module_properties_1", "Module 1: Message Start Detected");
                 }
 
                 if (message_started) {
@@ -1260,7 +1260,7 @@ canbus:
                   id(frame_counter_msg_start_1)++;
 
                   // Log for debugging purposes
-                  ESP_LOGD("module_properties_1", "Captured Frame #%d: %s", id(frame_counter_msg_start_1), frame_data.c_str());
+                  ESP_LOGD("module_properties_1", "Module 1: Captured Frame #%d: %s", id(frame_counter_msg_start_1), frame_data.c_str());
                 }
               }
 
@@ -1281,7 +1281,7 @@ canbus:
                   id(module_properties_complete_2) = false;
                   message_started = true;
                   id(frame_counter_msg_start_2) = 0;  // Reset global frame counter
-                  ESP_LOGI("module_properties_2", "Message Start Detected");
+                  ESP_LOGI("module_properties_2", "Module 2: Message Start Detected");
                 }
 
                 if (message_started) {
@@ -1293,7 +1293,7 @@ canbus:
                   id(frame_counter_msg_start_2)++;
 
                   // Log for debugging purposes
-                  ESP_LOGD("module_properties_2", "Captured Frame #%d: %s", id(frame_counter_msg_start_2), frame_data.c_str());
+                  ESP_LOGD("module_properties_2", "Module 2: Captured Frame #%d: %s", id(frame_counter_msg_start_2), frame_data.c_str());
                 }
               }
 
@@ -1314,7 +1314,7 @@ canbus:
                   id(module_properties_complete_3) = false;
                   message_started = true;
                   id(frame_counter_msg_start_3) = 0;  // Reset global frame counter
-                  ESP_LOGI("module_properties_3", "Message Start Detected");
+                  ESP_LOGI("module_properties_3", "Module 3: Message Start Detected");
                 }
 
                 if (message_started) {
@@ -1326,7 +1326,7 @@ canbus:
                   id(frame_counter_msg_start_3)++;
 
                   // Log for debugging purposes
-                  ESP_LOGD("module_properties_3", "Captured Frame #%d: %s", id(frame_counter_msg_start_3), frame_data.c_str());
+                  ESP_LOGD("module_properties_3", "Module 3: Captured Frame #%d: %s", id(frame_counter_msg_start_3), frame_data.c_str());
                 }
               }
 
@@ -1342,13 +1342,13 @@ canbus:
               // Check if this frame contains additional payload data
               if (x.size() > 2) {  // Payload starts at x[2], so size must be > 2
                 std::string frame_data((char*)&x[2], x.size() - 2);
-                ESP_LOGI("module_properties_1", "End Message Frame Data: %s", frame_data.c_str());
+                ESP_LOGI("module_properties_1", "Module 1: End Message Frame Data: %s", frame_data.c_str());
 
                 // Append any remaining data to module_properties_1
                 id(module_properties_1) += frame_data;
               }
-              ESP_LOGI("module_properties_1", "Total Frames Captured: %d", id(frame_counter_msg_start_1));
-              ESP_LOGI("module_properties_1", "Final Module Properties: %s", id(module_properties_1).c_str());
+              ESP_LOGI("module_properties_1", "Module 1: Total Frames Captured: %d", id(frame_counter_msg_start_1));
+              ESP_LOGI("module_properties_1", "Module 1: Final Module Properties: %s", id(module_properties_1).c_str());
 
               auto extract_value = [](const std::string &data, const std::string &key) -> std::string {
                 size_t start = data.find(key);
@@ -1383,13 +1383,13 @@ canbus:
               for (const auto& mapping : mappings) {
                 std::string value = extract_value(id(module_properties_1), mapping.key);
                 if (!value.empty()) {
-                  ESP_LOGI("module_properties_1", "Extracted %s: %s", mapping.key, value.c_str());
+                  ESP_LOGI("module_properties_1", "Module 1: Extracted %s: %s", mapping.key, value.c_str());
                   mapping.sensor->publish_state(value.c_str());
                   if (mapping.flag) {
                     *(mapping.flag) = true;
                   }
                 } else {
-                  ESP_LOGW("module_properties_1", "Key %s not found or empty", mapping.key);
+                  ESP_LOGW("module_properties_1", "Module 1: Key %s not found or empty", mapping.key);
                   all_keys_found = false;
                   if (mapping.flag) {
                     *(mapping.flag) = false; // Reset the flag for missing keys
@@ -1399,10 +1399,10 @@ canbus:
 
               if (all_keys_found) {
                 id(module_properties_complete_1) = true; // Mark completion only if all keys are found
-                ESP_LOGI("module_properties_1", "All required keys found. Marking as complete.");
+                ESP_LOGI("module_properties_1", "Module 1: All required keys found. Marking as complete.");
               } else {
                 id(module_properties_complete_1) = false; // Explicitly reset the flag if keys are missing
-                ESP_LOGI("module_properties_1", "Not all keys found. Will continue processing.");
+                ESP_LOGI("module_properties_1", "Module 1: Not all keys found. Will continue processing.");
               }
 
       # Handler for CAN ID 0x1082D27E (Packet x)
@@ -1417,13 +1417,13 @@ canbus:
               // Check if this frame contains additional payload data
               if (x.size() > 2) {  // Payload starts at x[2], so size must be > 2
                 std::string frame_data((char*)&x[2], x.size() - 2);
-                ESP_LOGI("module_properties_2", "End Message Frame Data: %s", frame_data.c_str());
+                ESP_LOGI("module_properties_2", "Module 2: End Message Frame Data: %s", frame_data.c_str());
 
                 // Append any remaining data to module_properties_2
                 id(module_properties_2) += frame_data;
               }
-              ESP_LOGI("module_properties_2", "Total Frames Captured: %d", id(frame_counter_msg_start_2));
-              ESP_LOGI("module_properties_2", "Final Module Properties: %s", id(module_properties_2).c_str());
+              ESP_LOGI("module_properties_2", "Module 2: Total Frames Captured: %d", id(frame_counter_msg_start_2));
+              ESP_LOGI("module_properties_2", "Module 2: Final Module Properties: %s", id(module_properties_2).c_str());
 
               auto extract_value = [](const std::string &data, const std::string &key) -> std::string {
                 size_t start = data.find(key);
@@ -1458,13 +1458,13 @@ canbus:
               for (const auto& mapping : mappings) {
                 std::string value = extract_value(id(module_properties_2), mapping.key);
                 if (!value.empty()) {
-                  ESP_LOGI("module_properties_2", "Extracted %s: %s", mapping.key, value.c_str());
+                  ESP_LOGI("module_properties_2", "Module 2: Extracted %s: %s", mapping.key, value.c_str());
                   mapping.sensor->publish_state(value.c_str());
                   if (mapping.flag) {
                     *(mapping.flag) = true;
                   }
                 } else {
-                  ESP_LOGW("module_properties_2", "Key %s not found or empty", mapping.key);
+                  ESP_LOGW("module_properties_2", "Module 2: Key %s not found or empty", mapping.key);
                   all_keys_found = false;
                   if (mapping.flag) {
                     *(mapping.flag) = false; // Reset the flag for missing keys
@@ -1474,10 +1474,10 @@ canbus:
 
               if (all_keys_found) {
                 id(module_properties_complete_2) = true; // Mark completion only if all keys are found
-                ESP_LOGI("module_properties_2", "All required keys found. Marking as complete.");
+                ESP_LOGI("module_properties_2", "Module 2: All required keys found. Marking as complete.");
               } else {
                 id(module_properties_complete_2) = false; // Explicitly reset the flag if keys are missing
-                ESP_LOGI("module_properties_2", "Not all keys found. Will continue processing.");
+                ESP_LOGI("module_properties_2", "Module 2: Not all keys found. Will continue processing.");
               }
 
       # Handler for CAN ID 0x1083D27E (Packet x)
@@ -1492,13 +1492,13 @@ canbus:
               // Check if this frame contains additional payload data
               if (x.size() > 2) {  // Payload starts at x[2], so size must be > 2
                 std::string frame_data((char*)&x[2], x.size() - 2);
-                ESP_LOGI("module_properties_3", "End Message Frame Data: %s", frame_data.c_str());
+                ESP_LOGI("module_properties_3", "Module 3: End Message Frame Data: %s", frame_data.c_str());
 
                 // Append any remaining data to module_properties_2
                 id(module_properties_3) += frame_data;
               }
-              ESP_LOGI("module_properties_3", "Total Frames Captured: %d", id(frame_counter_msg_start_3));
-              ESP_LOGI("module_properties_3", "Final Module Properties: %s", id(module_properties_3).c_str());
+              ESP_LOGI("module_properties_3", "Module 3: Total Frames Captured: %d", id(frame_counter_msg_start_3));
+              ESP_LOGI("module_properties_3", "Module 3: Final Module Properties: %s", id(module_properties_3).c_str());
 
               auto extract_value = [](const std::string &data, const std::string &key) -> std::string {
                 size_t start = data.find(key);
@@ -1533,13 +1533,13 @@ canbus:
               for (const auto& mapping : mappings) {
                 std::string value = extract_value(id(module_properties_3), mapping.key);
                 if (!value.empty()) {
-                  ESP_LOGI("module_properties_3", "Extracted %s: %s", mapping.key, value.c_str());
+                  ESP_LOGI("module_properties_3", "Module 3: Extracted %s: %s", mapping.key, value.c_str());
                   mapping.sensor->publish_state(value.c_str());
                   if (mapping.flag) {
                     *(mapping.flag) = true;
                   }
                 } else {
-                  ESP_LOGW("module_properties_3", "Key %s not found or empty", mapping.key);
+                  ESP_LOGW("module_properties_3", "Module 3: Key %s not found or empty", mapping.key);
                   all_keys_found = false;
                   if (mapping.flag) {
                     *(mapping.flag) = false; // Reset the flag for missing keys
@@ -1549,10 +1549,10 @@ canbus:
 
               if (all_keys_found) {
                 id(module_properties_complete_3) = true; // Mark completion only if all keys are found
-                ESP_LOGI("module_properties_3", "All required keys found. Marking as complete.");
+                ESP_LOGI("module_properties_3", "Module 3: All required keys found. Marking as complete.");
               } else {
                 id(module_properties_complete_3) = false; // Explicitly reset the flag if keys are missing
-                ESP_LOGI("module_properties_3", "Not all keys found. Will continue processing.");
+                ESP_LOGI("module_properties_3", "Module 3: Not all keys found. Will continue processing.");
               }
 
       # Handler for CAN ID 0x1081407F (Packet x)
@@ -1587,11 +1587,12 @@ canbus:
                       case 0x72: id(input_current_sensor_1).publish_state(value); break;
                       case 0x73: id(dc_power_out_sensor_1).publish_state(value); break;
                       case 0x75: id(output_voltage_sensor_1).publish_state(value); break;
-                      case 0x76: id(set_max_output_current_sensor_1).publish_state(value); break;
+                      case 0x76: id(max_output_current_setpoint_1).publish_state(value); break;
                       case 0x78: id(input_grid_voltage_sensor_1).publish_state(value); break;
                       case 0x7F: id(output_temperature_sensor_1).publish_state(value); break;
                       case 0x81: id(output_current_sensor_1).publish_state(value); break;
                       case 0x80: id(input_temperature_sensor_1).publish_state(value); break;
+                      case 0x0E: id(operating_hours_1).publish_state(value); break;
                     }
                     break;
                 }
@@ -1629,11 +1630,12 @@ canbus:
                       case 0x72: id(input_current_sensor_2).publish_state(value); break;
                       case 0x73: id(dc_power_out_sensor_2).publish_state(value); break;
                       case 0x75: id(output_voltage_sensor_2).publish_state(value); break;
-                      case 0x76: id(set_max_output_current_sensor_2).publish_state(value); break;
+                      case 0x76: id(max_output_current_setpoint_2).publish_state(value); break;
                       case 0x78: id(input_grid_voltage_sensor_2).publish_state(value); break;
                       case 0x7F: id(output_temperature_sensor_2).publish_state(value); break;
                       case 0x81: id(output_current_sensor_2).publish_state(value); break;
                       case 0x80: id(input_temperature_sensor_2).publish_state(value); break;
+                      case 0x0E: id(operating_hours_2).publish_state(value); break;
                     }
                     break;
                 }
@@ -1671,11 +1673,12 @@ canbus:
                       case 0x72: id(input_current_sensor_3).publish_state(value); break;
                       case 0x73: id(dc_power_out_sensor_3).publish_state(value); break;
                       case 0x75: id(output_voltage_sensor_3).publish_state(value); break;
-                      case 0x76: id(set_max_output_current_sensor_3).publish_state(value); break;
+                      case 0x76: id(max_output_current_setpoint_3).publish_state(value); break;
                       case 0x78: id(input_grid_voltage_sensor_3).publish_state(value); break;
                       case 0x7F: id(output_temperature_sensor_3).publish_state(value); break;
                       case 0x81: id(output_current_sensor_3).publish_state(value); break;
                       case 0x80: id(input_temperature_sensor_3).publish_state(value); break;
+                      case 0x0E: id(operating_hours_3).publish_state(value); break;
                     }
                     break;
                 }
@@ -1685,7 +1688,7 @@ canbus:
       # Max current for Module 1
       # ----------------------------------------------------------------------
       # CAN RX 0x1081507F
-      # Module 1 capability packet. Packet 1 reports maximum output current and is used to derive amp_scaling_factor.
+      # Module 1 capability packet. Packet 1 reports maximum output current and is used to derive current_scaling_factor.
       - can_id: 0x1081507F
         use_extended_id: true
         then:
@@ -1700,17 +1703,17 @@ canbus:
               if (packet_number == 1) {
                 uint8_t max_current_raw = packet_data[5];
                 float max_current = max_current_raw / 2; // Adjust scaling factor if necessary
-                ESP_LOGI("canbus", "Module 1 Max current capability: %.1f A", max_current);
+                ESP_LOGI("canbus", "Module 1: Max current capability: %.1f A", max_current);
                 id(max_current_sensor_1).publish_state(max_current);
                 id(max_current_found_1) = true; // Set the flag to true
 
-                // Calculate and update amp_scaling_factor
+                // Calculate and update current_scaling_factor
                 if (max_current > 0) {
-                  id(amp_scaling_factor) = 1024.0 / max_current;
-                  ESP_LOGI("canbus", "New amp_scaling_factor: %.3f", id(amp_scaling_factor));
-                  id(sf_value_1).publish_state(id(amp_scaling_factor));
+                  id(current_scaling_factor) = 1024.0 / max_current;
+                  ESP_LOGI("canbus", "Module 1: New current_scaling_factor: %.3f", id(current_scaling_factor));
+                  id(sf_value_1).publish_state(id(current_scaling_factor));
                 } else {
-                  ESP_LOGW("canbus", "Max current is zero. Cannot calculate amp_scaling_factor.");
+                  ESP_LOGW("canbus", "Module 1: Max current is zero. Cannot calculate current_scaling_factor.");
                 }
               }
 
@@ -1733,9 +1736,20 @@ canbus:
               if (packet_number == 1) {
                 uint8_t max_current_raw = packet_data[5];
                 float max_current = max_current_raw / 2; // Adjust scaling factor if necessary
-                ESP_LOGI("canbus", "Module 2 Max current capability: %.1f A", max_current);
+                ESP_LOGI("canbus", "Module 2: Max current capability: %.1f A", max_current);
                 id(max_current_sensor_2).publish_state(max_current);
                 id(max_current_found_2) = true; // Set the flag to true
+
+                // Diagnostic-only: publish Module 2's own scaling factor for comparison, but
+                // do not overwrite the shared current_scaling_factor (that remains Module 1's
+                // responsibility, per the architecture note at the top of this file).
+                if (max_current > 0) {
+                  float module_2_scaling_factor = 1024.0 / max_current;
+                  ESP_LOGI("canbus", "Module 2: Diagnostic scaling factor: %.3f", module_2_scaling_factor);
+                  id(sf_value_2).publish_state(module_2_scaling_factor);
+                } else {
+                  ESP_LOGW("canbus", "Module 2: Max current is zero. Cannot calculate scaling factor.");
+                }
               }
 
       # Handler for CAN ID 0x1083507F (Packet 1)
@@ -1757,9 +1771,20 @@ canbus:
               if (packet_number == 1) {
                 uint8_t max_current_raw = packet_data[5];
                 float max_current = max_current_raw / 2; // Adjust scaling factor if necessary
-                ESP_LOGI("canbus", "Module 3 Max current capability: %.1f A", max_current);
+                ESP_LOGI("canbus", "Module 3: Max current capability: %.1f A", max_current);
                 id(max_current_sensor_3).publish_state(max_current);
                 id(max_current_found_3) = true; // Set the flag to true
+
+                // Diagnostic-only: publish Module 3's own scaling factor for comparison, but
+                // do not overwrite the shared current_scaling_factor (that remains Module 1's
+                // responsibility, per the architecture note at the top of this file).
+                if (max_current > 0) {
+                  float module_3_scaling_factor = 1024.0 / max_current;
+                  ESP_LOGI("canbus", "Module 3: Diagnostic scaling factor: %.3f", module_3_scaling_factor);
+                  id(sf_value_3).publish_state(module_3_scaling_factor);
+                } else {
+                  ESP_LOGW("canbus", "Module 3: Max current is zero. Cannot calculate scaling factor.");
+                }
               }
 
       # Handler for CAN ID 0x1081827E (Packet 0x87)
@@ -1865,18 +1890,18 @@ canbus:
         then:
           - lambda: |-
               if (id(data_found_1)) {
-                ESP_LOGI("canbus", "Data already found. Skipping further processing.");
+                ESP_LOGI("canbus", "Module 1: Data already found. Skipping further processing.");
                 return; // Skip processing if already found
               }
 
-              ESP_LOGI("canbus", "Module 1 Received CAN message 0x1081507E (Packet 6)");
+              ESP_LOGI("canbus", "Module 1: Received CAN message 0x1081507E (Packet 6)");
 
               uint8_t packet_data[8];
               memcpy(packet_data, x.data(), 8);
 
               uint8_t pin11 = packet_data[2];
               uint8_t pin12 = packet_data[3];
-              ESP_LOGI("canbus", "Module 1 Pin 11: %d, Pin 12: %d", pin11, pin12);
+              ESP_LOGI("canbus", "Module 1: Pin 11: %d, Pin 12: %d", pin11, pin12);
 
               id(pin11_sensor_1).publish_state(pin11);
               id(pin12_sensor_1).publish_state(pin12);
@@ -1895,17 +1920,18 @@ canbus:
         then:
           - lambda: |-
               if (id(data_found_2)) {
+                ESP_LOGI("canbus", "Module 2: Data already found. Skipping further processing.");
                 return; // Skip processing if already found
               }
 
-              ESP_LOGI("canbus", "Module 2 Received CAN message 0x1082507E (Packet 6)");
+              ESP_LOGI("canbus", "Module 2: Received CAN message 0x1082507E (Packet 6)");
 
               uint8_t packet_data[8];
               memcpy(packet_data, x.data(), 8);
 
               uint8_t pin11 = packet_data[2];
               uint8_t pin12 = packet_data[3];
-              ESP_LOGI("canbus", "Module 2 Pin 11: %d, Pin 12: %d", pin11, pin12);
+              ESP_LOGI("canbus", "Module 2: Pin 11: %d, Pin 12: %d", pin11, pin12);
 
               id(pin11_sensor_2).publish_state(pin11);
               id(pin12_sensor_2).publish_state(pin12);
@@ -1924,17 +1950,18 @@ canbus:
         then:
           - lambda: |-
               if (id(data_found_3)) {
+                ESP_LOGI("canbus", "Module 3: Data already found. Skipping further processing.");
                 return; // Skip processing if already found
               }
 
-              ESP_LOGI("canbus", "Module 3 Received CAN message 0x1083507E (Packet 6)");
+              ESP_LOGI("canbus", "Module 3: Received CAN message 0x1083507E (Packet 6)");
 
               uint8_t packet_data[8];
               memcpy(packet_data, x.data(), 8);
 
               uint8_t pin11 = packet_data[2];
               uint8_t pin12 = packet_data[3];
-              ESP_LOGI("canbus", "Module 3 Pin 11: %d, Pin 12: %d", pin11, pin12);
+              ESP_LOGI("canbus", "Module 3: Pin 11: %d, Pin 12: %d", pin11, pin12);
 
               id(pin11_sensor_3).publish_state(pin11);
               id(pin12_sensor_3).publish_state(pin12);
@@ -1958,14 +1985,14 @@ canbus:
                 // Extract data from the message
                 const uint8_t state_byte = x[3];
                 const uint8_t error_byte = x[4];
-                const uint16_t alt_amp_value =
+                const uint16_t alt_current_value =
                   (static_cast<uint16_t>(x[6]) << 8) |
                   static_cast<uint16_t>(x[7]);
 
                 // Publish alt AMP value only if it has changed
-                if (alt_amp_value != last_alt_amp_value_1) {
-                  id(alt_amp_sensor_1).publish_state(alt_amp_value);
-                  last_alt_amp_value_1 = alt_amp_value;
+                if (alt_current_value != last_alt_amp_value_1) {
+                  id(alt_amp_sensor_1).publish_state(alt_current_value);
+                  last_alt_amp_value_1 = alt_current_value;
                 }
 
                 // Determine the new power state
@@ -2000,14 +2027,14 @@ canbus:
                 // Extract data from the message
                 const uint8_t state_byte = x[3];
                 const uint8_t error_byte = x[4];
-                const uint16_t alt_amp_value =
+                const uint16_t alt_current_value =
                   (static_cast<uint16_t>(x[6]) << 8) |
                   static_cast<uint16_t>(x[7]);
 
                 // Publish alt AMP value only if it has changed
-                if (alt_amp_value != last_alt_amp_value_2) {
-                  id(alt_amp_sensor_2).publish_state(alt_amp_value);
-                  last_alt_amp_value_2 = alt_amp_value;
+                if (alt_current_value != last_alt_amp_value_2) {
+                  id(alt_amp_sensor_2).publish_state(alt_current_value);
+                  last_alt_amp_value_2 = alt_current_value;
                 }
 
                 // Determine the new power state
@@ -2042,14 +2069,14 @@ canbus:
                 // Extract data from the message
                 const uint8_t state_byte = x[3];
                 const uint8_t error_byte = x[4];
-                const uint16_t alt_amp_value =
+                const uint16_t alt_current_value =
                   (static_cast<uint16_t>(x[6]) << 8) |
                   static_cast<uint16_t>(x[7]);
 
                 // Publish alt AMP value only if it has changed
-                if (alt_amp_value != last_alt_amp_value_3) {
-                  id(alt_amp_sensor_3).publish_state(alt_amp_value);
-                  last_alt_amp_value_3 = alt_amp_value;
+                if (alt_current_value != last_alt_amp_value_3) {
+                  id(alt_amp_sensor_3).publish_state(alt_current_value);
+                  last_alt_amp_value_3 = alt_current_value;
                 }
 
                 // Determine the new power state
@@ -2323,7 +2350,7 @@ sensor:
 
   # --------------------------------------------------------------------------
   # Output Current alt Module-1
-  # Alternate DC current reading from the 0x100x117E frame, scaled with amp_scaling_factor.
+  # Alternate DC current reading from the 0x100x117E frame, scaled with current_scaling_factor.
   - platform: template
     name: "Output Current alt Module-1"
     id: alt_amp_sensor_1
@@ -2333,13 +2360,13 @@ sensor:
     accuracy_decimals: 3
     filters:
       - lambda: |-
-          return x / id(amp_scaling_factor);  
+          return x / id(current_scaling_factor);  
     icon: "mdi:current-dc"
     update_interval: 3s
 
   # --------------------------------------------------------------------------
   # Output Current alt Module-2
-  # Alternate DC current reading from the 0x100x117E frame, scaled with amp_scaling_factor.
+  # Alternate DC current reading from the 0x100x117E frame, scaled with current_scaling_factor.
   - platform: template
     name: "Output Current alt Module-2"
     id: alt_amp_sensor_2
@@ -2349,13 +2376,13 @@ sensor:
     accuracy_decimals: 3
     filters:
       - lambda: |-
-          return x / id(amp_scaling_factor);  
+          return x / id(current_scaling_factor);  
     icon: "mdi:current-dc"
     update_interval: 3s
 
   # --------------------------------------------------------------------------
   # Output Current alt Module-3
-  # Alternate DC current reading from the 0x100x117E frame, scaled with amp_scaling_factor.
+  # Alternate DC current reading from the 0x100x117E frame, scaled with current_scaling_factor.
   - platform: template
     name: "Output Current alt Module-3"
     id: alt_amp_sensor_3
@@ -2365,7 +2392,7 @@ sensor:
     accuracy_decimals: 3
     filters:
       - lambda: |-
-          return x / id(amp_scaling_factor);  
+          return x / id(current_scaling_factor);  
     icon: "mdi:current-dc"
     update_interval: 3s
 
@@ -2808,44 +2835,44 @@ sensor:
     update_interval: 3s
 
   # --------------------------------------------------------------------------
-  # Set Max Output Current Module-1
-  # Module-reported active maximum-current setpoint from telemetry selector 0x76, scaled with amp_scaling_factor.
+  # Max Output Current Setpoint Module-1
+  # Module-reported active maximum-current setpoint from telemetry selector 0x76, scaled with current_scaling_factor.
   - platform: template
-    name: "Set Max Output Current Module-1"
-    id: set_max_output_current_sensor_1
+    name: "Max Output Current Setpoint Module-1"
+    id: max_output_current_setpoint_1
     unit_of_measurement: "A"
     accuracy_decimals: 3
     filters:
       - lambda: |-
-          return x / id(amp_scaling_factor);  
+          return x / id(current_scaling_factor);  
     icon: "mdi:current-ac"
     update_interval: 3s
 
   # --------------------------------------------------------------------------
-  # Set Max Output Current Module-2
-  # Module-reported active maximum-current setpoint from telemetry selector 0x76, scaled with amp_scaling_factor.
+  # Max Output Current Setpoint Module-2
+  # Module-reported active maximum-current setpoint from telemetry selector 0x76, scaled with current_scaling_factor.
   - platform: template
-    name: "Set Max Output Current Module-2"
-    id: set_max_output_current_sensor_2
+    name: "Max Output Current Setpoint Module-2"
+    id: max_output_current_setpoint_2
     unit_of_measurement: "A"
     accuracy_decimals: 3
     filters:
       - lambda: |-
-          return x / id(amp_scaling_factor);  
+          return x / id(current_scaling_factor);  
     icon: "mdi:current-ac"
     update_interval: 3s
 
   # --------------------------------------------------------------------------
-  # Set Max Output Current Module-3
-  # Module-reported active maximum-current setpoint from telemetry selector 0x76, scaled with amp_scaling_factor.
+  # Max Output Current Setpoint Module-3
+  # Module-reported active maximum-current setpoint from telemetry selector 0x76, scaled with current_scaling_factor.
   - platform: template
-    name: "Set Max Output Current Module-3"
-    id: set_max_output_current_sensor_3
+    name: "Max Output Current Setpoint Module-3"
+    id: max_output_current_setpoint_3
     unit_of_measurement: "A"
     accuracy_decimals: 3
     filters:
       - lambda: |-
-          return x / id(amp_scaling_factor);  
+          return x / id(current_scaling_factor);  
     icon: "mdi:current-ac"
     update_interval: 3s
 
@@ -2878,6 +2905,51 @@ sensor:
     unit_of_measurement: "RPM"
     accuracy_decimals: 0
     icon: "mdi:fan"
+
+  # --------------------------------------------------------------------------
+  # Info: Operating Hours Module-1
+  # Rectifier lifetime operating-hours counter from telemetry selector 0x0E; raw value is a whole-hour count with no scaling applied. Monotonically increasing, like an odometer.
+  - platform: template
+    name: "Info: Operating Hours Module-1"
+    id: operating_hours_1
+    unit_of_measurement: "h"
+    device_class: duration
+    state_class: "total_increasing"
+    accuracy_decimals: 0
+    filters:
+      - lambda: |-
+          return x;
+    icon: "mdi:information-outline"
+
+  # --------------------------------------------------------------------------
+  # Info: Operating Hours Module-2
+  # Rectifier lifetime operating-hours counter from telemetry selector 0x0E; raw value is a whole-hour count with no scaling applied. Monotonically increasing, like an odometer.
+  - platform: template
+    name: "Info: Operating Hours Module-2"
+    id: operating_hours_2
+    unit_of_measurement: "h"
+    device_class: duration
+    state_class: "total_increasing"
+    accuracy_decimals: 0
+    filters:
+      - lambda: |-
+          return x;
+    icon: "mdi:information-outline"
+
+  # --------------------------------------------------------------------------
+  # Info: Operating Hours Module-3
+  # Rectifier lifetime operating-hours counter from telemetry selector 0x0E; raw value is a whole-hour count with no scaling applied. Monotonically increasing, like an odometer.
+  - platform: template
+    name: "Info: Operating Hours Module-3"
+    id: operating_hours_3
+    unit_of_measurement: "h"
+    device_class: duration
+    state_class: "total_increasing"
+    accuracy_decimals: 0
+    filters:
+      - lambda: |-
+          return x;
+    icon: "mdi:information-outline"
 
   # Combined AC Power sensor
   # Only modules with valid CAN communication are included.
@@ -3040,15 +3112,15 @@ number:
               can_data[7] = scaled_value & 0xFF;
               return can_data;
 
-  # Amp Setting
+  # Current Setting
   # --------------------------------------------------------------------------
-  # CAN Amp Set
+  # CAN Current Set
   # Primary per-rectifier current setpoint. The requested current is
   # validated against the detected module model/capability, encoded using
-  # amp_scaling_factor and broadcast with command selector 0x03.
+  # current_scaling_factor and broadcast with command selector 0x03.
   - platform: template
-    name: "CAN Amp Set"
-    id: can_amp_set
+    name: "DC Current Setpoint"
+    id: set_dc_current
     min_value: 1
     max_value: 75 
     step: 1
@@ -3063,23 +3135,23 @@ number:
         - lambda: |-
             // Validate the requested current against the detected rectifier model before
             // creating the raw CAN setpoint.
-            float amp_value = id(can_amp_set).state;
+            float amp_value = id(set_dc_current).state;
             float max_amps = 75;  // Default max amps
-            if (id(amp_scaling_factor) == 15) {
+            if (id(current_scaling_factor) == 15) {
               max_amps = 75;
-            } else if (id(amp_scaling_factor) == 20) {
+            } else if (id(current_scaling_factor) == 20) {
               max_amps = 50;
-            } else if (id(amp_scaling_factor) == 30) {
+            } else if (id(current_scaling_factor) == 30) {
               max_amps = 30;
             }
 
             if (amp_value > max_amps) {
-              ESP_LOGW("custom", "Entered Amp %.1f exceeds max limit %.1f for model, resetting.", amp_value, max_amps);
-              id(can_amp_set).publish_state(max_amps);  // Reset to max value
+              ESP_LOGW("custom", "Entered Current %.1f exceeds max limit %.1f for model, resetting.", amp_value, max_amps);
+              id(set_dc_current).publish_state(max_amps);  // Reset to max value
               return;
             }
 
-            int scaled_value = (int)(amp_value * id(amp_scaling_factor));
+            int scaled_value = (int)(amp_value * id(current_scaling_factor));
 
             uint8_t high_byte = (scaled_value >> 8) & 0xFF;
             uint8_t low_byte = scaled_value & 0xFF;
@@ -3091,18 +3163,18 @@ number:
               std::vector<uint8_t> can_data(8, 0x00);
               can_data[0] = 0x01;
               can_data[1] = 0x03;
-              int scaled_value = (int)(id(can_amp_set).state * id(amp_scaling_factor));
+              int scaled_value = (int)(id(set_dc_current).state * id(current_scaling_factor));
               can_data[6] = (scaled_value >> 8) & 0xFF;
               can_data[7] = scaled_value & 0xFF;
               return can_data;
 
-  # Fallback Amp Setting
+  # Fallback Current Setting
   # --------------------------------------------------------------------------
-  # Fallback Amp Set
+  # Fallback Current Set
   # Fallback current parameter. Uses the same model-dependent
   # current validation but command selector 0x04.
   - platform: template
-    name: "Fallback Amp Set"
+    name: "Fallback Current Set"
     id: fallback_amp_set
     min_value: 1
     max_value: 75  
@@ -3119,21 +3191,21 @@ number:
             // Fallback current uses the same model-dependent current limit.
             float fallback_amp_value = id(fallback_amp_set).state;
             float max_amps = 75;  // Default max amps
-            if (id(amp_scaling_factor) == 15) {
+            if (id(current_scaling_factor) == 15) {
               max_amps = 75;
-            } else if (id(amp_scaling_factor) == 20) {
+            } else if (id(current_scaling_factor) == 20) {
               max_amps = 50;
-            } else if (id(amp_scaling_factor) == 30) {
+            } else if (id(current_scaling_factor) == 30) {
               max_amps = 30;
             }
 
             if (fallback_amp_value > max_amps) {
-              ESP_LOGW("custom", "Entered Fallback Amp %.1f exceeds max limit %.1f for model, resetting.", fallback_amp_value, max_amps);
+              ESP_LOGW("custom", "Entered Fallback Current %.1f exceeds max limit %.1f for model, resetting.", fallback_amp_value, max_amps);
               id(fallback_amp_set).publish_state(max_amps);  // Reset to max value
               return;
             }
 
-            int fallback_scaled_value = (int)(fallback_amp_value * id(amp_scaling_factor));
+            int fallback_scaled_value = (int)(fallback_amp_value * id(current_scaling_factor));
 
             uint8_t high_byte = (fallback_scaled_value >> 8) & 0xFF;
             uint8_t low_byte = fallback_scaled_value & 0xFF;
@@ -3145,7 +3217,7 @@ number:
               std::vector<uint8_t> can_data(8, 0x00);
               can_data[0] = 0x01;
               can_data[1] = 0x04;
-              int scaled_value = (int)(id(fallback_amp_set).state * id(amp_scaling_factor));
+              int scaled_value = (int)(id(fallback_amp_set).state * id(current_scaling_factor));
               can_data[6] = (scaled_value >> 8) & 0xFF;
               can_data[7] = scaled_value & 0xFF;
               return can_data;
@@ -3359,7 +3431,7 @@ interval:
             can_data[7] = scaled_value & 0xFF;         // Encode the low byte in the 8th byte
             return can_data;
 
-  # Interval for sending Amp setting CAN message every 10 seconds
+  # Interval for sending Current setting CAN message every 10 seconds
   # --------------------------------------------------------------------------
   # Periodic task: 30s
   # Reasserts the broadcast current setpoint every 30 seconds for the same recovery reason.
@@ -3372,7 +3444,7 @@ interval:
             std::vector<uint8_t> can_data(8, 0x00);  // Initialize with 8 zeros
             can_data[0] = 0x01;  // First byte is always 0x01
             can_data[1] = 0x03;  // Second byte is 0x03
-            int scaled_value = (int)(id(can_amp_set).state * id(amp_scaling_factor));  // Scale the Amp value
+            int scaled_value = (int)(id(set_dc_current).state * id(current_scaling_factor));  // Scale the Current value
             can_data[6] = (scaled_value >> 8) & 0xFF;  // Encode the high byte in the 7th byte
             can_data[7] = scaled_value & 0xFF;         // Encode the low byte in the 8th byte
             return can_data;
@@ -3685,7 +3757,7 @@ text_sensor:
               ESP_LOGW("custom", "Received out-of-range voltage value: %.1fV", mqtt_voltage);
             }
   # Subscribe to MQTT topic to update CAN amps
-  # MQTT current command. Payload is parsed/validated and then published into can_amp_set.
+  # MQTT current command. Payload is parsed/validated and then published into set_dc_current.
   - platform: mqtt_subscribe
     name: "CAN Amps MQTT"
     id: mqtt_amp_input
@@ -3699,7 +3771,7 @@ text_sensor:
             float mqtt_amp = atof(x.c_str());
             // Update the number input with the new value
             if (mqtt_amp >= 1.0 && mqtt_amp <= 75.0) {
-              id(can_amp_set).publish_state(mqtt_amp);
+              id(set_dc_current).publish_state(mqtt_amp);
             } else {
               ESP_LOGW("custom", "Received out-of-range amp value: %.1fA", mqtt_amp);
             }
