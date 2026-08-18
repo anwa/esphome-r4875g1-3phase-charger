@@ -2085,6 +2085,8 @@ sensor:
     name: "Input Temperature Module-1"
     id: input_temperature_sensor_1
     unit_of_measurement: "°C"
+    device_class: temperature
+    state_class: measurement
     accuracy_decimals: 1
     update_interval: 3s
     filters:
@@ -2099,6 +2101,8 @@ sensor:
     name: "Input Temperature Module-2"
     id: input_temperature_sensor_2
     unit_of_measurement: "°C"
+    device_class: temperature
+    state_class: measurement
     accuracy_decimals: 1
     update_interval: 3s
     filters:
@@ -2113,6 +2117,8 @@ sensor:
     name: "Input Temperature Module-3"
     id: input_temperature_sensor_3
     unit_of_measurement: "°C"
+    device_class: temperature
+    state_class: measurement
     accuracy_decimals: 1
     update_interval: 3s
     filters:
@@ -2211,6 +2217,8 @@ sensor:
     name: "Output Current alt Module-1"
     id: alt_amp_sensor_1
     unit_of_measurement: "A"
+    device_class: current
+    state_class: measurement
     accuracy_decimals: 1
     filters:
       - lambda: |-
@@ -2225,6 +2233,8 @@ sensor:
     name: "Output Current alt Module-2"
     id: alt_amp_sensor_2
     unit_of_measurement: "A"
+    device_class: current
+    state_class: measurement
     accuracy_decimals: 1
     filters:
       - lambda: |-
@@ -2239,6 +2249,8 @@ sensor:
     name: "Output Current alt Module-3"
     id: alt_amp_sensor_3
     unit_of_measurement: "A"
+    device_class: current
+    state_class: measurement
     accuracy_decimals: 1
     filters:
       - lambda: |-
@@ -2253,6 +2265,8 @@ sensor:
     name: "AC Power In Module-1"
     id: ac_power_in_sensor_1
     unit_of_measurement: "W"
+    device_class: power
+    state_class: measurement
     accuracy_decimals: 2
     filters:
       - lambda: |-
@@ -2267,6 +2281,8 @@ sensor:
     name: "AC Power In Module-2"
     id: ac_power_in_sensor_2
     unit_of_measurement: "W"
+    device_class: power
+    state_class: measurement
     accuracy_decimals: 2
     filters:
       - lambda: |-
@@ -2281,6 +2297,8 @@ sensor:
     name: "AC Power In Module-3"
     id: ac_power_in_sensor_3
     unit_of_measurement: "W"
+    device_class: power
+    state_class: measurement
     accuracy_decimals: 2
     filters:
       - lambda: |-
@@ -2295,6 +2313,8 @@ sensor:
     name: "DC Power Out Module-1"
     id: dc_power_out_sensor_1
     unit_of_measurement: "W"
+    device_class: power
+    state_class: measurement
     accuracy_decimals: 2
     filters:
       - lambda: |-
@@ -2309,6 +2329,8 @@ sensor:
     name: "DC Power Out Module-2"
     id: dc_power_out_sensor_2
     unit_of_measurement: "W"
+    device_class: power
+    state_class: measurement
     accuracy_decimals: 2
     filters:
       - lambda: |-
@@ -2323,6 +2345,8 @@ sensor:
     name: "DC Power Out Module-3"
     id: dc_power_out_sensor_3
     unit_of_measurement: "W"
+    device_class: power
+    state_class: measurement
     accuracy_decimals: 2
     filters:
       - lambda: |-
@@ -2379,6 +2403,8 @@ sensor:
     name: "Input Current Module-1"
     id: input_current_sensor_1
     unit_of_measurement: "A"
+    device_class: current
+    state_class: measurement
     accuracy_decimals: 1
     filters:
       - lambda: |-
@@ -2393,6 +2419,8 @@ sensor:
     name: "Input Current Module-2"
     id: input_current_sensor_2
     unit_of_measurement: "A"
+    device_class: current
+    state_class: measurement
     accuracy_decimals: 1
     filters:
       - lambda: |-
@@ -2407,6 +2435,8 @@ sensor:
     name: "Input Current Module-3"
     id: input_current_sensor_3
     unit_of_measurement: "A"
+    device_class: current
+    state_class: measurement
     accuracy_decimals: 1
     filters:
       - lambda: |-
@@ -2421,6 +2451,8 @@ sensor:
     name: "Output Voltage Module-1"
     id: output_voltage_sensor_1
     unit_of_measurement: "V"
+    device_class: voltage
+    state_class: measurement
     accuracy_decimals: 1
     filters:
       - lambda: |-
@@ -2435,6 +2467,8 @@ sensor:
     name: "Output Voltage Module-2"
     id: output_voltage_sensor_2
     unit_of_measurement: "V"
+    device_class: voltage
+    state_class: measurement
     accuracy_decimals: 1
     filters:
       - lambda: |-
@@ -2449,6 +2483,8 @@ sensor:
     name: "Output Voltage Module-3"
     id: output_voltage_sensor_3
     unit_of_measurement: "V"
+    device_class: voltage
+    state_class: measurement
     accuracy_decimals: 1
     filters:
       - lambda: |-
@@ -2463,6 +2499,8 @@ sensor:
     name: "Input Grid Voltage Module-1"
     id: input_grid_voltage_sensor_1
     unit_of_measurement: "V"
+    device_class: voltage
+    state_class: measurement
     accuracy_decimals: 2
     filters:
       - lambda: |-
@@ -2477,6 +2515,8 @@ sensor:
     name: "Input Grid Voltage Module-2"
     id: input_grid_voltage_sensor_2
     unit_of_measurement: "V"
+    device_class: voltage
+    state_class: measurement
     accuracy_decimals: 2
     filters:
       - lambda: |-
@@ -2491,6 +2531,8 @@ sensor:
     name: "Input Grid Voltage Module-3"
     id: input_grid_voltage_sensor_3
     unit_of_measurement: "V"
+    device_class: voltage
+    state_class: measurement
     accuracy_decimals: 2
     filters:
       - lambda: |-
@@ -2505,6 +2547,8 @@ sensor:
     name: "Output Temperature Module-1"
     id: output_temperature_sensor_1
     unit_of_measurement: "°C"
+    device_class: temperature
+    state_class: measurement
     accuracy_decimals: 1
     update_interval: 3s
     filters:
@@ -2539,6 +2583,8 @@ sensor:
     name: "Output Temperature Module-2"
     id: output_temperature_sensor_2
     unit_of_measurement: "°C"
+    device_class: temperature
+    state_class: measurement
     accuracy_decimals: 1
     update_interval: 3s
     filters:
@@ -2573,6 +2619,8 @@ sensor:
     name: "Output Temperature Module-3"
     id: output_temperature_sensor_3
     unit_of_measurement: "°C"
+    device_class: temperature
+    state_class: measurement
     accuracy_decimals: 1
     update_interval: 3s
     filters:
@@ -2607,6 +2655,8 @@ sensor:
     name: "Output Current Module-1"
     id: output_current_sensor_1
     unit_of_measurement: "A"
+    device_class: current
+    state_class: measurement
     accuracy_decimals: 1
     filters:
       - lambda: |-
@@ -2621,6 +2671,8 @@ sensor:
     name: "Output Current Module-2"
     id: output_current_sensor_2
     unit_of_measurement: "A"
+    device_class: current
+    state_class: measurement
     accuracy_decimals: 1
     filters:
       - lambda: |-
@@ -2635,6 +2687,8 @@ sensor:
     name: "Output Current Module-3"
     id: output_current_sensor_3
     unit_of_measurement: "A"
+    device_class: current
+    state_class: measurement
     accuracy_decimals: 1
     filters:
       - lambda: |-
@@ -2693,6 +2747,8 @@ sensor:
     name: "Combined AC Power Module-1-2-3"
     id: combined_ac_power_sensor
     unit_of_measurement: "kW"
+    device_class: power
+    state_class: measurement
     accuracy_decimals: 2
     filters:
       - multiply: 0.001
@@ -2736,6 +2792,8 @@ sensor:
     name: "Combined DC Power Module-1-2-3"
     id: combined_dc_power_sensor
     unit_of_measurement: "kW"
+    device_class: power
+    state_class: measurement
     accuracy_decimals: 2
     filters:
       - multiply: 0.001
@@ -2779,6 +2837,8 @@ sensor:
     power_id: combined_ac_power_sensor
     time_id: sntp_time
     unit_of_measurement: "kWh"
+    device_class: energy
+    state_class: total_increasing
     accuracy_decimals: 3
     icon: "mdi:counter"
 
@@ -2791,6 +2851,8 @@ sensor:
     power_id: combined_dc_power_sensor
     time_id: sntp_time
     unit_of_measurement: "kWh"
+    device_class: energy
+    state_class: total_increasing
     accuracy_decimals: 3
     icon: "mdi:counter"
 
