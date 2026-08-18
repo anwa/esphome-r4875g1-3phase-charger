@@ -802,6 +802,26 @@ globals:
     restore_value: no
     initial_value: '0'
 
+  # Overtemperature lockout for Module 1. Set when output temperature exceeds
+  # 90 °C; cleared only once it drops below the 80 °C hysteresis threshold.
+  # While set, this module is excluded from ON commands.
+  - id: overtemp_lockout_1
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+
+  # Overtemperature lockout for Module 2 (see overtemp_lockout_1).
+  - id: overtemp_lockout_2
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+
+  # Overtemperature lockout for Module 3 (see overtemp_lockout_1).
+  - id: overtemp_lockout_3
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+
 # ==============================================================================
 # REUSABLE AUTOMATION SCRIPTS
 # ==============================================================================
@@ -1109,15 +1129,50 @@ script:
 
       - delay: 250ms
 
-      # Start all rectifiers
-      - canbus.send:
-          use_extended_id: true
-          can_id: 0x108080FE
-          data: [0x01, 0x32, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+      # Start each rectifier individually, skipping any module that is still
+      # in overtemperature lockout instead of blindly broadcasting ON to all.
+      - if:
+          condition:
+            lambda: 'return !id(overtemp_lockout_1);'
+          then:
+            - canbus.send:
+                use_extended_id: true
+                can_id: 0x108180FE
+                data: [0x01, 0x32, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+          else:
+            - logger.log:
+                level: WARN
+                format: "BLACKSTART: Module 1 skipped - overtemperature lockout active."
+
+      - if:
+          condition:
+            lambda: 'return !id(overtemp_lockout_2);'
+          then:
+            - canbus.send:
+                use_extended_id: true
+                can_id: 0x108280FE
+                data: [0x01, 0x32, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+          else:
+            - logger.log:
+                level: WARN
+                format: "BLACKSTART: Module 2 skipped - overtemperature lockout active."
+
+      - if:
+          condition:
+            lambda: 'return !id(overtemp_lockout_3);'
+          then:
+            - canbus.send:
+                use_extended_id: true
+                can_id: 0x108380FE
+                data: [0x01, 0x32, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+          else:
+            - logger.log:
+                level: WARN
+                format: "BLACKSTART: Module 3 skipped - overtemperature lockout active."
 
       - logger.log:
           level: INFO
-          format: "BLACKSTART: Rectifiers switched ON"
+          format: "BLACKSTART: Rectifiers switched ON (excluding any overtemperature-locked modules)"
 
 
   # --------------------------------------------------------------------------
@@ -2445,7 +2500,7 @@ sensor:
 
   # --------------------------------------------------------------------------
   # Output Temperature Module-1
-  # Rectifier output temperature from telemetry selector 0x7F. The on_value safety automation sends an individual OFF command if this module exceeds 90 °C.
+  # Rectifier output temperature from telemetry selector 0x7F. The on_value safety automation sends an individual OFF command and engages a lockout once this module exceeds 90 °C; the lockout only clears below the 80 °C hysteresis threshold.
   - platform: template
     name: "Output Temperature Module-1"
     id: output_temperature_sensor_1
@@ -2458,21 +2513,28 @@ sensor:
     icon: "mdi:thermometer"
     on_value:
       then:
+        - lambda: |-
+            // Edge-triggered: only act when crossing the trip or recovery threshold,
+            // not on every 3s update while the state is unchanged.
+            if (!id(overtemp_lockout_1) && x > 90.0f) {
+              id(overtemp_lockout_1) = true;
+              ESP_LOGW("overtemp", "Module 1 exceeded 90°C (%.1f°C). Sending CAN OFF and engaging lockout.", x);
+            } else if (id(overtemp_lockout_1) && x < 80.0f) {
+              id(overtemp_lockout_1) = false;
+              ESP_LOGI("overtemp", "Module 1 cooled below 80°C (%.1f°C). Lockout cleared.", x);
+            }
         - if:
             condition:
-              lambda: 'return id(output_temperature_sensor_1).state > 90.0;'
+              lambda: 'return id(overtemp_lockout_1) && x > 90.0f;'
             then:
               - canbus.send:
                   use_extended_id: true
                   can_id: 0x108180FE
                   data: [1, 50, 0, 1, 0, 0, 0, 0]
-              - logger.log:
-                  level: INFO
-                  format: "Temperature exceeded 90°C. Sent CAN OFF message."
 
   # --------------------------------------------------------------------------
   # Output Temperature Module-2
-  # Rectifier output temperature from telemetry selector 0x7F. The on_value safety automation sends an individual OFF command if this module exceeds 90 °C.
+  # Rectifier output temperature from telemetry selector 0x7F. The on_value safety automation sends an individual OFF command and engages a lockout once this module exceeds 90 °C; the lockout only clears below the 80 °C hysteresis threshold.
   - platform: template
     name: "Output Temperature Module-2"
     id: output_temperature_sensor_2
@@ -2485,21 +2547,28 @@ sensor:
     icon: "mdi:thermometer"
     on_value:
       then:
+        - lambda: |-
+            // Edge-triggered: only act when crossing the trip or recovery threshold,
+            // not on every 3s update while the state is unchanged.
+            if (!id(overtemp_lockout_2) && x > 90.0f) {
+              id(overtemp_lockout_2) = true;
+              ESP_LOGW("overtemp", "Module 2 exceeded 90°C (%.1f°C). Sending CAN OFF and engaging lockout.", x);
+            } else if (id(overtemp_lockout_2) && x < 80.0f) {
+              id(overtemp_lockout_2) = false;
+              ESP_LOGI("overtemp", "Module 2 cooled below 80°C (%.1f°C). Lockout cleared.", x);
+            }
         - if:
             condition:
-              lambda: 'return id(output_temperature_sensor_2).state > 90.0;'
+              lambda: 'return id(overtemp_lockout_2) && x > 90.0f;'
             then:
               - canbus.send:
                   use_extended_id: true
                   can_id: 0x108280FE
                   data: [1, 50, 0, 1, 0, 0, 0, 0]
-              - logger.log:
-                  level: INFO
-                  format: "Temperature exceeded 90°C. Sent CAN OFF message."
 
   # --------------------------------------------------------------------------
   # Output Temperature Module-3
-  # Rectifier output temperature from telemetry selector 0x7F. The on_value safety automation sends an individual OFF command if this module exceeds 90 °C.
+  # Rectifier output temperature from telemetry selector 0x7F. The on_value safety automation sends an individual OFF command and engages a lockout once this module exceeds 90 °C; the lockout only clears below the 80 °C hysteresis threshold.
   - platform: template
     name: "Output Temperature Module-3"
     id: output_temperature_sensor_3
@@ -2512,17 +2581,24 @@ sensor:
     icon: "mdi:thermometer"
     on_value:
       then:
+        - lambda: |-
+            // Edge-triggered: only act when crossing the trip or recovery threshold,
+            // not on every 3s update while the state is unchanged.
+            if (!id(overtemp_lockout_3) && x > 90.0f) {
+              id(overtemp_lockout_3) = true;
+              ESP_LOGW("overtemp", "Module 3 exceeded 90°C (%.1f°C). Sending CAN OFF and engaging lockout.", x);
+            } else if (id(overtemp_lockout_3) && x < 80.0f) {
+              id(overtemp_lockout_3) = false;
+              ESP_LOGI("overtemp", "Module 3 cooled below 80°C (%.1f°C). Lockout cleared.", x);
+            }
         - if:
             condition:
-              lambda: 'return id(output_temperature_sensor_3).state > 90.0;'
+              lambda: 'return id(overtemp_lockout_3) && x > 90.0f;'
             then:
               - canbus.send:
                   use_extended_id: true
                   can_id: 0x108380FE
                   data: [1, 50, 0, 1, 0, 0, 0, 0]
-              - logger.log:
-                  level: INFO
-                  format: "Temperature exceeded 90°C. Sent CAN OFF message."
 
   # --------------------------------------------------------------------------
   # Output Current Module-1
@@ -3118,34 +3194,61 @@ button:
             data: [0x01, 0x32, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
 
   # Individual ON command for one rectifier; useful for diagnostics and service.
+  # Blocked while Module 1 is in overtemperature lockout (see output_temperature_sensor_1).
   - platform: template
     name: "ON Module-1"
     on_press:
       then:
-        - canbus.send:
-            use_extended_id: true
-            can_id: 0x108180FE
-            data: [0x01, 0x32, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+        - if:
+            condition:
+              lambda: 'return !id(overtemp_lockout_1);'
+            then:
+              - canbus.send:
+                  use_extended_id: true
+                  can_id: 0x108180FE
+                  data: [0x01, 0x32, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+            else:
+              - logger.log:
+                  level: WARN
+                  format: "ON Module-1 blocked: overtemperature lockout active."
 
   # Individual ON command for one rectifier; useful for diagnostics and service.
+  # Blocked while Module 2 is in overtemperature lockout (see output_temperature_sensor_2).
   - platform: template
     name: "ON Module-2"
     on_press:
       then:
-        - canbus.send:
-            use_extended_id: true
-            can_id: 0x108280FE
-            data: [0x01, 0x32, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+        - if:
+            condition:
+              lambda: 'return !id(overtemp_lockout_2);'
+            then:
+              - canbus.send:
+                  use_extended_id: true
+                  can_id: 0x108280FE
+                  data: [0x01, 0x32, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+            else:
+              - logger.log:
+                  level: WARN
+                  format: "ON Module-2 blocked: overtemperature lockout active."
 
   # Individual ON command for one rectifier; useful for diagnostics and service.
+  # Blocked while Module 3 is in overtemperature lockout (see output_temperature_sensor_3).
   - platform: template
     name: "ON Module-3"
     on_press:
       then:
-        - canbus.send:
-            use_extended_id: true
-            can_id: 0x108380FE
-            data: [0x01, 0x32, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+        - if:
+            condition:
+              lambda: 'return !id(overtemp_lockout_3);'
+            then:
+              - canbus.send:
+                  use_extended_id: true
+                  can_id: 0x108380FE
+                  data: [0x01, 0x32, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+            else:
+              - logger.log:
+                  level: WARN
+                  format: "ON Module-3 blocked: overtemperature lockout active."
 
 # Define a button component for turning OFF
   # Broadcast OFF command to all three rectifiers.
