@@ -286,21 +286,41 @@ light:
 # rotary-encoder setpoints. The 500 ms refresh interval balances responsiveness
 # against SPI/display workload.
 display:
-  - platform: ili9xxx
-    model: ili9488
+  - platform: mipi_spi
+    model: ILI9488
     id: my_tft
-    cs_pin: GPIO5    # CS
-    dc_pin: GPIO7    # DC/RS
-    reset_pin: GPIO6 # RESET
-    color_palette: 8BIT
+
+    cs_pin: GPIO5
+    dc_pin: GPIO7
+    reset_pin: GPIO6
+
+    # Keep the same effective memory usage as the previous
+    # ili9xxx "color_palette: 8BIT" configuration.
+    color_depth: 8
+    buffer_size: 100%
+
     invert_colors: false
+
+    # ili9xxx used 40 MHz by default.
+    # mipi_spi defaults to only 10 MHz, so explicitly keep 40 MHz
+    # to avoid making display refreshes significantly slower.
+    data_rate: 40MHz
+
+    # Previous hardware transform:
+    #   swap_xy: true
+    #   mirror_x: true
+    # corresponds to a 90-degree rotation.
     dimensions:
-      height: 320
       width: 480
+      height: 320
+
     transform:
       swap_xy: true
-      mirror_x: true
+      mirror_x: false
+      mirror_y: false
+
     update_interval: 500ms
+
     lambda: |-
       // Full-screen redraw: clear the framebuffer first so shorter new values
       // cannot leave pixels from a previous longer string behind.
