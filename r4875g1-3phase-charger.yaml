@@ -577,7 +577,7 @@ display:
           id(font_small_bold),
           id(color_blue),
           "> DC Voltage: %.1f V",
-          id(set_dc_voltage_limit).state
+          id(can_voltage_set).state
         );
 
         it.printf(
@@ -586,7 +586,7 @@ display:
           id(color_black),
           "  DC Power: %.2f kW  -  %.1f A/unit",
           id(dc_sum_power_set).state,
-          id(set_dc_current_limit).state
+          id(set_dc_current).state
         );
 
       } else {
@@ -597,7 +597,7 @@ display:
           id(font_small),
           id(color_black),
           "  DC Voltage: %.1f V",
-          id(set_dc_voltage_limit).state
+          id(can_voltage_set).state
         );
 
         it.printf(
@@ -606,7 +606,7 @@ display:
           id(color_blue),
           "> DC Power: %.2f kW  -  %.1f A/unit",
           id(dc_sum_power_set).state,
-          id(set_dc_current_limit).state
+          id(set_dc_current).state
         );
       }
       // Footer diagnostics are controller-side values and remain useful even if
@@ -801,6 +801,26 @@ globals:
     type: int
     restore_value: no
     initial_value: '0'
+
+  # Overtemperature lockout for Module 1. Set when output temperature exceeds
+  # 90 °C; cleared only once it drops below the 80 °C hysteresis threshold.
+  # While set, this module is excluded from ON commands.
+  - id: overtemp_lockout_1
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+
+  # Overtemperature lockout for Module 2 (see overtemp_lockout_1).
+  - id: overtemp_lockout_2
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+
+  # Overtemperature lockout for Module 3 (see overtemp_lockout_1).
+  - id: overtemp_lockout_3
+    type: bool
+    restore_value: no
+    initial_value: 'false'
 
 # ==============================================================================
 # REUSABLE AUTOMATION SCRIPTS
@@ -1013,17 +1033,17 @@ script:
   # Converts the requested total DC power into an equal current
   # target for each of the three parallel rectifiers:
   # I_each = P_total / (3 * V_DC).
-  # The result is limited to 1..75 A and applied through set_dc_current_limit.
+  # The result is limited to 1..75 A and applied through set_dc_current.
   - id: apply_dc_sum_power
     mode: restart
     then:
       - lambda: |-
           // Read the canonical setpoint entities shared by local encoder, web/API and
           // MQTT control paths.
-          float voltage = id(set_dc_voltage_limit).state;
+          float voltage = id(can_voltage_set).state;
           float power_kw = id(dc_sum_power_set).state;
 
-          if (isnan(voltage) || voltage < 1.0) {
+          if (isnan(voltage) || voltage < 48.0) {
             ESP_LOGW("encoder", "Invalid DC voltage - cannot calculate current");
             return;
           }
@@ -1049,9 +1069,9 @@ script:
             current_per_rectifier
           );
 
-          // Use NumberCall so the normal set_dc_current_limit automation performs the final
+          // Use NumberCall so the normal set_dc_current automation performs the final
           // validation and CAN transmission; do not bypass that centralized path.
-          auto call = id(set_dc_current_limit).make_call();
+          auto call = id(set_dc_current).make_call();
           call.set_value(current_per_rectifier);
           call.perform();
 
@@ -1078,7 +1098,7 @@ script:
             can_data[0] = 0x01;
 
             int scaled_value =
-                (int)(id(set_dc_voltage_limit).state *
+                (int)(id(can_voltage_set).state *
                       id(voltage_scaling_factor));
 
             can_data[6] = (scaled_value >> 8) & 0xFF;
@@ -1099,7 +1119,7 @@ script:
             can_data[1] = 0x03;
 
             int scaled_value =
-                (int)(id(set_dc_current_limit).state *
+                (int)(id(set_dc_current).state *
                       id(current_scaling_factor));
 
             can_data[6] = (scaled_value >> 8) & 0xFF;
@@ -1109,15 +1129,50 @@ script:
 
       - delay: 250ms
 
-      # Start all rectifiers
-      - canbus.send:
-          use_extended_id: true
-          can_id: 0x108080FE
-          data: [0x01, 0x32, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+      # Start each rectifier individually, skipping any module that is still
+      # in overtemperature lockout instead of blindly broadcasting ON to all.
+      - if:
+          condition:
+            lambda: 'return !id(overtemp_lockout_1);'
+          then:
+            - canbus.send:
+                use_extended_id: true
+                can_id: 0x108180FE
+                data: [0x01, 0x32, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+          else:
+            - logger.log:
+                level: WARN
+                format: "BLACKSTART: Module 1 skipped - overtemperature lockout active."
+
+      - if:
+          condition:
+            lambda: 'return !id(overtemp_lockout_2);'
+          then:
+            - canbus.send:
+                use_extended_id: true
+                can_id: 0x108280FE
+                data: [0x01, 0x32, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+          else:
+            - logger.log:
+                level: WARN
+                format: "BLACKSTART: Module 2 skipped - overtemperature lockout active."
+
+      - if:
+          condition:
+            lambda: 'return !id(overtemp_lockout_3);'
+          then:
+            - canbus.send:
+                use_extended_id: true
+                can_id: 0x108380FE
+                data: [0x01, 0x32, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+          else:
+            - logger.log:
+                level: WARN
+                format: "BLACKSTART: Module 3 skipped - overtemperature lockout active."
 
       - logger.log:
           level: INFO
-          format: "BLACKSTART: Rectifiers switched ON"
+          format: "BLACKSTART: Rectifiers switched ON (excluding any overtemperature-locked modules)"
 
 
   # --------------------------------------------------------------------------
@@ -1193,7 +1248,7 @@ canbus:
                   id(module_properties_complete_1) = false;
                   message_started = true;
                   id(frame_counter_msg_start_1) = 0;  // Reset global frame counter
-                  ESP_LOGI("module_properties_1", "Message Start Detected");
+                  ESP_LOGI("module_properties_1", "Module 1: Message Start Detected");
                 }
 
                 if (message_started) {
@@ -1205,7 +1260,7 @@ canbus:
                   id(frame_counter_msg_start_1)++;
 
                   // Log for debugging purposes
-                  ESP_LOGD("module_properties_1", "Captured Frame #%d: %s", id(frame_counter_msg_start_1), frame_data.c_str());
+                  ESP_LOGD("module_properties_1", "Module 1: Captured Frame #%d: %s", id(frame_counter_msg_start_1), frame_data.c_str());
                 }
               }
 
@@ -1226,7 +1281,7 @@ canbus:
                   id(module_properties_complete_2) = false;
                   message_started = true;
                   id(frame_counter_msg_start_2) = 0;  // Reset global frame counter
-                  ESP_LOGI("module_properties_2", "Message Start Detected");
+                  ESP_LOGI("module_properties_2", "Module 2: Message Start Detected");
                 }
 
                 if (message_started) {
@@ -1238,7 +1293,7 @@ canbus:
                   id(frame_counter_msg_start_2)++;
 
                   // Log for debugging purposes
-                  ESP_LOGD("module_properties_2", "Captured Frame #%d: %s", id(frame_counter_msg_start_2), frame_data.c_str());
+                  ESP_LOGD("module_properties_2", "Module 2: Captured Frame #%d: %s", id(frame_counter_msg_start_2), frame_data.c_str());
                 }
               }
 
@@ -1259,7 +1314,7 @@ canbus:
                   id(module_properties_complete_3) = false;
                   message_started = true;
                   id(frame_counter_msg_start_3) = 0;  // Reset global frame counter
-                  ESP_LOGI("module_properties_3", "Message Start Detected");
+                  ESP_LOGI("module_properties_3", "Module 3: Message Start Detected");
                 }
 
                 if (message_started) {
@@ -1271,7 +1326,7 @@ canbus:
                   id(frame_counter_msg_start_3)++;
 
                   // Log for debugging purposes
-                  ESP_LOGD("module_properties_3", "Captured Frame #%d: %s", id(frame_counter_msg_start_3), frame_data.c_str());
+                  ESP_LOGD("module_properties_3", "Module 3: Captured Frame #%d: %s", id(frame_counter_msg_start_3), frame_data.c_str());
                 }
               }
 
@@ -1287,13 +1342,13 @@ canbus:
               // Check if this frame contains additional payload data
               if (x.size() > 2) {  // Payload starts at x[2], so size must be > 2
                 std::string frame_data((char*)&x[2], x.size() - 2);
-                ESP_LOGI("module_properties_1", "End Message Frame Data: %s", frame_data.c_str());
+                ESP_LOGI("module_properties_1", "Module 1: End Message Frame Data: %s", frame_data.c_str());
 
                 // Append any remaining data to module_properties_1
                 id(module_properties_1) += frame_data;
               }
-              ESP_LOGI("module_properties_1", "Total Frames Captured: %d", id(frame_counter_msg_start_1));
-              ESP_LOGI("module_properties_1", "Final Module Properties: %s", id(module_properties_1).c_str());
+              ESP_LOGI("module_properties_1", "Module 1: Total Frames Captured: %d", id(frame_counter_msg_start_1));
+              ESP_LOGI("module_properties_1", "Module 1: Final Module Properties: %s", id(module_properties_1).c_str());
 
               auto extract_value = [](const std::string &data, const std::string &key) -> std::string {
                 size_t start = data.find(key);
@@ -1328,13 +1383,13 @@ canbus:
               for (const auto& mapping : mappings) {
                 std::string value = extract_value(id(module_properties_1), mapping.key);
                 if (!value.empty()) {
-                  ESP_LOGI("module_properties_1", "Extracted %s: %s", mapping.key, value.c_str());
+                  ESP_LOGI("module_properties_1", "Module 1: Extracted %s: %s", mapping.key, value.c_str());
                   mapping.sensor->publish_state(value.c_str());
                   if (mapping.flag) {
                     *(mapping.flag) = true;
                   }
                 } else {
-                  ESP_LOGW("module_properties_1", "Key %s not found or empty", mapping.key);
+                  ESP_LOGW("module_properties_1", "Module 1: Key %s not found or empty", mapping.key);
                   all_keys_found = false;
                   if (mapping.flag) {
                     *(mapping.flag) = false; // Reset the flag for missing keys
@@ -1344,10 +1399,10 @@ canbus:
 
               if (all_keys_found) {
                 id(module_properties_complete_1) = true; // Mark completion only if all keys are found
-                ESP_LOGI("module_properties_1", "All required keys found. Marking as complete.");
+                ESP_LOGI("module_properties_1", "Module 1: All required keys found. Marking as complete.");
               } else {
                 id(module_properties_complete_1) = false; // Explicitly reset the flag if keys are missing
-                ESP_LOGI("module_properties_1", "Not all keys found. Will continue processing.");
+                ESP_LOGI("module_properties_1", "Module 1: Not all keys found. Will continue processing.");
               }
 
       # Handler for CAN ID 0x1082D27E (Packet x)
@@ -1362,13 +1417,13 @@ canbus:
               // Check if this frame contains additional payload data
               if (x.size() > 2) {  // Payload starts at x[2], so size must be > 2
                 std::string frame_data((char*)&x[2], x.size() - 2);
-                ESP_LOGI("module_properties_2", "End Message Frame Data: %s", frame_data.c_str());
+                ESP_LOGI("module_properties_2", "Module 2: End Message Frame Data: %s", frame_data.c_str());
 
                 // Append any remaining data to module_properties_2
                 id(module_properties_2) += frame_data;
               }
-              ESP_LOGI("module_properties_2", "Total Frames Captured: %d", id(frame_counter_msg_start_2));
-              ESP_LOGI("module_properties_2", "Final Module Properties: %s", id(module_properties_2).c_str());
+              ESP_LOGI("module_properties_2", "Module 2: Total Frames Captured: %d", id(frame_counter_msg_start_2));
+              ESP_LOGI("module_properties_2", "Module 2: Final Module Properties: %s", id(module_properties_2).c_str());
 
               auto extract_value = [](const std::string &data, const std::string &key) -> std::string {
                 size_t start = data.find(key);
@@ -1403,13 +1458,13 @@ canbus:
               for (const auto& mapping : mappings) {
                 std::string value = extract_value(id(module_properties_2), mapping.key);
                 if (!value.empty()) {
-                  ESP_LOGI("module_properties_2", "Extracted %s: %s", mapping.key, value.c_str());
+                  ESP_LOGI("module_properties_2", "Module 2: Extracted %s: %s", mapping.key, value.c_str());
                   mapping.sensor->publish_state(value.c_str());
                   if (mapping.flag) {
                     *(mapping.flag) = true;
                   }
                 } else {
-                  ESP_LOGW("module_properties_2", "Key %s not found or empty", mapping.key);
+                  ESP_LOGW("module_properties_2", "Module 2: Key %s not found or empty", mapping.key);
                   all_keys_found = false;
                   if (mapping.flag) {
                     *(mapping.flag) = false; // Reset the flag for missing keys
@@ -1419,10 +1474,10 @@ canbus:
 
               if (all_keys_found) {
                 id(module_properties_complete_2) = true; // Mark completion only if all keys are found
-                ESP_LOGI("module_properties_2", "All required keys found. Marking as complete.");
+                ESP_LOGI("module_properties_2", "Module 2: All required keys found. Marking as complete.");
               } else {
                 id(module_properties_complete_2) = false; // Explicitly reset the flag if keys are missing
-                ESP_LOGI("module_properties_2", "Not all keys found. Will continue processing.");
+                ESP_LOGI("module_properties_2", "Module 2: Not all keys found. Will continue processing.");
               }
 
       # Handler for CAN ID 0x1083D27E (Packet x)
@@ -1437,13 +1492,13 @@ canbus:
               // Check if this frame contains additional payload data
               if (x.size() > 2) {  // Payload starts at x[2], so size must be > 2
                 std::string frame_data((char*)&x[2], x.size() - 2);
-                ESP_LOGI("module_properties_3", "End Message Frame Data: %s", frame_data.c_str());
+                ESP_LOGI("module_properties_3", "Module 3: End Message Frame Data: %s", frame_data.c_str());
 
                 // Append any remaining data to module_properties_2
                 id(module_properties_3) += frame_data;
               }
-              ESP_LOGI("module_properties_3", "Total Frames Captured: %d", id(frame_counter_msg_start_3));
-              ESP_LOGI("module_properties_3", "Final Module Properties: %s", id(module_properties_3).c_str());
+              ESP_LOGI("module_properties_3", "Module 3: Total Frames Captured: %d", id(frame_counter_msg_start_3));
+              ESP_LOGI("module_properties_3", "Module 3: Final Module Properties: %s", id(module_properties_3).c_str());
 
               auto extract_value = [](const std::string &data, const std::string &key) -> std::string {
                 size_t start = data.find(key);
@@ -1478,13 +1533,13 @@ canbus:
               for (const auto& mapping : mappings) {
                 std::string value = extract_value(id(module_properties_3), mapping.key);
                 if (!value.empty()) {
-                  ESP_LOGI("module_properties_3", "Extracted %s: %s", mapping.key, value.c_str());
+                  ESP_LOGI("module_properties_3", "Module 3: Extracted %s: %s", mapping.key, value.c_str());
                   mapping.sensor->publish_state(value.c_str());
                   if (mapping.flag) {
                     *(mapping.flag) = true;
                   }
                 } else {
-                  ESP_LOGW("module_properties_3", "Key %s not found or empty", mapping.key);
+                  ESP_LOGW("module_properties_3", "Module 3: Key %s not found or empty", mapping.key);
                   all_keys_found = false;
                   if (mapping.flag) {
                     *(mapping.flag) = false; // Reset the flag for missing keys
@@ -1494,10 +1549,10 @@ canbus:
 
               if (all_keys_found) {
                 id(module_properties_complete_3) = true; // Mark completion only if all keys are found
-                ESP_LOGI("module_properties_3", "All required keys found. Marking as complete.");
+                ESP_LOGI("module_properties_3", "Module 3: All required keys found. Marking as complete.");
               } else {
                 id(module_properties_complete_3) = false; // Explicitly reset the flag if keys are missing
-                ESP_LOGI("module_properties_3", "Not all keys found. Will continue processing.");
+                ESP_LOGI("module_properties_3", "Module 3: Not all keys found. Will continue processing.");
               }
 
       # Handler for CAN ID 0x1081407F (Packet x)
@@ -1532,11 +1587,12 @@ canbus:
                       case 0x72: id(input_current_sensor_1).publish_state(value); break;
                       case 0x73: id(dc_power_out_sensor_1).publish_state(value); break;
                       case 0x75: id(output_voltage_sensor_1).publish_state(value); break;
-                      case 0x76: id(set_max_output_current_sensor_1).publish_state(value); break;
+                      case 0x76: id(max_output_current_setpoint_1).publish_state(value); break;
                       case 0x78: id(input_grid_voltage_sensor_1).publish_state(value); break;
                       case 0x7F: id(output_temperature_sensor_1).publish_state(value); break;
                       case 0x81: id(output_current_sensor_1).publish_state(value); break;
                       case 0x80: id(input_temperature_sensor_1).publish_state(value); break;
+                      case 0x0E: id(operating_hours_1).publish_state(value); break;
                     }
                     break;
                 }
@@ -1574,11 +1630,12 @@ canbus:
                       case 0x72: id(input_current_sensor_2).publish_state(value); break;
                       case 0x73: id(dc_power_out_sensor_2).publish_state(value); break;
                       case 0x75: id(output_voltage_sensor_2).publish_state(value); break;
-                      case 0x76: id(set_max_output_current_sensor_2).publish_state(value); break;
+                      case 0x76: id(max_output_current_setpoint_2).publish_state(value); break;
                       case 0x78: id(input_grid_voltage_sensor_2).publish_state(value); break;
                       case 0x7F: id(output_temperature_sensor_2).publish_state(value); break;
                       case 0x81: id(output_current_sensor_2).publish_state(value); break;
                       case 0x80: id(input_temperature_sensor_2).publish_state(value); break;
+                      case 0x0E: id(operating_hours_2).publish_state(value); break;
                     }
                     break;
                 }
@@ -1616,11 +1673,12 @@ canbus:
                       case 0x72: id(input_current_sensor_3).publish_state(value); break;
                       case 0x73: id(dc_power_out_sensor_3).publish_state(value); break;
                       case 0x75: id(output_voltage_sensor_3).publish_state(value); break;
-                      case 0x76: id(set_max_output_current_sensor_3).publish_state(value); break;
+                      case 0x76: id(max_output_current_setpoint_3).publish_state(value); break;
                       case 0x78: id(input_grid_voltage_sensor_3).publish_state(value); break;
                       case 0x7F: id(output_temperature_sensor_3).publish_state(value); break;
                       case 0x81: id(output_current_sensor_3).publish_state(value); break;
                       case 0x80: id(input_temperature_sensor_3).publish_state(value); break;
+                      case 0x0E: id(operating_hours_3).publish_state(value); break;
                     }
                     break;
                 }
@@ -1645,17 +1703,17 @@ canbus:
               if (packet_number == 1) {
                 uint8_t max_current_raw = packet_data[5];
                 float max_current = max_current_raw / 2; // Adjust scaling factor if necessary
-                ESP_LOGI("canbus", "Module 1 Max current capability: %.1f A", max_current);
+                ESP_LOGI("canbus", "Module 1: Max current capability: %.1f A", max_current);
                 id(max_current_sensor_1).publish_state(max_current);
                 id(max_current_found_1) = true; // Set the flag to true
 
                 // Calculate and update current_scaling_factor
                 if (max_current > 0) {
                   id(current_scaling_factor) = 1024.0 / max_current;
-                  ESP_LOGI("canbus", "New current_scaling_factor: %.3f", id(current_scaling_factor));
-                  id(sf_value).publish_state(id(current_scaling_factor));
+                  ESP_LOGI("canbus", "Module 1: New current_scaling_factor: %.3f", id(current_scaling_factor));
+                  id(sf_value_1).publish_state(id(current_scaling_factor));
                 } else {
-                  ESP_LOGW("canbus", "Max current is zero. Cannot calculate current_scaling_factor.");
+                  ESP_LOGW("canbus", "Module 1: Max current is zero. Cannot calculate current_scaling_factor.");
                 }
               }
 
@@ -1678,9 +1736,20 @@ canbus:
               if (packet_number == 1) {
                 uint8_t max_current_raw = packet_data[5];
                 float max_current = max_current_raw / 2; // Adjust scaling factor if necessary
-                ESP_LOGI("canbus", "Module 2 Max current capability: %.1f A", max_current);
+                ESP_LOGI("canbus", "Module 2: Max current capability: %.1f A", max_current);
                 id(max_current_sensor_2).publish_state(max_current);
                 id(max_current_found_2) = true; // Set the flag to true
+
+                // Diagnostic-only: publish Module 2's own scaling factor for comparison, but
+                // do not overwrite the shared current_scaling_factor (that remains Module 1's
+                // responsibility, per the architecture note at the top of this file).
+                if (max_current > 0) {
+                  float module_2_scaling_factor = 1024.0 / max_current;
+                  ESP_LOGI("canbus", "Module 2: Diagnostic scaling factor: %.3f", module_2_scaling_factor);
+                  id(sf_value_2).publish_state(module_2_scaling_factor);
+                } else {
+                  ESP_LOGW("canbus", "Module 2: Max current is zero. Cannot calculate scaling factor.");
+                }
               }
 
       # Handler for CAN ID 0x1083507F (Packet 1)
@@ -1702,9 +1771,113 @@ canbus:
               if (packet_number == 1) {
                 uint8_t max_current_raw = packet_data[5];
                 float max_current = max_current_raw / 2; // Adjust scaling factor if necessary
-                ESP_LOGI("canbus", "Module 3 Max current capability: %.1f A", max_current);
+                ESP_LOGI("canbus", "Module 3: Max current capability: %.1f A", max_current);
                 id(max_current_sensor_3).publish_state(max_current);
                 id(max_current_found_3) = true; // Set the flag to true
+
+                // Diagnostic-only: publish Module 3's own scaling factor for comparison, but
+                // do not overwrite the shared current_scaling_factor (that remains Module 1's
+                // responsibility, per the architecture note at the top of this file).
+                if (max_current > 0) {
+                  float module_3_scaling_factor = 1024.0 / max_current;
+                  ESP_LOGI("canbus", "Module 3: Diagnostic scaling factor: %.3f", module_3_scaling_factor);
+                  id(sf_value_3).publish_state(module_3_scaling_factor);
+                } else {
+                  ESP_LOGW("canbus", "Module 3: Max current is zero. Cannot calculate scaling factor.");
+                }
+              }
+
+      # Handler for CAN ID 0x1081827E (Packet 0x87)
+      # Fan Duty/RPM for Module 1
+      # ----------------------------------------------------------------------
+      # CAN RX 0x1081827E
+      # Module 1 fan telemetry frame. Bytes 2-3/4-5 report duty cycle (raw/25600*100 = %), bytes 6-7 report raw fan RPM.
+      - can_id: 0x1081827E
+        use_extended_id: true
+        then:
+          - lambda: |-
+              if (x.size() >= 8) {
+                // Check that the first two bytes match 0x01 and 0x87
+                const uint8_t reg_byte0 = static_cast<uint8_t>(x[0]);
+                const uint8_t reg_byte1 = static_cast<uint8_t>(x[1]);
+                if (reg_byte0 == 0x01 && reg_byte1 == 0x87) {
+                  // Decode the three 16-bit big-endian values:
+                  // - Bytes 2-3: duty raw value
+                  // - Bytes 4-5: duty set raw value
+                  // - Bytes 6-7: RPM
+                  uint16_t duty_raw = (static_cast<uint8_t>(x[2]) << 8) | static_cast<uint8_t>(x[3]);
+                  uint16_t duty_set_raw = (static_cast<uint8_t>(x[4]) << 8) | static_cast<uint8_t>(x[5]);
+                  uint16_t rpm = (static_cast<uint8_t>(x[6]) << 8) | static_cast<uint8_t>(x[7]);
+
+                  // Convert raw duty cycle values to percentages (raw/25600 * 100)
+                  float duty = (static_cast<float>(duty_raw) / 25600.0f) * 100.0f;
+                  float duty_set = (static_cast<float>(duty_set_raw) / 25600.0f) * 100.0f;
+
+                  // Publish the sensor states
+                  id(fan_rpm_1).publish_state(rpm);
+                }
+              }
+
+      # Handler for CAN ID 0x1082827E (Packet 0x87)
+      # Fan Duty/RPM for Module 2
+      # ----------------------------------------------------------------------
+      # CAN RX 0x1082827E
+      # Module 2 fan telemetry frame. Bytes 2-3/4-5 report duty cycle (raw/25600*100 = %), bytes 6-7 report raw fan RPM.
+      - can_id: 0x1082827E
+        use_extended_id: true
+        then:
+          - lambda: |-
+              if (x.size() >= 8) {
+                // Check that the first two bytes match 0x01 and 0x87
+                const uint8_t reg_byte0 = static_cast<uint8_t>(x[0]);
+                const uint8_t reg_byte1 = static_cast<uint8_t>(x[1]);
+                if (reg_byte0 == 0x01 && reg_byte1 == 0x87) {
+                  // Decode the three 16-bit big-endian values:
+                  // - Bytes 2-3: duty raw value
+                  // - Bytes 4-5: duty set raw value
+                  // - Bytes 6-7: RPM
+                  uint16_t duty_raw = (static_cast<uint8_t>(x[2]) << 8) | static_cast<uint8_t>(x[3]);
+                  uint16_t duty_set_raw = (static_cast<uint8_t>(x[4]) << 8) | static_cast<uint8_t>(x[5]);
+                  uint16_t rpm = (static_cast<uint8_t>(x[6]) << 8) | static_cast<uint8_t>(x[7]);
+
+                  // Convert raw duty cycle values to percentages (raw/25600 * 100)
+                  float duty = (static_cast<float>(duty_raw) / 25600.0f) * 100.0f;
+                  float duty_set = (static_cast<float>(duty_set_raw) / 25600.0f) * 100.0f;
+
+                  // Publish the sensor states
+                  id(fan_rpm_2).publish_state(rpm);
+                }
+              }
+
+      # Handler for CAN ID 0x1083827E (Packet 0x87)
+      # Fan Duty/RPM for Module 3
+      # ----------------------------------------------------------------------
+      # CAN RX 0x1083827E
+      # Module 3 fan telemetry frame. Bytes 2-3/4-5 report duty cycle (raw/25600*100 = %), bytes 6-7 report raw fan RPM.
+      - can_id: 0x1083827E
+        use_extended_id: true
+        then:
+          - lambda: |-
+              if (x.size() >= 8) {
+                // Check that the first two bytes match 0x01 and 0x87
+                const uint8_t reg_byte0 = static_cast<uint8_t>(x[0]);
+                const uint8_t reg_byte1 = static_cast<uint8_t>(x[1]);
+                if (reg_byte0 == 0x01 && reg_byte1 == 0x87) {
+                  // Decode the three 16-bit big-endian values:
+                  // - Bytes 2-3: duty raw value
+                  // - Bytes 4-5: duty set raw value
+                  // - Bytes 6-7: RPM
+                  uint16_t duty_raw = (static_cast<uint8_t>(x[2]) << 8) | static_cast<uint8_t>(x[3]);
+                  uint16_t duty_set_raw = (static_cast<uint8_t>(x[4]) << 8) | static_cast<uint8_t>(x[5]);
+                  uint16_t rpm = (static_cast<uint8_t>(x[6]) << 8) | static_cast<uint8_t>(x[7]);
+
+                  // Convert raw duty cycle values to percentages (raw/25600 * 100)
+                  float duty = (static_cast<float>(duty_raw) / 25600.0f) * 100.0f;
+                  float duty_set = (static_cast<float>(duty_set_raw) / 25600.0f) * 100.0f;
+
+                  // Publish the sensor states
+                  id(fan_rpm_3).publish_state(rpm);
+                }
               }
 
       # Handler for CAN ID 0x1081507E (Packet 6)
@@ -1717,18 +1890,18 @@ canbus:
         then:
           - lambda: |-
               if (id(data_found_1)) {
-                ESP_LOGI("canbus", "Data already found. Skipping further processing.");
+                ESP_LOGI("canbus", "Module 1: Data already found. Skipping further processing.");
                 return; // Skip processing if already found
               }
 
-              ESP_LOGI("canbus", "Module 1 Received CAN message 0x1081507E (Packet 6)");
+              ESP_LOGI("canbus", "Module 1: Received CAN message 0x1081507E (Packet 6)");
 
               uint8_t packet_data[8];
               memcpy(packet_data, x.data(), 8);
 
               uint8_t pin11 = packet_data[2];
               uint8_t pin12 = packet_data[3];
-              ESP_LOGI("canbus", "Module 1 Pin 11: %d, Pin 12: %d", pin11, pin12);
+              ESP_LOGI("canbus", "Module 1: Pin 11: %d, Pin 12: %d", pin11, pin12);
 
               id(pin11_sensor_1).publish_state(pin11);
               id(pin12_sensor_1).publish_state(pin12);
@@ -1747,17 +1920,18 @@ canbus:
         then:
           - lambda: |-
               if (id(data_found_2)) {
+                ESP_LOGI("canbus", "Module 2: Data already found. Skipping further processing.");
                 return; // Skip processing if already found
               }
 
-              ESP_LOGI("canbus", "Module 2 Received CAN message 0x1082507E (Packet 6)");
+              ESP_LOGI("canbus", "Module 2: Received CAN message 0x1082507E (Packet 6)");
 
               uint8_t packet_data[8];
               memcpy(packet_data, x.data(), 8);
 
               uint8_t pin11 = packet_data[2];
               uint8_t pin12 = packet_data[3];
-              ESP_LOGI("canbus", "Module 2 Pin 11: %d, Pin 12: %d", pin11, pin12);
+              ESP_LOGI("canbus", "Module 2: Pin 11: %d, Pin 12: %d", pin11, pin12);
 
               id(pin11_sensor_2).publish_state(pin11);
               id(pin12_sensor_2).publish_state(pin12);
@@ -1776,17 +1950,18 @@ canbus:
         then:
           - lambda: |-
               if (id(data_found_3)) {
+                ESP_LOGI("canbus", "Module 3: Data already found. Skipping further processing.");
                 return; // Skip processing if already found
               }
 
-              ESP_LOGI("canbus", "Module 3 Received CAN message 0x1083507E (Packet 6)");
+              ESP_LOGI("canbus", "Module 3: Received CAN message 0x1083507E (Packet 6)");
 
               uint8_t packet_data[8];
               memcpy(packet_data, x.data(), 8);
 
               uint8_t pin11 = packet_data[2];
               uint8_t pin12 = packet_data[3];
-              ESP_LOGI("canbus", "Module 3 Pin 11: %d, Pin 12: %d", pin11, pin12);
+              ESP_LOGI("canbus", "Module 3: Pin 11: %d, Pin 12: %d", pin11, pin12);
 
               id(pin11_sensor_3).publish_state(pin11);
               id(pin12_sensor_3).publish_state(pin12);
@@ -1810,14 +1985,14 @@ canbus:
                 // Extract data from the message
                 const uint8_t state_byte = x[3];
                 const uint8_t error_byte = x[4];
-                const uint16_t alt_amp_value =
+                const uint16_t alt_current_value =
                   (static_cast<uint16_t>(x[6]) << 8) |
                   static_cast<uint16_t>(x[7]);
 
                 // Publish alt AMP value only if it has changed
-                if (alt_amp_value != last_alt_amp_value_1) {
-                  id(alt_amp_sensor_1).publish_state(alt_amp_value);
-                  last_alt_amp_value_1 = alt_amp_value;
+                if (alt_current_value != last_alt_amp_value_1) {
+                  id(alt_amp_sensor_1).publish_state(alt_current_value);
+                  last_alt_amp_value_1 = alt_current_value;
                 }
 
                 // Determine the new power state
@@ -1852,14 +2027,14 @@ canbus:
                 // Extract data from the message
                 const uint8_t state_byte = x[3];
                 const uint8_t error_byte = x[4];
-                const uint16_t alt_amp_value =
+                const uint16_t alt_current_value =
                   (static_cast<uint16_t>(x[6]) << 8) |
                   static_cast<uint16_t>(x[7]);
 
                 // Publish alt AMP value only if it has changed
-                if (alt_amp_value != last_alt_amp_value_2) {
-                  id(alt_amp_sensor_2).publish_state(alt_amp_value);
-                  last_alt_amp_value_2 = alt_amp_value;
+                if (alt_current_value != last_alt_amp_value_2) {
+                  id(alt_amp_sensor_2).publish_state(alt_current_value);
+                  last_alt_amp_value_2 = alt_current_value;
                 }
 
                 // Determine the new power state
@@ -1894,14 +2069,14 @@ canbus:
                 // Extract data from the message
                 const uint8_t state_byte = x[3];
                 const uint8_t error_byte = x[4];
-                const uint16_t alt_amp_value =
+                const uint16_t alt_current_value =
                   (static_cast<uint16_t>(x[6]) << 8) |
                   static_cast<uint16_t>(x[7]);
 
                 // Publish alt AMP value only if it has changed
-                if (alt_amp_value != last_alt_amp_value_3) {
-                  id(alt_amp_sensor_3).publish_state(alt_amp_value);
-                  last_alt_amp_value_3 = alt_amp_value;
+                if (alt_current_value != last_alt_amp_value_3) {
+                  id(alt_amp_sensor_3).publish_state(alt_current_value);
+                  last_alt_amp_value_3 = alt_current_value;
                 }
 
                 // Determine the new power state
@@ -1971,7 +2146,7 @@ sensor:
 
   # --------------------------------------------------------------------------
   # local_encoder
-  # Physical local rotary encoder on GPIO17/GPIO18. In voltage mode it changes set_dc_voltage_limit and recalculates current to preserve total power; in power mode it changes dc_sum_power_set. Every movement wakes/restarts the backlight timer.
+  # Physical local rotary encoder on GPIO17/GPIO18. In voltage mode it changes can_voltage_set and recalculates current to preserve total power; in power mode it changes dc_sum_power_set. Every movement wakes/restarts the backlight timer.
   - platform: rotary_encoder
     id: local_encoder
 
@@ -1999,7 +2174,7 @@ sensor:
               lambda: 'return id(encoder_mode) == 0;'
             then:
               - number.increment:
-                  id: set_dc_voltage_limit
+                  id: can_voltage_set
                   cycle: false
               - script.execute: apply_dc_sum_power
             else:
@@ -2015,7 +2190,7 @@ sensor:
               lambda: 'return id(encoder_mode) == 0;'
             then:
               - number.decrement:
-                  id: set_dc_voltage_limit
+                  id: can_voltage_set
                   cycle: false
               - script.execute: apply_dc_sum_power
             else:
@@ -2030,6 +2205,8 @@ sensor:
     name: "Input Temperature Module-1"
     id: input_temperature_sensor_1
     unit_of_measurement: "°C"
+    device_class: temperature
+    state_class: measurement
     accuracy_decimals: 1
     update_interval: 3s
     filters:
@@ -2044,6 +2221,8 @@ sensor:
     name: "Input Temperature Module-2"
     id: input_temperature_sensor_2
     unit_of_measurement: "°C"
+    device_class: temperature
+    state_class: measurement
     accuracy_decimals: 1
     update_interval: 3s
     filters:
@@ -2058,6 +2237,8 @@ sensor:
     name: "Input Temperature Module-3"
     id: input_temperature_sensor_3
     unit_of_measurement: "°C"
+    device_class: temperature
+    state_class: measurement
     accuracy_decimals: 1
     update_interval: 3s
     filters:
@@ -2070,7 +2251,25 @@ sensor:
   # Diagnostic publication of the dynamically detected current scaling factor.
   - platform: template
     name: "Scaling Factor Module-1"
-    id: sf_value
+    id: sf_value_1
+    icon: "mdi:information-outline"
+    update_interval: never
+
+  # --------------------------------------------------------------------------
+  # Scaling Factor Module-2
+  # Diagnostic publication of the dynamically detected current scaling factor.
+  - platform: template
+    name: "Scaling Factor Module-2"
+    id: sf_value_2
+    icon: "mdi:information-outline"
+    update_interval: never
+
+  # --------------------------------------------------------------------------
+  # Scaling Factor Module-3
+  # Diagnostic publication of the dynamically detected current scaling factor.
+  - platform: template
+    name: "Scaling Factor Module-3"
+    id: sf_value_3
     icon: "mdi:information-outline"
     update_interval: never
 
@@ -2156,7 +2355,9 @@ sensor:
     name: "Output Current alt Module-1"
     id: alt_amp_sensor_1
     unit_of_measurement: "A"
-    accuracy_decimals: 1
+    device_class: current
+    state_class: measurement
+    accuracy_decimals: 3
     filters:
       - lambda: |-
           return x / id(current_scaling_factor);  
@@ -2170,7 +2371,9 @@ sensor:
     name: "Output Current alt Module-2"
     id: alt_amp_sensor_2
     unit_of_measurement: "A"
-    accuracy_decimals: 1
+    device_class: current
+    state_class: measurement
+    accuracy_decimals: 3
     filters:
       - lambda: |-
           return x / id(current_scaling_factor);  
@@ -2184,7 +2387,9 @@ sensor:
     name: "Output Current alt Module-3"
     id: alt_amp_sensor_3
     unit_of_measurement: "A"
-    accuracy_decimals: 1
+    device_class: current
+    state_class: measurement
+    accuracy_decimals: 3
     filters:
       - lambda: |-
           return x / id(current_scaling_factor);  
@@ -2198,7 +2403,9 @@ sensor:
     name: "AC Power In Module-1"
     id: ac_power_in_sensor_1
     unit_of_measurement: "W"
-    accuracy_decimals: 2
+    device_class: power
+    state_class: measurement
+    accuracy_decimals: 3
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);  
@@ -2212,7 +2419,9 @@ sensor:
     name: "AC Power In Module-2"
     id: ac_power_in_sensor_2
     unit_of_measurement: "W"
-    accuracy_decimals: 2
+    device_class: power
+    state_class: measurement
+    accuracy_decimals: 3
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);  
@@ -2226,7 +2435,9 @@ sensor:
     name: "AC Power In Module-3"
     id: ac_power_in_sensor_3
     unit_of_measurement: "W"
-    accuracy_decimals: 2
+    device_class: power
+    state_class: measurement
+    accuracy_decimals: 3
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);  
@@ -2240,7 +2451,9 @@ sensor:
     name: "DC Power Out Module-1"
     id: dc_power_out_sensor_1
     unit_of_measurement: "W"
-    accuracy_decimals: 2
+    device_class: power
+    state_class: measurement
+    accuracy_decimals: 3
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);  
@@ -2254,7 +2467,9 @@ sensor:
     name: "DC Power Out Module-2"
     id: dc_power_out_sensor_2
     unit_of_measurement: "W"
-    accuracy_decimals: 2
+    device_class: power
+    state_class: measurement
+    accuracy_decimals: 3
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);  
@@ -2268,7 +2483,9 @@ sensor:
     name: "DC Power Out Module-3"
     id: dc_power_out_sensor_3
     unit_of_measurement: "W"
-    accuracy_decimals: 2
+    device_class: power
+    state_class: measurement
+    accuracy_decimals: 3
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);  
@@ -2282,7 +2499,7 @@ sensor:
     name: "Grid Frequency Module-1"
     id: grid_frequency_sensor_1
     unit_of_measurement: "Hz"
-    accuracy_decimals: 1
+    accuracy_decimals: 3
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);  
@@ -2296,7 +2513,7 @@ sensor:
     name: "Grid Frequency Module-2"
     id: grid_frequency_sensor_2
     unit_of_measurement: "Hz"
-    accuracy_decimals: 1
+    accuracy_decimals: 3
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);  
@@ -2310,7 +2527,7 @@ sensor:
     name: "Grid Frequency Module-3"
     id: grid_frequency_sensor_3
     unit_of_measurement: "Hz"
-    accuracy_decimals: 1
+    accuracy_decimals: 3
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);  
@@ -2324,7 +2541,9 @@ sensor:
     name: "Input Current Module-1"
     id: input_current_sensor_1
     unit_of_measurement: "A"
-    accuracy_decimals: 1
+    device_class: current
+    state_class: measurement
+    accuracy_decimals: 3
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);  
@@ -2338,7 +2557,9 @@ sensor:
     name: "Input Current Module-2"
     id: input_current_sensor_2
     unit_of_measurement: "A"
-    accuracy_decimals: 1
+    device_class: current
+    state_class: measurement
+    accuracy_decimals: 3
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);  
@@ -2352,7 +2573,9 @@ sensor:
     name: "Input Current Module-3"
     id: input_current_sensor_3
     unit_of_measurement: "A"
-    accuracy_decimals: 1
+    device_class: current
+    state_class: measurement
+    accuracy_decimals: 3
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);  
@@ -2366,7 +2589,9 @@ sensor:
     name: "Output Voltage Module-1"
     id: output_voltage_sensor_1
     unit_of_measurement: "V"
-    accuracy_decimals: 1
+    device_class: voltage
+    state_class: measurement
+    accuracy_decimals: 3
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);  
@@ -2380,7 +2605,9 @@ sensor:
     name: "Output Voltage Module-2"
     id: output_voltage_sensor_2
     unit_of_measurement: "V"
-    accuracy_decimals: 1
+    device_class: voltage
+    state_class: measurement
+    accuracy_decimals: 3
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);  
@@ -2394,7 +2621,9 @@ sensor:
     name: "Output Voltage Module-3"
     id: output_voltage_sensor_3
     unit_of_measurement: "V"
-    accuracy_decimals: 1
+    device_class: voltage
+    state_class: measurement
+    accuracy_decimals: 3
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);  
@@ -2408,7 +2637,9 @@ sensor:
     name: "Input Grid Voltage Module-1"
     id: input_grid_voltage_sensor_1
     unit_of_measurement: "V"
-    accuracy_decimals: 2
+    device_class: voltage
+    state_class: measurement
+    accuracy_decimals: 3
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);  
@@ -2422,7 +2653,9 @@ sensor:
     name: "Input Grid Voltage Module-2"
     id: input_grid_voltage_sensor_2
     unit_of_measurement: "V"
-    accuracy_decimals: 2
+    device_class: voltage
+    state_class: measurement
+    accuracy_decimals: 3
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);  
@@ -2436,7 +2669,9 @@ sensor:
     name: "Input Grid Voltage Module-3"
     id: input_grid_voltage_sensor_3
     unit_of_measurement: "V"
-    accuracy_decimals: 2
+    device_class: voltage
+    state_class: measurement
+    accuracy_decimals: 3
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);  
@@ -2445,11 +2680,13 @@ sensor:
 
   # --------------------------------------------------------------------------
   # Output Temperature Module-1
-  # Rectifier output temperature from telemetry selector 0x7F. The on_value safety automation sends an individual OFF command if this module exceeds 90 °C.
+  # Rectifier output temperature from telemetry selector 0x7F. The on_value safety automation sends an individual OFF command and engages a lockout once this module exceeds 90 °C; the lockout only clears below the 80 °C hysteresis threshold.
   - platform: template
     name: "Output Temperature Module-1"
     id: output_temperature_sensor_1
     unit_of_measurement: "°C"
+    device_class: temperature
+    state_class: measurement
     accuracy_decimals: 1
     update_interval: 3s
     filters:
@@ -2458,25 +2695,34 @@ sensor:
     icon: "mdi:thermometer"
     on_value:
       then:
+        - lambda: |-
+            // Edge-triggered: only act when crossing the trip or recovery threshold,
+            // not on every 3s update while the state is unchanged.
+            if (!id(overtemp_lockout_1) && x > 90.0f) {
+              id(overtemp_lockout_1) = true;
+              ESP_LOGW("overtemp", "Module 1 exceeded 90°C (%.1f°C). Sending CAN OFF and engaging lockout.", x);
+            } else if (id(overtemp_lockout_1) && x < 80.0f) {
+              id(overtemp_lockout_1) = false;
+              ESP_LOGI("overtemp", "Module 1 cooled below 80°C (%.1f°C). Lockout cleared.", x);
+            }
         - if:
             condition:
-              lambda: 'return id(output_temperature_sensor_1).state > 90.0;'
+              lambda: 'return id(overtemp_lockout_1) && x > 90.0f;'
             then:
               - canbus.send:
                   use_extended_id: true
                   can_id: 0x108180FE
                   data: [1, 50, 0, 1, 0, 0, 0, 0]
-              - logger.log:
-                  level: INFO
-                  format: "Temperature exceeded 90°C. Sent CAN OFF message."
 
   # --------------------------------------------------------------------------
   # Output Temperature Module-2
-  # Rectifier output temperature from telemetry selector 0x7F. The on_value safety automation sends an individual OFF command if this module exceeds 90 °C.
+  # Rectifier output temperature from telemetry selector 0x7F. The on_value safety automation sends an individual OFF command and engages a lockout once this module exceeds 90 °C; the lockout only clears below the 80 °C hysteresis threshold.
   - platform: template
     name: "Output Temperature Module-2"
     id: output_temperature_sensor_2
     unit_of_measurement: "°C"
+    device_class: temperature
+    state_class: measurement
     accuracy_decimals: 1
     update_interval: 3s
     filters:
@@ -2485,25 +2731,34 @@ sensor:
     icon: "mdi:thermometer"
     on_value:
       then:
+        - lambda: |-
+            // Edge-triggered: only act when crossing the trip or recovery threshold,
+            // not on every 3s update while the state is unchanged.
+            if (!id(overtemp_lockout_2) && x > 90.0f) {
+              id(overtemp_lockout_2) = true;
+              ESP_LOGW("overtemp", "Module 2 exceeded 90°C (%.1f°C). Sending CAN OFF and engaging lockout.", x);
+            } else if (id(overtemp_lockout_2) && x < 80.0f) {
+              id(overtemp_lockout_2) = false;
+              ESP_LOGI("overtemp", "Module 2 cooled below 80°C (%.1f°C). Lockout cleared.", x);
+            }
         - if:
             condition:
-              lambda: 'return id(output_temperature_sensor_2).state > 90.0;'
+              lambda: 'return id(overtemp_lockout_2) && x > 90.0f;'
             then:
               - canbus.send:
                   use_extended_id: true
                   can_id: 0x108280FE
                   data: [1, 50, 0, 1, 0, 0, 0, 0]
-              - logger.log:
-                  level: INFO
-                  format: "Temperature exceeded 90°C. Sent CAN OFF message."
 
   # --------------------------------------------------------------------------
   # Output Temperature Module-3
-  # Rectifier output temperature from telemetry selector 0x7F. The on_value safety automation sends an individual OFF command if this module exceeds 90 °C.
+  # Rectifier output temperature from telemetry selector 0x7F. The on_value safety automation sends an individual OFF command and engages a lockout once this module exceeds 90 °C; the lockout only clears below the 80 °C hysteresis threshold.
   - platform: template
     name: "Output Temperature Module-3"
     id: output_temperature_sensor_3
     unit_of_measurement: "°C"
+    device_class: temperature
+    state_class: measurement
     accuracy_decimals: 1
     update_interval: 3s
     filters:
@@ -2512,17 +2767,24 @@ sensor:
     icon: "mdi:thermometer"
     on_value:
       then:
+        - lambda: |-
+            // Edge-triggered: only act when crossing the trip or recovery threshold,
+            // not on every 3s update while the state is unchanged.
+            if (!id(overtemp_lockout_3) && x > 90.0f) {
+              id(overtemp_lockout_3) = true;
+              ESP_LOGW("overtemp", "Module 3 exceeded 90°C (%.1f°C). Sending CAN OFF and engaging lockout.", x);
+            } else if (id(overtemp_lockout_3) && x < 80.0f) {
+              id(overtemp_lockout_3) = false;
+              ESP_LOGI("overtemp", "Module 3 cooled below 80°C (%.1f°C). Lockout cleared.", x);
+            }
         - if:
             condition:
-              lambda: 'return id(output_temperature_sensor_3).state > 90.0;'
+              lambda: 'return id(overtemp_lockout_3) && x > 90.0f;'
             then:
               - canbus.send:
                   use_extended_id: true
                   can_id: 0x108380FE
                   data: [1, 50, 0, 1, 0, 0, 0, 0]
-              - logger.log:
-                  level: INFO
-                  format: "Temperature exceeded 90°C. Sent CAN OFF message."
 
   # --------------------------------------------------------------------------
   # Output Current Module-1
@@ -2531,7 +2793,9 @@ sensor:
     name: "Output Current Module-1"
     id: output_current_sensor_1
     unit_of_measurement: "A"
-    accuracy_decimals: 1
+    device_class: current
+    state_class: measurement
+    accuracy_decimals: 3
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);  
@@ -2545,7 +2809,9 @@ sensor:
     name: "Output Current Module-2"
     id: output_current_sensor_2
     unit_of_measurement: "A"
-    accuracy_decimals: 1
+    device_class: current
+    state_class: measurement
+    accuracy_decimals: 3
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);  
@@ -2559,7 +2825,9 @@ sensor:
     name: "Output Current Module-3"
     id: output_current_sensor_3
     unit_of_measurement: "A"
-    accuracy_decimals: 1
+    device_class: current
+    state_class: measurement
+    accuracy_decimals: 3
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);  
@@ -2567,13 +2835,13 @@ sensor:
     update_interval: 3s
 
   # --------------------------------------------------------------------------
-  # Set Max Output Current Module-1
+  # Max Output Current Setpoint Module-1
   # Module-reported active maximum-current setpoint from telemetry selector 0x76, scaled with current_scaling_factor.
   - platform: template
-    name: "Set Max Output Current Module-1"
-    id: set_max_output_current_sensor_1
+    name: "Max Output Current Setpoint Module-1"
+    id: max_output_current_setpoint_1
     unit_of_measurement: "A"
-    accuracy_decimals: 1
+    accuracy_decimals: 3
     filters:
       - lambda: |-
           return x / id(current_scaling_factor);  
@@ -2581,13 +2849,13 @@ sensor:
     update_interval: 3s
 
   # --------------------------------------------------------------------------
-  # Set Max Output Current Module-2
+  # Max Output Current Setpoint Module-2
   # Module-reported active maximum-current setpoint from telemetry selector 0x76, scaled with current_scaling_factor.
   - platform: template
-    name: "Set Max Output Current Module-2"
-    id: set_max_output_current_sensor_2
+    name: "Max Output Current Setpoint Module-2"
+    id: max_output_current_setpoint_2
     unit_of_measurement: "A"
-    accuracy_decimals: 1
+    accuracy_decimals: 3
     filters:
       - lambda: |-
           return x / id(current_scaling_factor);  
@@ -2595,18 +2863,93 @@ sensor:
     update_interval: 3s
 
   # --------------------------------------------------------------------------
-  # Set Max Output Current Module-3
+  # Max Output Current Setpoint Module-3
   # Module-reported active maximum-current setpoint from telemetry selector 0x76, scaled with current_scaling_factor.
   - platform: template
-    name: "Set Max Output Current Module-3"
-    id: set_max_output_current_sensor_3
+    name: "Max Output Current Setpoint Module-3"
+    id: max_output_current_setpoint_3
     unit_of_measurement: "A"
-    accuracy_decimals: 1
+    accuracy_decimals: 3
     filters:
       - lambda: |-
           return x / id(current_scaling_factor);  
     icon: "mdi:current-ac"
     update_interval: 3s
+
+  # --------------------------------------------------------------------------
+  # FAN RPM Module-1
+  # Rectifier fan speed decoded from the 0x108x827E duty/RPM frame (Bytes 6-7, raw RPM, no scaling).
+  - platform: template
+    name: "FAN RPM Module-1"
+    id: fan_rpm_1
+    unit_of_measurement: "RPM"
+    accuracy_decimals: 0
+    icon: "mdi:fan"
+
+  # --------------------------------------------------------------------------
+  # FAN RPM Module-2
+  # Rectifier fan speed decoded from the 0x108x827E duty/RPM frame (Bytes 6-7, raw RPM, no scaling).
+  - platform: template
+    name: "FAN RPM Module-2"
+    id: fan_rpm_2
+    unit_of_measurement: "RPM"
+    accuracy_decimals: 0
+    icon: "mdi:fan"
+
+  # --------------------------------------------------------------------------
+  # FAN RPM Module-3
+  # Rectifier fan speed decoded from the 0x108x827E duty/RPM frame (Bytes 6-7, raw RPM, no scaling).
+  - platform: template
+    name: "FAN RPM Module-3"
+    id: fan_rpm_3
+    unit_of_measurement: "RPM"
+    accuracy_decimals: 0
+    icon: "mdi:fan"
+
+  # --------------------------------------------------------------------------
+  # Info: Operating Hours Module-1
+  # Rectifier lifetime operating-hours counter from telemetry selector 0x0E; raw value is a whole-hour count with no scaling applied. Monotonically increasing, like an odometer.
+  - platform: template
+    name: "Info: Operating Hours Module-1"
+    id: operating_hours_1
+    unit_of_measurement: "h"
+    device_class: duration
+    state_class: "total_increasing"
+    accuracy_decimals: 0
+    filters:
+      - lambda: |-
+          return x;
+    icon: "mdi:information-outline"
+
+  # --------------------------------------------------------------------------
+  # Info: Operating Hours Module-2
+  # Rectifier lifetime operating-hours counter from telemetry selector 0x0E; raw value is a whole-hour count with no scaling applied. Monotonically increasing, like an odometer.
+  - platform: template
+    name: "Info: Operating Hours Module-2"
+    id: operating_hours_2
+    unit_of_measurement: "h"
+    device_class: duration
+    state_class: "total_increasing"
+    accuracy_decimals: 0
+    filters:
+      - lambda: |-
+          return x;
+    icon: "mdi:information-outline"
+
+  # --------------------------------------------------------------------------
+  # Info: Operating Hours Module-3
+  # Rectifier lifetime operating-hours counter from telemetry selector 0x0E; raw value is a whole-hour count with no scaling applied. Monotonically increasing, like an odometer.
+  - platform: template
+    name: "Info: Operating Hours Module-3"
+    id: operating_hours_3
+    unit_of_measurement: "h"
+    device_class: duration
+    state_class: "total_increasing"
+    accuracy_decimals: 0
+    filters:
+      - lambda: |-
+          return x;
+    icon: "mdi:information-outline"
 
   # Combined AC Power sensor
   # Only modules with valid CAN communication are included.
@@ -2617,7 +2960,9 @@ sensor:
     name: "Combined AC Power Module-1-2-3"
     id: combined_ac_power_sensor
     unit_of_measurement: "kW"
-    accuracy_decimals: 2
+    device_class: power
+    state_class: measurement
+    accuracy_decimals: 3
     filters:
       - multiply: 0.001
     update_interval: 1s
@@ -2660,7 +3005,9 @@ sensor:
     name: "Combined DC Power Module-1-2-3"
     id: combined_dc_power_sensor
     unit_of_measurement: "kW"
-    accuracy_decimals: 2
+    device_class: power
+    state_class: measurement
+    accuracy_decimals: 3
     filters:
       - multiply: 0.001
     update_interval: 1s
@@ -2703,6 +3050,8 @@ sensor:
     power_id: combined_ac_power_sensor
     time_id: sntp_time
     unit_of_measurement: "kWh"
+    device_class: energy
+    state_class: total_increasing
     accuracy_decimals: 3
     icon: "mdi:counter"
 
@@ -2715,6 +3064,8 @@ sensor:
     power_id: combined_dc_power_sensor
     time_id: sntp_time
     unit_of_measurement: "kWh"
+    device_class: energy
+    state_class: total_increasing
     accuracy_decimals: 3
     icon: "mdi:counter"
 
@@ -2726,84 +3077,13 @@ sensor:
 # centralized in one place.
 number:
   # --------------------------------------------------------------------------
-  # Set Fan Minimum Speed
-  # Configures the minimum fan duty cycle for all rectifier modules.
-  # The requested percentage value is converted to the rectifier's fixed-point
-  # representation using:
-  #
-  #     raw_value = fan_percent * 256
-  #
-  # The 16-bit value is transmitted in big-endian format using broadcast
-  # CAN ID 0x108080FE with command selector 0x14.
-  #
-  # Because the command is broadcast, the setting applies to all connected
-  # rectifier modules at the same time.
-  #
-  # Range:
-  #   0%   = minimum fan duty disabled / lowest supported fan command
-  #   100% = maximum requested minimum fan duty
-  #
-  # The value is restored after reboot and can be adjusted through ESPHome,
-  # Home Assistant or the web interface.
-  - platform: template
-    name: "Set Fan Minimum Speed"
-    id: set_fan_min_speed
-    min_value: 0
-    max_value: 100
-    step: 1
-    unit_of_measurement: "%"
-    optimistic: true
-    mode: SLIDER
-    restore_value: true
-    icon: "mdi:fan"
-
-    on_value:
-      then:
-        # Allow the optimistic number entity to finish updating before reading
-        # its new state and constructing the CAN command.
-        - delay: 0.01s
-
-        - lambda: |-
-            // Log the requested engineering value before CAN encoding.
-            float fan_value = id(set_fan_min_speed).state;
-            ESP_LOGI(
-              "custom",
-              "Received fan minimum speed: %.0f%%",
-              fan_value
-            );
-
-        - canbus.send:
-            use_extended_id: true
-            can_id: 0x108080FE
-            data: !lambda |-
-              // Build an 8-byte broadcast command frame initialized to zero.
-              std::vector<uint8_t> can_data(8, 0x00);
-
-              // Command group 0x01 with selector 0x14 addresses the
-              // minimum fan duty-cycle setting.
-              can_data[0] = 0x01;
-              can_data[1] = 0x14;
-
-              // Convert percentage to the rectifier fixed-point format.
-              // Example:
-              //   25% * 256 = 6400 = 0x1900
-              int scaled_value =
-                  (int)(id(set_fan_min_speed).state * 256);
-
-              // Store the 16-bit value in big-endian format.
-              can_data[2] = (scaled_value >> 8) & 0xFF;
-              can_data[3] = scaled_value & 0xFF;
-
-              // Bytes 4..7 remain zero.
-              return can_data;
-  # --------------------------------------------------------------------------
-  # Set DC Voltage Limit
+  # CAN Voltage Set
   # Primary broadcast DC voltage setpoint (49..58 V, 0.1 V steps).
   # The value is encoded as V * voltage_scaling_factor and sent in bytes 6..7 of
   # broadcast CAN ID 0x108080FE.
   - platform: template
-    name: "Set DC Voltage Limit"
-    id: set_dc_voltage_limit
+    name: "CAN Voltage Set"
+    id: can_voltage_set
     min_value: 49
     max_value: 58
     step: 0.1
@@ -2815,8 +3095,11 @@ number:
       then:
         - lambda: |-
             // Encode engineering volts into the rectifier's fixed-point CAN format.
-            float voltage_value = id(set_dc_voltage_limit).state;
-            ESP_LOGI("custom", "Received voltage: %.1fV", voltage_value);
+            float voltage_value = id(can_voltage_set).state;
+            int scaled_value = (int)(voltage_value * id(voltage_scaling_factor));
+            
+            uint8_t high_byte = (scaled_value >> 8) & 0xFF;
+            uint8_t low_byte = scaled_value & 0xFF;
 
         - canbus.send:
             use_extended_id: true
@@ -2824,54 +3107,20 @@ number:
             data: !lambda |-
               std::vector<uint8_t> can_data(8, 0x00);
               can_data[0] = 0x01;
-              int scaled_value = (int)(id(set_dc_voltage_limit).state * id(voltage_scaling_factor));
+              int scaled_value = (int)(id(can_voltage_set).state * id(voltage_scaling_factor));
               can_data[6] = (scaled_value >> 8) & 0xFF;
               can_data[7] = scaled_value & 0xFF;
               return can_data;
 
-  # Fallback Voltage Setting
+  # Current Setting
   # --------------------------------------------------------------------------
-  # Set Fallback DC Voltage Limit
-  # Fallback voltage parameter. Encoded with the same
-  # V * 1024 fixed-point representation and command selector 0x01.
-  - platform: template
-    name: "Set Fallback DC Voltage Limit"
-    id: set_fallback_voltage_limit
-    min_value: 49
-    max_value: 58  # Adjust as needed for your voltage range
-    step: 0.1  # 0.1V steps
-    unit_of_measurement: "V"
-    optimistic: true
-    mode: BOX
-    restore_value: True
-    on_value:
-      then:
-        - lambda: |-
-            // Fallback voltage uses the same V * 1024 representation as active voltage.
-            float fallback_voltage_value = id(set_fallback_voltage_limit).state;
-            ESP_LOGI("custom", "Fallback Voltage: %.1fV", fallback_voltage_value);
-
-        - canbus.send:
-            use_extended_id: true
-            can_id: 0x108080FE
-            data: !lambda |-
-              std::vector<uint8_t> can_data(8, 0x00);  // Initialize with 8 zeros
-              can_data[0] = 0x01;  // First byte is always 0x01
-              can_data[1] = 0x01;  // Second byte is 0x01 for the Fallback Voltage setting
-              int fallback_scaled_value = (int)(id(set_fallback_voltage_limit).state * id(voltage_scaling_factor));  // Scale the voltage value
-              can_data[6] = (fallback_scaled_value >> 8) & 0xFF;  // Encode the high byte in the 7th byte
-              can_data[7] = fallback_scaled_value & 0xFF;         // Encode the low byte in the 8th byte
-              return can_data;
-
-  # DC Current Setting
-  # --------------------------------------------------------------------------
-  # Set DC Current Limit
+  # CAN Current Set
   # Primary per-rectifier current setpoint. The requested current is
   # validated against the detected module model/capability, encoded using
   # current_scaling_factor and broadcast with command selector 0x03.
   - platform: template
-    name: "Set DC Current Limit"
-    id: set_dc_current_limit
+    name: "DC Current Setpoint"
+    id: set_dc_current
     min_value: 1
     max_value: 75 
     step: 1
@@ -2886,25 +3135,26 @@ number:
         - lambda: |-
             // Validate the requested current against the detected rectifier model before
             // creating the raw CAN setpoint.
-            float current_value = id(set_dc_current_limit).state;
-            float max_current = 75;  // Default max amps
+            float amp_value = id(set_dc_current).state;
+            float max_amps = 75;  // Default max amps
             if (id(current_scaling_factor) == 15) {
-              max_current = 75;
+              max_amps = 75;
             } else if (id(current_scaling_factor) == 20) {
-              max_current = 50;
+              max_amps = 50;
             } else if (id(current_scaling_factor) == 30) {
-              max_current = 30;
+              max_amps = 30;
             }
 
-            if (current_value > max_current) {
-              ESP_LOGW("custom", "Entered Current %.1f exceeds model limit %.1f, resetting.", current_value, max_current);
-              id(set_dc_current_limit).publish_state(max_current);  // Reset to max value
+            if (amp_value > max_amps) {
+              ESP_LOGW("custom", "Entered Current %.1f exceeds max limit %.1f for model, resetting.", amp_value, max_amps);
+              id(set_dc_current).publish_state(max_amps);  // Reset to max value
               return;
-            } else if (current_value == 0) {
-              ESP_LOGI("custom", "AC Current Limit disabled.");
-            } else {
-              ESP_LOGI("custom", "AC Current Limit set to %.1fA.", current_value);
             }
+
+            int scaled_value = (int)(amp_value * id(current_scaling_factor));
+
+            uint8_t high_byte = (scaled_value >> 8) & 0xFF;
+            uint8_t low_byte = scaled_value & 0xFF;
 
         - canbus.send:
             use_extended_id: true
@@ -2913,19 +3163,19 @@ number:
               std::vector<uint8_t> can_data(8, 0x00);
               can_data[0] = 0x01;
               can_data[1] = 0x03;
-              int scaled_value = (int)(id(set_dc_current_limit).state * id(current_scaling_factor));
+              int scaled_value = (int)(id(set_dc_current).state * id(current_scaling_factor));
               can_data[6] = (scaled_value >> 8) & 0xFF;
               can_data[7] = scaled_value & 0xFF;
               return can_data;
 
-  # Fallback Amp Setting
+  # DC Current Fallback Setting
   # --------------------------------------------------------------------------
-  # Set Fallback DC Current Limit
+  # Set DC Current Fallback
   # Fallback current parameter. Uses the same model-dependent
   # current validation but command selector 0x04.
   - platform: template
-    name: "Set Fallback DC Current Limit"
-    id: set_fallback_dc_current_limit
+    name: "Set DC Current Fallback"
+    id: set_dc_current_fallback
     min_value: 1
     max_value: 75  
     step: 1
@@ -2939,7 +3189,7 @@ number:
         - delay: 0.01s
         - lambda: |-
             // Fallback current uses the same model-dependent current limit.
-            float fallback_amp_value = id(set_fallback_dc_current_limit).state;
+            float fallback_amp_value = id(set_dc_current_fallback).state;
             float max_amps = 75;  // Default max amps
             if (id(current_scaling_factor) == 15) {
               max_amps = 75;
@@ -2950,8 +3200,8 @@ number:
             }
 
             if (fallback_amp_value > max_amps) {
-              ESP_LOGW("custom", "Entered Fallback Amp %.1f exceeds max limit %.1f for model, resetting.", fallback_amp_value, max_amps);
-              id(set_fallback_dc_current_limit).publish_state(max_amps);  // Reset to max value
+              ESP_LOGW("custom", "Entered Fallback Current %.1f exceeds max limit %.1f for model, resetting.", fallback_amp_value, max_amps);
+              id(set_dc_current_fallback).publish_state(max_amps);  // Reset to max value
               return;
             }
 
@@ -2967,9 +3217,46 @@ number:
               std::vector<uint8_t> can_data(8, 0x00);
               can_data[0] = 0x01;
               can_data[1] = 0x04;
-              int scaled_value = (int)(id(set_fallback_dc_current_limit).state * id(current_scaling_factor));
+              int scaled_value = (int)(id(set_dc_current_fallback).state * id(current_scaling_factor));
               can_data[6] = (scaled_value >> 8) & 0xFF;
               can_data[7] = scaled_value & 0xFF;
+              return can_data;
+
+  # Fallback Voltage Setting
+  # --------------------------------------------------------------------------
+  # Fallback Voltage Set
+  # Fallback voltage parameter. Encoded with the same
+  # V * 1024 fixed-point representation and command selector 0x01.
+  - platform: template
+    name: "Fallback Voltage Set"
+    id: fallback_voltage_set
+    min_value: 49
+    max_value: 58  # Adjust as needed for your voltage range
+    step: 0.1  # 0.1V steps
+    unit_of_measurement: "V"
+    optimistic: true
+    mode: BOX
+    restore_value: True
+    on_value:
+      then:
+        - lambda: |-
+            // Fallback voltage uses the same V * 1024 representation as active voltage.
+            float fallback_voltage_value = id(fallback_voltage_set).state;  // Get the fallback voltage value
+            int fallback_scaled_value = (int)(fallback_voltage_value * id(voltage_scaling_factor));  // Scale the voltage value
+            
+            uint8_t high_byte = (fallback_scaled_value >> 8) & 0xFF;  // Get high byte
+            uint8_t low_byte = fallback_scaled_value & 0xFF;  // Get low byte
+
+        - canbus.send:
+            use_extended_id: true
+            can_id: 0x108080FE
+            data: !lambda |-
+              std::vector<uint8_t> can_data(8, 0x00);  // Initialize with 8 zeros
+              can_data[0] = 0x01;  // First byte is always 0x01
+              can_data[1] = 0x01;  // Second byte is 0x01 for the Fallback Voltage setting
+              int fallback_scaled_value = (int)(id(fallback_voltage_set).state * id(voltage_scaling_factor));  // Scale the voltage value
+              can_data[6] = (fallback_scaled_value >> 8) & 0xFF;  // Encode the high byte in the 7th byte
+              can_data[7] = fallback_scaled_value & 0xFF;         // Encode the low byte in the 8th byte
               return can_data;
 
   # --------------------------------------------------------------------------
@@ -3139,12 +3426,12 @@ interval:
           data: !lambda |-
             std::vector<uint8_t> can_data(8, 0x00);  // Initialize with 8 zeros
             can_data[0] = 0x01;  // First byte is always 0x01
-            int scaled_value = (int)(id(set_dc_voltage_limit).state * id(voltage_scaling_factor));  // Scale the voltage value
+            int scaled_value = (int)(id(can_voltage_set).state * id(voltage_scaling_factor));  // Scale the voltage value
             can_data[6] = (scaled_value >> 8) & 0xFF;  // Encode the high byte in the 7th byte
             can_data[7] = scaled_value & 0xFF;         // Encode the low byte in the 8th byte
             return can_data;
 
-  # Interval for sending Amp setting CAN message every 10 seconds
+  # Interval for sending Current setting CAN message every 10 seconds
   # --------------------------------------------------------------------------
   # Periodic task: 30s
   # Reasserts the broadcast current setpoint every 30 seconds for the same recovery reason.
@@ -3157,7 +3444,7 @@ interval:
             std::vector<uint8_t> can_data(8, 0x00);  // Initialize with 8 zeros
             can_data[0] = 0x01;  // First byte is always 0x01
             can_data[1] = 0x03;  // Second byte is 0x03
-            int scaled_value = (int)(id(set_dc_current_limit).state * id(current_scaling_factor));  // Scale the Amp value
+            int scaled_value = (int)(id(set_dc_current).state * id(current_scaling_factor));  // Scale the Current value
             can_data[6] = (scaled_value >> 8) & 0xFF;  // Encode the high byte in the 7th byte
             can_data[7] = scaled_value & 0xFF;         // Encode the low byte in the 8th byte
             return can_data;
@@ -3182,34 +3469,61 @@ button:
             data: [0x01, 0x32, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
 
   # Individual ON command for one rectifier; useful for diagnostics and service.
+  # Blocked while Module 1 is in overtemperature lockout (see output_temperature_sensor_1).
   - platform: template
     name: "ON Module-1"
     on_press:
       then:
-        - canbus.send:
-            use_extended_id: true
-            can_id: 0x108180FE
-            data: [0x01, 0x32, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+        - if:
+            condition:
+              lambda: 'return !id(overtemp_lockout_1);'
+            then:
+              - canbus.send:
+                  use_extended_id: true
+                  can_id: 0x108180FE
+                  data: [0x01, 0x32, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+            else:
+              - logger.log:
+                  level: WARN
+                  format: "ON Module-1 blocked: overtemperature lockout active."
 
   # Individual ON command for one rectifier; useful for diagnostics and service.
+  # Blocked while Module 2 is in overtemperature lockout (see output_temperature_sensor_2).
   - platform: template
     name: "ON Module-2"
     on_press:
       then:
-        - canbus.send:
-            use_extended_id: true
-            can_id: 0x108280FE
-            data: [0x01, 0x32, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+        - if:
+            condition:
+              lambda: 'return !id(overtemp_lockout_2);'
+            then:
+              - canbus.send:
+                  use_extended_id: true
+                  can_id: 0x108280FE
+                  data: [0x01, 0x32, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+            else:
+              - logger.log:
+                  level: WARN
+                  format: "ON Module-2 blocked: overtemperature lockout active."
 
   # Individual ON command for one rectifier; useful for diagnostics and service.
+  # Blocked while Module 3 is in overtemperature lockout (see output_temperature_sensor_3).
   - platform: template
     name: "ON Module-3"
     on_press:
       then:
-        - canbus.send:
-            use_extended_id: true
-            can_id: 0x108380FE
-            data: [0x01, 0x32, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+        - if:
+            condition:
+              lambda: 'return !id(overtemp_lockout_3);'
+            then:
+              - canbus.send:
+                  use_extended_id: true
+                  can_id: 0x108380FE
+                  data: [0x01, 0x32, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+            else:
+              - logger.log:
+                  level: WARN
+                  format: "ON Module-3 blocked: overtemperature lockout active."
 
 # Define a button component for turning OFF
   # Broadcast OFF command to all three rectifiers.
@@ -3424,7 +3738,7 @@ text_sensor:
 ###################################################################################################################################
 ##This Block must be added to enable voltage and currrent SET topics when using the mqtt: component
 ## Subscribe to MQTT topic to update CAN voltage
-  # MQTT voltage command. Payload is parsed/validated and then published into set_dc_voltage_limit.
+  # MQTT voltage command. Payload is parsed/validated and then published into can_voltage_set.
   - platform: mqtt_subscribe
     name: "CAN Voltage MQTT"
     id: mqtt_voltage_input
@@ -3438,12 +3752,12 @@ text_sensor:
             float mqtt_voltage = atof(x.c_str());
             // Update the number input with the new value
             if (mqtt_voltage >= 49.0 && mqtt_voltage <= 58.0) {
-              id(set_dc_voltage_limit).publish_state(mqtt_voltage);
+              id(can_voltage_set).publish_state(mqtt_voltage);
             } else {
               ESP_LOGW("custom", "Received out-of-range voltage value: %.1fV", mqtt_voltage);
             }
   # Subscribe to MQTT topic to update CAN amps
-  # MQTT current command. Payload is parsed/validated and then published into set_dc_current_limit.
+  # MQTT current command. Payload is parsed/validated and then published into set_dc_current.
   - platform: mqtt_subscribe
     name: "CAN Amps MQTT"
     id: mqtt_amp_input
@@ -3457,16 +3771,16 @@ text_sensor:
             float mqtt_amp = atof(x.c_str());
             // Update the number input with the new value
             if (mqtt_amp >= 1.0 && mqtt_amp <= 75.0) {
-              id(set_dc_current_limit).publish_state(mqtt_amp);
+              id(set_dc_current).publish_state(mqtt_amp);
             } else {
               ESP_LOGW("custom", "Received out-of-range amp value: %.1fA", mqtt_amp);
             }
   # Subscribe to MQTT topic to update Fallback Voltage
-  # MQTT fallback-voltage command feeding set_fallback_voltage_limit.
+  # MQTT fallback-voltage command feeding fallback_voltage_set.
   - platform: mqtt_subscribe
     name: "Fallback Voltage MQTT"
     id: mqtt_fallback_voltage
-    topic: "home/canbus/set_fallback_voltage_limit"
+    topic: "home/canbus/fallback_voltage_set"
     internal: true  # This makes the sensor internal
     on_value:
       then:
@@ -3476,16 +3790,16 @@ text_sensor:
             float fallback_voltage = atof(x.c_str());
             // Update the number input with the new value
             if (fallback_voltage >= 49.0 && fallback_voltage <= 58.0) {
-              id(set_fallback_voltage_limit).publish_state(fallback_voltage);
+              id(fallback_voltage_set).publish_state(fallback_voltage);
             } else {
               ESP_LOGW("custom", "Received out-of-range fallback voltage value: %.1fV", fallback_voltage);
             }
   # Subscribe to MQTT topic to update Fallback Amps
-  # MQTT fallback-current command feeding set_fallback_dc_current_limit.
+  # MQTT fallback-current command feeding set_dc_current_fallback.
   - platform: mqtt_subscribe
     name: "Fallback Amps MQTT"
     id: mqtt_fallback_amp
-    topic: "home/canbus/set_fallback_dc_current_limit"
+    topic: "home/canbus/set_dc_current_fallback"
     internal: true  # This makes the sensor internal
     on_value:
       then:
@@ -3495,7 +3809,7 @@ text_sensor:
             float fallback_amp = atof(x.c_str());
             // Update the number input with the new value
             if (fallback_amp >= 1.0 && fallback_amp <= 75.0) {
-              id(set_fallback_dc_current_limit).publish_state(fallback_amp);
+              id(set_dc_current_fallback).publish_state(fallback_amp);
             } else {
               ESP_LOGW("custom", "Received out-of-range fallback amp value: %.1fA", fallback_amp);
             }
