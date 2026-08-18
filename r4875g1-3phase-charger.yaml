@@ -3069,6 +3069,7 @@ sensor:
     accuracy_decimals: 3
     icon: "mdi:counter"
 
+
 # ==============================================================================
 # USER-ADJUSTABLE SETPOINTS
 # ==============================================================================
@@ -3076,6 +3077,71 @@ sensor:
 # and the encoder ultimately update these entities so CAN encoding remains
 # centralized in one place.
 number:
+  # --------------------------------------------------------------------------
+  # Set Fan Minimum Speed
+  # Configures the minimum fan duty cycle for all rectifier modules.
+  # The requested percentage value is converted to the rectifier's fixed-point
+  # representation using:
+  #
+  #     raw_value = fan_percent * 256
+  #
+  # The 16-bit value is transmitted in big-endian format using broadcast
+  # CAN ID 0x108080FE with command selector 0x14.
+  #
+  # Because the command is broadcast, the setting applies to all connected
+  # rectifier modules at the same time.
+  #
+  # Range:
+  #   0%   = minimum fan duty disabled / lowest supported fan command
+  #   100% = maximum requested minimum fan duty
+  #
+  # The value is restored after reboot and can be adjusted through ESPHome,
+  # Home Assistant or the web interface.
+  - platform: template
+    name: "Set Fan Minimum Speed"
+    id: set_fan_min_speed
+    min_value: 0
+    max_value: 100
+    step: 1
+    unit_of_measurement: "%"
+    optimistic: true
+    mode: SLIDER
+    restore_value: true
+    icon: "mdi:fan"
+    on_value:
+      then:
+        # Allow the optimistic number entity to finish updating before reading
+        # its new state and constructing the CAN command.
+        - delay: 0.01s
+        - lambda: |-
+            // Log the requested engineering value before CAN encoding.
+            float fan_value = id(set_fan_min_speed).state;
+            ESP_LOGI(
+              "custom",
+              "Received fan minimum speed: %.0f%%",
+              fan_value
+            );
+        - canbus.send:
+            use_extended_id: true
+            can_id: 0x108080FE
+            data: !lambda |-
+              // Build an 8-byte broadcast command frame initialized to zero.
+              std::vector<uint8_t> can_data(8, 0x00);
+              // Command group 0x01 with selector 0x14 addresses the
+              // minimum fan duty-cycle setting.
+              can_data[0] = 0x01;
+              can_data[1] = 0x14;
+              // Convert percentage to the rectifier fixed-point format.
+              // Example:
+              //   25% * 256 = 6400 = 0x1900
+              int scaled_value =
+                  (int)(id(set_fan_min_speed).state * 256);
+              // Store the 16-bit value in big-endian format.
+              can_data[2] = (scaled_value >> 8) & 0xFF;
+              can_data[3] = scaled_value & 0xFF;
+              // Bytes 4..7 remain zero.
+              return can_data;
+
   # --------------------------------------------------------------------------
   # CAN Voltage Set
   # Primary broadcast DC voltage setpoint (49..58 V, 0.1 V steps).
