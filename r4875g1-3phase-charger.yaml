@@ -48,7 +48,7 @@
 #     engineering_value = raw_CAN_value / 1024
 #     raw_CAN_value     = engineering_value * 1024
 #
-# Current commands use amp_scaling_factor. That factor is derived from the
+# Current commands use current_scaling_factor. That factor is derived from the
 # detected maximum-current capability of Module 1.
 #
 # COMMUNICATION HEALTH
@@ -577,7 +577,7 @@ display:
           id(font_small_bold),
           id(color_blue),
           "> DC Voltage: %.1f V",
-          id(can_voltage_set).state
+          id(set_dc_voltage_limit).state
         );
 
         it.printf(
@@ -586,7 +586,7 @@ display:
           id(color_black),
           "  DC Power: %.2f kW  -  %.1f A/unit",
           id(dc_sum_power_set).state,
-          id(can_amp_set).state
+          id(set_dc_current_limit).state
         );
 
       } else {
@@ -597,7 +597,7 @@ display:
           id(font_small),
           id(color_black),
           "  DC Voltage: %.1f V",
-          id(can_voltage_set).state
+          id(set_dc_voltage_limit).state
         );
 
         it.printf(
@@ -606,7 +606,7 @@ display:
           id(color_blue),
           "> DC Power: %.2f kW  -  %.1f A/unit",
           id(dc_sum_power_set).state,
-          id(can_amp_set).state
+          id(set_dc_current_limit).state
         );
       }
       // Footer diagnostics are controller-side values and remain useful even if
@@ -659,7 +659,7 @@ globals:
 
   # Current-command scale factor. It is initialized to 15 and
   # updated from the detected Module 1 current capability.
-  - id: amp_scaling_factor
+  - id: current_scaling_factor
     type: float
     initial_value: "15.0"
     restore_value: True
@@ -1013,14 +1013,14 @@ script:
   # Converts the requested total DC power into an equal current
   # target for each of the three parallel rectifiers:
   # I_each = P_total / (3 * V_DC).
-  # The result is limited to 1..75 A and applied through can_amp_set.
+  # The result is limited to 1..75 A and applied through set_dc_current_limit.
   - id: apply_dc_sum_power
     mode: restart
     then:
       - lambda: |-
           // Read the canonical setpoint entities shared by local encoder, web/API and
           // MQTT control paths.
-          float voltage = id(can_voltage_set).state;
+          float voltage = id(set_dc_voltage_limit).state;
           float power_kw = id(dc_sum_power_set).state;
 
           if (isnan(voltage) || voltage < 1.0) {
@@ -1049,9 +1049,9 @@ script:
             current_per_rectifier
           );
 
-          // Use NumberCall so the normal can_amp_set automation performs the final
+          // Use NumberCall so the normal set_dc_current_limit automation performs the final
           // validation and CAN transmission; do not bypass that centralized path.
-          auto call = id(can_amp_set).make_call();
+          auto call = id(set_dc_current_limit).make_call();
           call.set_value(current_per_rectifier);
           call.perform();
 
@@ -1078,7 +1078,7 @@ script:
             can_data[0] = 0x01;
 
             int scaled_value =
-                (int)(id(can_voltage_set).state *
+                (int)(id(set_dc_voltage_limit).state *
                       id(voltage_scaling_factor));
 
             can_data[6] = (scaled_value >> 8) & 0xFF;
@@ -1099,8 +1099,8 @@ script:
             can_data[1] = 0x03;
 
             int scaled_value =
-                (int)(id(can_amp_set).state *
-                      id(amp_scaling_factor));
+                (int)(id(set_dc_current_limit).state *
+                      id(current_scaling_factor));
 
             can_data[6] = (scaled_value >> 8) & 0xFF;
             can_data[7] = scaled_value & 0xFF;
@@ -1630,7 +1630,7 @@ canbus:
       # Max current for Module 1
       # ----------------------------------------------------------------------
       # CAN RX 0x1081507F
-      # Module 1 capability packet. Packet 1 reports maximum output current and is used to derive amp_scaling_factor.
+      # Module 1 capability packet. Packet 1 reports maximum output current and is used to derive current_scaling_factor.
       - can_id: 0x1081507F
         use_extended_id: true
         then:
@@ -1649,13 +1649,13 @@ canbus:
                 id(max_current_sensor_1).publish_state(max_current);
                 id(max_current_found_1) = true; // Set the flag to true
 
-                // Calculate and update amp_scaling_factor
+                // Calculate and update current_scaling_factor
                 if (max_current > 0) {
-                  id(amp_scaling_factor) = 1024.0 / max_current;
-                  ESP_LOGI("canbus", "New amp_scaling_factor: %.3f", id(amp_scaling_factor));
-                  id(sf_value).publish_state(id(amp_scaling_factor));
+                  id(current_scaling_factor) = 1024.0 / max_current;
+                  ESP_LOGI("canbus", "New current_scaling_factor: %.3f", id(current_scaling_factor));
+                  id(sf_value).publish_state(id(current_scaling_factor));
                 } else {
-                  ESP_LOGW("canbus", "Max current is zero. Cannot calculate amp_scaling_factor.");
+                  ESP_LOGW("canbus", "Max current is zero. Cannot calculate current_scaling_factor.");
                 }
               }
 
@@ -1971,7 +1971,7 @@ sensor:
 
   # --------------------------------------------------------------------------
   # local_encoder
-  # Physical local rotary encoder on GPIO17/GPIO18. In voltage mode it changes can_voltage_set and recalculates current to preserve total power; in power mode it changes dc_sum_power_set. Every movement wakes/restarts the backlight timer.
+  # Physical local rotary encoder on GPIO17/GPIO18. In voltage mode it changes set_dc_voltage_limit and recalculates current to preserve total power; in power mode it changes dc_sum_power_set. Every movement wakes/restarts the backlight timer.
   - platform: rotary_encoder
     id: local_encoder
 
@@ -1999,7 +1999,7 @@ sensor:
               lambda: 'return id(encoder_mode) == 0;'
             then:
               - number.increment:
-                  id: can_voltage_set
+                  id: set_dc_voltage_limit
                   cycle: false
               - script.execute: apply_dc_sum_power
             else:
@@ -2015,7 +2015,7 @@ sensor:
               lambda: 'return id(encoder_mode) == 0;'
             then:
               - number.decrement:
-                  id: can_voltage_set
+                  id: set_dc_voltage_limit
                   cycle: false
               - script.execute: apply_dc_sum_power
             else:
@@ -2151,7 +2151,7 @@ sensor:
 
   # --------------------------------------------------------------------------
   # Output Current alt Module-1
-  # Alternate DC current reading from the 0x100x117E frame, scaled with amp_scaling_factor.
+  # Alternate DC current reading from the 0x100x117E frame, scaled with current_scaling_factor.
   - platform: template
     name: "Output Current alt Module-1"
     id: alt_amp_sensor_1
@@ -2159,13 +2159,13 @@ sensor:
     accuracy_decimals: 1
     filters:
       - lambda: |-
-          return x / id(amp_scaling_factor);  
+          return x / id(current_scaling_factor);  
     icon: "mdi:current-dc"
     update_interval: 3s
 
   # --------------------------------------------------------------------------
   # Output Current alt Module-2
-  # Alternate DC current reading from the 0x100x117E frame, scaled with amp_scaling_factor.
+  # Alternate DC current reading from the 0x100x117E frame, scaled with current_scaling_factor.
   - platform: template
     name: "Output Current alt Module-2"
     id: alt_amp_sensor_2
@@ -2173,13 +2173,13 @@ sensor:
     accuracy_decimals: 1
     filters:
       - lambda: |-
-          return x / id(amp_scaling_factor);  
+          return x / id(current_scaling_factor);  
     icon: "mdi:current-dc"
     update_interval: 3s
 
   # --------------------------------------------------------------------------
   # Output Current alt Module-3
-  # Alternate DC current reading from the 0x100x117E frame, scaled with amp_scaling_factor.
+  # Alternate DC current reading from the 0x100x117E frame, scaled with current_scaling_factor.
   - platform: template
     name: "Output Current alt Module-3"
     id: alt_amp_sensor_3
@@ -2187,7 +2187,7 @@ sensor:
     accuracy_decimals: 1
     filters:
       - lambda: |-
-          return x / id(amp_scaling_factor);  
+          return x / id(current_scaling_factor);  
     icon: "mdi:current-dc"
     update_interval: 3s
 
@@ -2568,7 +2568,7 @@ sensor:
 
   # --------------------------------------------------------------------------
   # Set Max Output Current Module-1
-  # Module-reported active maximum-current setpoint from telemetry selector 0x76, scaled with amp_scaling_factor.
+  # Module-reported active maximum-current setpoint from telemetry selector 0x76, scaled with current_scaling_factor.
   - platform: template
     name: "Set Max Output Current Module-1"
     id: set_max_output_current_sensor_1
@@ -2576,13 +2576,13 @@ sensor:
     accuracy_decimals: 1
     filters:
       - lambda: |-
-          return x / id(amp_scaling_factor);  
+          return x / id(current_scaling_factor);  
     icon: "mdi:current-ac"
     update_interval: 3s
 
   # --------------------------------------------------------------------------
   # Set Max Output Current Module-2
-  # Module-reported active maximum-current setpoint from telemetry selector 0x76, scaled with amp_scaling_factor.
+  # Module-reported active maximum-current setpoint from telemetry selector 0x76, scaled with current_scaling_factor.
   - platform: template
     name: "Set Max Output Current Module-2"
     id: set_max_output_current_sensor_2
@@ -2590,13 +2590,13 @@ sensor:
     accuracy_decimals: 1
     filters:
       - lambda: |-
-          return x / id(amp_scaling_factor);  
+          return x / id(current_scaling_factor);  
     icon: "mdi:current-ac"
     update_interval: 3s
 
   # --------------------------------------------------------------------------
   # Set Max Output Current Module-3
-  # Module-reported active maximum-current setpoint from telemetry selector 0x76, scaled with amp_scaling_factor.
+  # Module-reported active maximum-current setpoint from telemetry selector 0x76, scaled with current_scaling_factor.
   - platform: template
     name: "Set Max Output Current Module-3"
     id: set_max_output_current_sensor_3
@@ -2604,7 +2604,7 @@ sensor:
     accuracy_decimals: 1
     filters:
       - lambda: |-
-          return x / id(amp_scaling_factor);  
+          return x / id(current_scaling_factor);  
     icon: "mdi:current-ac"
     update_interval: 3s
 
@@ -2726,13 +2726,13 @@ sensor:
 # centralized in one place.
 number:
   # --------------------------------------------------------------------------
-  # CAN Voltage Set
+  # Set DC Voltage Limit
   # Primary broadcast DC voltage setpoint (49..58 V, 0.1 V steps).
   # The value is encoded as V * voltage_scaling_factor and sent in bytes 6..7 of
   # broadcast CAN ID 0x108080FE.
   - platform: template
-    name: "CAN Voltage Set"
-    id: can_voltage_set
+    name: "Set DC Voltage Limit"
+    id: set_dc_voltage_limit
     min_value: 49
     max_value: 58
     step: 0.1
@@ -2744,11 +2744,8 @@ number:
       then:
         - lambda: |-
             // Encode engineering volts into the rectifier's fixed-point CAN format.
-            float voltage_value = id(can_voltage_set).state;
-            int scaled_value = (int)(voltage_value * id(voltage_scaling_factor));
-            
-            uint8_t high_byte = (scaled_value >> 8) & 0xFF;
-            uint8_t low_byte = scaled_value & 0xFF;
+            float voltage_value = id(set_dc_voltage_limit).state;
+            ESP_LOGI("custom", "Received voltage: %.1fV", voltage_value);
 
         - canbus.send:
             use_extended_id: true
@@ -2756,20 +2753,54 @@ number:
             data: !lambda |-
               std::vector<uint8_t> can_data(8, 0x00);
               can_data[0] = 0x01;
-              int scaled_value = (int)(id(can_voltage_set).state * id(voltage_scaling_factor));
+              int scaled_value = (int)(id(set_dc_voltage_limit).state * id(voltage_scaling_factor));
               can_data[6] = (scaled_value >> 8) & 0xFF;
               can_data[7] = scaled_value & 0xFF;
               return can_data;
 
-  # Amp Setting
+  # Fallback Voltage Setting
   # --------------------------------------------------------------------------
-  # CAN Amp Set
+  # Set Fallback DC Voltage Limit
+  # Fallback voltage parameter. Encoded with the same
+  # V * 1024 fixed-point representation and command selector 0x01.
+  - platform: template
+    name: "Set Fallback DC Voltage Limit"
+    id: set_fallback_voltage_limit
+    min_value: 49
+    max_value: 58  # Adjust as needed for your voltage range
+    step: 0.1  # 0.1V steps
+    unit_of_measurement: "V"
+    optimistic: true
+    mode: BOX
+    restore_value: True
+    on_value:
+      then:
+        - lambda: |-
+            // Fallback voltage uses the same V * 1024 representation as active voltage.
+            float fallback_voltage_value = id(set_fallback_voltage_limit).state;
+            ESP_LOGI("custom", "Fallback Voltage: %.1fV", fallback_voltage_value);
+
+        - canbus.send:
+            use_extended_id: true
+            can_id: 0x108080FE
+            data: !lambda |-
+              std::vector<uint8_t> can_data(8, 0x00);  // Initialize with 8 zeros
+              can_data[0] = 0x01;  // First byte is always 0x01
+              can_data[1] = 0x01;  // Second byte is 0x01 for the Fallback Voltage setting
+              int fallback_scaled_value = (int)(id(set_fallback_voltage_limit).state * id(voltage_scaling_factor));  // Scale the voltage value
+              can_data[6] = (fallback_scaled_value >> 8) & 0xFF;  // Encode the high byte in the 7th byte
+              can_data[7] = fallback_scaled_value & 0xFF;         // Encode the low byte in the 8th byte
+              return can_data;
+
+  # DC Current Setting
+  # --------------------------------------------------------------------------
+  # Set DC Current Limit
   # Primary per-rectifier current setpoint. The requested current is
   # validated against the detected module model/capability, encoded using
-  # amp_scaling_factor and broadcast with command selector 0x03.
+  # current_scaling_factor and broadcast with command selector 0x03.
   - platform: template
-    name: "CAN Amp Set"
-    id: can_amp_set
+    name: "Set DC Current Limit"
+    id: set_dc_current_limit
     min_value: 1
     max_value: 75 
     step: 1
@@ -2784,26 +2815,25 @@ number:
         - lambda: |-
             // Validate the requested current against the detected rectifier model before
             // creating the raw CAN setpoint.
-            float amp_value = id(can_amp_set).state;
-            float max_amps = 75;  // Default max amps
-            if (id(amp_scaling_factor) == 15) {
-              max_amps = 75;
-            } else if (id(amp_scaling_factor) == 20) {
-              max_amps = 50;
-            } else if (id(amp_scaling_factor) == 30) {
-              max_amps = 30;
+            float current_value = id(set_dc_current_limit).state;
+            float max_current = 75;  // Default max amps
+            if (id(current_scaling_factor) == 15) {
+              max_current = 75;
+            } else if (id(current_scaling_factor) == 20) {
+              max_current = 50;
+            } else if (id(current_scaling_factor) == 30) {
+              max_current = 30;
             }
 
-            if (amp_value > max_amps) {
-              ESP_LOGW("custom", "Entered Amp %.1f exceeds max limit %.1f for model, resetting.", amp_value, max_amps);
-              id(can_amp_set).publish_state(max_amps);  // Reset to max value
+            if (current_value > max_current) {
+              ESP_LOGW("custom", "Entered Current %.1f exceeds model limit %.1f, resetting.", current_value, max_current);
+              id(set_dc_current_limit).publish_state(max_current);  // Reset to max value
               return;
+            } else if (current_value == 0) {
+              ESP_LOGI("custom", "AC Current Limit disabled.");
+            } else {
+              ESP_LOGI("custom", "AC Current Limit set to %.1fA.", current_value);
             }
-
-            int scaled_value = (int)(amp_value * id(amp_scaling_factor));
-
-            uint8_t high_byte = (scaled_value >> 8) & 0xFF;
-            uint8_t low_byte = scaled_value & 0xFF;
 
         - canbus.send:
             use_extended_id: true
@@ -2812,19 +2842,19 @@ number:
               std::vector<uint8_t> can_data(8, 0x00);
               can_data[0] = 0x01;
               can_data[1] = 0x03;
-              int scaled_value = (int)(id(can_amp_set).state * id(amp_scaling_factor));
+              int scaled_value = (int)(id(set_dc_current_limit).state * id(current_scaling_factor));
               can_data[6] = (scaled_value >> 8) & 0xFF;
               can_data[7] = scaled_value & 0xFF;
               return can_data;
 
   # Fallback Amp Setting
   # --------------------------------------------------------------------------
-  # Fallback Amp Set
+  # Set Fallback DC Current Limit
   # Fallback current parameter. Uses the same model-dependent
   # current validation but command selector 0x04.
   - platform: template
-    name: "Fallback Amp Set"
-    id: fallback_amp_set
+    name: "Set Fallback DC Current Limit"
+    id: set_fallback_dc_current_limit
     min_value: 1
     max_value: 75  
     step: 1
@@ -2838,23 +2868,23 @@ number:
         - delay: 0.01s
         - lambda: |-
             // Fallback current uses the same model-dependent current limit.
-            float fallback_amp_value = id(fallback_amp_set).state;
+            float fallback_amp_value = id(set_fallback_dc_current_limit).state;
             float max_amps = 75;  // Default max amps
-            if (id(amp_scaling_factor) == 15) {
+            if (id(current_scaling_factor) == 15) {
               max_amps = 75;
-            } else if (id(amp_scaling_factor) == 20) {
+            } else if (id(current_scaling_factor) == 20) {
               max_amps = 50;
-            } else if (id(amp_scaling_factor) == 30) {
+            } else if (id(current_scaling_factor) == 30) {
               max_amps = 30;
             }
 
             if (fallback_amp_value > max_amps) {
               ESP_LOGW("custom", "Entered Fallback Amp %.1f exceeds max limit %.1f for model, resetting.", fallback_amp_value, max_amps);
-              id(fallback_amp_set).publish_state(max_amps);  // Reset to max value
+              id(set_fallback_dc_current_limit).publish_state(max_amps);  // Reset to max value
               return;
             }
 
-            int fallback_scaled_value = (int)(fallback_amp_value * id(amp_scaling_factor));
+            int fallback_scaled_value = (int)(fallback_amp_value * id(current_scaling_factor));
 
             uint8_t high_byte = (fallback_scaled_value >> 8) & 0xFF;
             uint8_t low_byte = fallback_scaled_value & 0xFF;
@@ -2866,46 +2896,9 @@ number:
               std::vector<uint8_t> can_data(8, 0x00);
               can_data[0] = 0x01;
               can_data[1] = 0x04;
-              int scaled_value = (int)(id(fallback_amp_set).state * id(amp_scaling_factor));
+              int scaled_value = (int)(id(set_fallback_dc_current_limit).state * id(current_scaling_factor));
               can_data[6] = (scaled_value >> 8) & 0xFF;
               can_data[7] = scaled_value & 0xFF;
-              return can_data;
-
-  # Fallback Voltage Setting
-  # --------------------------------------------------------------------------
-  # Fallback Voltage Set
-  # Fallback voltage parameter. Encoded with the same
-  # V * 1024 fixed-point representation and command selector 0x01.
-  - platform: template
-    name: "Fallback Voltage Set"
-    id: fallback_voltage_set
-    min_value: 49
-    max_value: 58  # Adjust as needed for your voltage range
-    step: 0.1  # 0.1V steps
-    unit_of_measurement: "V"
-    optimistic: true
-    mode: BOX
-    restore_value: True
-    on_value:
-      then:
-        - lambda: |-
-            // Fallback voltage uses the same V * 1024 representation as active voltage.
-            float fallback_voltage_value = id(fallback_voltage_set).state;  // Get the fallback voltage value
-            int fallback_scaled_value = (int)(fallback_voltage_value * id(voltage_scaling_factor));  // Scale the voltage value
-            
-            uint8_t high_byte = (fallback_scaled_value >> 8) & 0xFF;  // Get high byte
-            uint8_t low_byte = fallback_scaled_value & 0xFF;  // Get low byte
-
-        - canbus.send:
-            use_extended_id: true
-            can_id: 0x108080FE
-            data: !lambda |-
-              std::vector<uint8_t> can_data(8, 0x00);  // Initialize with 8 zeros
-              can_data[0] = 0x01;  // First byte is always 0x01
-              can_data[1] = 0x01;  // Second byte is 0x01 for the Fallback Voltage setting
-              int fallback_scaled_value = (int)(id(fallback_voltage_set).state * id(voltage_scaling_factor));  // Scale the voltage value
-              can_data[6] = (fallback_scaled_value >> 8) & 0xFF;  // Encode the high byte in the 7th byte
-              can_data[7] = fallback_scaled_value & 0xFF;         // Encode the low byte in the 8th byte
               return can_data;
 
   # --------------------------------------------------------------------------
@@ -3075,7 +3068,7 @@ interval:
           data: !lambda |-
             std::vector<uint8_t> can_data(8, 0x00);  // Initialize with 8 zeros
             can_data[0] = 0x01;  // First byte is always 0x01
-            int scaled_value = (int)(id(can_voltage_set).state * id(voltage_scaling_factor));  // Scale the voltage value
+            int scaled_value = (int)(id(set_dc_voltage_limit).state * id(voltage_scaling_factor));  // Scale the voltage value
             can_data[6] = (scaled_value >> 8) & 0xFF;  // Encode the high byte in the 7th byte
             can_data[7] = scaled_value & 0xFF;         // Encode the low byte in the 8th byte
             return can_data;
@@ -3093,7 +3086,7 @@ interval:
             std::vector<uint8_t> can_data(8, 0x00);  // Initialize with 8 zeros
             can_data[0] = 0x01;  // First byte is always 0x01
             can_data[1] = 0x03;  // Second byte is 0x03
-            int scaled_value = (int)(id(can_amp_set).state * id(amp_scaling_factor));  // Scale the Amp value
+            int scaled_value = (int)(id(set_dc_current_limit).state * id(current_scaling_factor));  // Scale the Amp value
             can_data[6] = (scaled_value >> 8) & 0xFF;  // Encode the high byte in the 7th byte
             can_data[7] = scaled_value & 0xFF;         // Encode the low byte in the 8th byte
             return can_data;
@@ -3360,7 +3353,7 @@ text_sensor:
 ###################################################################################################################################
 ##This Block must be added to enable voltage and currrent SET topics when using the mqtt: component
 ## Subscribe to MQTT topic to update CAN voltage
-  # MQTT voltage command. Payload is parsed/validated and then published into can_voltage_set.
+  # MQTT voltage command. Payload is parsed/validated and then published into set_dc_voltage_limit.
   - platform: mqtt_subscribe
     name: "CAN Voltage MQTT"
     id: mqtt_voltage_input
@@ -3374,12 +3367,12 @@ text_sensor:
             float mqtt_voltage = atof(x.c_str());
             // Update the number input with the new value
             if (mqtt_voltage >= 49.0 && mqtt_voltage <= 58.0) {
-              id(can_voltage_set).publish_state(mqtt_voltage);
+              id(set_dc_voltage_limit).publish_state(mqtt_voltage);
             } else {
               ESP_LOGW("custom", "Received out-of-range voltage value: %.1fV", mqtt_voltage);
             }
   # Subscribe to MQTT topic to update CAN amps
-  # MQTT current command. Payload is parsed/validated and then published into can_amp_set.
+  # MQTT current command. Payload is parsed/validated and then published into set_dc_current_limit.
   - platform: mqtt_subscribe
     name: "CAN Amps MQTT"
     id: mqtt_amp_input
@@ -3393,16 +3386,16 @@ text_sensor:
             float mqtt_amp = atof(x.c_str());
             // Update the number input with the new value
             if (mqtt_amp >= 1.0 && mqtt_amp <= 75.0) {
-              id(can_amp_set).publish_state(mqtt_amp);
+              id(set_dc_current_limit).publish_state(mqtt_amp);
             } else {
               ESP_LOGW("custom", "Received out-of-range amp value: %.1fA", mqtt_amp);
             }
   # Subscribe to MQTT topic to update Fallback Voltage
-  # MQTT fallback-voltage command feeding fallback_voltage_set.
+  # MQTT fallback-voltage command feeding set_fallback_voltage_limit.
   - platform: mqtt_subscribe
     name: "Fallback Voltage MQTT"
     id: mqtt_fallback_voltage
-    topic: "home/canbus/fallback_voltage_set"
+    topic: "home/canbus/set_fallback_voltage_limit"
     internal: true  # This makes the sensor internal
     on_value:
       then:
@@ -3412,16 +3405,16 @@ text_sensor:
             float fallback_voltage = atof(x.c_str());
             // Update the number input with the new value
             if (fallback_voltage >= 49.0 && fallback_voltage <= 58.0) {
-              id(fallback_voltage_set).publish_state(fallback_voltage);
+              id(set_fallback_voltage_limit).publish_state(fallback_voltage);
             } else {
               ESP_LOGW("custom", "Received out-of-range fallback voltage value: %.1fV", fallback_voltage);
             }
   # Subscribe to MQTT topic to update Fallback Amps
-  # MQTT fallback-current command feeding fallback_amp_set.
+  # MQTT fallback-current command feeding set_fallback_dc_current_limit.
   - platform: mqtt_subscribe
     name: "Fallback Amps MQTT"
     id: mqtt_fallback_amp
-    topic: "home/canbus/fallback_amp_set"
+    topic: "home/canbus/set_fallback_dc_current_limit"
     internal: true  # This makes the sensor internal
     on_value:
       then:
@@ -3431,7 +3424,7 @@ text_sensor:
             float fallback_amp = atof(x.c_str());
             // Update the number input with the new value
             if (fallback_amp >= 1.0 && fallback_amp <= 75.0) {
-              id(fallback_amp_set).publish_state(fallback_amp);
+              id(set_fallback_dc_current_limit).publish_state(fallback_amp);
             } else {
               ESP_LOGW("custom", "Received out-of-range fallback amp value: %.1fA", fallback_amp);
             }
