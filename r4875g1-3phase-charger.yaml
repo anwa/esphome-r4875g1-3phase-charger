@@ -3168,14 +3168,14 @@ number:
               can_data[7] = scaled_value & 0xFF;
               return can_data;
 
-  # Fallback Current Setting
+  # DC Current Fallback Setting
   # --------------------------------------------------------------------------
-  # Fallback Current Set
+  # Set DC Current Fallback
   # Fallback current parameter. Uses the same model-dependent
   # current validation but command selector 0x04.
   - platform: template
-    name: "Fallback Current Set"
-    id: fallback_amp_set
+    name: "Set DC Current Fallback"
+    id: set_dc_current_fallback
     min_value: 1
     max_value: 75  
     step: 1
@@ -3189,7 +3189,7 @@ number:
         - delay: 0.01s
         - lambda: |-
             // Fallback current uses the same model-dependent current limit.
-            float fallback_amp_value = id(fallback_amp_set).state;
+            float fallback_amp_value = id(set_dc_current_fallback).state;
             float max_amps = 75;  // Default max amps
             if (id(current_scaling_factor) == 15) {
               max_amps = 75;
@@ -3201,7 +3201,7 @@ number:
 
             if (fallback_amp_value > max_amps) {
               ESP_LOGW("custom", "Entered Fallback Current %.1f exceeds max limit %.1f for model, resetting.", fallback_amp_value, max_amps);
-              id(fallback_amp_set).publish_state(max_amps);  // Reset to max value
+              id(set_dc_current_fallback).publish_state(max_amps);  // Reset to max value
               return;
             }
 
@@ -3217,7 +3217,7 @@ number:
               std::vector<uint8_t> can_data(8, 0x00);
               can_data[0] = 0x01;
               can_data[1] = 0x04;
-              int scaled_value = (int)(id(fallback_amp_set).state * id(current_scaling_factor));
+              int scaled_value = (int)(id(set_dc_current_fallback).state * id(current_scaling_factor));
               can_data[6] = (scaled_value >> 8) & 0xFF;
               can_data[7] = scaled_value & 0xFF;
               return can_data;
@@ -3795,11 +3795,11 @@ text_sensor:
               ESP_LOGW("custom", "Received out-of-range fallback voltage value: %.1fV", fallback_voltage);
             }
   # Subscribe to MQTT topic to update Fallback Amps
-  # MQTT fallback-current command feeding fallback_amp_set.
+  # MQTT fallback-current command feeding set_dc_current_fallback.
   - platform: mqtt_subscribe
     name: "Fallback Amps MQTT"
     id: mqtt_fallback_amp
-    topic: "home/canbus/fallback_amp_set"
+    topic: "home/canbus/set_dc_current_fallback"
     internal: true  # This makes the sensor internal
     on_value:
       then:
@@ -3809,7 +3809,7 @@ text_sensor:
             float fallback_amp = atof(x.c_str());
             // Update the number input with the new value
             if (fallback_amp >= 1.0 && fallback_amp <= 75.0) {
-              id(fallback_amp_set).publish_state(fallback_amp);
+              id(set_dc_current_fallback).publish_state(fallback_amp);
             } else {
               ESP_LOGW("custom", "Received out-of-range fallback amp value: %.1fA", fallback_amp);
             }
