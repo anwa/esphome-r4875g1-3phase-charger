@@ -1708,7 +1708,7 @@ canbus:
                 if (max_current > 0) {
                   id(amp_scaling_factor) = 1024.0 / max_current;
                   ESP_LOGI("canbus", "New amp_scaling_factor: %.3f", id(amp_scaling_factor));
-                  id(sf_value).publish_state(id(amp_scaling_factor));
+                  id(sf_value_1).publish_state(id(amp_scaling_factor));
                 } else {
                   ESP_LOGW("canbus", "Max current is zero. Cannot calculate amp_scaling_factor.");
                 }
@@ -2131,7 +2131,25 @@ sensor:
   # Diagnostic publication of the dynamically detected current scaling factor.
   - platform: template
     name: "Scaling Factor Module-1"
-    id: sf_value
+    id: sf_value_1
+    icon: "mdi:information-outline"
+    update_interval: never
+
+  # --------------------------------------------------------------------------
+  # Scaling Factor Module-2
+  # Diagnostic publication of the dynamically detected current scaling factor.
+  - platform: template
+    name: "Scaling Factor Module-2"
+    id: sf_value_2
+    icon: "mdi:information-outline"
+    update_interval: never
+
+  # --------------------------------------------------------------------------
+  # Scaling Factor Module-3
+  # Diagnostic publication of the dynamically detected current scaling factor.
+  - platform: template
+    name: "Scaling Factor Module-3"
+    id: sf_value_3
     icon: "mdi:information-outline"
     update_interval: never
 
@@ -2219,7 +2237,7 @@ sensor:
     unit_of_measurement: "A"
     device_class: current
     state_class: measurement
-    accuracy_decimals: 1
+    accuracy_decimals: 3
     filters:
       - lambda: |-
           return x / id(amp_scaling_factor);  
@@ -2235,7 +2253,7 @@ sensor:
     unit_of_measurement: "A"
     device_class: current
     state_class: measurement
-    accuracy_decimals: 1
+    accuracy_decimals: 3
     filters:
       - lambda: |-
           return x / id(amp_scaling_factor);  
@@ -2251,7 +2269,7 @@ sensor:
     unit_of_measurement: "A"
     device_class: current
     state_class: measurement
-    accuracy_decimals: 1
+    accuracy_decimals: 3
     filters:
       - lambda: |-
           return x / id(amp_scaling_factor);  
@@ -2267,7 +2285,7 @@ sensor:
     unit_of_measurement: "W"
     device_class: power
     state_class: measurement
-    accuracy_decimals: 2
+    accuracy_decimals: 3
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);  
@@ -2283,7 +2301,7 @@ sensor:
     unit_of_measurement: "W"
     device_class: power
     state_class: measurement
-    accuracy_decimals: 2
+    accuracy_decimals: 3
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);  
@@ -2299,7 +2317,7 @@ sensor:
     unit_of_measurement: "W"
     device_class: power
     state_class: measurement
-    accuracy_decimals: 2
+    accuracy_decimals: 3
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);  
@@ -2315,7 +2333,7 @@ sensor:
     unit_of_measurement: "W"
     device_class: power
     state_class: measurement
-    accuracy_decimals: 2
+    accuracy_decimals: 3
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);  
@@ -2331,7 +2349,7 @@ sensor:
     unit_of_measurement: "W"
     device_class: power
     state_class: measurement
-    accuracy_decimals: 2
+    accuracy_decimals: 3
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);  
@@ -2347,7 +2365,7 @@ sensor:
     unit_of_measurement: "W"
     device_class: power
     state_class: measurement
-    accuracy_decimals: 2
+    accuracy_decimals: 3
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);  
@@ -2361,7 +2379,7 @@ sensor:
     name: "Grid Frequency Module-1"
     id: grid_frequency_sensor_1
     unit_of_measurement: "Hz"
-    accuracy_decimals: 1
+    accuracy_decimals: 3
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);  
@@ -2375,7 +2393,7 @@ sensor:
     name: "Grid Frequency Module-2"
     id: grid_frequency_sensor_2
     unit_of_measurement: "Hz"
-    accuracy_decimals: 1
+    accuracy_decimals: 3
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);  
@@ -2389,7 +2407,7 @@ sensor:
     name: "Grid Frequency Module-3"
     id: grid_frequency_sensor_3
     unit_of_measurement: "Hz"
-    accuracy_decimals: 1
+    accuracy_decimals: 3
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);  
@@ -2405,7 +2423,7 @@ sensor:
     unit_of_measurement: "A"
     device_class: current
     state_class: measurement
-    accuracy_decimals: 1
+    accuracy_decimals: 3
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);  
@@ -2421,7 +2439,7 @@ sensor:
     unit_of_measurement: "A"
     device_class: current
     state_class: measurement
-    accuracy_decimals: 1
+    accuracy_decimals: 3
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);  
@@ -2437,7 +2455,7 @@ sensor:
     unit_of_measurement: "A"
     device_class: current
     state_class: measurement
-    accuracy_decimals: 1
+    accuracy_decimals: 3
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);  
@@ -2453,7 +2471,7 @@ sensor:
     unit_of_measurement: "V"
     device_class: voltage
     state_class: measurement
-    accuracy_decimals: 1
+    accuracy_decimals: 3
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);  
@@ -2469,7 +2487,7 @@ sensor:
     unit_of_measurement: "V"
     device_class: voltage
     state_class: measurement
-    accuracy_decimals: 1
+    accuracy_decimals: 3
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);  
@@ -2485,7 +2503,7 @@ sensor:
     unit_of_measurement: "V"
     device_class: voltage
     state_class: measurement
-    accuracy_decimals: 1
+    accuracy_decimals: 3
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);  
@@ -2501,7 +2519,7 @@ sensor:
     unit_of_measurement: "V"
     device_class: voltage
     state_class: measurement
-    accuracy_decimals: 2
+    accuracy_decimals: 3
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);  
@@ -2517,7 +2535,7 @@ sensor:
     unit_of_measurement: "V"
     device_class: voltage
     state_class: measurement
-    accuracy_decimals: 2
+    accuracy_decimals: 3
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);  
@@ -2533,7 +2551,7 @@ sensor:
     unit_of_measurement: "V"
     device_class: voltage
     state_class: measurement
-    accuracy_decimals: 2
+    accuracy_decimals: 3
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);  
@@ -2657,7 +2675,7 @@ sensor:
     unit_of_measurement: "A"
     device_class: current
     state_class: measurement
-    accuracy_decimals: 1
+    accuracy_decimals: 3
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);  
@@ -2673,7 +2691,7 @@ sensor:
     unit_of_measurement: "A"
     device_class: current
     state_class: measurement
-    accuracy_decimals: 1
+    accuracy_decimals: 3
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);  
@@ -2689,7 +2707,7 @@ sensor:
     unit_of_measurement: "A"
     device_class: current
     state_class: measurement
-    accuracy_decimals: 1
+    accuracy_decimals: 3
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);  
@@ -2703,7 +2721,7 @@ sensor:
     name: "Set Max Output Current Module-1"
     id: set_max_output_current_sensor_1
     unit_of_measurement: "A"
-    accuracy_decimals: 1
+    accuracy_decimals: 3
     filters:
       - lambda: |-
           return x / id(amp_scaling_factor);  
@@ -2717,7 +2735,7 @@ sensor:
     name: "Set Max Output Current Module-2"
     id: set_max_output_current_sensor_2
     unit_of_measurement: "A"
-    accuracy_decimals: 1
+    accuracy_decimals: 3
     filters:
       - lambda: |-
           return x / id(amp_scaling_factor);  
@@ -2731,7 +2749,7 @@ sensor:
     name: "Set Max Output Current Module-3"
     id: set_max_output_current_sensor_3
     unit_of_measurement: "A"
-    accuracy_decimals: 1
+    accuracy_decimals: 3
     filters:
       - lambda: |-
           return x / id(amp_scaling_factor);  
@@ -2749,7 +2767,7 @@ sensor:
     unit_of_measurement: "kW"
     device_class: power
     state_class: measurement
-    accuracy_decimals: 2
+    accuracy_decimals: 3
     filters:
       - multiply: 0.001
     update_interval: 1s
@@ -2794,7 +2812,7 @@ sensor:
     unit_of_measurement: "kW"
     device_class: power
     state_class: measurement
-    accuracy_decimals: 2
+    accuracy_decimals: 3
     filters:
       - multiply: 0.001
     update_interval: 1s
