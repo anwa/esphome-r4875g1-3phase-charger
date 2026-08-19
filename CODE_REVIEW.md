@@ -16,7 +16,6 @@ Dieser Bericht ersetzt die vorherige Fassung. Bereits behobene Punkte sind kompa
 | 4 | `web_server` weiterhin ohne Authentifizierung | 🟡 Mittel (Sicherheit) | **Offen** |
 | 6 | Fan-Handler berechnen `duty`/`duty_set`, veröffentlichen sie aber nirgends | 🟢 Niedrig | **Offen** |
 | 8 | CAN RX jetzt auf GPIO16 – Kommentar zum (deaktivierten) Touchscreen `cs_pin: GPIO16` ist stale und könnte künftig kollidieren | 🟡 Mittel | **Neu** |
-| 9 | Deutscher Kommentar mitten im sonst rein englischen Kommentarstil | 🟢 Niedrig | **Neu** |
 
 ---
 
@@ -65,23 +64,6 @@ id(fan_rpm_1).publish_state(rpm);
 Die CAN-Schnittstelle wurde von GPIO19/GPIO21 auf GPIO15/GPIO16 umgestellt (vermutlich im Zuge der SN65HVD230-Verdrahtung, siehe Kommentar direkt über der `canbus:`-Sektion). Der weiterhin vorhandene, auskommentierte XPT2046-Touchscreen-Block nutzt jedoch ebenfalls `cs_pin: GPIO16` für die Chip-Select-Leitung. Aktuell besteht **kein aktiver Konflikt**, da der Touchscreen-Block deaktiviert ist – sollte er aber jemals reaktiviert werden, würde er sich die Leitung mit dem CAN-RX-Pin teilen.
 
 **Empfehlung:** Den Kommentar/Pin im Touchscreen-Block aktualisieren (z. B. auf einen freien Pin verweisen) oder zumindest einen Warnhinweis ergänzen, dass GPIO16 inzwischen von CAN RX belegt ist, damit ein künftiges Reaktivieren nicht versehentlich zu einer Pin-Kollision führt.
-
----
-
-## 9. 🟢 Neu: Deutscher Kommentar mitten im englischen Kommentarstil
-
-**Fundstelle:** Zeile 1246.
-
-```yaml
-# Für den SN65HVD230 dann typischerweise:
-#
-# ESP32 GPIO15  -> CAN module CTX
-# ...
-```
-
-Der gesamte übrige Kommentarstil der Datei ist konsequent Englisch; dieser eine Satz ist auf Deutsch. Rein kosmetisch, aber inkonsistent.
-
-**Empfehlung:** Auf Englisch vereinheitlichen, z. B. `# Typical SN65HVD230 wiring:`.
 
 ---
 

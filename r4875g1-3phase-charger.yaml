@@ -1243,7 +1243,7 @@ script:
 # ==============================================================================
 # Uses the ESP32-S3 native CAN/TWAI peripheral at 125 kbit/s. The R4875G1
 # protocol uses extended 29-bit CAN IDs. Unit number is encoded in the ID.
-# Für den SN65HVD230 dann typischerweise:
+# Typical SN65HVD230 wiring:
 #
 # ESP32 GPIO15  -> CAN module CTX
 # ESP32 GPIO16  -> CAN module CRX
@@ -3220,7 +3220,7 @@ number:
   # DC Current Setting
   # --------------------------------------------------------------------------
   # Set DC Current Limit
-  # Primary per-rectifier current setpoint. The requested current is
+  # Secondary all-rectifier current setpoint. The requested current is
   # validated against the detected unit model/capability, encoded using
   # current_scaling_factor and broadcast with command selector 0x03.
   - platform: template
@@ -3251,12 +3251,10 @@ number:
             }
 
             if (current_value > max_current) {
-              ESP_LOGW("custom", "Entered Current %.1f exceeds max limit %.1f for model, resetting.", current_value, max_current);
+              ESP_LOGW("custom", "Entered DC Current %.1f exceeds max limit %.1f for model, resetting.", current_value, max_current);
               id(set_dc_current_limit).publish_state(max_current);  // Reset to max value
-              return;
-            } else {
-              ESP_LOGI("custom", "DC Current Limit set to %.1fA.", current_value);
             }
+            ESP_LOGI("custom", "DC Current Limit set to %.1fA.", current_value);
 
         - canbus.send:
             use_extended_id: true
@@ -3302,12 +3300,10 @@ number:
             }
 
             if (fallback_current_value > max_current) {
-              ESP_LOGW("custom", "Entered Fallback Current %.1f exceeds max limit %.1f for model, resetting.", fallback_current_value, max_current);
+              ESP_LOGW("custom", "Entered Fallback DC Current %.1f exceeds max limit %.1f for model, resetting.", fallback_current_value, max_current);
               id(set_dc_current_limit_fallback).publish_state(max_current);  // Reset to max value
-              return;
-            } else {
-              ESP_LOGI("custom", "DC Current Limit fallback set to %.1fA.", fallback_current_value);
             }
+            ESP_LOGI("custom", "DC Current Limit fallback set to %.1fA.", fallback_current_value);
 
         - canbus.send:
             use_extended_id: true
