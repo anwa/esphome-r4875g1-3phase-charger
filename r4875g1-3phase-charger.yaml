@@ -3618,10 +3618,20 @@ button:
     icon: "mdi:power"
     on_press:
       then:
-        - canbus.send:
-            use_extended_id: true
-            can_id: 0x108080FE
-            data: [0x01, 0x32, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+        - lambda: |-
+            ESP_LOGI("custom", "All Unit ON Button pressed => sending ON message...");
+        - if:
+            condition:
+              lambda: 'return !(id(overtemp_lockout_1) || id(overtemp_lockout_2) || id(overtemp_lockout_3));'
+            then:
+              - canbus.send:
+                  use_extended_id: true
+                  can_id: 0x108080FE
+                  data: [0x01, 0x32, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+            else:
+              - logger.log:
+                  level: WARN
+                  format: "All ON blocked by one unit: overtemperature lockout active."
 
   # Individual ON command for one rectifier; useful for diagnostics and service.
   # Blocked while Unit 1 is in overtemperature lockout (see output_temperature_1).
