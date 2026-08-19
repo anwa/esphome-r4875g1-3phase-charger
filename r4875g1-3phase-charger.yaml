@@ -2869,6 +2869,8 @@ sensor:
     name: "Max Output Current Setpoint Unit-1"
     id: max_output_current_setpoint_1
     unit_of_measurement: "A"
+    device_class: current
+    state_class: measurement
     accuracy_decimals: 3
     filters:
       - lambda: |-
@@ -2883,6 +2885,8 @@ sensor:
     name: "Max Output Current Setpoint Unit-2"
     id: max_output_current_setpoint_2
     unit_of_measurement: "A"
+    device_class: current
+    state_class: measurement
     accuracy_decimals: 3
     filters:
       - lambda: |-
@@ -2897,6 +2901,8 @@ sensor:
     name: "Max Output Current Setpoint Unit-3"
     id: max_output_current_setpoint_3
     unit_of_measurement: "A"
+    device_class: current
+    state_class: measurement
     accuracy_decimals: 3
     filters:
       - lambda: |-
@@ -2911,6 +2917,7 @@ sensor:
     name: "FAN RPM Unit-1"
     id: fan_rpm_1
     unit_of_measurement: "RPM"
+    state_class: measurement
     accuracy_decimals: 0
     icon: "mdi:fan"
 
@@ -2921,6 +2928,7 @@ sensor:
     name: "FAN RPM Unit-2"
     id: fan_rpm_2
     unit_of_measurement: "RPM"
+    state_class: measurement
     accuracy_decimals: 0
     icon: "mdi:fan"
 
@@ -2931,6 +2939,7 @@ sensor:
     name: "FAN RPM Unit-3"
     id: fan_rpm_3
     unit_of_measurement: "RPM"
+    state_class: measurement
     accuracy_decimals: 0
     icon: "mdi:fan"
 
@@ -3170,6 +3179,7 @@ number:
               // Bytes 4..7 remain zero.
               return can_data;
 
+  # DC Voltage Setting
   # --------------------------------------------------------------------------
   # Set DC Voltage Limit
   # Primary broadcast DC voltage setpoint (49..58 V, 0.1 V steps).
@@ -3207,7 +3217,7 @@ number:
               can_data[7] = scaled_value & 0xFF;
               return can_data;
 
-  # Current Setting
+  # DC Current Setting
   # --------------------------------------------------------------------------
   # Set DC Current Limit
   # Primary per-rectifier current setpoint. The requested current is
@@ -3232,11 +3242,11 @@ number:
             // creating the raw CAN setpoint.
             float current_value = id(set_dc_current_limit).state;
             float max_current = 75;  // Default max currnet
-            if (id(current_scaling_factor) == 15) {
+            if (id(current_scaling_factor) <= 18) {
               max_current = 75;
-            } else if (id(current_scaling_factor) == 20) {
+            } else if (id(current_scaling_factor) <= 25) {
               max_current = 50;
-            } else if (id(current_scaling_factor) == 30) {
+            } else if (id(current_scaling_factor) > 25) {
               max_current = 30;
             }
 
@@ -3244,8 +3254,6 @@ number:
               ESP_LOGW("custom", "Entered Current %.1f exceeds max limit %.1f for model, resetting.", current_value, max_current);
               id(set_dc_current_limit).publish_state(max_current);  // Reset to max value
               return;
-            } else if (current_value == 0) {
-              ESP_LOGI("custom", "DC Current Limit disabled.");
             } else {
               ESP_LOGI("custom", "DC Current Limit set to %.1fA.", current_value);
             }
@@ -3285,11 +3293,11 @@ number:
             // Fallback current uses the same model-dependent current limit.
             float fallback_current_value = id(set_dc_current_limit_fallback).state;
             float max_current = 75;  // Default max current
-            if (id(current_scaling_factor) == 15) {
+            if (id(current_scaling_factor) <= 18) {
               max_current = 75;
-            } else if (id(current_scaling_factor) == 20) {
+            } else if (id(current_scaling_factor) <= 25) {
               max_current = 50;
-            } else if (id(current_scaling_factor) == 30) {
+            } else if (id(current_scaling_factor) > 25) {
               max_current = 30;
             }
 
@@ -3297,8 +3305,6 @@ number:
               ESP_LOGW("custom", "Entered Fallback Current %.1f exceeds max limit %.1f for model, resetting.", fallback_current_value, max_current);
               id(set_dc_current_limit_fallback).publish_state(max_current);  // Reset to max value
               return;
-            } else if (fallback_current_value == 0) {
-              ESP_LOGI("custom", "DC Current Limit fallback disabled.");
             } else {
               ESP_LOGI("custom", "DC Current Limit fallback set to %.1fA.", fallback_current_value);
             }
@@ -3315,14 +3321,14 @@ number:
               can_data[7] = scaled_value & 0xFF;
               return can_data;
 
-  # Fallback Voltage Setting
+  #  DC Voltage Fallback Setting
   # --------------------------------------------------------------------------
-  # Fallback Voltage Set
+  # Set DC Voltage Limit Fallback
   # Fallback voltage parameter. Encoded with the same
   # V * 1024 fixed-point representation and command selector 0x01.
   - platform: template
-    name: "Fallback Voltage Set"
-    id: fallback_voltage_set
+    name: "Set DC Voltage Limit Fallback"
+    id: set_dc_voltage_limit_fallback
     min_value: 49
     max_value: 58  # Adjust as needed for your voltage range
     step: 0.1  # 0.1V steps
@@ -3334,7 +3340,7 @@ number:
       then:
         - lambda: |-
             // Fallback voltage uses the same V * 1024 representation as active voltage.
-            float fallback_voltage_value = id(fallback_voltage_set).state;  // Get the fallback voltage value
+            float fallback_voltage_value = id(set_dc_voltage_limit_fallback).state;  // Get the fallback voltage value
             ESP_LOGI(
               "custom",
               "Received fallback voltage setpoint: %.0fV",
@@ -3348,7 +3354,7 @@ number:
               std::vector<uint8_t> can_data(8, 0x00);  // Initialize with 8 zeros
               can_data[0] = 0x01;  // First byte is always 0x01
               can_data[1] = 0x01;  // Second byte is 0x01 for the Fallback Voltage setting
-              int fallback_scaled_value = (int)(id(fallback_voltage_set).state * id(voltage_scaling_factor));  // Scale the voltage value
+              int fallback_scaled_value = (int)(id(set_dc_voltage_limit_fallback).state * id(voltage_scaling_factor));  // Scale the voltage value
               can_data[6] = (fallback_scaled_value >> 8) & 0xFF;  // Encode the high byte in the 7th byte
               can_data[7] = fallback_scaled_value & 0xFF;         // Encode the low byte in the 8th byte
               return can_data;
@@ -3870,7 +3876,7 @@ text_sensor:
               ESP_LOGW("custom", "Received out-of-range current value: %.1fA", mqtt_dc_current);
             }
   # Subscribe to MQTT topic to update Fallback Voltage
-  # MQTT fallback-voltage command feeding fallback_voltage_set.
+  # MQTT fallback-voltage command feeding set_dc_voltage_limit_fallback.
   - platform: mqtt_subscribe
     name: "Fallback Voltage MQTT"
     id: mqtt_set_dc_voltage_fallback
@@ -3884,7 +3890,7 @@ text_sensor:
             float fallback_voltage = atof(x.c_str());
             // Update the number input with the new value
             if (fallback_voltage >= 49.0 && fallback_voltage <= 58.0) {
-              id(fallback_voltage_set).publish_state(fallback_voltage);
+              id(set_dc_voltage_limit_fallback).publish_state(fallback_voltage);
             } else {
               ESP_LOGW("custom", "Received out-of-range fallback voltage value: %.1fV", fallback_voltage);
             }

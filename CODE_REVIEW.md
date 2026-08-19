@@ -11,40 +11,12 @@ Dieser Bericht ersetzt die vorherige Fassung. Bereits behobene Punkte sind kompa
 
 | # | Thema | Schweregrad | Status |
 |---|-------|-------------|--------|
-| 1 | `current_scaling_factor`-Gleichheitsvergleich (`== 15/20/30`) funktioniert praktisch nie | 🔴 Hoch | **Offen** |
 | 2 | Duplizierte Grenzwert-Logik (75/50/30 A) an mehreren Stellen | 🟢 Niedrig | **Offen** |
 | 3 | Redundante CAN-Sendungen in `blackstart_start` | 🟢 Niedrig | **Offen** |
 | 4 | `web_server` weiterhin ohne Authentifizierung | 🟡 Mittel (Sicherheit) | **Offen** |
-| 5 | Neue Sensoren ohne `state_class`/`device_class` (Max Output Current Setpoint, FAN RPM) | 🟢 Niedrig | **Offen** |
 | 6 | Fan-Handler berechnen `duty`/`duty_set`, veröffentlichen sie aber nirgends | 🟢 Niedrig | **Offen** |
-| 7 | `current_value == 0` / `fallback_current_value == 0` in `number:`-Validierung ist unerreichbarer Code | 🟢 Niedrig | **Neu** |
 | 8 | CAN RX jetzt auf GPIO16 – Kommentar zum (deaktivierten) Touchscreen `cs_pin: GPIO16` ist stale und könnte künftig kollidieren | 🟡 Mittel | **Neu** |
 | 9 | Deutscher Kommentar mitten im sonst rein englischen Kommentarstil | 🟢 Niedrig | **Neu** |
-| 10 | `Fallback Voltage Set`/`fallback_voltage_set` folgt nicht dem neuen `Set DC ... Limit`-Namensschema | 🟢 Niedrig | **Neu** |
-
----
-
-## 1. 🔴 `current_scaling_factor`-Vergleich weiterhin praktisch wirkungslos
-
-**Fundstellen:** `number: Set DC Current Limit` (Zeile ~3210–3216) und `number: Set DC Current Limit Fallback` (Zeile ~3264–3270).
-
-```cpp
-if (id(current_scaling_factor) == 15) { max_current = 75; }
-else if (id(current_scaling_factor) == 20) { max_current = 50; }
-else if (id(current_scaling_factor) == 30) { max_current = 30; }
-```
-
-**Status:** Weiterhin unverändert seit der letzten Prüfung. `current_scaling_factor` wird bei der Discovery als `1024.0 / max_current` (Fließkommazahl) berechnet und anschließend per **exakter Gleichheit** mit den drei "Modell-Konstanten" `15`, `20`, `30` verglichen. Ein real ermittelter `max_current`-Wert erzeugt so gut wie nie exakt einen dieser drei Werte – die modellabhängige Strom-Obergrenze (30/50/75 A) bleibt daher faktisch wirkungslos, sobald die Discovery einmal gelaufen ist.
-
-**Empfehlung (unverändert):** Direkt auf `max_current_sensor_1.state` prüfen statt auf den abgeleiteten Skalierungsfaktor, z. B.:
-
-```cpp
-float max_current = 75.0f;
-if (id(max_current_sensor_1).state <= 32.0f)      max_current = 30.0f;
-else if (id(max_current_sensor_1).state <= 55.0f) max_current = 50.0f;
-```
-
-oder zumindest eine Toleranzprüfung (`fabs(x - 15.0) < 0.5`) statt exakter Gleichheit verwenden.
 
 ---
 
@@ -68,24 +40,6 @@ Unverändert: kein `auth:` mit `username`/`password`. Empfehlung wie zuvor, fall
 
 ---
 
-## 5. 🟢 Neue Sensoren weiterhin ohne `device_class`/`state_class`
-
-- **`Max Output Current Setpoint Unit-1/2/3`** (Zeile ~2866–2902): hat weder `device_class: current` noch `state_class: measurement`.
-- **`FAN RPM Unit-1/2/3`** (Zeile ~2905–2933): keine `device_class` (HA kennt keine native RPM-Klasse) und kein `state_class: measurement`.
-
-**Empfehlung:**
-
-```yaml
-# Max Output Current Setpoint Unit-x
-device_class: current
-state_class: measurement
-
-# FAN RPM Unit-x
-state_class: measurement
-```
-
----
-
 ## 6. 🟢 Fan-Handler berechnen `duty`/`duty_set`, nutzen sie aber nicht
 
 **Fundstellen:** CAN-Handler `0x1081827E`/`0x1082827E`/`0x1083827E` (Zeile ~1819–1905).
@@ -101,24 +55,6 @@ id(fan_rpm_1).publish_state(rpm);
 `duty` und `duty_set` werden weiterhin berechnet, aber nirgends veröffentlicht oder anderweitig verwendet – es existiert kein entsprechender Duty-Cycle-Sensor.
 
 **Empfehlung:** Falls die Lüfter-Ansteuerungs-Prozentwerte für Diagnose interessant sind, zwei zusätzliche Template-Sensoren (`fan_duty_x`, `fan_duty_set_x`) ergänzen und `publish_state` aufrufen; andernfalls die Berechnung entfernen. Interessanterweise passt `duty_set` inhaltlich gut zur neuen "Set Fan Minimum Speed"-Funktion – könnte als Rückmeldekanal genutzt werden, ob das Modul den gesendeten Minimal-Duty-Wert tatsächlich übernommen hat.
-
----
-
-## 7. 🟢 Neu: Unerreichbare `== 0`-Zweige in der Strom-Validierung
-
-**Fundstellen:** `number: Set DC Current Limit` (Zeile ~3219, `min_value: 1`) und `number: Set DC Current Limit Fallback` (Zeile ~3273, `min_value: 1`).
-
-```cpp
-} else if (current_value == 0) {
-	ESP_LOGI("custom", "DC Current Limit disabled.");
-} else {
-	ESP_LOGI("custom", "DC Current Limit set to %.1fA.", current_value);
-}
-```
-
-Beide `number:`-Entities haben `min_value: 1`, d. h. `current_value`/`fallback_current_value` kann über die UI/API niemals `0` werden. Der `== 0`-Zweig ("... disabled.") ist damit **toter Code**, der nie ausgeführt wird.
-
-**Empfehlung:** Falls "0 = deaktiviert" tatsächlich eine gültige Betriebsart sein soll, `min_value: 0` setzen; andernfalls den unerreichbaren `else if`-Zweig entfernen, um keine falsche Erwartung im Code zu wecken.
 
 ---
 
@@ -146,16 +82,6 @@ Die CAN-Schnittstelle wurde von GPIO19/GPIO21 auf GPIO15/GPIO16 umgestellt (verm
 Der gesamte übrige Kommentarstil der Datei ist konsequent Englisch; dieser eine Satz ist auf Deutsch. Rein kosmetisch, aber inkonsistent.
 
 **Empfehlung:** Auf Englisch vereinheitlichen, z. B. `# Typical SN65HVD230 wiring:`.
-
----
-
-## 10. 🟢 Neu: `Fallback Voltage Set` folgt nicht dem neuen Namensschema
-
-**Fundstelle:** Zeile ~3325–3330 (`name: "Fallback Voltage Set"`, `id: fallback_voltage_set`).
-
-Die parallelen Strom-Setpoints wurden konsistent umbenannt (`Set DC Current Limit` / `Set DC Current Limit Fallback`, IDs `set_dc_current_limit` / `set_dc_current_limit_fallback`) und auch der primäre Spannungs-Setpoint heißt jetzt `Set DC Voltage Limit` (`set_dc_voltage_limit`). Der Fallback-Spannungswert wurde dabei nicht mit umbenannt und heißt weiterhin `Fallback Voltage Set` / `fallback_voltage_set` – eine Restinkonsistenz im sonst sauber vereinheitlichten Namensschema.
-
-**Empfehlung:** Bei Gelegenheit zu `Set DC Voltage Limit Fallback` / `set_dc_voltage_limit_fallback` umbenennen, analog zum Strom-Pendant. Da dies die Entity-ID ändert, HA-Referenzen (Dashboards/Automatisierungen) entsprechend anpassen.
 
 ---
 
