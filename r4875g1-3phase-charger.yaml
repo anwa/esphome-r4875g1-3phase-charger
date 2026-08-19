@@ -3641,6 +3641,8 @@ button:
     id: on_button_1
     on_press:
       then:
+        - lambda: |-
+            ESP_LOGI("custom", "ON Button Unit-1 pressed => sending ON message...");
         - if:
             condition:
               lambda: 'return !id(overtemp_lockout_1);'
@@ -3662,6 +3664,8 @@ button:
     id: on_button_2
     on_press:
       then:
+        - lambda: |-
+            ESP_LOGI("custom", "ON Button Unit-2 pressed => sending ON message...");
         - if:
             condition:
               lambda: 'return !id(overtemp_lockout_2);'
@@ -3683,6 +3687,8 @@ button:
     id: on_button_3
     on_press:
       then:
+        - lambda: |-
+            ESP_LOGI("custom", "ON Button Unit-3 pressed => sending ON message...");
         - if:
             condition:
               lambda: 'return !id(overtemp_lockout_3);'
