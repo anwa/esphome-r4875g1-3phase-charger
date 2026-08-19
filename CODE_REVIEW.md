@@ -13,14 +13,11 @@ Dieser Bericht ersetzt die vorherige Fassung. Bereits behobene Punkte sind kompa
 |---|-------|-------------|--------|
 | 1 | `current_scaling_factor`-Gleichheitsvergleich (`== 15/20/30`) funktioniert praktisch nie | 🔴 Hoch | **Offen** |
 | 2 | Tote Lambda-Blöcke in `number:`-Setpoints (`high_byte`/`low_byte` unbenutzt) | 🟡 Mittel | **Offen** |
-| 3 | Inkonsistentes `update_interval` bei "Input Grid Voltage Module-1" (10 s statt 3 s) | 🟡 Mittel | **Offen** |
 | 4 | Redundante CAN-Sendungen in `blackstart_start` | 🟢 Niedrig | **Offen** |
 | 5 | Duplizierte Grenzwert-Logik (75/50/30 A) an mehreren Stellen | 🟢 Niedrig | **Offen** |
 | 6 | `web_server` ohne Authentifizierung | 🟡 Mittel (Sicherheit) | **Offen** |
-| 7 | Unicode-Sonderzeichen `⁄` in Name/SSID | 🟢 Niedrig | **Offen** |
 | 8 | Neue Sensoren ohne `state_class`/`device_class` (Max Output Current Setpoint, FAN RPM) | 🟢 Niedrig | **Neu** |
 | 9 | Fan-Handler berechnen `duty`/`duty_set`, veröffentlichen sie aber nirgends | 🟢 Niedrig | **Neu** |
-| 10 | Namensinkonsistenz bei `fallback_amp_set` (Anzeigename geändert, ID nicht) | 🟢 Niedrig | **Neu** |
 
 ---
 
@@ -56,14 +53,6 @@ Nach wie vor berechnet der erste `lambda:`-Schritt in jedem `on_value`-Automatio
 
 ---
 
-## 3. 🟡 "Input Grid Voltage Module-1" weiterhin mit 10 s statt 3 s
-
-**Fundstelle:** Zeile ~2647.
-
-Modul 2 und 3 nutzen `update_interval: 3s`, Modul 1 dieses einen Sensors weiterhin `10s`. Wahrscheinlich ein Kopierfehler, unverändert seit der letzten Prüfung.
-
----
-
 ## 4. 🟢 Redundante CAN-Übertragung in `blackstart_start`
 
 Unverändert: `apply_dc_sum_power` löst über `set_dc_current.make_call()` bereits einen CAN-Sendevorgang für den Strom-Sollwert aus; `blackstart_start` sendet den Strom-Sollwert danach nochmals explizit. Funktional unschädlich, weiterhin nur als Hinweis auf unnötigen Bus-Traffic vermerkt.
@@ -81,12 +70,6 @@ Unverändert an drei Stellen dupliziert: `DC Current Setpoint`, `Fallback Curren
 **Fundstelle:** Abschnitt `web_server:` (`version: 3`).
 
 Unverändert: kein `auth:` mit `username`/`password`. Empfehlung wie zuvor, falls das Gerät nicht in einem strikt vertrauenswürdigen Netzsegment betrieben wird.
-
----
-
-## 7. 🟢 Unicode-Sonderzeichen `⁄` in Name/SSID
-
-Unverändert in `esphome.friendly_name` und `wifi.ap.ssid` vorhanden (U+2044 statt normalem `/`). Weiterhin nur als Hinweis, falls unbeabsichtigt.
 
 ---
 
@@ -125,12 +108,6 @@ id(fan_rpm_1).publish_state(rpm);
 `duty` und `duty_set` werden berechnet, aber nirgends veröffentlicht oder anderweitig verwendet – es existiert kein entsprechender Duty-Cycle-Sensor. Entweder war ein "Fan Duty Module-x"-Sensor beabsichtigt und wurde vergessen, oder die beiden Variablen sind toter Code.
 
 **Empfehlung:** Falls die Lüfter-Ansteuerungs-Prozentwerte für Diagnose interessant sind, zwei zusätzliche Template-Sensoren (`fan_duty_x`, `fan_duty_set_x`) ergänzen und `publish_state` aufrufen; andernfalls die Berechnung entfernen.
-
----
-
-## 10. 🟢 Neu: Namensinkonsistenz bei `fallback_amp_set`
-
-Der Anzeigename wurde zu `"Fallback Current Set"` geändert, die Entity-ID ist aber weiterhin `fallback_amp_set` geblieben – im Gegensatz zum parallelen `CAN Amp Set` → `DC Current Setpoint` (`id: set_dc_current`), wo Name **und** ID konsistent umbenannt wurden. Rein kosmetisch/für die Wartbarkeit, aber uneinheitlich.
 
 ---
 

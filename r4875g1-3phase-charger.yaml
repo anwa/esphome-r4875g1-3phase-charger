@@ -66,7 +66,7 @@
 # even if the user never touches the encoder after power-up.
 esphome:
   name: hg-dg-technik-charger3ph
-  friendly_name: HG⁄DG⁄Technik⁄Charger-3Ph
+  friendly_name: HG/DG/Technik/Charger-3Ph
   min_version: 2026.7.4
   on_boot:
     then:
@@ -159,7 +159,7 @@ wifi:
   reboot_timeout: 0s
 
   ap:
-    ssid: HG⁄DG⁄Technik⁄C Fallback Hotspot
+    ssid: 3PhCharger Fallback Hotspot
     password: !secret fallback_ap_password
 
 # ==============================================================================
@@ -2664,7 +2664,7 @@ sensor:
       - lambda: |-
           return x / id(voltage_scaling_factor);  
     icon: "mdi:sine-wave"
-    update_interval: 10s
+    update_interval: 3s
 
   # --------------------------------------------------------------------------
   # Input Grid Voltage Unit-2
@@ -3880,7 +3880,7 @@ text_sensor:
             } else {
               ESP_LOGW("custom", "Received out-of-range fallback voltage value: %.1fV", fallback_voltage);
             }
-  # Subscribe to MQTT topic to update Fallback Amps
+  # Subscribe to MQTT topic to update Fallback current
   # MQTT fallback-current command feeding set_dc_current_limit_fallback.
   - platform: mqtt_subscribe
     name: "Fallback Current MQTT"
