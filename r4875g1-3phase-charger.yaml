@@ -3807,6 +3807,38 @@ button:
             can_id: 0x108080FE
             data: [0x01, 0x34, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
 
+# Define a button component for setting the fan to auto mode for Unit 1
+  - platform: template
+    name: "Fan Auto Mode Unit-1"
+    icon: "mdi:fan"
+    on_press:
+      then:
+        - canbus.send:
+            use_extended_id: true
+            can_id: 0x108180FE
+            data: [0x01, 0x34, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+
+# Define a button component for setting the fan to auto mode for Unit 2
+  - platform: template
+    name: "Fan Auto Mode Unit-2"
+    icon: "mdi:fan"
+    on_press:
+      then:
+        - canbus.send:
+            use_extended_id: true
+            can_id: 0x108280FE
+            data: [0x01, 0x34, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+
+# Define a button component for setting the fan to auto mode for Unit 3
+  - platform: template
+    name: "Fan Auto Mode Unit-3"
+    icon: "mdi:fan"
+    on_press:
+      then:
+        - canbus.send:
+            use_extended_id: true
+            can_id: 0x108380FE
+            data: [0x01, 0x34, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
 
   # Manually launches the full unit property/capability discovery sequence.
   - platform: template
