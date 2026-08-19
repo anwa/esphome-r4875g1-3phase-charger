@@ -1,7 +1,7 @@
 # Code-Review: `r4875g1-3phase-charger.yaml`
 
-**Stand:** 2026-08-18 (aktualisierte Fassung nach mehreren Fixes/Erweiterungen)
-**Umfang:** Vollständige erneute Prüfung der aktuellen ESPHome-Konfiguration (3883 Zeilen).
+**Stand:** 2026-08-19 (aktualisierte Fassung nach Umbenennung "Module" → "Unit", Display-Migration auf `mipi_spi`, CAN-Pin-Wechsel und neuer "Fan Minimum Speed"-Funktion)
+**Umfang:** Vollständige erneute Prüfung der aktuellen ESPHome-Konfiguration (3977 Zeilen).
 
 Dieser Bericht ersetzt die vorherige Fassung. Bereits behobene Punkte sind kompakt am Ende dokumentiert; der Fokus liegt auf **offenen** und **neu hinzugekommenen** Punkten.
 
@@ -12,90 +12,83 @@ Dieser Bericht ersetzt die vorherige Fassung. Bereits behobene Punkte sind kompa
 | # | Thema | Schweregrad | Status |
 |---|-------|-------------|--------|
 | 1 | `current_scaling_factor`-Gleichheitsvergleich (`== 15/20/30`) funktioniert praktisch nie | 🔴 Hoch | **Offen** |
-| 2 | Tote Lambda-Blöcke in `number:`-Setpoints (`high_byte`/`low_byte` unbenutzt) | 🟡 Mittel | **Offen** |
-| 4 | Redundante CAN-Sendungen in `blackstart_start` | 🟢 Niedrig | **Offen** |
-| 5 | Duplizierte Grenzwert-Logik (75/50/30 A) an mehreren Stellen | 🟢 Niedrig | **Offen** |
-| 6 | `web_server` ohne Authentifizierung | 🟡 Mittel (Sicherheit) | **Offen** |
-| 8 | Neue Sensoren ohne `state_class`/`device_class` (Max Output Current Setpoint, FAN RPM) | 🟢 Niedrig | **Neu** |
-| 9 | Fan-Handler berechnen `duty`/`duty_set`, veröffentlichen sie aber nirgends | 🟢 Niedrig | **Neu** |
+| 2 | Duplizierte Grenzwert-Logik (75/50/30 A) an mehreren Stellen | 🟢 Niedrig | **Offen** |
+| 3 | Redundante CAN-Sendungen in `blackstart_start` | 🟢 Niedrig | **Offen** |
+| 4 | `web_server` weiterhin ohne Authentifizierung | 🟡 Mittel (Sicherheit) | **Offen** |
+| 5 | Neue Sensoren ohne `state_class`/`device_class` (Max Output Current Setpoint, FAN RPM) | 🟢 Niedrig | **Offen** |
+| 6 | Fan-Handler berechnen `duty`/`duty_set`, veröffentlichen sie aber nirgends | 🟢 Niedrig | **Offen** |
+| 7 | `current_value == 0` / `fallback_current_value == 0` in `number:`-Validierung ist unerreichbarer Code | 🟢 Niedrig | **Neu** |
+| 8 | CAN RX jetzt auf GPIO16 – Kommentar zum (deaktivierten) Touchscreen `cs_pin: GPIO16` ist stale und könnte künftig kollidieren | 🟡 Mittel | **Neu** |
+| 9 | Deutscher Kommentar mitten im sonst rein englischen Kommentarstil | 🟢 Niedrig | **Neu** |
+| 10 | `Fallback Voltage Set`/`fallback_voltage_set` folgt nicht dem neuen `Set DC ... Limit`-Namensschema | 🟢 Niedrig | **Neu** |
 
 ---
 
 ## 1. 🔴 `current_scaling_factor`-Vergleich weiterhin praktisch wirkungslos
 
-**Fundstellen:** Zeile ~3140–3144 (`number: DC Current Setpoint`) und ~3194–3198 (`number: Fallback Current Set`).
+**Fundstellen:** `number: Set DC Current Limit` (Zeile ~3210–3216) und `number: Set DC Current Limit Fallback` (Zeile ~3264–3270).
 
 ```cpp
-if (id(current_scaling_factor) == 15) { max_amps = 75; }
-else if (id(current_scaling_factor) == 20) { max_amps = 50; }
-else if (id(current_scaling_factor) == 30) { max_amps = 30; }
+if (id(current_scaling_factor) == 15) { max_current = 75; }
+else if (id(current_scaling_factor) == 20) { max_current = 50; }
+else if (id(current_scaling_factor) == 30) { max_current = 30; }
 ```
 
-**Status:** In einer vorherigen Iteration wurde korrigiert, dass nur noch **Modul 1** den geteilten `current_scaling_factor` setzt (Module 2/3 schreiben jetzt nur noch in ihre eigenen Diagnose-Sensoren `sf_value_2`/`sf_value_3`). Das war ein wichtiger Fix für die Multi-Modul-Konsistenz, **behebt aber nicht das ursprüngliche Problem**: `current_scaling_factor` wird weiterhin als `1024.0 / max_current` (Fließkommazahl) berechnet und anschließend per **exakter Gleichheit** mit `15`, `20` oder `30` verglichen. Ein real ermittelter `max_current`-Wert erzeugt so gut wie nie exakt einen dieser drei Werte – die modellabhängige Strom-Obergrenze (30/50/75 A) bleibt daher weiterhin faktisch wirkungslos, sobald die Discovery einmal gelaufen ist.
+**Status:** Weiterhin unverändert seit der letzten Prüfung. `current_scaling_factor` wird bei der Discovery als `1024.0 / max_current` (Fließkommazahl) berechnet und anschließend per **exakter Gleichheit** mit den drei "Modell-Konstanten" `15`, `20`, `30` verglichen. Ein real ermittelter `max_current`-Wert erzeugt so gut wie nie exakt einen dieser drei Werte – die modellabhängige Strom-Obergrenze (30/50/75 A) bleibt daher faktisch wirkungslos, sobald die Discovery einmal gelaufen ist.
 
 **Empfehlung (unverändert):** Direkt auf `max_current_sensor_1.state` prüfen statt auf den abgeleiteten Skalierungsfaktor, z. B.:
 
 ```cpp
-float max_amps = 75.0f;
-if (id(max_current_sensor_1).state <= 32.0f)      max_amps = 30.0f;
-else if (id(max_current_sensor_1).state <= 55.0f) max_amps = 50.0f;
+float max_current = 75.0f;
+if (id(max_current_sensor_1).state <= 32.0f)      max_current = 30.0f;
+else if (id(max_current_sensor_1).state <= 55.0f) max_current = 50.0f;
 ```
 
----
-
-## 2. 🟡 Tote Codeblöcke in `number:`-Setpoints
-
-**Fundstellen:** `CAN Voltage Set` (Zeile ~3084–3092), `DC Current Setpoint` (`set_dc_current`), `Fallback Current Set`, `Fallback Voltage Set`.
-
-Nach wie vor berechnet der erste `lambda:`-Schritt in jedem `on_value`-Automation-Block `scaled_value`/`high_byte`/`low_byte`, ohne die Werte zu verwenden – der eigentliche `canbus.send`-Schritt berechnet alles direkt danach erneut in einem eigenen `!lambda`-Block. Unverändert seit der letzten Prüfung.
-
-**Empfehlung:** Den jeweils ersten, wirkungslosen `lambda:`-Schritt entfernen.
+oder zumindest eine Toleranzprüfung (`fabs(x - 15.0) < 0.5`) statt exakter Gleichheit verwenden.
 
 ---
 
-## 4. 🟢 Redundante CAN-Übertragung in `blackstart_start`
+## 2. 🟢 Duplizierte 75/50/30-A-Grenzwertlogik
 
-Unverändert: `apply_dc_sum_power` löst über `set_dc_current.make_call()` bereits einen CAN-Sendevorgang für den Strom-Sollwert aus; `blackstart_start` sendet den Strom-Sollwert danach nochmals explizit. Funktional unschädlich, weiterhin nur als Hinweis auf unnötigen Bus-Traffic vermerkt.
-
----
-
-## 5. 🟢 Duplizierte 75/50/30-A-Grenzwertlogik
-
-Unverändert an drei Stellen dupliziert: `DC Current Setpoint`, `Fallback Current Set` (beide mit dem unter Punkt 1 beschriebenen Vergleichsfehler) sowie der harte `75.0f`-Cap in `apply_dc_sum_power`. Sollte langfristig in ein gemeinsames Script/eine gemeinsame Funktion ausgelagert werden.
+Unverändert an drei Stellen dupliziert: `Set DC Current Limit`, `Set DC Current Limit Fallback` (beide mit dem unter Punkt 1 beschriebenen Vergleichsfehler) sowie der harte `75.0f`-Cap in `apply_dc_sum_power`. Sollte langfristig in ein gemeinsames Script/eine gemeinsame Funktion ausgelagert werden.
 
 ---
 
-## 6. 🟡 `web_server` weiterhin ohne Authentifizierung
+## 3. 🟢 Redundante CAN-Übertragung in `blackstart_start`
 
-**Fundstelle:** Abschnitt `web_server:` (`version: 3`).
+Unverändert: `apply_dc_sum_power` löst über `set_dc_current_limit.make_call()` bereits einen CAN-Sendevorgang für den Strom-Sollwert aus; `blackstart_start` sendet den Strom-Sollwert danach nochmals explizit. Funktional unschädlich, weiterhin nur als Hinweis auf unnötigen Bus-Traffic vermerkt.
+
+---
+
+## 4. 🟡 `web_server` weiterhin ohne Authentifizierung
+
+**Fundstelle:** Abschnitt `web_server:` (Zeile 124, `version: 3`).
 
 Unverändert: kein `auth:` mit `username`/`password`. Empfehlung wie zuvor, falls das Gerät nicht in einem strikt vertrauenswürdigen Netzsegment betrieben wird.
 
 ---
 
-## 8. 🟢 Neu: Zusätzliche Sensoren ohne `device_class`/`state_class`
+## 5. 🟢 Neue Sensoren weiterhin ohne `device_class`/`state_class`
 
-Bei der letzten Ergänzung um `device_class`/`state_class` (Spannung/Strom/Leistung/Temperatur/Energie) wurden zwei seither neu hinzugekommene Sensor-Gruppen nicht erfasst:
-
-- **`Max Output Current Setpoint Module-1/2/3`** (Zeile ~2830–2876): hat weder `device_class: current` noch `state_class: measurement`.
-- **`FAN RPM Module-1/2/3`** (Zeile ~2879–2907): keine `device_class` (HA kennt keine native RPM-Klasse) und kein `state_class: measurement`.
+- **`Max Output Current Setpoint Unit-1/2/3`** (Zeile ~2866–2902): hat weder `device_class: current` noch `state_class: measurement`.
+- **`FAN RPM Unit-1/2/3`** (Zeile ~2905–2933): keine `device_class` (HA kennt keine native RPM-Klasse) und kein `state_class: measurement`.
 
 **Empfehlung:**
 
 ```yaml
-# Max Output Current Setpoint Module-x
+# Max Output Current Setpoint Unit-x
 device_class: current
 state_class: measurement
 
-# FAN RPM Module-x
+# FAN RPM Unit-x
 state_class: measurement
 ```
 
 ---
 
-## 9. 🟢 Neu: Fan-Handler berechnen `duty`/`duty_set`, nutzen sie aber nicht
+## 6. 🟢 Fan-Handler berechnen `duty`/`duty_set`, nutzen sie aber nicht
 
-**Fundstellen:** CAN-Handler `0x1081827E`/`0x1082827E`/`0x1083827E` (Zeile ~1801–1868).
+**Fundstellen:** CAN-Handler `0x1081827E`/`0x1082827E`/`0x1083827E` (Zeile ~1819–1905).
 
 ```cpp
 float duty = (static_cast<float>(duty_raw) / 25600.0f) * 100.0f;
@@ -105,27 +98,86 @@ float duty_set = (static_cast<float>(duty_set_raw) / 25600.0f) * 100.0f;
 id(fan_rpm_1).publish_state(rpm);
 ```
 
-`duty` und `duty_set` werden berechnet, aber nirgends veröffentlicht oder anderweitig verwendet – es existiert kein entsprechender Duty-Cycle-Sensor. Entweder war ein "Fan Duty Module-x"-Sensor beabsichtigt und wurde vergessen, oder die beiden Variablen sind toter Code.
+`duty` und `duty_set` werden weiterhin berechnet, aber nirgends veröffentlicht oder anderweitig verwendet – es existiert kein entsprechender Duty-Cycle-Sensor.
 
-**Empfehlung:** Falls die Lüfter-Ansteuerungs-Prozentwerte für Diagnose interessant sind, zwei zusätzliche Template-Sensoren (`fan_duty_x`, `fan_duty_set_x`) ergänzen und `publish_state` aufrufen; andernfalls die Berechnung entfernen.
+**Empfehlung:** Falls die Lüfter-Ansteuerungs-Prozentwerte für Diagnose interessant sind, zwei zusätzliche Template-Sensoren (`fan_duty_x`, `fan_duty_set_x`) ergänzen und `publish_state` aufrufen; andernfalls die Berechnung entfernen. Interessanterweise passt `duty_set` inhaltlich gut zur neuen "Set Fan Minimum Speed"-Funktion – könnte als Rückmeldekanal genutzt werden, ob das Modul den gesendeten Minimal-Duty-Wert tatsächlich übernommen hat.
+
+---
+
+## 7. 🟢 Neu: Unerreichbare `== 0`-Zweige in der Strom-Validierung
+
+**Fundstellen:** `number: Set DC Current Limit` (Zeile ~3219, `min_value: 1`) und `number: Set DC Current Limit Fallback` (Zeile ~3273, `min_value: 1`).
+
+```cpp
+} else if (current_value == 0) {
+	ESP_LOGI("custom", "DC Current Limit disabled.");
+} else {
+	ESP_LOGI("custom", "DC Current Limit set to %.1fA.", current_value);
+}
+```
+
+Beide `number:`-Entities haben `min_value: 1`, d. h. `current_value`/`fallback_current_value` kann über die UI/API niemals `0` werden. Der `== 0`-Zweig ("... disabled.") ist damit **toter Code**, der nie ausgeführt wird.
+
+**Empfehlung:** Falls "0 = deaktiviert" tatsächlich eine gültige Betriebsart sein soll, `min_value: 0` setzen; andernfalls den unerreichbaren `else if`-Zweig entfernen, um keine falsche Erwartung im Code zu wecken.
+
+---
+
+## 8. 🟡 Neu: CAN RX jetzt auf GPIO16 – Kollision mit (deaktiviertem) Touchscreen-Kommentar
+
+**Fundstellen:** CAN-Bus (Zeile ~1248–1257: `tx_pin: GPIO15`, `rx_pin: GPIO16`) und der auskommentierte Touchscreen-Block (Zeile ~262–279: `cs_pin: GPIO16`).
+
+Die CAN-Schnittstelle wurde von GPIO19/GPIO21 auf GPIO15/GPIO16 umgestellt (vermutlich im Zuge der SN65HVD230-Verdrahtung, siehe Kommentar direkt über der `canbus:`-Sektion). Der weiterhin vorhandene, auskommentierte XPT2046-Touchscreen-Block nutzt jedoch ebenfalls `cs_pin: GPIO16` für die Chip-Select-Leitung. Aktuell besteht **kein aktiver Konflikt**, da der Touchscreen-Block deaktiviert ist – sollte er aber jemals reaktiviert werden, würde er sich die Leitung mit dem CAN-RX-Pin teilen.
+
+**Empfehlung:** Den Kommentar/Pin im Touchscreen-Block aktualisieren (z. B. auf einen freien Pin verweisen) oder zumindest einen Warnhinweis ergänzen, dass GPIO16 inzwischen von CAN RX belegt ist, damit ein künftiges Reaktivieren nicht versehentlich zu einer Pin-Kollision führt.
+
+---
+
+## 9. 🟢 Neu: Deutscher Kommentar mitten im englischen Kommentarstil
+
+**Fundstelle:** Zeile 1246.
+
+```yaml
+# Für den SN65HVD230 dann typischerweise:
+#
+# ESP32 GPIO15  -> CAN module CTX
+# ...
+```
+
+Der gesamte übrige Kommentarstil der Datei ist konsequent Englisch; dieser eine Satz ist auf Deutsch. Rein kosmetisch, aber inkonsistent.
+
+**Empfehlung:** Auf Englisch vereinheitlichen, z. B. `# Typical SN65HVD230 wiring:`.
+
+---
+
+## 10. 🟢 Neu: `Fallback Voltage Set` folgt nicht dem neuen Namensschema
+
+**Fundstelle:** Zeile ~3325–3330 (`name: "Fallback Voltage Set"`, `id: fallback_voltage_set`).
+
+Die parallelen Strom-Setpoints wurden konsistent umbenannt (`Set DC Current Limit` / `Set DC Current Limit Fallback`, IDs `set_dc_current_limit` / `set_dc_current_limit_fallback`) und auch der primäre Spannungs-Setpoint heißt jetzt `Set DC Voltage Limit` (`set_dc_voltage_limit`). Der Fallback-Spannungswert wurde dabei nicht mit umbenannt und heißt weiterhin `Fallback Voltage Set` / `fallback_voltage_set` – eine Restinkonsistenz im sonst sauber vereinheitlichten Namensschema.
+
+**Empfehlung:** Bei Gelegenheit zu `Set DC Voltage Limit Fallback` / `set_dc_voltage_limit_fallback` umbenennen, analog zum Strom-Pendant. Da dies die Entity-ID ändert, HA-Referenzen (Dashboards/Automatisierungen) entsprechend anpassen.
 
 ---
 
 ## Bereits behobene Punkte (zur Nachverfolgung, keine Details mehr nötig)
 
-- ✅ Übertemperatur-Abschaltung hat jetzt Hysterese (90 °C Trip / 80 °C Reset) und einen Lockout-Mechanismus pro Modul (`overtemp_lockout_1..3`); individuelle ON-Buttons und `blackstart_start` respektieren den Lockout.
-- ✅ `device_class`/`state_class` für die ursprünglich identifizierten Spannungs-, Strom-, Leistungs-, Temperatur- und Energie-Sensoren ergänzt (mit Ausnahme der unter Punkt 8 neu hinzugekommenen Sensoren).
-- ✅ Nach der Umbenennung `amp_scaling_factor` → `current_scaling_factor` behobene Inkonsistenz: nur noch Modul 1 aktualisiert den geteilten Skalierungsfaktor; Module 2/3 schreiben nur noch in ihre eigenen Diagnose-Sensoren (`sf_value_2`/`sf_value_3`), ohne den globalen Wert zu überschreiben.
-- ✅ Tippfehler in Log-Meldung ("Module 1:New" → "Module 1: New") korrigiert.
-- ✅ Fehlende Kommentare für neue FAN-RPM- und "Info: Operating Hours"-Sensoren sowie deren CAN-Handler im bestehenden Stil ergänzt.
-- ✅ `state_class`/`device_class` für die drei "Info: Operating Hours"-Sensoren von `measurement` auf `duration`/`total_increasing` korrigiert (monoton steigender Zähler).
-- ✅ Keine verwaisten Referenzen auf alte IDs (`can_amp_set`, `amp_scaling_factor`, `set_max_output_current_sensor_x`, `sf_value`) mehr vorhanden.
+- ✅ Übertemperatur-Abschaltung hat Hysterese (90 °C Trip / 80 °C Reset) und einen Lockout-Mechanismus pro Unit (`overtemp_lockout_1..3`); individuelle ON-Buttons und `blackstart_start` respektieren den Lockout.
+- ✅ `device_class`/`state_class` für die ursprünglich identifizierten Spannungs-, Strom-, Leistungs-, Temperatur- und Energie-Sensoren ergänzt.
+- ✅ Nur noch Unit 1 aktualisiert den geteilten `current_scaling_factor`; Unit 2/3 schreiben nur noch in ihre eigenen Diagnose-Sensoren (`sf_value_2`/`sf_value_3`).
+- ✅ **Tote Lambda-Blöcke in den `number:`-Setpoints entfernt:** Die früher wirkungslosen `high_byte`/`low_byte`-Berechnungen wurden durch sinnvolle Logging-/Validierungs-`lambda`-Blöcke ersetzt (`Set DC Voltage Limit`, `Set DC Current Limit`, `Set DC Current Limit Fallback`, `Fallback Voltage Set`).
+- ✅ **Inkonsistentes `update_interval` bei "Input Grid Voltage Unit-1" behoben:** läuft jetzt wie Unit-2/3 mit `3s` statt `10s`.
+- ✅ **Unicode-Sonderzeichen `⁄` entfernt:** `friendly_name` und Fallback-AP-SSID verwenden jetzt reines ASCII (`HG|DG|Technik|Charger-3Ph`, `3PhCharger Fallback Hotspot`).
+- ✅ Konsistente Umbenennung "Module" → "Unit" über die gesamte Datei (Kommentare, IDs, Entity-Namen) durchgeführt, keine verwaisten Referenzen gefunden.
+- ✅ Display-Migration von `ili9xxx` auf `mipi_spi` (mit explizit gesetzter `data_rate: 40MHz`, um die bisherige Performance beizubehalten) – Konfiguration wirkt vollständig und konsistent zur vorherigen Transform-Logik.
+- ✅ Neue "Set Fan Minimum Speed"-Funktion (Zeile ~3108–3167) ist sauber dokumentiert und ohne toten Code implementiert.
+- ✅ Namensinkonsistenz beim Strom-Fallback behoben: `Fallback Amp Set` → `Set DC Current Limit Fallback` mit passend umbenannter ID `set_dc_current_limit_fallback`.
+- ✅ Keine verwaisten Referenzen auf alte IDs (`can_amp_set`, `amp_scaling_factor`, `set_max_output_current_sensor_x`, `sf_value`, `can_voltage_set`) mehr vorhanden.
 
 ---
 
 ## Priorisierte Handlungsempfehlung
 
-1. **Punkt 1** (Gleichheitsvergleich) weiterhin die höchste Priorität – betrifft die tatsächliche Sicherheits-relevante Strombegrenzung pro Modultyp und wurde bisher nicht behoben, nur die Multi-Modul-Konsistenz drumherum.
-2. **Punkt 6** (Web-Server-Auth) je nach Netzwerksegmentierung nachrüsten.
-3. Punkte 8/9 (neue Sensoren) bei Gelegenheit ergänzen, da sie recht einfach nachzuziehen sind.
-4. Restliche Punkte (2–5, 7, 10) können im Rahmen normaler Wartung/Refactorings adressiert werden.
+1. **Punkt 1** (Gleichheitsvergleich) weiterhin die höchste Priorität – betrifft die tatsächliche Sicherheits-relevante Strombegrenzung pro Unit-Typ.
+2. **Punkt 8** (GPIO16-Doppelbelegung CAN RX / Touchscreen-Kommentar) zeitnah im Kommentar klarstellen, um künftige Reaktivierungs-Fehler zu vermeiden.
+3. **Punkt 4** (Web-Server-Auth) je nach Netzwerksegmentierung nachrüsten.
+4. Punkte 2, 3, 5–7, 9, 10 können im Rahmen normaler Wartung/Refactorings adressiert werden.
