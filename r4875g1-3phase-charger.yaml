@@ -66,7 +66,7 @@
 # even if the user never touches the encoder after power-up.
 esphome:
   name: hg-dg-technik-charger3ph
-  friendly_name: HG/DG/Technik/Charger-3Ph
+  friendly_name: HG|DG|Technik|Charger-3Ph
   min_version: 2026.7.4
   on_boot:
     then:
@@ -1243,10 +1243,18 @@ script:
 # ==============================================================================
 # Uses the ESP32-S3 native CAN/TWAI peripheral at 125 kbit/s. The R4875G1
 # protocol uses extended 29-bit CAN IDs. Unit number is encoded in the ID.
+# Für den SN65HVD230 dann typischerweise:
+#
+# ESP32 GPIO15  -> CAN module CTX
+# ESP32 GPIO16  -> CAN module CRX
+# ESP32 3.3 V   -> 3V3
+# ESP32 GND     -> GND
+# CAN-H         -> CAN-H bus
+# CAN-L         -> CAN-L bus
 canbus:
   - platform: esp32_can
-    tx_pin: GPIO19
-    rx_pin: GPIO21
+    tx_pin: GPIO15
+    rx_pin: GPIO16
     can_id: 0xE5F32E5
     bit_rate: 125kbps
     use_extended_id: true
