@@ -463,13 +463,13 @@ display:
           "No charger unit reachable"
         );
       }
-      // combined_dc_power_sensor is CAN-aware, so stale power from a disconnected
+      // combined_dc_power is CAN-aware, so stale power from a disconnected
       // rectifier is automatically excluded from this total.
       it.printf(10, 125,
         id(font_small_bold),
         id(color_red),
         "DC Output: %.3f kW",
-        id(combined_dc_power_sensor).state
+        id(combined_dc_power).state
       );
 
       if (id(can_com_ok_1).state) {
@@ -550,9 +550,9 @@ display:
       // to show partial operation such as 1/3 or 2/3 units running.
       int rectifiers_on = 0;
 
-      if (id(power_state_sensor_1).state == "ON") rectifiers_on++;
-      if (id(power_state_sensor_2).state == "ON") rectifiers_on++;
-      if (id(power_state_sensor_3).state == "ON") rectifiers_on++;
+      if (id(power_state_1).state == "ON") rectifiers_on++;
+      if (id(power_state_2).state == "ON") rectifiers_on++;
+      if (id(power_state_3).state == "ON") rectifiers_on++;
 
       if (rectifiers_on == 3) {
 
@@ -650,7 +650,7 @@ globals:
     initial_value: '0'
 
   # Local/legacy charger-state flag. Actual long-press start/stop
-  # decisions currently use the live power_state_sensor_1..3 values instead.
+  # decisions currently use the live power_state_1..3 values instead.
   - id: charger_local_on
     type: bool
     restore_value: no
@@ -1398,11 +1398,11 @@ canbus:
               // Manufactured field is also used as a completion marker so the
               // discovery script can tell whether the property set was complete.
               KeySensorPair mappings[] = {
-                {"UnitType=", id(unit_type_sensor_1), nullptr},
-                {"BarCode=", id(barcode_sensor_1), nullptr},
-                {"Item=", id(item_no_sensor_1), nullptr},
-                {"Description=", id(description_sensor_1), nullptr},
-                {"Manufactured=", id(manufactured_sensor_1), &id(unit_properties_complete_1)}
+                {"UnitType=", id(unit_type_1), nullptr},
+                {"BarCode=", id(barcode_1), nullptr},
+                {"Item=", id(item_no_1), nullptr},
+                {"Description=", id(description_1), nullptr},
+                {"Manufactured=", id(manufactured_1), &id(unit_properties_complete_1)}
               };
 
               bool all_keys_found = true;
@@ -1473,11 +1473,11 @@ canbus:
               // Manufactured field is also used as a completion marker so the
               // discovery script can tell whether the property set was complete.
               KeySensorPair mappings[] = {
-                {"UnitType=", id(unit_type_sensor_2), nullptr},
-                {"BarCode=", id(barcode_sensor_2), nullptr},
-                {"Item=", id(item_no_sensor_2), nullptr},
-                {"Description=", id(description_sensor_2), nullptr},
-                {"Manufactured=", id(manufactured_sensor_2), &id(unit_properties_complete_2)}
+                {"UnitType=", id(unit_type_2), nullptr},
+                {"BarCode=", id(barcode_2), nullptr},
+                {"Item=", id(item_no_2), nullptr},
+                {"Description=", id(description_2), nullptr},
+                {"Manufactured=", id(manufactured_2), &id(unit_properties_complete_2)}
               };
 
               bool all_keys_found = true;
@@ -1548,11 +1548,11 @@ canbus:
               // Manufactured field is also used as a completion marker so the
               // discovery script can tell whether the property set was complete.
               KeySensorPair mappings[] = {
-                {"UnitType=", id(unit_type_sensor_3), nullptr},
-                {"BarCode=", id(barcode_sensor_3), nullptr},
-                {"Item=", id(item_no_sensor_3), nullptr},
-                {"Description=", id(description_sensor_3), nullptr},
-                {"Manufactured=", id(manufactured_sensor_3), &id(unit_properties_complete_3)}
+                {"UnitType=", id(unit_type_3), nullptr},
+                {"BarCode=", id(barcode_3), nullptr},
+                {"Item=", id(item_no_3), nullptr},
+                {"Description=", id(description_3), nullptr},
+                {"Manufactured=", id(manufactured_3), &id(unit_properties_complete_3)}
               };
 
               bool all_keys_found = true;
@@ -2034,7 +2034,7 @@ canbus:
 
                 // Publish power state only if it has changed
                 if (new_power_state != last_power_state_1) {
-                  id(power_state_sensor_1).publish_state(new_power_state.c_str());
+                  id(power_state_1).publish_state(new_power_state.c_str());
                   last_power_state_1 = new_power_state;
                 }
               }
@@ -2076,7 +2076,7 @@ canbus:
 
                 // Publish power state only if it has changed
                 if (new_power_state != last_power_state_2) {
-                  id(power_state_sensor_2).publish_state(new_power_state.c_str());
+                  id(power_state_2).publish_state(new_power_state.c_str());
                   last_power_state_2 = new_power_state;
                 }
               }
@@ -2118,7 +2118,7 @@ canbus:
 
                 // Publish power state only if it has changed
                 if (new_power_state != last_power_state_3) {
-                  id(power_state_sensor_3).publish_state(new_power_state.c_str());
+                  id(power_state_3).publish_state(new_power_state.c_str());
                   last_power_state_3 = new_power_state;
                 }
               }
@@ -3490,9 +3490,9 @@ binary_sensor:
               condition:
                 lambda: |-
                   return
-                    id(power_state_sensor_1).state == "ON" ||
-                    id(power_state_sensor_2).state == "ON" ||
-                    id(power_state_sensor_3).state == "ON";
+                    id(power_state_1).state == "ON" ||
+                    id(power_state_2).state == "ON" ||
+                    id(power_state_3).state == "ON";
               then:
                 - script.execute: blackstart_stop
               else:
@@ -3869,109 +3869,109 @@ text_sensor:
 
   # Human-readable ON/OFF/ERROR state decoded from the unit's 0x100x117E frame.
   - platform: template
-    id: power_state_sensor_1
+    id: power_state_1
     name: "Power State Unit-1"
     icon: "mdi:information-outline"
 
   # Human-readable ON/OFF/ERROR state decoded from the unit's 0x100x117E frame.
   - platform: template
-    id: power_state_sensor_2
+    id: power_state_2
     name: "Power State Unit-2"
     icon: "mdi:information-outline"
 
   # Human-readable ON/OFF/ERROR state decoded from the unit's 0x100x117E frame.
   - platform: template
-    id: power_state_sensor_3
+    id: power_state_3
     name: "Power State Unit-3"
     icon: "mdi:information-outline"
 
   # Static unit type parsed from the multi-frame property response.
   - platform: template
     name: "Info: Board Type Unit-1"
-    id: unit_type_sensor_1
+    id: unit_type_1
     icon: "mdi:information-outline"
 
   # Static unit type parsed from the multi-frame property response.
   - platform: template
     name: "Info: Board Type Unit-2"
-    id: unit_type_sensor_2
+    id: unit_type_2
     icon: "mdi:information-outline"
 
   # Static unit type parsed from the multi-frame property response.
   - platform: template
     name: "Info: Board Type Unit-3"
-    id: unit_type_sensor_3
+    id: unit_type_3
     icon: "mdi:information-outline"
 
   # Unit barcode parsed from the property response.
   - platform: template
     name: "Info: Barcode Unit-1"
-    id: barcode_sensor_1
+    id: barcode_1
     icon: "mdi:information-outline"
 
   # Unit barcode parsed from the property response.
   - platform: template
     name: "Info: Barcode Unit-2"
-    id: barcode_sensor_2
+    id: barcode_2
     icon: "mdi:information-outline"
 
   # Unit barcode parsed from the property response.
   - platform: template
     name: "Info: Barcode Unit-3"
-    id: barcode_sensor_3
+    id: barcode_3
     icon: "mdi:information-outline"
 
   # Unit item/part number parsed from the property response.
   - platform: template
     name: "Info: Item Number Unit-1"
-    id: item_no_sensor_1
+    id: item_no_1
     icon: "mdi:information-outline"
 
   # Unit item/part number parsed from the property response.
   - platform: template
     name: "Info: Item Number Unit-2"
-    id: item_no_sensor_2
+    id: item_no_2
     icon: "mdi:information-outline"
 
   # Unit item/part number parsed from the property response.
   - platform: template
     name: "Info: Item Number Unit-3"
-    id: item_no_sensor_3
+    id: item_no_3
     icon: "mdi:information-outline"
 
   # Unit description parsed from the property response.
   - platform: template
     name: "Info: Description Unit-1"
-    id: description_sensor_1
+    id: description_1
     icon: "mdi:information-outline"
 
   # Unit description parsed from the property response.
   - platform: template
     name: "Info: Description Unit-2"
-    id: description_sensor_2
+    id: description_2
     icon: "mdi:information-outline"
 
   # Unit description parsed from the property response.
   - platform: template
     name: "Info: Description Unit-3"
-    id: description_sensor_3
+    id: description_3
     icon: "mdi:information-outline"
 
   # Manufacturing information parsed from the property response.
   - platform: template
     name: "Info: Manufacturing Date Unit-1"
-    id: manufactured_sensor_1
+    id: manufactured_1
 
   # Manufacturing information parsed from the property response.
   - platform: template
     name: "Info: Manufacturing Date Unit-2"
-    id: manufactured_sensor_2
+    id: manufactured_2
     icon: "mdi:information-outline"
 
   # Manufacturing information parsed from the property response.
   - platform: template
     name: "Info: Manufacturing Date Unit-3"
-    id: manufactured_sensor_3
+    id: manufactured_3
     icon: "mdi:information-outline"
 
   ###################################################################################################################################
