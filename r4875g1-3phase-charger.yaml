@@ -264,8 +264,8 @@ light:
 #  - platform: xpt2046
 #    display: my_tft
 #    id: touch
-#    cs_pin: GPIO16  # Touch controller chip-select pin.
-#    interrupt_pin: GPIO17  # Optional IRQ pin; GPIO17 is currently used by the rotary encoder.
+#    cs_pin: GPIO32  # Touch controller chip-select pin
+#    interrupt_pin: GPIO33  # Optional IRQ pin
 #    spi_id: spi_bus
 #    update_interval: 50ms
 #    calibration:

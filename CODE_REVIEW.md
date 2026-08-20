@@ -15,7 +15,6 @@ Dieser Bericht ersetzt die vorherige Fassung. Bereits behobene Punkte sind kompa
 | 3 | Redundante CAN-Sendungen in `blackstart_start` | 🟢 Niedrig | **Offen** |
 | 4 | `web_server` weiterhin ohne Authentifizierung | 🟡 Mittel (Sicherheit) | **Offen** |
 | 6 | Fan-Handler berechnen `duty`/`duty_set`, veröffentlichen sie aber nirgends | 🟢 Niedrig | **Offen** |
-| 8 | CAN RX jetzt auf GPIO16 – Kommentar zum (deaktivierten) Touchscreen `cs_pin: GPIO16` ist stale und könnte künftig kollidieren | 🟡 Mittel | **Neu** |
 
 ---
 
@@ -57,16 +56,6 @@ id(fan_rpm_1).publish_state(rpm);
 
 ---
 
-## 8. 🟡 Neu: CAN RX jetzt auf GPIO16 – Kollision mit (deaktiviertem) Touchscreen-Kommentar
-
-**Fundstellen:** CAN-Bus (Zeile ~1248–1257: `tx_pin: GPIO15`, `rx_pin: GPIO16`) und der auskommentierte Touchscreen-Block (Zeile ~262–279: `cs_pin: GPIO16`).
-
-Die CAN-Schnittstelle wurde von GPIO19/GPIO21 auf GPIO15/GPIO16 umgestellt (vermutlich im Zuge der SN65HVD230-Verdrahtung, siehe Kommentar direkt über der `canbus:`-Sektion). Der weiterhin vorhandene, auskommentierte XPT2046-Touchscreen-Block nutzt jedoch ebenfalls `cs_pin: GPIO16` für die Chip-Select-Leitung. Aktuell besteht **kein aktiver Konflikt**, da der Touchscreen-Block deaktiviert ist – sollte er aber jemals reaktiviert werden, würde er sich die Leitung mit dem CAN-RX-Pin teilen.
-
-**Empfehlung:** Den Kommentar/Pin im Touchscreen-Block aktualisieren (z. B. auf einen freien Pin verweisen) oder zumindest einen Warnhinweis ergänzen, dass GPIO16 inzwischen von CAN RX belegt ist, damit ein künftiges Reaktivieren nicht versehentlich zu einer Pin-Kollision führt.
-
----
-
 ## Bereits behobene Punkte (zur Nachverfolgung, keine Details mehr nötig)
 
 - ✅ Übertemperatur-Abschaltung hat Hysterese (90 °C Trip / 80 °C Reset) und einen Lockout-Mechanismus pro Unit (`overtemp_lockout_1..3`); individuelle ON-Buttons und `blackstart_start` respektieren den Lockout.
@@ -85,6 +74,5 @@ Die CAN-Schnittstelle wurde von GPIO19/GPIO21 auf GPIO15/GPIO16 umgestellt (verm
 
 ## Priorisierte Handlungsempfehlung
 
-1. **Punkt 8** (GPIO16-Doppelbelegung CAN RX / Touchscreen-Kommentar) zeitnah im Kommentar klarstellen, um künftige Reaktivierungs-Fehler zu vermeiden.
-2. **Punkt 4** (Web-Server-Auth) je nach Netzwerksegmentierung nachrüsten.
-3. Punkte 2, 3, 6 können im Rahmen normaler Wartung/Refactorings adressiert werden.
+1. **Punkt 4** (Web-Server-Auth) je nach Netzwerksegmentierung nachrüsten.
+2. Punkte 2, 3, 6 können im Rahmen normaler Wartung/Refactorings adressiert werden.
