@@ -85,7 +85,6 @@ Die CAN-Schnittstelle wurde von GPIO19/GPIO21 auf GPIO15/GPIO16 umgestellt (verm
 
 ## Priorisierte Handlungsempfehlung
 
-1. **Punkt 1** (Gleichheitsvergleich) weiterhin die höchste Priorität – betrifft die tatsächliche Sicherheits-relevante Strombegrenzung pro Unit-Typ.
-2. **Punkt 8** (GPIO16-Doppelbelegung CAN RX / Touchscreen-Kommentar) zeitnah im Kommentar klarstellen, um künftige Reaktivierungs-Fehler zu vermeiden.
-3. **Punkt 4** (Web-Server-Auth) je nach Netzwerksegmentierung nachrüsten.
-4. Punkte 2, 3, 5–7, 9, 10 können im Rahmen normaler Wartung/Refactorings adressiert werden.
+1. **Punkt 8** (GPIO16-Doppelbelegung CAN RX / Touchscreen-Kommentar) zeitnah im Kommentar klarstellen, um künftige Reaktivierungs-Fehler zu vermeiden.
+2. **Punkt 4** (Web-Server-Auth) je nach Netzwerksegmentierung nachrüsten.
+3. Punkte 2, 3, 6 können im Rahmen normaler Wartung/Refactorings adressiert werden.

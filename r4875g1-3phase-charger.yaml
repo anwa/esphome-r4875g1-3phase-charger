@@ -114,7 +114,7 @@ logger:
   baud_rate: 115200
   hardware_uart: UART0
   logs:
-    component: ERROR
+    canbus: WARN
 
 # ==============================================================================
 # LOCAL ESPHOME WEB SERVER
@@ -3851,6 +3851,7 @@ button:
   # Manually launches the full unit property/capability discovery sequence.
   - platform: template
     name: "SETUP"
+    id: setup_button
     on_press:
       then:
         - script.execute: setup_sequence
