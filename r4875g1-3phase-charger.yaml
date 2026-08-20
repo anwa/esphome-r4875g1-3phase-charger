@@ -3614,7 +3614,7 @@ button:
   # Broadcast ON command to all three rectifiers.
   - platform: template
     name: "!ON!"
-    id: on_button_all
+    id: fan_on_button_all
     icon: "mdi:power"
     on_press:
       then:
@@ -3638,7 +3638,7 @@ button:
   - platform: template
     name: "ON Unit-1"
     icon: "mdi:power"
-    id: on_button_1
+    id: fan_on_button_1
     on_press:
       then:
         - lambda: |-
@@ -3661,7 +3661,7 @@ button:
   - platform: template
     name: "ON Unit-2"
     icon: "mdi:power"
-    id: on_button_2
+    id: fan_on_button_2
     on_press:
       then:
         - lambda: |-
@@ -3684,7 +3684,7 @@ button:
   - platform: template
     name: "ON Unit-3"
     icon: "mdi:power"
-    id: on_button_3
+    id: fan_on_button_3
     on_press:
       then:
         - lambda: |-
@@ -3706,7 +3706,7 @@ button:
   # Broadcast OFF command to all three rectifiers.
   - platform: template
     name: "!OFF!"
-    id: off_button_all
+    id: fan_off_button_all
     icon: "mdi:power"
     on_press:
       then:
@@ -3718,7 +3718,7 @@ button:
   # Individual OFF command for one rectifier.
   - platform: template
     name: "OFF Unit-1"
-    id: off_button_1
+    id: fan_off_button_1
     icon: "mdi:power"
     on_press:
       then:
@@ -3729,7 +3729,7 @@ button:
   # Individual OFF command for one rectifier.
   - platform: template
     name: "OFF Unit-2"
-    id: off_button_2
+    id: fan_off_button_2
     icon: "mdi:power"
     on_press:
       then:
@@ -3741,7 +3741,7 @@ button:
   # Individual OFF command for one rectifier.
   - platform: template
     name: "OFF Unit-3"
-    id: off_button_3
+    id: fan_off_button_3
     icon: "mdi:power"
     on_press:
       then:
@@ -3754,6 +3754,7 @@ button:
   # Broadcast fan override: force full fan speed on all rectifiers.
   - platform: template
     name: "All Fans Full Speed Button"
+    id: fan_full_speed_button_all
     icon: "mdi:fan"
     on_press:
       then:
@@ -3765,6 +3766,7 @@ button:
   # Per-unit full-speed fan override.
   - platform: template
     name: "Fan UNIT-1 Full Speed Button"
+    id: fan_full_speed_button_1
     icon: "mdi:fan"
     on_press:
       then:
@@ -3776,6 +3778,7 @@ button:
   # Per-unit full-speed fan override.
   - platform: template
     name: "Fan UNIT-2 Full Speed Button"
+    id: fan_full_speed_button_2
     icon: "mdi:fan"
     on_press:
       then:
@@ -3787,6 +3790,7 @@ button:
   # Per-unit full-speed fan override.
   - platform: template
     name: "Fan UNIT-3 Full Speed Button"
+    id: fan_full_speed_button_3
     icon: "mdi:fan"
     on_press:
       then:
@@ -3799,6 +3803,7 @@ button:
   # Broadcast command returning all rectifier fans to automatic control.
   - platform: template
     name: "All Fans Auto Mode Button"
+    id: fan_auto_mode_button_all
     icon: "mdi:fan"
     on_press:
       then:
@@ -3810,6 +3815,7 @@ button:
 # Define a button component for setting the fan to auto mode for Unit 1
   - platform: template
     name: "Fan Auto Mode Unit-1"
+    id: fan_auto_mode_button_1
     icon: "mdi:fan"
     on_press:
       then:
@@ -3821,6 +3827,7 @@ button:
 # Define a button component for setting the fan to auto mode for Unit 2
   - platform: template
     name: "Fan Auto Mode Unit-2"
+    id: fan_auto_mode_button_2
     icon: "mdi:fan"
     on_press:
       then:
@@ -3832,6 +3839,7 @@ button:
 # Define a button component for setting the fan to auto mode for Unit 3
   - platform: template
     name: "Fan Auto Mode Unit-3"
+    id: fan_auto_mode_button_3
     icon: "mdi:fan"
     on_press:
       then:
