@@ -2358,6 +2358,9 @@ sensor:
     name: "Max Current Capability Unit-1"
     id: max_dc_current_1
     unit_of_measurement: "A"
+    device_class: current
+    state_class: measurement
+    accuracy_decimals: 3
     icon: "mdi:information-outline"
     update_interval: never
 
@@ -2368,6 +2371,9 @@ sensor:
     name: "Max Current Capability Unit-2"
     id: max_dc_current_2
     unit_of_measurement: "A"
+    device_class: current
+    state_class: measurement
+    accuracy_decimals: 3
     icon: "mdi:information-outline"
     update_interval: never
 
@@ -2378,6 +2384,9 @@ sensor:
     name: "Max Current Capability Unit-3"
     id: max_dc_current_3
     unit_of_measurement: "A"
+    device_class: current
+    state_class: measurement
+    accuracy_decimals: 3
     icon: "mdi:information-outline"
     update_interval: never
 
@@ -2532,6 +2541,8 @@ sensor:
     name: "AC Frequency Unit-1"
     id: ac_frequency_1
     unit_of_measurement: "Hz"
+    device_class: frequency
+    state_class: measurement
     accuracy_decimals: 3
     filters:
       - lambda: |-
@@ -2546,6 +2557,8 @@ sensor:
     name: "AC Frequency Unit-2"
     id: ac_frequency_2
     unit_of_measurement: "Hz"
+    device_class: frequency
+    state_class: measurement
     accuracy_decimals: 3
     filters:
       - lambda: |-
@@ -2560,6 +2573,8 @@ sensor:
     name: "AC Frequency Unit-3"
     id: ac_frequency_3
     unit_of_measurement: "Hz"
+    device_class: frequency
+    state_class: measurement
     accuracy_decimals: 3
     filters:
       - lambda: |-
