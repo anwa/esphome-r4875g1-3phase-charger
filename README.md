@@ -1,65 +1,115 @@
 # 3-Phase Huawei R4875G1 Battery Charger Controller
 
-ESPHome-based controller for **three Huawei R4875G1 rectifier modules** operated as a coordinated 3-phase battery charger with a common parallel DC output.
+ESPHome-based controller for **three Huawei R4875G1 rectifier units** operated as a coordinated 3-phase battery charger with a common parallel DC output.
 
 The project combines CAN-bus control, live telemetry, Home Assistant integration, MQTT, an onboard web interface, a 480×320 TFT display, and a local rotary-encoder interface. Its main design goal is to remain useful even when the normal home automation infrastructure is unavailable — including a **local blackstart workflow that does not depend on Wi-Fi, MQTT, or Home Assistant**.
 
 > [!WARNING]
-> This project works with mains AC, high DC currents, and large battery systems. Three R4875G1 modules can represent roughly 12 kW of charging power and more than 200 A on a 48–58 V DC bus. Incorrect wiring, protection, earthing, fusing, conductor sizing, CAN isolation, or charger settings can cause fire, electric shock, equipment damage, or battery failure. This repository is a DIY engineering project, not a certified commercial charger. Use suitable protective devices and follow all applicable electrical regulations.
+> This project works with mains AC, high DC currents, and large battery systems. Three R4875G1 units can represent roughly 12 kW of charging power and more than 200 A on a 48–58 V DC bus. Incorrect wiring, protection, earthing, fusing, conductor sizing, CAN isolation, or charger settings can cause fire, electric shock, equipment damage, or battery failure. This repository is a DIY engineering project, not a certified commercial charger. Use suitable protective devices and follow all applicable electrical regulations.
 
 ---
 
 ## Table of Contents
 
+- [3-Phase Huawei R4875G1 Battery Charger Controller](#3-phase-huawei-r4875g1-battery-charger-controller)
+  - [Table of Contents](#table-of-contents)
 - [Project Purpose](#project-purpose)
 - [Acknowledgements and Upstream Project](#acknowledgements-and-upstream-project)
 - [System Overview](#system-overview)
 - [Key Features](#key-features)
+  - [Charger control](#charger-control)
+  - [Local blackstart operation](#local-blackstart-operation)
+  - [Telemetry](#telemetry)
+  - [Reliability and fault handling](#reliability-and-fault-handling)
+  - [Display](#display)
 - [Hardware](#hardware)
   - [Main Controller](#main-controller)
-  - [Rectifier Modules](#rectifier-modules)
+  - [Rectifier Units](#rectifier-units)
   - [CAN Interface](#can-interface)
-  - [Display](#display)
+  - [Display](#display-1)
+    - [Touchscreen](#touchscreen)
   - [Rotary Encoder](#rotary-encoder)
   - [GPIO Assignment](#gpio-assignment)
 - [Electrical Architecture](#electrical-architecture)
 - [Software](#software)
   - [ESPHome Platform Configuration](#esphome-platform-configuration)
   - [Networking](#networking)
+    - [Offline-oriented behaviour](#offline-oriented-behaviour)
   - [CAN Communication](#can-communication)
   - [Telemetry Decoding](#telemetry-decoding)
+    - [Voltage/value scaling](#voltagevalue-scaling)
+    - [Current scaling](#current-scaling)
   - [CAN Communication Watchdog](#can-communication-watchdog)
   - [Combined AC and DC Values](#combined-ac-and-dc-values)
+    - [Combined AC power](#combined-ac-power)
+    - [Combined DC power](#combined-dc-power)
+    - [AC values on the display](#ac-values-on-the-display)
   - [Local Blackstart Control](#local-blackstart-control)
+    - [DC voltage](#dc-voltage)
+    - [Total DC power](#total-dc-power)
+    - [Blackstart start sequence](#blackstart-start-sequence)
+    - [Stop sequence](#stop-sequence)
   - [Display User Interface](#display-user-interface)
+    - [Header](#header)
+    - [Per-unit lines](#per-unit-lines)
+    - [Local setpoints](#local-setpoints)
+    - [Charger state](#charger-state)
+    - [Footer](#footer)
   - [Display Power Management](#display-power-management)
   - [Temperature Protection](#temperature-protection)
-  - [Module Discovery](#module-discovery)
+  - [Unit Discovery](#unit-discovery)
   - [Home Assistant, Web UI and MQTT](#home-assistant-web-ui-and-mqtt)
+    - [Home Assistant API](#home-assistant-api)
+    - [Web server](#web-server)
+    - [MQTT](#mqtt)
   - [Energy Counters](#energy-counters)
 - [Installation](#installation)
+  - [Requirements](#requirements)
+  - [1. Copy the YAML](#1-copy-the-yaml)
+  - [2. Configure secrets](#2-configure-secrets)
+  - [3. Validate](#3-validate)
+  - [4. Compile](#4-compile)
+  - [5. First flash](#5-first-flash)
+  - [6. Verify CAN wiring](#6-verify-can-wiring)
+  - [7. Run SETUP](#7-run-setup)
 - [secrets.yaml](#secretsyaml)
 - [Local Operation](#local-operation)
+  - [Rotate while DC Voltage is selected](#rotate-while-dc-voltage-is-selected)
+  - [Short button press](#short-button-press)
+  - [Rotate while DC Power is selected](#rotate-while-dc-power-is-selected)
+  - [Long button press](#long-button-press)
 - [Blackstart Procedure](#blackstart-procedure)
 - [CAN Protocol Overview](#can-protocol-overview)
 - [Important Limits and Behaviour](#important-limits-and-behaviour)
+  - [75 A per-unit current cap](#75-a-per-unit-current-cap)
+  - [Identical-unit assumption](#identical-unit-assumption)
+  - [Communication loss](#communication-loss)
+  - [Offline networking](#offline-networking)
+  - [Setpoint refresh](#setpoint-refresh)
 - [Troubleshooting](#troubleshooting)
+  - [Display shows `CAN bus communication fault!`](#display-shows-can-bus-communication-fault)
+  - [Only one or two units appear in AC Input](#only-one-or-two-units-appear-in-ac-input)
+  - [Encoder values react slowly or continue changing after rotation](#encoder-values-react-slowly-or-continue-changing-after-rotation)
+  - [Encoder button behaves incorrectly](#encoder-button-behaves-incorrectly)
+  - [Display does not turn off](#display-does-not-turn-off)
+  - [Charger does not start during blackstart](#charger-does-not-start-during-blackstart)
 - [Known Limitations](#known-limitations)
 - [Repository Structure](#repository-structure)
 - [Credits and Licensing Notes](#credits-and-licensing-notes)
+  - [Disclaimer](#disclaimer)
 
 ---
 
 # Project Purpose
 
-This project controls **three Huawei R4875G1 telecom rectifier modules** from a single ESP32-S3 controller.
+This project controls **three Huawei R4875G1 telecom rectifier units** from a single ESP32-S3 controller.
 
 The three rectifiers are intended to be used as a coordinated charger:
 
 - one rectifier per AC phase,
 - all DC outputs connected to the same battery/DC bus,
-- identical DC voltage setpoint for all modules,
-- identical current setpoint for all modules,
+- identical DC voltage setpoint for all units,
+- identical current setpoint for all units,
 - combined charging power controlled as one logical 3-phase charger.
 
 The controller has two operating philosophies at the same time:
@@ -90,17 +140,17 @@ This project originally started from the excellent work by **mjpalmowski**:
 **CAN-BUS-control-R4875G1-with-ESPHome-and-MQTT**  
 https://github.com/mjpalmowski/CAN-BUS-control-R4875G1-with-ESPHome-and-MQTT
 
-That project provided the original foundation for controlling Huawei R48xx rectifier modules through CAN bus from ESPHome, including CAN protocol research, telemetry decoding, configuration commands, MQTT/Home Assistant integration, and multi-module operation.
+That project provided the original foundation for controlling Huawei R48xx rectifier units through CAN bus from ESPHome, including CAN protocol research, telemetry decoding, configuration commands, MQTT/Home Assistant integration, and multi-unit operation.
 
 The current project has since evolved significantly around a specific use case:
 
-- three R4875G1 modules,
+- three R4875G1 units,
 - 3-phase charger operation,
 - ESP32-S3 hardware,
 - 480×320 local display,
 - rotary-encoder control,
 - offline blackstart capability,
-- per-module CAN watchdogs,
+- per-unit CAN watchdogs,
 - CAN-aware combined power values,
 - local fault visualization,
 - display power management,
@@ -118,47 +168,31 @@ If substantial portions of upstream code are copied or adapted, retain the appli
 
 # System Overview
 
-```text
-                      THREE-PHASE AC SOURCE
-
-                 L1              L2              L3
-                  |               |               |
-                  v               v               v
-             +---------+     +---------+     +---------+
-             | R4875G1 |     | R4875G1 |     | R4875G1 |
-             | Module 1|     | Module 2|     | Module 3|
-             +----+----+     +----+----+     +----+----+
-                  |               |               |
-                  +------- CAN-H / CAN-L --------+
-                  |               |               |
-               DC +------------ PARALLEL ------------+
-                               |
-                               v
-                      48–58 V BATTERY / DC BUS
-
-                               CAN
-                                |
-                                v
-                      +--------------------+
-                      | 3.3 V CAN          |
-                      | transceiver        |
-                      +---------+----------+
-                                |
-                                v
-                     +----------------------+
-                     | ESP32-S3-WROOM       |
-                     | N16R8                |
-                     |                      |
-                     | ESPHome              |
-                     +----+-----------+-----+
-                          |           |
-                          |           +--> Rotary encoder
-                          |
-                          +--------------> ILI9488 TFT
-                          |
-                          +--------------> Home Assistant API
-                          +--------------> MQTT
-                          +--------------> ESPHome Web UI
+```mermaid
+graph TD;
+    A[THREE-PHASE AC SOURCE] -->|L1| B[R4875G1 Unit 1]
+    A -->|L2| C[R4875G1 Unit 2]
+    A -->|L3| D[R4875G1 Unit 3]
+    B --> |DC +/-| R[F 80A]
+    C --> |DC +/-| S[F 80A]
+    D --> |DC +/-| T[F 80A]
+    R --> U[DC BUS]
+    S --> U
+    T --> U
+    U --> W[48–58 V 16S BATTERY]
+    B -->|CAN-H/L| E[Paralell]
+    C -->|CAN-H/L| E
+    D -->|CAN-H/L| E
+    E -->|CAN-H/L| V[SN65HVD230 3.3 V CAN transceiver]
+    V -->|TX/RX| F[ESP32-S3-WROOM N16R8]
+    F --> O[HMI]
+    O -->|SPI| I[ILI9488 TFT]
+    O -->|GPIO| H[Rotary encoder]
+    F -->|ESPHome| G[ESPHome]
+    F -->|API| J[Home Assistant API]
+    F -->|MQTT| K[MQTT]
+    F -->|HTTP| L[UI]
+    L -->|ESPHome Web UI| M[ESPHome Web UI]
 ```
 
 The ESP32 does not carry the CAN physical layer directly. This build uses an **SN65HVD230 3.3 V CAN transceiver module** between the ESP32 CAN TX/RX signals and CAN-H/CAN-L; the exact module is linked in the [CAN Interface](#can-interface) section.
@@ -169,10 +203,10 @@ The ESP32 does not carry the CAN physical layer directly. This build uses an **S
 
 ## Charger control
 
-- Control of three Huawei R4875G1 modules from one ESP32-S3.
-- Broadcast voltage setpoint for all modules.
-- Broadcast current setpoint for all modules.
-- Individual module ON/OFF commands.
+- Control of three Huawei R4875G1 units from one ESP32-S3.
+- Broadcast voltage setpoint for all units.
+- Broadcast current setpoint for all units.
+- Individual unit ON/OFF commands.
 - Broadcast ON/OFF commands.
 - Fan full-speed and automatic fan commands.
 - Fallback voltage and current settings.
@@ -193,7 +227,7 @@ The ESP32 does not carry the CAN physical layer directly. This build uses an **S
 
 ## Telemetry
 
-Per module, the controller decodes values including:
+Per unit, the controller decodes values including:
 
 - AC input power,
 - DC output power,
@@ -206,24 +240,24 @@ Per module, the controller decodes values including:
 - input temperature,
 - output temperature,
 - power state,
-- module capability and identification information.
+- unit capability and identification information.
 
 ## Reliability and fault handling
 
 - Independent CAN communication watchdog for each rectifier.
-- A module is considered offline when valid cyclic telemetry has not been received for 3 seconds.
-- Failed modules are excluded from combined AC/DC power calculations.
-- Stale module values are not included in combined power.
-- Display replaces unavailable module values with a clear CAN communication fault message.
-- AC overview continues operating with one or two modules if the other modules lose communication.
+- A unit is considered offline when valid cyclic telemetry has not been received for 3 seconds.
+- Failed units are excluded from combined AC/DC power calculations.
+- Stale unit values are not included in combined power.
+- Display replaces unavailable unit values with a clear CAN communication fault message.
+- AC overview continues operating with one or two units if the other units lose communication.
 
 ## Display
 
 - 480×320 ILI9488 TFT.
 - 500 ms refresh interval.
 - Live AC and DC information.
-- Per-module DC values and temperatures.
-- Per-module CAN fault indication.
+- Per-unit DC values and temperatures.
+- Per-unit CAN fault indication.
 - Local voltage and total-power setpoints.
 - Selected encoder field highlighted.
 - Charger state display (`OFF`, `1/3 ON`, `2/3 ON`, `3/3 ON`).
@@ -252,26 +286,26 @@ Module:
 
 The ESPHome configuration explicitly enables the full flash and PSRAM capabilities of the module.
 
-## Rectifier Modules
+## Rectifier Units
 
 This installation is designed around:
 
-- **3 × Huawei R4875G1** rectifier modules
+- **3 × Huawei R4875G1** rectifier units
 
 The project assumes that the three rectifiers are electrically suitable for parallel operation on the DC side and are configured as a symmetric charger set.
 
 Typical project topology:
 
-- Module 1 → AC phase L1
-- Module 2 → AC phase L2
-- Module 3 → AC phase L3
+- Unit 1 → AC phase L1
+- Unit 2 → AC phase L2
+- Unit 3 → AC phase L3
 - DC outputs → common DC bus / battery
 - CAN-H/CAN-L → common CAN bus
 
-The local power-control algorithm assumes three participating modules and calculates the requested current as:
+The local power-control algorithm assumes three participating units and calculates the requested current as:
 
 ```text
-Current per module = Total requested DC power / (DC voltage × 3)
+Current per unit = Total requested DC power / (DC voltage × 3)
 ```
 
 For example:
@@ -283,7 +317,7 @@ DC voltage:            53.0 V
 6000 W / (53 V × 3) = 37.74 A per rectifier
 ```
 
-The calculated current is limited to **75 A per module** in the current firmware.
+The calculated current is limited to **75 A per unit** in the current firmware.
 
 ## CAN Interface
 
@@ -294,14 +328,14 @@ This project uses the following 3.3 V CAN transceiver module:
 - **[CAN Bus Module SN65HVD230 Transceiver](https://www.ebay.de/itm/187121483571?mkevt=1&mkpid=0&emsid=e11412.m144671.l197929&mkcid=7&ch=osgood&euid=a3c94179b4b74512bcd68a2bfb44fee2&bu=43162872420&exe=0&ext=0&osub=-1%7E1&crd=20260816180453&segname=11412)**
 - Transceiver IC: **SN65HVD230**
 - Logic supply: **3.3 V**
-- Purpose: converts the ESP32-S3 CAN/TWAI TX/RX logic signals to the differential **CAN-H / CAN-L** physical bus used by the three rectifier modules.
+- Purpose: converts the ESP32-S3 CAN/TWAI TX/RX logic signals to the differential **CAN-H / CAN-L** physical bus used by the three rectifier units.
 
 The SN65HVD230 is a suitable match for the ESP32-S3 because it is designed for 3.3 V logic operation. Other electrically compatible CAN transceivers can also be used, but the wiring and supply requirements may differ.
 
 Current GPIO assignment:
 
-- CAN TX: **GPIO19**
-- CAN RX: **GPIO21**
+- CAN TX: **GPIO15**
+- CAN RX: **GPIO16**
 - CAN bitrate: **125 kbit/s**
 - Extended 29-bit CAN identifiers are used.
 
@@ -369,8 +403,8 @@ The encoder is intentionally designed to work without any network connectivity.
 | SPI CLK | GPIO13 | TFT / SPI bus |
 | Encoder A / S1 | GPIO17 | Local input |
 | Encoder B / S2 | GPIO18 | Local input |
-| CAN TX | GPIO19 | ESP32 CAN/TWAI |
-| CAN RX | GPIO21 | ESP32 CAN/TWAI |
+| CAN CTX | GPIO15 | ESP32 CAN/TWAI |
+| CAN CRX | GPIO16 | ESP32 CAN/TWAI |
 | Encoder button / KEY | GPIO2 | Local input, active low |
 
 ---
@@ -379,24 +413,24 @@ The encoder is intentionally designed to work without any network connectivity.
 
 The three rectifiers share the same DC bus. Therefore they must all operate at the same DC voltage.
 
-The firmware treats charger power as a total system target and attempts to distribute it evenly between the three rectifiers by commanding the same calculated current to each module.
+The firmware treats charger power as a total system target and attempts to distribute it evenly between the three rectifiers by commanding the same calculated current to each unit.
 
-```text
-P_total = 3 × U_DC × I_module
-```
+$$
+P_{total} = 3 \cdot U_{DC} \cdot I_{Unit}
+$$
 
 Therefore:
 
-```text
-I_module = P_total / (3 × U_DC)
-```
+$$
+I_{Unit} = \frac{P_{total}}{3 \cdot U_{DC}}
+$$
 
 This approach is particularly convenient for local control because the operator only needs to choose:
 
 1. desired DC voltage,
 2. desired total charger power.
 
-The per-module current becomes an implementation detail calculated by the controller.
+The per-unit current becomes an implementation detail calculated by the controller.
 
 > [!IMPORTANT]
 > The physical DC conductors, busbars, fuses, disconnects, battery protection, BMS, and charger wiring must be rated for the actual possible current. At 12 kW and approximately 53 V, total DC current is around 226 A.
@@ -473,16 +507,16 @@ The CAN interface uses:
 29-bit extended CAN identifiers
 ```
 
-The controller periodically polls all three modules for cyclic telemetry.
+The controller periodically polls all three units for cyclic telemetry.
 
 Current polling sequence:
 
 ```text
-Module 1 request: 0x108140FE
+Unit 1 request: 0x108140FE
 wait 183 ms
-Module 2 request: 0x108240FE
+Unit 2 request: 0x108240FE
 wait 193 ms
-Module 3 request: 0x108340FE
+Unit 3 request: 0x108340FE
 ```
 
 This sequence is started approximately every 577 ms.
@@ -490,12 +524,12 @@ This sequence is started approximately every 577 ms.
 The corresponding cyclic telemetry responses are:
 
 ```text
-Module 1: 0x1081407F
-Module 2: 0x1082407F
-Module 3: 0x1083407F
+Unit 1: 0x1081407F
+Unit 2: 0x1082407F
+Unit 3: 0x1083407F
 ```
 
-Each valid response refreshes that module's CAN communication watchdog timestamp.
+Each valid response refreshes that unit's CAN communication watchdog timestamp.
 
 ## Telemetry Decoding
 
@@ -540,7 +574,7 @@ The current scaling factor is initially configured as:
 15.0
 ```
 
-During module discovery, the controller reads the module's maximum-current capability and recalculates:
+During unit discovery, the controller reads the unit's maximum-current capability and recalculates:
 
 ```text
 amp_scaling_factor = 1024 / maximum_current
@@ -552,11 +586,11 @@ For a 75 A R4875G1 this is approximately:
 1024 / 75 ≈ 13.653
 ```
 
-The current implementation stores one global current scaling factor and derives it from Module 1. This is appropriate for the intended installation of three identical R4875G1 units. Mixed rectifier models would require additional consideration.
+The current implementation stores one global current scaling factor and derives it from Unit 1. This is appropriate for the intended installation of three identical R4875G1 units. Mixed rectifier models would require additional consideration.
 
 ## CAN Communication Watchdog
 
-Each module has its own diagnostic sensor:
+Each unit has its own diagnostic sensor:
 
 ```text
 can_com_ok_1
@@ -564,7 +598,7 @@ can_com_ok_2
 can_com_ok_3
 ```
 
-A module is considered online when a valid cyclic telemetry frame has been received within the previous **3 seconds**.
+A unit is considered online when a valid cyclic telemetry frame has been received within the previous **3 seconds**.
 
 Internally the firmware stores:
 
@@ -584,14 +618,14 @@ This watchdog is more reliable than simply checking for `NaN`, because an ESPHom
 
 ### Combined AC power
 
-`combined_ac_power_sensor` includes only modules that:
+`combined_ac_power_sensor` includes only units that:
 
 1. currently have valid CAN communication, and
 2. have a valid non-NaN AC power value.
 
-Offline modules are excluded instead of contributing stale measurements.
+Offline units are excluded instead of contributing stale measurements.
 
-If no valid module is available, the sensor returns `NAN`/unavailable rather than falsely reporting `0 kW`.
+If no valid unit is available, the sensor returns `NAN`/unavailable rather than falsely reporting `0 kW`.
 
 ### Combined DC power
 
@@ -599,16 +633,16 @@ If no valid module is available, the sensor returns `NAN`/unavailable rather tha
 
 ### AC values on the display
 
-The display does not depend on Module 1 alone.
+The display does not depend on Unit 1 alone.
 
-For all currently reachable modules with valid telemetry:
+For all currently reachable units with valid telemetry:
 
 - AC voltage → average
 - AC current → average
 - grid frequency → average
 - AC power → sum
 
-The display also shows how many modules are included:
+The display also shows how many units are included:
 
 ```text
 AC Input: 8.437 kW  (3/3)
@@ -622,11 +656,11 @@ AC Input: 5.612 kW  (2/3)
 
 The displayed AC current is therefore a representative **average per active rectifier/phase**, not the arithmetic sum of three phase currents.
 
-If all three modules lose communication:
+If all three units lose communication:
 
 ```text
 AC Input: CAN bus communication fault!
-No charger module reachable
+No charger unit reachable
 ```
 
 ## Local Blackstart Control
@@ -660,9 +694,9 @@ step: 0.25 kW
 
 The total power value is translated into current per rectifier:
 
-```text
-I_module = P_total / (U_DC × 3)
-```
+$$
+I_{unit} = \frac{P_{total}}{3 \cdot U_{DC}}
+$$
 
 The calculated current is constrained to the supported range of the current configuration:
 
@@ -671,7 +705,7 @@ minimum: 1 A
 maximum: 75 A
 ```
 
-Therefore requesting 12 kW at a low DC voltage may result in less than 12 kW of actual power because the per-module current is capped at 75 A.
+Therefore requesting 12 kW at a low DC voltage may result in less than 12 kW of actual power because the per-unit current is capped at 75 A.
 
 ### Blackstart start sequence
 
@@ -691,9 +725,9 @@ This avoids a race where a charger could be enabled before the latest current li
 
 ### Stop sequence
 
-A long press while any module is currently reported ON sends the broadcast OFF command.
+A long press while any unit is currently reported ON sends the broadcast OFF command.
 
-The decision is based on the actual CAN-reported module power-state sensors, not merely on a local software toggle.
+The decision is based on the actual CAN-reported unit power-state sensors, not merely on a local software toggle.
 
 ## Display User Interface
 
@@ -708,7 +742,7 @@ The top of the display contains:
 - CAN-aware AC input overview,
 - combined DC output power.
 
-### Per-module lines
+### Per-unit lines
 
 Each rectifier receives its own line containing:
 
@@ -726,7 +760,7 @@ Example:
 L1: 53.20 V - 37.7 A - 2005 W - 31.5 °C / 45.2 °C
 ```
 
-If CAN communication fails for that module, stale or NaN values are not shown. Instead:
+If CAN communication fails for that unit, stale or NaN values are not shown. Instead:
 
 ```text
 L1: CAN bus communication fault!
@@ -789,25 +823,25 @@ This reduces unnecessary display illumination without compromising local operati
 
 ## Temperature Protection
 
-Each module's output temperature is monitored independently.
+Each unit's output temperature is monitored independently.
 
-If a module reports an output temperature above:
+If a unit reports an output temperature above:
 
 ```text
 90 °C
 ```
 
-the controller sends an individual OFF command to that module.
+the controller sends an individual OFF command to that unit.
 
 The shutdown does not require Home Assistant, MQTT, or a network connection.
 
-## Module Discovery
+## Unit Discovery
 
-The firmware includes discovery routines for all three modules.
+The firmware includes discovery routines for all three units.
 
-The setup process can query module properties such as:
+The setup process can query unit properties such as:
 
-- module type,
+- unit type,
 - barcode / serial information,
 - item number,
 - description,
@@ -815,13 +849,13 @@ The setup process can query module properties such as:
 - maximum current capability,
 - hardware pin/shelf information.
 
-Property queries use module-specific CAN IDs and reconstruct multi-frame text responses before extracting key/value fields.
+Property queries use unit-specific CAN IDs and reconstruct multi-frame text responses before extracting key/value fields.
 
 A `SETUP` template button starts the sequential discovery process.
 
-Because the setup sequence deliberately queries the modules one after another with delays, it may take roughly a minute to complete.
+Because the setup sequence deliberately queries the units one after another with delays, it may take roughly a minute to complete.
 
-For the intended three identical 75 A R4875G1 modules, the configured defaults are sufficient for basic local blackstart operation even before the discovery sequence is run.
+For the intended three identical 75 A R4875G1 units, the configured defaults are sufficient for basic local blackstart operation even before the discovery sequence is run.
 
 ## Home Assistant, Web UI and MQTT
 
@@ -844,10 +878,10 @@ MQTT is enabled alongside the ESPHome API.
 Custom MQTT subscription topics allow remote updates of key setpoints:
 
 ```text
-home/canbus/voltage_set
-home/canbus/amp_set
-home/canbus/fallback_voltage_set
-home/canbus/fallback_amp_set
+home/canbus/set_dc_voltage
+home/canbus/set_dc_current
+home/canbus/set_dc_voltage_fallback
+home/canbus/set_dc_current_fallback
 ```
 
 Incoming values are range-checked before they are applied.
@@ -863,7 +897,7 @@ The configuration includes daily energy integration for:
 
 These are based on the CAN-aware combined power sensors.
 
-Because failed modules are excluded from combined power calculations, stale measurements from a disconnected rectifier do not continue to inflate the integrated energy values.
+Because failed units are excluded from combined power calculations, stale measurements from a disconnected rectifier do not continue to inflate the integrated energy values.
 
 ---
 
@@ -876,7 +910,7 @@ Because failed modules are excluded from combined power calculations, stale meas
 - **[CAN Bus Module SN65HVD230 Transceiver](https://www.ebay.de/itm/187121483571?mkevt=1&mkpid=0&emsid=e11412.m144671.l197929&mkcid=7&ch=osgood&euid=a3c94179b4b74512bcd68a2bfb44fee2&bu=43162872420&exe=0&ext=0&osub=-1%7E1&crd=20260816180453&segname=11412)** or another suitable 3.3 V CAN transceiver
 - ILI9488 display if local display functionality is required
 - rotary encoder with push button if local blackstart control is required
-- one to three compatible rectifier modules; this project is specifically developed for three R4875G1 units
+- one to three compatible rectifier units; this project is specifically developed for three R4875G1 units
 
 ## 1. Copy the YAML
 
@@ -928,24 +962,24 @@ Before enabling high-power charging, verify:
 - correct CAN bus termination,
 - common reference/ground requirements of your chosen CAN transceiver,
 - 125 kbit/s operation,
-- correct module addresses/physical configuration,
-- valid telemetry from each module.
+- correct unit addresses/physical configuration,
+- valid telemetry from each unit.
 
 The Home Assistant diagnostic entities:
 
 ```text
-CAN Communication Module-1
-CAN Communication Module-2
-CAN Communication Module-3
+CAN Communication Unit-1
+CAN Communication Unit-2
+CAN Communication Unit-3
 ```
 
 should become connected/ON when valid cyclic telemetry is being received.
 
 ## 7. Run SETUP
 
-Use the `SETUP` button to query module information and capability data.
+Use the `SETUP` button to query unit information and capability data.
 
-Check that all expected module identification and maximum-current values are populated.
+Check that all expected unit identification and maximum-current values are populated.
 
 ---
 
@@ -1019,9 +1053,9 @@ Current threshold:
 >= 3000 ms
 ```
 
-If all modules are reported OFF, a long press starts the blackstart sequence.
+If all units are reported OFF, a long press starts the blackstart sequence.
 
-If any module is reported ON, a long press sends the stop command.
+If any unit is reported ON, a long press sends the stop command.
 
 ---
 
@@ -1037,7 +1071,7 @@ A typical procedure is:
 1. Make sure the external AC source feeding the rectifiers is available and safe.
 2. Power the ESP32 controller and CAN interface.
 3. Wait for the display to start.
-4. Verify whether the rectifier modules are reachable via CAN.
+4. Verify whether the rectifier units are reachable via CAN.
 5. Select the desired DC voltage with the rotary encoder.
 6. Short-press the encoder button to select total DC power.
 7. Select a conservative initial charging power.
@@ -1067,31 +1101,31 @@ The following table documents the main CAN IDs used by this project. It is inten
 
 | CAN ID pattern | Direction | Purpose |
 |---|---|---|
-| `0x108140FE` | ESP → Module 1 | Request cyclic telemetry |
-| `0x108240FE` | ESP → Module 2 | Request cyclic telemetry |
-| `0x108340FE` | ESP → Module 3 | Request cyclic telemetry |
-| `0x1081407F` | Module 1 → ESP | Cyclic telemetry data |
-| `0x1082407F` | Module 2 → ESP | Cyclic telemetry data |
-| `0x1083407F` | Module 3 → ESP | Cyclic telemetry data |
-| `0x1081D2FE` | ESP → Module 1 | Request module properties |
-| `0x1082D2FE` | ESP → Module 2 | Request module properties |
-| `0x1083D2FE` | ESP → Module 3 | Request module properties |
-| `0x1081D27F / 7E` | Module 1 → ESP | Multi-frame module properties |
-| `0x1082D27F / 7E` | Module 2 → ESP | Multi-frame module properties |
-| `0x1083D27F / 7E` | Module 3 → ESP | Multi-frame module properties |
-| `0x108150FE` | ESP → Module 1 | Request capability/data packets |
-| `0x108250FE` | ESP → Module 2 | Request capability/data packets |
-| `0x108350FE` | ESP → Module 3 | Request capability/data packets |
-| `0x1081507F / 7E` | Module 1 → ESP | Capability/data responses |
-| `0x1082507F / 7E` | Module 2 → ESP | Capability/data responses |
-| `0x1083507F / 7E` | Module 3 → ESP | Capability/data responses |
-| `0x1001117E` | Module 1 → ESP | Power state / alternate current data |
-| `0x1002117E` | Module 2 → ESP | Power state / alternate current data |
-| `0x1003117E` | Module 3 → ESP | Power state / alternate current data |
+| `0x108140FE` | ESP → Unit 1 | Request cyclic telemetry |
+| `0x108240FE` | ESP → Unit 2 | Request cyclic telemetry |
+| `0x108340FE` | ESP → Unit 3 | Request cyclic telemetry |
+| `0x1081407F` | Unit 1 → ESP | Cyclic telemetry data |
+| `0x1082407F` | Unit 2 → ESP | Cyclic telemetry data |
+| `0x1083407F` | Unit 3 → ESP | Cyclic telemetry data |
+| `0x1081D2FE` | ESP → Unit 1 | Request unit properties |
+| `0x1082D2FE` | ESP → Unit 2 | Request unit properties |
+| `0x1083D2FE` | ESP → Unit 3 | Request unit properties |
+| `0x1081D27F / 7E` | Unit 1 → ESP | Multi-frame unit properties |
+| `0x1082D27F / 7E` | Unit 2 → ESP | Multi-frame unit properties |
+| `0x1083D27F / 7E` | Unit 3 → ESP | Multi-frame unit properties |
+| `0x108150FE` | ESP → Unit 1 | Request capability/data packets |
+| `0x108250FE` | ESP → Unit 2 | Request capability/data packets |
+| `0x108350FE` | ESP → Unit 3 | Request capability/data packets |
+| `0x1081507F / 7E` | Unit 1 → ESP | Capability/data responses |
+| `0x1082507F / 7E` | Unit 2 → ESP | Capability/data responses |
+| `0x1083507F / 7E` | Unit 3 → ESP | Capability/data responses |
+| `0x1001117E` | Unit 1 → ESP | Power state / alternate current data |
+| `0x1002117E` | Unit 2 → ESP | Power state / alternate current data |
+| `0x1003117E` | Unit 3 → ESP | Power state / alternate current data |
 | `0x108080FE` | ESP → all | Broadcast configuration/control |
-| `0x108180FE` | ESP → Module 1 | Individual control |
-| `0x108280FE` | ESP → Module 2 | Individual control |
-| `0x108380FE` | ESP → Module 3 | Individual control |
+| `0x108180FE` | ESP → Unit 1 | Individual control |
+| `0x108280FE` | ESP → Unit 2 | Individual control |
+| `0x108380FE` | ESP → Unit 3 | Individual control |
 
 Broadcast command payloads in the current project include functions for:
 
@@ -1110,41 +1144,41 @@ https://github.com/mjpalmowski/CAN-BUS-control-R4875G1-with-ESPHome-and-MQTT
 
 # Important Limits and Behaviour
 
-## 75 A per-module current cap
+## 75 A per-unit current cap
 
-The local total-power calculation caps current at 75 A per module.
+The local total-power calculation caps current at 75 A per unit.
 
 Therefore the configured 12 kW power selector does **not** guarantee that 12 kW can be produced at every voltage.
 
 Example at 49 V:
 
 ```text
-12,000 W / (49 V × 3) = 81.63 A/module
+12,000 W / (49 V × 3) = 81.63 A/unit
 ```
 
-The firmware limits this to 75 A/module, so actual achievable power is lower:
+The firmware limits this to 75 A/unit, so actual achievable power is lower:
 
 ```text
 49 V × 75 A × 3 ≈ 11.0 kW
 ```
 
-## Identical-module assumption
+## Identical-unit assumption
 
-The local power distribution assumes three equivalent rectifier modules and sends one common current target.
+The local power distribution assumes three equivalent rectifier units and sends one common current target.
 
-The global current scaling factor is also derived from Module 1.
+The global current scaling factor is also derived from Unit 1.
 
 Do not assume correct behaviour with mixed rectifier models or different current capabilities without adapting the logic.
 
 ## Communication loss
 
-If one module loses CAN:
+If one unit loses CAN:
 
 - its individual display line shows a CAN communication fault,
 - its stale power value is excluded from combined AC/DC power,
-- AC average values are calculated from the remaining valid modules.
+- AC average values are calculated from the remaining valid units.
 
-If all modules lose CAN:
+If all units lose CAN:
 
 - AC display shows a communication fault,
 - combined AC/DC power sensors become unavailable rather than 0.
@@ -1165,7 +1199,7 @@ None of these values are required for CAN control or local blackstart.
 
 Voltage and current setpoints are periodically retransmitted over CAN every 30 seconds in addition to immediate updates when the values change.
 
-This helps keep the modules synchronized with the controller's intended settings.
+This helps keep the units synchronized with the controller's intended settings.
 
 ---
 
@@ -1176,7 +1210,7 @@ This helps keep the modules synchronized with the controller's intended settings
 Check:
 
 - rectifier has AC power,
-- module addressing / slot configuration,
+- unit addressing / slot configuration,
 - CAN-H and CAN-L polarity,
 - transceiver power supply,
 - ESP32 CAN TX/RX wiring,
@@ -1187,11 +1221,11 @@ Check:
 
 The CAN watchdog needs a valid cyclic telemetry frame within 3 seconds.
 
-## Only one or two modules appear in AC Input
+## Only one or two units appear in AC Input
 
 This is intentional fault-tolerant behaviour.
 
-The `(x/3)` indicator shows how many modules currently have valid CAN communication and valid telemetry.
+The `(x/3)` indicator shows how many units currently have valid CAN communication and valid telemetry.
 
 Example:
 
@@ -1199,7 +1233,7 @@ Example:
 AC Input: 5.4 kW (2/3)
 ```
 
-means only two modules are currently contributing to the displayed AC values.
+means only two units are currently contributing to the displayed AC values.
 
 ## Encoder values react slowly or continue changing after rotation
 
@@ -1240,19 +1274,19 @@ Check in this order:
 4. Voltage setpoint is appropriate.
 5. Total power/current is appropriate.
 6. Long press is held for at least 3 seconds.
-7. Module power-state sensors change to ON.
+7. Unit power-state sensors change to ON.
 8. BMS or external DC protection is not blocking current.
 
 ---
 
 # Known Limitations
 
-- The firmware is optimized for **three identical R4875G1 modules**.
-- The current calculation always divides total requested power by three, even if one module has lost CAN communication. The local setpoint model therefore assumes the intended three-module system is available for charging.
-- Current scaling is global and derived from Module 1.
+- The firmware is optimized for **three identical R4875G1 units**.
+- The current calculation always divides total requested power by three, even if one unit has lost CAN communication. The local setpoint model therefore assumes the intended three-unit system is available for charging.
+- Current scaling is global and derived from Unit 1.
 - The touchscreen configuration is currently disabled.
 - GPIO17 is now used by the encoder, so the old XPT2046 IRQ configuration cannot be enabled unchanged.
-- If all modules are offline, the combined DC power sensor becomes unavailable. The current DC header on the TFT formats the combined sensor directly, so depending on ESPHome display formatting it may show an unavailable/NaN representation until a dedicated DC-header communication-fault branch is added.
+- If all units are offline, the combined DC power sensor becomes unavailable. The current DC header on the TFT formats the combined sensor directly, so depending on ESPHome display formatting it may show an unavailable/NaN representation until a dedicated DC-header communication-fault branch is added.
 - SNTP-based time requires network access to synchronize after a cold start.
 - This project does not replace correctly engineered hardware safety mechanisms such as fuses, breakers, contactors, BMS protection, thermal protection, earthing or isolation.
 
