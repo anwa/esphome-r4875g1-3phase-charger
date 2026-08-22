@@ -221,7 +221,7 @@ The ESP32 does not carry the CAN physical layer directly. This build uses an **S
 - MQTT broker failure does not reboot the controller.
 - Rotary encoder adjusts:
   - DC output voltage,
-  - total requested DC charging power.
+  - nominal three-unit DC charging power target.
 - Controller calculates the required current per rectifier automatically.
 - Local START requires valid CAN communication with at least one rectifier.
 
@@ -313,22 +313,24 @@ Typical project topology:
 - DC outputs → common DC bus / battery
 - CAN-H/CAN-L → common CAN bus
 
-The local power-control algorithm assumes three participating units and calculates the requested current as:
+The local power-control algorithm treats the configured power as a nominal three-rectifier target and calculates the common current command as:
 
 ```text
-Current per unit = Total requested DC power / (DC voltage × 3)
-```
+Current per unit = Nominal three-unit DC power target / (DC voltage × 3)
+````
 
 For example:
 
 ```text
-Requested total power: 6.0 kW
-DC voltage:            53.0 V
+Nominal three-unit target: 6.0 kW
+DC voltage:                53.0 V
 
 6000 W / (53 V × 3) = 37.74 A per rectifier
 ```
 
-The calculated current is limited to **75 A per unit** in the current firmware.
+The factor of three remains fixed during partial-unit operation. If fewer than three rectifiers are actually operating, actual combined output power is correspondingly lower.
+
+The calculated current is limited by the runtime `Effective DC Current Limit`, which can never exceed the project's 75 A per-unit ceiling.
 
 ## CAN Interface
 
@@ -786,24 +788,18 @@ $$
 
 The factor of three is fixed and does not change during partial-unit operation.
 
-If fewer than three rectifiers are actually operating, the controller does not raise the current of the remaining units to compensate. Actual combined output power is therefore lower than the configured target.
+If fewer than three rectifiers are actually operating, the controller does not
+raise the current of the remaining units to compensate. Actual combined output
+power is therefore lower than the configured target.
 
 Configured range:
 
 ```text
 0.25–12.0 kW
 step: 0.25 kW
-```
+````
 
-The total power value is translated into current per rectifier:
-
-$$
-I_{unit} = \frac{P_{total}}{3 \cdot U_{DC}}
-$$
-
-Therefore requesting 12 kW at a low DC voltage may result in less than 12 kW of actual power because the per-unit current is limited by the effective DC current limit, which can never exceed the 75 A project ceiling.
-
-The calculated current is constrained to the supported range of the current configuration:
+The calculated current is constrained to:
 
 ```text
 minimum: 1 A
@@ -814,8 +810,8 @@ maximum: lowest of
 
 For the intended three 75 A R4875G1 rectifiers, the effective maximum is 75 A.
 
-If a lower-capability rectifier is detected, the total-power calculation is automatically limited to that lower current.
-
+If a lower-capability rectifier is detected, the total-power calculation is
+automatically limited to that lower current.
 
 ### Blackstart start sequence
 
@@ -896,15 +892,17 @@ The selected local control field is shown in bold blue with a `>` marker:
 
 ```text
 > DC Voltage: 53.0 V
-  DC Power: 6.00 kW - 37.7 A/unit
-```
+  DC Target(3U): 6.00 kW - 37.7 A/u
+````
 
 After a short encoder-button press:
 
 ```text
   DC Voltage: 53.0 V
-> DC Power: 6.00 kW - 37.7 A/unit
+> DC Target(3U): 6.00 kW - 37.7 A/u
 ```
+
+`DC Target(3U)` is the nominal power target for the complete three-rectifier system. The actual measured combined output is shown separately in the `DC Output` header.
 
 ### Charger state
 
@@ -1160,7 +1158,7 @@ The rotary encoder is designed to provide a deliberately small local control sur
 - clockwise → increase voltage by 0.1 V
 - anticlockwise → decrease voltage by 0.1 V
 
-Changing voltage also recalculates the current required to maintain the selected total DC power.
+Changing voltage recalculates the common per-unit current required for the selected nominal three-unit DC power target.
 
 ## Short button press
 
@@ -1179,8 +1177,10 @@ Current timing in the YAML:
 
 ## Rotate while DC Power is selected
 
-- clockwise → increase total charger power by 0.25 kW
-- anticlockwise → decrease total charger power by 0.25 kW
+- clockwise → increase the nominal three-unit DC power target by 0.25 kW
+- anticlockwise → decrease the nominal three-unit DC power target by 0.25 kW
+
+This does not redistribute the target across fewer available rectifiers.
 
 The current per rectifier is recalculated automatically.
 
