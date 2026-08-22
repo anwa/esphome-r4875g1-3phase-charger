@@ -2148,10 +2148,14 @@ sensor:
   # ESP32 Internal Temperature Sensor
   # ESP32 controller-die temperature. This is not a rectifier temperature.
   - platform: internal_temperature
-    name: "Contoler CPU Temperatur"
+    name: "Controller CPU Temperature"
     id: cpu_temp
-    icon: mdi:thermometer
+    device_class: temperature
+    state_class: measurement
+    entity_category: diagnostic
+    accuracy_decimals: 1
     update_interval: 10s
+    icon: mdi:thermometer
 
   # --------------------------------------------------------------------------
   # Uptime Sensor
