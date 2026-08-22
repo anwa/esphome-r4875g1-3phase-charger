@@ -258,6 +258,9 @@ Per unit, the controller decodes values including:
 - AC and DC overviews continue operating with one or two units if other units lose communication.
 - AC and DC overview headers show how many of the three rectifier units currently contribute valid telemetry.
 - The DC overview displays a CAN communication fault instead of an invalid `nan` value when no rectifier telemetry is available.
+- Maximum-current capabilities of all three rectifiers are compared automatically.
+- A diagnostic problem entity reports a mismatch between rectifier hardware capabilities.
+- Capability consistency remains `unknown` until all three rectifiers have supplied valid capability data.
 
 ## Display
 
@@ -606,6 +609,31 @@ Unit 1 remains the canonical source for the shared current scaling factor.
 Unit 2 and Unit 3 capability values are decoded separately for diagnostic comparison but do not overwrite the shared factor.
 
 This architecture assumes the intended installation of three identical R4875G1 rectifiers. Mixed rectifier models require additional capability validation.
+
+### Rectifier capability consistency
+
+Once the maximum-current capability of all three rectifiers has been received,
+the controller compares the reported values automatically.
+
+A diagnostic binary sensor is exposed:
+
+```text
+Rectifier Capability Mismatch
+```
+
+Its states are:
+
+```text
+unknown = capability data for all three rectifiers is not currently confirmed
+OFF     = all three maximum-current capabilities match
+ON      = at least one rectifier reports a different maximum-current capability
+```
+
+The reported capability has a resolution of 0.5 A. The comparison therefore uses a 0.25 A tolerance so every real capability difference is detected without depending on exact floating-point equality.
+
+A mismatch may indicate that a different Huawei R48xx model has been installed, that a rectifier was replaced with a unit having different current capability, or that the detected hardware configuration is otherwise inconsistent.
+
+The diagnostic does not currently inhibit charger operation. Unit 1 remains the canonical source for the shared current_scaling_factor. A capability mismatch should therefore be investigated before relying on normal three-unit operation.
 
 ## CAN Communication Watchdog
 

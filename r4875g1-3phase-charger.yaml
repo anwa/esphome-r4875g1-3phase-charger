@@ -1024,6 +1024,7 @@ script:
           id(max_current_found_1) = false; // Reset the flag before starting
           id(data_found_1) = false; // Reset the flag before starting
           id(search_counter_1) = 0; // Initialize a fail-safe counter
+      - binary_sensor.invalidate_state: rectifier_capability_mismatch
       - while:
           condition:
             lambda: |-
@@ -1063,6 +1064,7 @@ script:
           id(max_current_found_2) = false; // Reset the flag before starting
           id(data_found_2) = false; // Reset the flag before starting
           id(search_counter_2) = 0; // Initialize a fail-safe counter
+      - binary_sensor.invalidate_state: rectifier_capability_mismatch
       - while:
           condition:
             lambda: |-
@@ -1102,6 +1104,7 @@ script:
           id(max_current_found_3) = false; // Reset the flag before starting
           id(data_found_3) = false; // Reset the flag before starting
           id(search_counter_3) = 0; // Initialize a fail-safe counter
+      - binary_sensor.invalidate_state: rectifier_capability_mismatch
       - while:
           condition:
             lambda: |-
@@ -1131,6 +1134,79 @@ script:
               id(data_found_3) ? "yes" : "no"
             );
           }
+
+  # --------------------------------------------------------------------------
+  # evaluate_rectifier_capabilities
+  # --------------------------------------------------------------------------
+  # Compares the maximum-current capability reported by all three rectifiers.
+  #
+  # The diagnostic becomes valid only after all three capability responses have
+  # been received. Until then the binary sensor remains UNKNOWN.
+  #
+  # Huawei capability data is encoded in 0.5 A steps, therefore a tolerance of
+  # 0.25 A reliably distinguishes equal capabilities from an actual mismatch.
+  - id: evaluate_rectifier_capabilities
+    mode: restart
+    then:
+      - if:
+          condition:
+            lambda: |-
+              return
+                id(max_current_found_1) &&
+                id(max_current_found_2) &&
+                id(max_current_found_3) &&
+
+                !isnan(id(max_dc_current_1).state) &&
+                !isnan(id(max_dc_current_2).state) &&
+                !isnan(id(max_dc_current_3).state);
+
+          then:
+            - lambda: |-
+                const float capability_1 =
+                    id(max_dc_current_1).state;
+
+                const float capability_2 =
+                    id(max_dc_current_2).state;
+
+                const float capability_3 =
+                    id(max_dc_current_3).state;
+
+                // Capability values are reported in 0.5 A steps.
+                // 0.25 A therefore safely separates equal values from
+                // different reported hardware capabilities.
+                constexpr float tolerance_a = 0.25f;
+
+                const bool mismatch =
+                    fabsf(capability_1 - capability_2) > tolerance_a ||
+                    fabsf(capability_1 - capability_3) > tolerance_a ||
+                    fabsf(capability_2 - capability_3) > tolerance_a;
+
+                id(rectifier_capability_mismatch).publish_state(mismatch);
+
+                if (mismatch) {
+                  ESP_LOGE(
+                    "capability",
+                    "RECTIFIER CAPABILITY MISMATCH: "
+                    "Unit 1 = %.1f A, Unit 2 = %.1f A, Unit 3 = %.1f A. "
+                    "Shared current scaling remains based on Unit 1.",
+                    capability_1,
+                    capability_2,
+                    capability_3
+                  );
+                } else {
+                  ESP_LOGI(
+                    "capability",
+                    "Rectifier capabilities match: "
+                    "Unit 1 = %.1f A, Unit 2 = %.1f A, Unit 3 = %.1f A.",
+                    capability_1,
+                    capability_2,
+                    capability_3
+                  );
+                }
+
+          else:
+            - binary_sensor.invalidate_state: rectifier_capability_mismatch
+
   # --------------------------------------------------------------------------
   # setup_sequence
   # --------------------------------------------------------------------------
@@ -1955,8 +2031,8 @@ canbus:
                 max_current
               );
 
-              id(max_dc_current_1).publish_state(max_current);
               id(max_current_found_1) = true;
+              id(max_dc_current_1).publish_state(max_current);
 
               // Unit 1 defines the shared current-command scaling factor.
               id(current_scaling_factor) =
@@ -2024,8 +2100,8 @@ canbus:
                 max_current
               );
 
-              id(max_dc_current_2).publish_state(max_current);
               id(max_current_found_2) = true;
+              id(max_dc_current_2).publish_state(max_current);
 
               const float unit_2_scaling_factor =
                   1024.0f / max_current;
@@ -2092,8 +2168,8 @@ canbus:
                 max_current
               );
 
-              id(max_dc_current_3).publish_state(max_current);
               id(max_current_found_3) = true;
+              id(max_dc_current_3).publish_state(max_current);
 
               const float unit_3_scaling_factor =
                   1024.0f / max_current;
@@ -2741,6 +2817,10 @@ sensor:
     icon: "mdi:information-outline"
     update_interval: never
 
+    on_value:
+      then:
+        - script.execute: evaluate_rectifier_capabilities
+
   # --------------------------------------------------------------------------
   # Max Current Capability Unit-2
   # Maximum output-current capability reported by this rectifier during discovery.
@@ -2754,6 +2834,10 @@ sensor:
     icon: "mdi:information-outline"
     update_interval: never
 
+    on_value:
+      then:
+        - script.execute: evaluate_rectifier_capabilities
+
   # --------------------------------------------------------------------------
   # Max Current Capability Unit-3
   # Maximum output-current capability reported by this rectifier during discovery.
@@ -2766,6 +2850,10 @@ sensor:
     accuracy_decimals: 3
     icon: "mdi:information-outline"
     update_interval: never
+
+    on_value:
+      then:
+        - script.execute: evaluate_rectifier_capabilities
 
   # --------------------------------------------------------------------------
   # Output Current alt Unit-1
@@ -4228,6 +4316,25 @@ binary_sensor:
                 "Unit 3: CAN communication lost - power state set to UNKNOWN."
               );
             }
+
+  # --------------------------------------------------------------------------
+  # Rectifier Capability Mismatch
+  # Diagnostic problem indicator comparing the maximum-current capability
+  # reported by all three rectifiers.
+  #
+  # State:
+  #   unknown = not all three current capabilities have been confirmed
+  #   OFF     = all three capabilities match
+  #   ON      = at least one rectifier reports a different capability
+  #
+  # The state is published by evaluate_rectifier_capabilities whenever fresh
+  # capability data is received.
+  - platform: template
+    name: "Rectifier Capability Mismatch"
+    id: rectifier_capability_mismatch
+    device_class: problem
+    entity_category: diagnostic
+    icon: "mdi:alert-circle-outline"
 
 # ==============================================================================
 # PERIODIC CAN TRAFFIC
