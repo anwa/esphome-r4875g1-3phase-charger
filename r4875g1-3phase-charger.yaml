@@ -965,10 +965,22 @@ script:
             - lambda: |-
                 id(search_counter_1) += 1; // Increment the fail-safe counter
       - lambda: |-
-          if (id(search_counter_1) >= 20) {
-            ESP_LOGW("canbus", "Unit 1 Fail-safe triggered: Loop stopped after 20 attempts.");
+          if (id(max_current_found_1) && id(data_found_1)) {
+            ESP_LOGI(
+              "canbus",
+              "Unit 1 capability/address discovery completed successfully after %d attempt(s).",
+              id(search_counter_1)
+            );
+          } else {
+            ESP_LOGW(
+              "canbus",
+              "Unit 1 capability/address discovery failed after %d attempt(s). "
+              "Max current found: %s, address data found: %s",
+              id(search_counter_1),
+              id(max_current_found_1) ? "yes" : "no",
+              id(data_found_1) ? "yes" : "no"
+            );
           }
-
   # --------------------------------------------------------------------------
   # detect_data_unit_2
   # --------------------------------------------------------------------------
@@ -992,10 +1004,22 @@ script:
             - lambda: |-
                 id(search_counter_2) += 1; // Increment the fail-safe counter
       - lambda: |-
-          if (id(search_counter_2) >= 20) {
-            ESP_LOGW("canbus", "Unit 2 Fail-safe triggered: Loop stopped after 20 attempts.");
+          if (id(max_current_found_2) && id(data_found_2)) {
+            ESP_LOGI(
+              "canbus",
+              "Unit 2 capability/address discovery completed successfully after %d attempt(s).",
+              id(search_counter_2)
+            );
+          } else {
+            ESP_LOGW(
+              "canbus",
+              "Unit 2 capability/address discovery failed after %d attempt(s). "
+              "Max current found: %s, address data found: %s",
+              id(search_counter_2),
+              id(max_current_found_2) ? "yes" : "no",
+              id(data_found_2) ? "yes" : "no"
+            );
           }
-
   # --------------------------------------------------------------------------
   # detect_data_unit_3
   # --------------------------------------------------------------------------
@@ -1019,10 +1043,22 @@ script:
             - lambda: |-
                 id(search_counter_3) += 1; // Increment the fail-safe counter
       - lambda: |-
-          if (id(search_counter_3) >= 20) {
-            ESP_LOGW("canbus", "Unit 3 Fail-safe triggered: Loop stopped after 20 attempts.");
+          if (id(max_current_found_3) && id(data_found_3)) {
+            ESP_LOGI(
+              "canbus",
+              "Unit 3 capability/address discovery completed successfully after %d attempt(s).",
+              id(search_counter_3)
+            );
+          } else {
+            ESP_LOGW(
+              "canbus",
+              "Unit 3 capability/address discovery failed after %d attempt(s). "
+              "Max current found: %s, address data found: %s",
+              id(search_counter_3),
+              id(max_current_found_3) ? "yes" : "no",
+              id(data_found_3) ? "yes" : "no"
+            );
           }
-
   # --------------------------------------------------------------------------
   # setup_sequence
   # --------------------------------------------------------------------------
