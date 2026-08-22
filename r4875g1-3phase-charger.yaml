@@ -1937,6 +1937,9 @@ canbus:
         use_extended_id: true
         then:
           - lambda: |-
+              // Any valid property frame confirms that Unit 1 is reachable.
+              id(last_can_rx_1) = millis();
+
               static bool message_started = false;
 
               if (x.size() == 8) {
@@ -1946,7 +1949,7 @@ canbus:
                   message_started = true;
                   id(frame_counter_msg_start_1) = 0;  // Reset global frame counter
                   ESP_LOGI(
-                    "unit_properties_1",
+                    "unit_properties",
                     "Unit 1: Message Start Detected"
                   );
                 }
@@ -1961,7 +1964,7 @@ canbus:
 
                   // Log for debugging purposes
                   ESP_LOGD(
-                    "unit_properties_1",
+                    "unit_properties",
                     "Unit 1: Captured Frame #%d: %s",
                     id(frame_counter_msg_start_1),
                     frame_data.c_str()
@@ -1978,6 +1981,9 @@ canbus:
         use_extended_id: true
         then:
           - lambda: |-
+              // Any valid property frame confirms that Unit 2 is reachable.
+              id(last_can_rx_2) = millis();
+
               static bool message_started = false;
 
               if (x.size() == 8) {
@@ -1987,7 +1993,7 @@ canbus:
                   message_started = true;
                   id(frame_counter_msg_start_2) = 0;  // Reset global frame counter
                   ESP_LOGI(
-                    "unit_properties_2",
+                    "unit_properties",
                     "Unit 2: Message Start Detected"
                   );
                 }
@@ -2002,7 +2008,7 @@ canbus:
 
                   // Log for debugging purposes
                   ESP_LOGD(
-                    "unit_properties_2",
+                    "unit_properties",
                     "Unit 2: Captured Frame #%d: %s",
                     id(frame_counter_msg_start_2),
                     frame_data.c_str()
@@ -2019,6 +2025,9 @@ canbus:
         use_extended_id: true
         then:
           - lambda: |-
+              // Any valid property frame confirms that Unit 3 is reachable.
+              id(last_can_rx_3) = millis();
+
               static bool message_started = false;
 
               if (x.size() == 8) {
@@ -2028,7 +2037,7 @@ canbus:
                   message_started = true;
                   id(frame_counter_msg_start_3) = 0;  // Reset global frame counter
                   ESP_LOGI(
-                    "unit_properties_3",
+                    "unit_properties",
                     "Unit 3: Message Start Detected"
                   );
                 }
@@ -2043,7 +2052,7 @@ canbus:
 
                   // Log for debugging purposes
                   ESP_LOGD(
-                    "unit_properties_3",
+                    "unit_properties",
                     "Unit 3: Captured Frame #%d: %s",
                     id(frame_counter_msg_start_3),
                     frame_data.c_str()
@@ -2060,11 +2069,14 @@ canbus:
         use_extended_id: true
         then:
           - lambda: |-
+              // The property END frame also confirms active CAN communication.
+              id(last_can_rx_1) = millis();
+
               // Check if this frame contains additional payload data
               if (x.size() > 2) {  // Payload starts at x[2], so size must be > 2
                 std::string frame_data((char*)&x[2], x.size() - 2);
                 ESP_LOGI(
-                  "unit_properties_1",
+                  "unit_properties",
                   "Unit 1: End Message Frame Data: %s",
                   frame_data.c_str()
                 );
@@ -2072,13 +2084,13 @@ canbus:
                 id(unit_properties_1) += frame_data;
               }
               ESP_LOGI(
-                "unit_properties_1",
+                "unit_properties",
                 "Unit 1: Total Frames Captured: %d",
                 id(frame_counter_msg_start_1)
               );
               if (id(frame_counter_msg_start_1) == 0) {
                 ESP_LOGW(
-                  "unit_properties_1",
+                  "unit_properties",
                   "Unit 1: Property end frame received without a valid start/data frame. "
                   "Discarding incomplete response."
                 );
@@ -2088,7 +2100,7 @@ canbus:
                 return;
               }
               ESP_LOGD(
-                "unit_properties_1",
+                "unit_properties",
                 "Unit 1: Final Unit Properties: %s",
                 id(unit_properties_1).c_str()
               );
@@ -2127,7 +2139,7 @@ canbus:
                 std::string value = extract_value(id(unit_properties_1), mapping.key);
                 if (!value.empty()) {
                   ESP_LOGI(
-                    "unit_properties_1",
+                    "unit_properties",
                     "Unit 1: Extracted %s: %s",
                     mapping.key,
                     value.c_str()
@@ -2138,7 +2150,7 @@ canbus:
                   }
                 } else {
                   ESP_LOGW(
-                    "unit_properties_1",
+                    "unit_properties",
                     "Unit 1: Key %s not found or empty",
                     mapping.key
                   );
@@ -2152,13 +2164,13 @@ canbus:
               if (all_keys_found) {
                 id(unit_properties_complete_1) = true; // Mark completion only if all keys are found
                 ESP_LOGI(
-                  "unit_properties_1",
+                  "unit_properties",
                   "Unit 1: All required keys found. Marking as complete."
                 );
               } else {
                 id(unit_properties_complete_1) = false; // Explicitly reset the flag if keys are missing
                 ESP_LOGI(
-                  "unit_properties_1",
+                  "unit_properties",
                   "Unit 1: Not all keys found. Will continue processing."
                 );
               }
@@ -2172,11 +2184,14 @@ canbus:
         use_extended_id: true
         then:
           - lambda: |-
+              // The property END frame also confirms active CAN communication.
+              id(last_can_rx_2) = millis();
+
               // Check if this frame contains additional payload data
               if (x.size() > 2) {  // Payload starts at x[2], so size must be > 2
                 std::string frame_data((char*)&x[2], x.size() - 2);
                 ESP_LOGI(
-                  "unit_properties_2",
+                  "unit_properties",
                   "Unit 2: End Message Frame Data: %s",
                   frame_data.c_str()
                 );
@@ -2184,13 +2199,13 @@ canbus:
                 id(unit_properties_2) += frame_data;
               }
               ESP_LOGI(
-                "unit_properties_2",
+                "unit_properties",
                 "Unit 2: Total Frames Captured: %d",
                 id(frame_counter_msg_start_2)
               );
               if (id(frame_counter_msg_start_2) == 0) {
                 ESP_LOGW(
-                  "unit_properties_2",
+                  "unit_properties",
                   "Unit 2: Property end frame received without a valid start/data frame. "
                   "Discarding incomplete response."
                 );
@@ -2200,7 +2215,7 @@ canbus:
                 return;
               }
               ESP_LOGD(
-                "unit_properties_2",
+                "unit_properties",
                 "Unit 2: Final Unit Properties: %s",
                 id(unit_properties_2).c_str()
               );
@@ -2239,7 +2254,7 @@ canbus:
                 std::string value = extract_value(id(unit_properties_2), mapping.key);
                 if (!value.empty()) {
                   ESP_LOGI(
-                    "unit_properties_2",
+                    "unit_properties",
                     "Unit 2: Extracted %s: %s",
                     mapping.key,
                     value.c_str()
@@ -2250,7 +2265,7 @@ canbus:
                   }
                 } else {
                   ESP_LOGW(
-                    "unit_properties_2",
+                    "unit_properties",
                     "Unit 2: Key %s not found or empty",
                     mapping.key
                   );
@@ -2264,13 +2279,13 @@ canbus:
               if (all_keys_found) {
                 id(unit_properties_complete_2) = true; // Mark completion only if all keys are found
                 ESP_LOGI(
-                  "unit_properties_2",
+                  "unit_properties",
                   "Unit 2: All required keys found. Marking as complete."
                 );
               } else {
                 id(unit_properties_complete_2) = false; // Explicitly reset the flag if keys are missing
                 ESP_LOGI(
-                  "unit_properties_2",
+                  "unit_properties",
                   "Unit 2: Not all keys found. Will continue processing."
                 );
               }
@@ -2284,11 +2299,14 @@ canbus:
         use_extended_id: true
         then:
           - lambda: |-
+              // The property END frame also confirms active CAN communication.
+              id(last_can_rx_3) = millis();
+
               // Check if this frame contains additional payload data
               if (x.size() > 2) {  // Payload starts at x[2], so size must be > 2
                 std::string frame_data((char*)&x[2], x.size() - 2);
                 ESP_LOGI(
-                  "unit_properties_3",
+                  "unit_properties",
                   "Unit 3: End Message Frame Data: %s",
                   frame_data.c_str()
                 );
@@ -2296,13 +2314,13 @@ canbus:
                 id(unit_properties_3) += frame_data;
               }
               ESP_LOGI(
-                "unit_properties_3",
+                "unit_properties",
                 "Unit 3: Total Frames Captured: %d",
                 id(frame_counter_msg_start_3)
               );
               if (id(frame_counter_msg_start_3) == 0) {
                 ESP_LOGW(
-                  "unit_properties_3",
+                  "unit_properties",
                   "Unit 3: Property end frame received without a valid start/data frame. "
                   "Discarding incomplete response."
                 );
@@ -2312,7 +2330,7 @@ canbus:
                 return;
               }
               ESP_LOGD(
-                "unit_properties_3",
+                "unit_properties",
                 "Unit 3: Final Unit Properties: %s",
                 id(unit_properties_3).c_str()
               );
@@ -2351,7 +2369,7 @@ canbus:
                 std::string value = extract_value(id(unit_properties_3), mapping.key);
                 if (!value.empty()) {
                   ESP_LOGI(
-                    "unit_properties_3",
+                    "unit_properties",
                     "Unit 3: Extracted %s: %s",
                     mapping.key,
                     value.c_str()
@@ -2362,7 +2380,7 @@ canbus:
                   }
                 } else {
                   ESP_LOGW(
-                    "unit_properties_3",
+                    "unit_properties",
                     "Unit 3: Key %s not found or empty", mapping.key
                   );
                   all_keys_found = false;
@@ -2375,13 +2393,13 @@ canbus:
               if (all_keys_found) {
                 id(unit_properties_complete_3) = true; // Mark completion only if all keys are found
                 ESP_LOGI(
-                  "unit_properties_3",
+                  "unit_properties",
                   "Unit 3: All required keys found. Marking as complete."
                 );
               } else {
                 id(unit_properties_complete_3) = false; // Explicitly reset the flag if keys are missing
                 ESP_LOGI(
-                  "unit_properties_3",
+                  "unit_properties",
                   "Unit 3: Not all keys found. Will continue processing."
                 );
               }
@@ -5017,7 +5035,12 @@ number:
               max_current = 13.0;
             }
             if (current_value > max_current) {
-              ESP_LOGW("custom", "Entered AC Current %.1f exceeds model limit %.1f, resetting.", current_value, max_current);
+              ESP_LOGW(
+                "custom",
+                "Entered AC Current %.1f exceeds model limit %.1f, resetting.",
+                current_value,
+                max_current
+              );
               id(set_ac_current_limit).publish_state(max_current);
               current_value = max_current;
             }
