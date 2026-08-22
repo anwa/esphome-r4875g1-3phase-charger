@@ -1606,9 +1606,13 @@ script:
   # blackstart_start
   # --------------------------------------------------------------------------
   # Offline START sequence. Recalculates current, explicitly sends voltage and
-  # current setpoints, then evaluates each rectifier independently. Only units
-  # with valid CAN communication, fresh safe temperature telemetry and no
-  # overtemperature lockout receive an individual ON command.
+  # current setpoints, then evaluates each rectifier independently.
+  # A unit is eligible for START only when:
+  # - fresh cyclic CAN communication is available,
+  # - the CAN-reported power state is explicitly OFF,
+  # - a valid output temperature has been received,
+  # - the output temperature is not above the configured trip threshold,
+  # - no overtemperature lockout is active.
   - id: blackstart_start
     mode: single
     then:
@@ -1673,6 +1677,7 @@ script:
           condition:
             lambda: |-
               return id(can_com_ok_1).state &&
+                     id(power_state_1).state == "OFF" &&
                      !isnan(id(output_temperature_1).state) &&
                      id(output_temperature_1).state <= ${overtemp_trip_c}f &&
                      !id(overtemp_lockout_1);
@@ -1687,6 +1692,12 @@ script:
                   ESP_LOGW(
                     "blackstart",
                     "Unit 1 skipped - CAN communication unavailable."
+                  );
+                } else if (id(power_state_1).state != "OFF") {
+                  ESP_LOGW(
+                    "blackstart",
+                    "Unit 1 skipped - power state is %s, expected OFF.",
+                    id(power_state_1).state.c_str()
                   );
                 } else if (isnan(id(output_temperature_1).state)) {
                   ESP_LOGW(
@@ -1711,6 +1722,7 @@ script:
           condition:
             lambda: |-
               return id(can_com_ok_2).state &&
+                     id(power_state_2).state == "OFF" &&
                      !isnan(id(output_temperature_2).state) &&
                      id(output_temperature_2).state <= ${overtemp_trip_c}f &&
                      !id(overtemp_lockout_2);
@@ -1725,6 +1737,12 @@ script:
                   ESP_LOGW(
                     "blackstart",
                     "Unit 2 skipped - CAN communication unavailable."
+                  );
+                } else if (id(power_state_2).state != "OFF") {
+                  ESP_LOGW(
+                    "blackstart",
+                    "Unit 2 skipped - power state is %s, expected OFF.",
+                    id(power_state_2).state.c_str()
                   );
                 } else if (isnan(id(output_temperature_2).state)) {
                   ESP_LOGW(
@@ -1749,6 +1767,7 @@ script:
           condition:
             lambda: |-
               return id(can_com_ok_3).state &&
+                     id(power_state_3).state == "OFF" &&
                      !isnan(id(output_temperature_3).state) &&
                      id(output_temperature_3).state <= ${overtemp_trip_c}f &&
                      !id(overtemp_lockout_3);
@@ -1763,6 +1782,12 @@ script:
                   ESP_LOGW(
                     "blackstart",
                     "Unit 3 skipped - CAN communication unavailable."
+                  );
+                } else if (id(power_state_3).state != "OFF") {
+                  ESP_LOGW(
+                    "blackstart",
+                    "Unit 3 skipped - power state is %s, expected OFF.",
+                    id(power_state_3).state.c_str()
                   );
                 } else if (isnan(id(output_temperature_3).state)) {
                   ESP_LOGW(
@@ -5194,6 +5219,10 @@ button:
                   id(can_com_ok_2).state &&
                   id(can_com_ok_3).state &&
 
+                  id(power_state_1).state == "OFF" &&
+                  id(power_state_2).state == "OFF" &&
+                  id(power_state_3).state == "OFF" &&
+
                   !isnan(id(output_temperature_1).state) &&
                   !isnan(id(output_temperature_2).state) &&
                   !isnan(id(output_temperature_3).state) &&
@@ -5215,7 +5244,7 @@ button:
             else:
               - logger.log:
                   level: WARN
-                  format: "All ON blocked - all three units require valid CAN communication, valid output temperature <= 90°C and no overtemperature lockout."
+                  format: "All ON blocked - all three units require valid CAN communication, explicit OFF state, valid safe temperature and no overtemperature lockout."
 
   # Individual ON command for one rectifier; useful for diagnostics and service.
   # Blocked while Unit 1 is in overtemperature lockout (see output_temperature_1).
@@ -5232,6 +5261,7 @@ button:
             condition:
               lambda: |-
                 return id(can_com_ok_1).state &&
+                       id(power_state_1).state == "OFF" &&
                        !isnan(id(output_temperature_1).state) &&
                        id(output_temperature_1).state <= ${overtemp_trip_c}f &&
                        !id(overtemp_lockout_1);
@@ -5243,7 +5273,7 @@ button:
             else:
               - logger.log:
                   level: WARN
-                  format: "Unit 1 ON blocked - CAN communication, valid safe temperature and cleared overtemperature lockout are required."
+                  format: "Unit 1 ON blocked - CAN communication, explicit OFF state, valid safe temperature and cleared overtemperature lockout are required."
 
   # Individual ON command for one rectifier; useful for diagnostics and service.
   # Blocked while Unit 2 is in overtemperature lockout (see output_temperature_2).
@@ -5260,6 +5290,7 @@ button:
             condition:
               lambda: |-
                 return id(can_com_ok_2).state &&
+                       id(power_state_2).state == "OFF" &&
                        !isnan(id(output_temperature_2).state) &&
                        id(output_temperature_2).state <= ${overtemp_trip_c}f &&
                        !id(overtemp_lockout_2);
@@ -5271,7 +5302,7 @@ button:
             else:
               - logger.log:
                   level: WARN
-                  format: "Unit 2 ON blocked - CAN communication, valid safe temperature and cleared overtemperature lockout are required."
+                  format: "Unit 2 ON blocked - CAN communication, explicit OFF state, valid safe temperature and cleared overtemperature lockout are required."
 
   # Individual ON command for one rectifier; useful for diagnostics and service.
   # Blocked while Unit 3 is in overtemperature lockout (see output_temperature_3).
@@ -5288,6 +5319,7 @@ button:
             condition:
               lambda: |-
                 return id(can_com_ok_3).state &&
+                       id(power_state_3).state == "OFF" &&
                        !isnan(id(output_temperature_3).state) &&
                        id(output_temperature_3).state <= ${overtemp_trip_c}f &&
                        !id(overtemp_lockout_3);
@@ -5299,7 +5331,7 @@ button:
             else:
               - logger.log:
                   level: WARN
-                  format: "Unit 3 ON blocked - CAN communication, valid safe temperature and cleared overtemperature lockout are required."
+                  format: "Unit 3 ON blocked - CAN communication, explicit OFF state, valid safe temperature and cleared overtemperature lockout are required."
 
   # Broadcast OFF command to all three rectifiers.
   - platform: template

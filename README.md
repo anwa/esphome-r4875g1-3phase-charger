@@ -901,9 +901,12 @@ The sequence is intentionally deterministic:
 A rectifier is eligible for START only when:
 
 - valid cyclic CAN communication is available,
+- the CAN-reported power state is explicitly `OFF`,
 - a fresh output-temperature value is available,
 - output temperature is not above 90 °C,
 - no overtemperature lockout is active.
+
+Rectifiers reporting `ERROR` or `UNKNOWN` are never started. Requiring an explicit `OFF` state prevents an ON command from being issued before the rectifier's actual operating state has been confirmed over CAN.
 
 This also makes controller startup fail-safe. After an ESP32 reboot, a rectifier cannot be started until its first valid output-temperature telemetry has been received.
 
