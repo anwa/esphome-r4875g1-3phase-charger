@@ -616,23 +616,40 @@ Valid fan telemetry frames use message selector `0x01 / 0x87`.
 The payload contains three 16-bit big-endian values:
 
 ```text
-bytes 2..3 = actual fan duty
-bytes 4..5 = requested fan duty
+bytes 2..3 = minimum fan duty
+bytes 4..5 = fan duty target
 bytes 6..7 = fan RPM
 ```
 
-The fan-duty values are converted to percent using:
+The two duty values use a fixed-point representation with 256 counts per percentage point:
 
 ```text
-fan duty [%] = raw value / 25600 × 100
+fan duty [%] = raw value / 256
+```
+
+For example:
+
+```text
+raw 0x0F00 = 3840
+3840 / 256 = 15%
+```
+
+The first duty value represents the minimum fan duty reported by the rectifier. It must not be interpreted as the actual instantaneous fan duty.
+
+The second duty value represents the fan duty target currently reported by the rectifier.
+
+Fan speed is reported directly as a 16-bit RPM value and requires no additional scaling:
+
+```text
+RPM = (byte 6 << 8) | byte 7
 ```
 
 The resulting per-unit entities are:
 
 ```text
-Fan Duty Unit 1..3
-Fan Duty Setpoint Unit 1..3
-FAN RPM Unit 1..3
+Fan Minimum Duty Unit 1..3
+Fan Duty Target Unit 1..3
+Fan RPM Unit 1..3
 ```
 
 All fan telemetry entities are CAN-driven and use a 5-second freshness timeout. If no new fan frame is received within that period, the corresponding values become unavailable instead of retaining stale measurements.
