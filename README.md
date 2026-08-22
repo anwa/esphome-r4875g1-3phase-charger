@@ -1064,11 +1064,25 @@ The shutdown and lockout logic operate locally and do not require Home Assistant
 
 ## Unit Discovery
 
-The firmware includes discovery routines for all three units.
+Each rectifier is discovered automatically when valid CAN communication with that unit becomes available.
 
-The setup process can query unit properties such as:
+The CAN communication watchdog detects the transition from offline to online and starts a complete per-unit discovery sequence consisting of:
 
-- unit type,
+1. static unit-property discovery,
+2. maximum-current capability discovery,
+3. hardware pin/shelf address discovery.
+
+The property and capability stages are executed sequentially using ESPHome script synchronization. No fixed inter-stage waiting periods are used; the next stage begins immediately after the previous stage has completed or exhausted its configured retry limit.
+
+Automatic discovery therefore also works when a rectifier:
+
+- is already powered when the ESP32 starts,
+- is powered up after the controller has already started,
+- temporarily loses CAN communication and later reconnects.
+
+The discovery process queries information including:
+
+- board type,
 - barcode / serial information,
 - item number,
 - description,
@@ -1078,11 +1092,9 @@ The setup process can query unit properties such as:
 
 Property queries use unit-specific CAN IDs and reconstruct multi-frame text responses before extracting key/value fields.
 
-A `Discover Rectifier Units` template button starts the sequential discovery process.
+The `Discover Rectifier Units` button remains available as a manual service function. It runs complete discovery for Unit 1, Unit 2 and Unit 3 sequentially and waits for each unit's discovery process to finish before continuing.
 
-Because the setup sequence deliberately queries the units one after another with delays, it may take roughly a minute to complete.
-
-For the intended three identical 75 A R4875G1 units, the controller starts with the known 75 A current-scaling fallback. Unit 1 capability discovery is triggered automatically when CAN communication becomes available, allowing the fallback to be verified or corrected without requiring the manual unit discovery sequence.
+For the intended 75 A R4875G1 units, the controller still starts with the known model-specific current-scaling fallback. Successful Unit 1 capability discovery verifies or updates the shared current scaling factor automatically.
 
 ## Home Assistant, Web UI and MQTT
 
@@ -1251,11 +1263,13 @@ CAN Communication Unit 3
 
 should become connected/ON when valid cyclic telemetry is being received.
 
-## 7. Run Unit Discovery
+## 7. Verify Unit Discovery
 
-Use the `Discover Rectifier Units` button to query unit information and capability data.
+Unit discovery starts automatically when valid CAN communication becomes available.
 
-Check that all expected unit identification and maximum-current values are populated.
+Check that the expected unit identification and maximum-current values are populated.
+
+The `Discover Rectifier Units` button can be used to manually repeat the full discovery sequence for diagnostics or after hardware changes.
 
 ---
 

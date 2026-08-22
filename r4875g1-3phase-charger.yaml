@@ -1091,6 +1091,7 @@ script:
   # maximum-current and shelf/slot information have been found or retries are
   # exhausted.
   - id: detect_data_unit_1
+    mode: single
     then:
       - lambda: |-
           id(max_current_found_1) = false; // Reset the flag before starting
@@ -1131,6 +1132,7 @@ script:
   # --------------------------------------------------------------------------
   # Capability/address discovery for Unit 2.
   - id: detect_data_unit_2
+    mode: single
     then:
       - lambda: |-
           id(max_current_found_2) = false; // Reset the flag before starting
@@ -1171,6 +1173,7 @@ script:
   # --------------------------------------------------------------------------
   # Capability/address discovery for Unit 3.
   - id: detect_data_unit_3
+    mode: single
     then:
       - lambda: |-
           id(max_current_found_3) = false; // Reset the flag before starting
@@ -1206,6 +1209,44 @@ script:
               id(data_found_3) ? "yes" : "no"
             );
           }
+
+  # --------------------------------------------------------------------------
+  # discover_unit_1
+  # --------------------------------------------------------------------------
+  # Runs the complete discovery sequence for Unit 1.
+  # Static properties are queried first, followed by capability/address data.
+  - id: discover_unit_1
+    mode: single
+    then:
+      - script.execute: detect_unit_1_properties
+      - script.wait: detect_unit_1_properties
+
+      - script.execute: detect_data_unit_1
+      - script.wait: detect_data_unit_1
+
+  # --------------------------------------------------------------------------
+  # discover_unit_2
+  # --------------------------------------------------------------------------
+  - id: discover_unit_2
+    mode: single
+    then:
+      - script.execute: detect_unit_2_properties
+      - script.wait: detect_unit_2_properties
+
+      - script.execute: detect_data_unit_2
+      - script.wait: detect_data_unit_2
+
+  # --------------------------------------------------------------------------
+  # discover_unit_3
+  # --------------------------------------------------------------------------
+  - id: discover_unit_3
+    mode: single
+    then:
+      - script.execute: detect_unit_3_properties
+      - script.wait: detect_unit_3_properties
+
+      - script.execute: detect_data_unit_3
+      - script.wait: detect_data_unit_3
 
   # --------------------------------------------------------------------------
   # update_effective_dc_current_limit
@@ -1431,25 +1472,28 @@ script:
   # --------------------------------------------------------------------------
   # setup_sequence
   # --------------------------------------------------------------------------
-  # Runs full discovery in a controlled order: properties for all
-  # three units, then capability/address data. Delays reduce overlapping replies
-  # and make the sequence easier to diagnose on the CAN bus.
+  # Manually runs complete discovery for all three rectifiers.
+  # Each unit is processed sequentially and the next unit starts immediately
+  # after the previous unit has completed or exhausted its retry limit.
   - id: setup_sequence
     mode: single
     then:
-      # Detect unit properties for all three rectifiers, with delays to avoid overlapping replies.
-      - script.execute: detect_unit_1_properties
-      - delay: 5s
-      - script.execute: detect_unit_2_properties
-      - delay: 5s
-      - script.execute: detect_unit_3_properties
-      - delay: 5s
-      # Detect unit data for all three rectifiers, with delays to avoid overlapping replies.
-      - script.execute: detect_data_unit_1
-      - delay: 20s
-      - script.execute: detect_data_unit_2
-      - delay: 20s
-      - script.execute: detect_data_unit_3
+      - logger.log:
+          level: INFO
+          format: "Starting full rectifier discovery sequence."
+
+      - script.execute: discover_unit_1
+      - script.wait: discover_unit_1
+
+      - script.execute: discover_unit_2
+      - script.wait: discover_unit_2
+
+      - script.execute: discover_unit_3
+      - script.wait: discover_unit_3
+
+      - logger.log:
+          level: INFO
+          format: "Full rectifier discovery sequence completed."
 
   # --------------------------------------------------------------------------
   # apply_dc_sum_power
@@ -4916,9 +4960,9 @@ binary_sensor:
       then:
         - logger.log:
             level: INFO
-            format: "Unit 1 CAN communication available - refreshing current capability and scaling factor."
+            format: "Unit 1 CAN communication available - starting full automatic discovery."
 
-        - script.execute: detect_data_unit_1
+        - script.execute: discover_unit_1
 
     on_release:
       then:
@@ -4954,8 +4998,9 @@ binary_sensor:
       then:
         - logger.log:
             level: INFO
-            format: "Unit 2 CAN communication available - refreshing capability/address diagnostics."
-        - script.execute: detect_data_unit_2
+            format: "Unit 2 CAN communication available - starting full automatic discovery."
+
+        - script.execute: discover_unit_2
 
     on_release:
       then:
@@ -4989,9 +5034,9 @@ binary_sensor:
       then:
         - logger.log:
             level: INFO
-            format: "Unit 3 CAN communication available - refreshing capability/address diagnostics."
+            format: "Unit 3 CAN communication available - starting full automatic discovery."
 
-        - script.execute: detect_data_unit_3
+        - script.execute: discover_unit_3
 
     on_release:
       then:
