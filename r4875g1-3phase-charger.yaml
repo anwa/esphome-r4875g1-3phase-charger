@@ -740,26 +740,26 @@ globals:
   - id: encoder_mode
     type: int
     restore_value: false
-    initial_value: '0'
+    initial_value: "0"
 
   # Timestamp (millis) of the last valid cyclic telemetry frame from Unit 1.
   # Used by the communication watchdog to detect stale/lost communication.
   - id: last_can_rx_1
     type: uint32_t
     restore_value: false
-    initial_value: '0'
+    initial_value: "0"
 
   # Same watchdog timestamp for Unit 2.
   - id: last_can_rx_2
     type: uint32_t
     restore_value: false
-    initial_value: '0'
+    initial_value: "0"
 
   # Same watchdog timestamp for Unit 3.
   - id: last_can_rx_3
     type: uint32_t
     restore_value: false
-    initial_value: '0'
+    initial_value: "0"
 
   # Current-command scaling factor.
   #
@@ -861,7 +861,7 @@ globals:
   - id: unit_properties_complete_1
     type: bool
     restore_value: false
-    initial_value: 'false'
+    initial_value: "false"
 
   # Completion flag for Unit 2 properties.
   - id: unit_properties_complete_2
@@ -879,56 +879,56 @@ globals:
   - id: frame_counter_bp_1
     type: int
     restore_value: false
-    initial_value: '0'
+    initial_value: "0"
 
   # Fail-safe retry counter for Unit 2 property requests.
   - id: frame_counter_bp_2
     type: int
     restore_value: false
-    initial_value: '0'
+    initial_value: "0"
 
   # Fail-safe retry counter for Unit 3 property requests.
   - id: frame_counter_bp_3
     type: int
     restore_value: false
-    initial_value: '0'
+    initial_value: "0"
 
   # Counts Unit 1 property payload frames for
   # diagnostic logging while a multi-frame message is being assembled.
   - id: frame_counter_msg_start_1
     type: int
     restore_value: false
-    initial_value: '0'
+    initial_value: "0"
 
   # Property payload-frame counter for Unit 2.
   - id: frame_counter_msg_start_2
     type: int
     restore_value: false
-    initial_value: '0'
+    initial_value: "0"
 
   # Property payload-frame counter for Unit 3.
   - id: frame_counter_msg_start_3
     type: int
     restore_value: false
-    initial_value: '0'
+    initial_value: "0"
 
   # Fail-safe retry counter for Unit 1 capability/address search.
   - id: search_counter_1
     type: int
     restore_value: false
-    initial_value: '0'
+    initial_value: "0"
 
   # Fail-safe retry counter for Unit 2 capability/address search.
   - id: search_counter_2
     type: int
     restore_value: false
-    initial_value: '0'
+    initial_value: "0"
 
   # Fail-safe retry counter for Unit 3 capability/address search.
   - id: search_counter_3
     type: int
     restore_value: false
-    initial_value: '0'
+    initial_value: "0"
 
   # Overtemperature lockout for Unit 1. Set when output temperature exceeds
   # 90 °C; cleared only once it drops below the 80 °C hysteresis threshold.
@@ -936,19 +936,19 @@ globals:
   - id: overtemp_lockout_1
     type: bool
     restore_value: false
-    initial_value: 'false'
+    initial_value: "false"
 
   # Overtemperature lockout for Unit 2 (see overtemp_lockout_1).
   - id: overtemp_lockout_2
     type: bool
     restore_value: false
-    initial_value: 'false'
+    initial_value: "false"
 
   # Overtemperature lockout for Unit 3 (see overtemp_lockout_1).
   - id: overtemp_lockout_3
     type: bool
     restore_value: false
-    initial_value: 'false'
+    initial_value: "false"
 
 # ==============================================================================
 # REUSABLE AUTOMATION SCRIPTS
