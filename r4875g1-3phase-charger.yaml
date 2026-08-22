@@ -1888,7 +1888,7 @@ canbus:
               // Manufactured field is also used as a completion marker so the
               // discovery script can tell whether the property set was complete.
               KeySensorPair mappings[] = {
-                {"UnitType=", id(unit_type_1), nullptr},
+                {"BoardType=", id(unit_type_1), nullptr},
                 {"BarCode=", id(barcode_1), nullptr},
                 {"Item=", id(item_no_1), nullptr},
                 {"Description=", id(description_1), nullptr},
@@ -1963,7 +1963,7 @@ canbus:
               // Manufactured field is also used as a completion marker so the
               // discovery script can tell whether the property set was complete.
               KeySensorPair mappings[] = {
-                {"UnitType=", id(unit_type_2), nullptr},
+                {"BoardType=", id(unit_type_2), nullptr},
                 {"BarCode=", id(barcode_2), nullptr},
                 {"Item=", id(item_no_2), nullptr},
                 {"Description=", id(description_2), nullptr},
@@ -2038,7 +2038,7 @@ canbus:
               // Manufactured field is also used as a completion marker so the
               // discovery script can tell whether the property set was complete.
               KeySensorPair mappings[] = {
-                {"UnitType=", id(unit_type_3), nullptr},
+                {"BoardType=", id(unit_type_3), nullptr},
                 {"BarCode=", id(barcode_3), nullptr},
                 {"Item=", id(item_no_3), nullptr},
                 {"Description=", id(description_3), nullptr},
@@ -4776,20 +4776,50 @@ interval:
   # staggered by 183 ms and 193 ms to distribute CAN traffic.
   - interval: 577ms
     then:
+      # Unit 1 cyclic telemetry
       - canbus.send:
           use_extended_id: true
           can_id: 0x108140FE
           data: [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
-      - delay: 183ms
+
+      # Unit 1 fan telemetry
+      - delay: 27ms
+      - canbus.send:
+          use_extended_id: true
+          can_id: 0x108182FE
+          data: [0x01, 0x87, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+
+      # Preserve previous Unit 2 polling offset: 27 + 156 = 183 ms
+      - delay: 156ms
+
+      # Unit 2 cyclic telemetry
       - canbus.send:
           use_extended_id: true
           can_id: 0x108240FE
           data: [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
-      - delay: 193ms
+
+      # Unit 2 fan telemetry
+      - delay: 27ms
+      - canbus.send:
+          use_extended_id: true
+          can_id: 0x108282FE
+          data: [0x01, 0x87, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+
+      # Preserve previous Unit 3 polling offset: 27 + 166 = 193 ms
+      - delay: 166ms
+
+      # Unit 3 cyclic telemetry
       - canbus.send:
           use_extended_id: true
           can_id: 0x108340FE
           data: [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+
+      # Unit 3 fan telemetry
+      - delay: 27ms
+      - canbus.send:
+          use_extended_id: true
+          can_id: 0x108382FE
+          data: [0x01, 0x87, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
 
   # --------------------------------------------------------------------------
   # Periodic task: 30 s
