@@ -68,7 +68,44 @@
 # starts the display inactivity timer so the backlight will eventually switch off
 # even if the user never touches the encoder after power-up.
 substitutions:
-  mqtt_command_prefix: "home/canbus"
+  mqtt_command_prefix: "HG/DG/Technik/Charger"
+
+  # --------------------------------------------------------------------------
+  # Project-wide operating limits
+  # --------------------------------------------------------------------------
+  project_max_dc_current_a: "75.0"
+  minimum_dc_current_a: "1.0"
+
+  overtemp_trip_c: "90.0"
+  overtemp_reset_c: "80.0"
+
+  efficiency_min_ac_power_w: "100.0"
+
+  # --------------------------------------------------------------------------
+  # Protocol scaling
+  # --------------------------------------------------------------------------
+  protocol_value_scale: "1024"
+  fan_duty_counts_per_percent: "256.0"
+
+  # --------------------------------------------------------------------------
+  # CAN communication timing
+  # --------------------------------------------------------------------------
+  can_watchdog_timeout_ms: "3000"
+  live_telemetry_timeout: "5s"
+
+  telemetry_poll_interval: "577ms"
+  fan_query_delay: "27ms"
+  unit_2_poll_gap: "156ms"
+  unit_3_poll_gap: "166ms"
+
+  setpoint_refresh_interval: "30s"
+
+  # --------------------------------------------------------------------------
+  # Discovery retry policy
+  # --------------------------------------------------------------------------
+  property_discovery_attempts: "3"
+  capability_discovery_attempts: "10"
+  discovery_retry_delay: "1s"
 
 esphome:
   name: hg-dg-technik-charger3ph
@@ -763,7 +800,7 @@ globals:
   # Unit 1 becomes available on the CAN bus.
   - id: current_scaling_factor
     type: float
-    initial_value: "13.653333f"
+    initial_value: "static_cast<float>(${protocol_value_scale}) / ${project_max_dc_current_a}f"
     restore_value: false
 
   # Effective maximum DC current command used by all current-control paths.
@@ -776,14 +813,14 @@ globals:
   # rectifier capability.
   - id: effective_dc_current_limit
     type: float
-    initial_value: "75.0f"
+    initial_value: "${project_max_dc_current_a}f"
     restore_value: false
 
   # Fixed-point protocol scale used by voltage and most
   # telemetry fields. 1024 means one engineering unit equals 1024 raw counts.
   - id: voltage_scaling_factor
     type: int
-    initial_value: "1024"
+    initial_value: "${protocol_value_scale}"
     restore_value: true
 
   # Discovery flag: maximum-current capability for Unit 1
@@ -958,13 +995,13 @@ script:
       - while:
           condition:
             lambda: |-
-              return !id(unit_properties_complete_1) && id(frame_counter_bp_1) < 3;
+              return !id(unit_properties_complete_1) && id(frame_counter_bp_1) ${PROPERTY_DISCOVERY_ATTEMPTS};
           then:
             - canbus.send:
                 can_id: 0x1081D2FE
                 use_extended_id: true
                 data: [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
-            - delay: 1s
+            - delay: ${discovery_retry_delay}
             - lambda: |-
                 id(frame_counter_bp_1) += 1; // Increment the frame counter
                 ESP_LOGI("unit_properties", "Unit 1 Frame Counter: %d", id(frame_counter_bp_1));
@@ -972,7 +1009,11 @@ script:
           if (id(unit_properties_complete_1)) {
             ESP_LOGI("unit_properties", "Unit 1 properties detected successfully.");
           } else {
-            ESP_LOGW("unit_properties_1", "Unit 1 Fail-safe triggered: Loop stopped after 3 attempts.");
+            ESP_LOGW(
+              "unit_properties_1",
+              "Unit 1 Fail-safe triggered: Loop stopped after %d attempts.",
+              ${property_discovery_attempts}
+            );
           }
 
   # --------------------------------------------------------------------------
@@ -988,13 +1029,13 @@ script:
       - while:
           condition:
             lambda: |-
-              return !id(unit_properties_complete_2) && id(frame_counter_bp_2) < 3;
+              return !id(unit_properties_complete_2) && id(frame_counter_bp_2) ${PROPERTY_DISCOVERY_ATTEMPTS};
           then:
             - canbus.send:
                 can_id: 0x1082D2FE
                 use_extended_id: true
                 data: [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
-            - delay: 1s
+            - delay: ${discovery_retry_delay}
             - lambda: |-
                 id(frame_counter_bp_2) += 1; // Increment the frame counter
                 ESP_LOGI("unit_properties_2", "Unit 2 Frame Counter: %d", id(frame_counter_bp_2));
@@ -1002,7 +1043,11 @@ script:
           if (id(unit_properties_complete_2)) {
             ESP_LOGI("unit_properties_2", "Unit 2 properties detected successfully.");
           } else {
-            ESP_LOGW("unit_properties_2", "Unit 2 Fail-safe triggered: Loop stopped after 3 attempts.");
+            ESP_LOGW(
+              "unit_properties_2",
+              "Unit 2 Fail-safe triggered: Loop stopped after %d attempts.",
+              ${property_discovery_attempts}
+            );
           }
 
   # --------------------------------------------------------------------------
@@ -1018,13 +1063,13 @@ script:
       - while:
           condition:
             lambda: |-
-              return !id(unit_properties_complete_3) && id(frame_counter_bp_3) < 3;
+              return !id(unit_properties_complete_3) && id(frame_counter_bp_3) ${PROPERTY_DISCOVERY_ATTEMPTS};
           then:
             - canbus.send:
                 can_id: 0x1083D2FE
                 use_extended_id: true
                 data: [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
-            - delay: 1s
+            - delay: ${discovery_retry_delay}
             - lambda: |-
                 id(frame_counter_bp_3) += 1; // Increment the frame counter
                 ESP_LOGI("unit_properties_3", "Unit 3 Frame Counter: %d", id(frame_counter_bp_3));
@@ -1032,7 +1077,11 @@ script:
           if (id(unit_properties_complete_3)) {
             ESP_LOGI("unit_properties_3", "Unit 3 properties detected successfully.");
           } else {
-            ESP_LOGW("unit_properties_3", "Unit 3 Fail-safe triggered: Loop stopped after 3 attempts.");
+            ESP_LOGW(
+              "unit_properties_3",
+              "Unit 3 Fail-safe triggered: Loop stopped after %d attempts.",
+              ${property_discovery_attempts}
+            );
           }
 
   # --------------------------------------------------------------------------
@@ -1051,7 +1100,7 @@ script:
       - while:
           condition:
             lambda: |-
-              return !(id(max_current_found_1) && id(data_found_1)) && id(search_counter_1) < 10;
+              return !(id(max_current_found_1) && id(data_found_1)) && id(search_counter_1) < ${CAPABILITY_DISCOVERY_ATTEMPTS};
           then:
             - canbus.send:
                 can_id: 0x108150FE
@@ -1091,7 +1140,7 @@ script:
       - while:
           condition:
             lambda: |-
-              return !(id(max_current_found_2) && id(data_found_2)) && id(search_counter_2) < 10;
+              return !(id(max_current_found_2) && id(data_found_2)) && id(search_counter_2) < ${CAPABILITY_DISCOVERY_ATTEMPTS};
           then:
             - canbus.send:
                 can_id: 0x108250FE
@@ -1131,7 +1180,7 @@ script:
       - while:
           condition:
             lambda: |-
-              return !(id(max_current_found_3) && id(data_found_3)) && id(search_counter_3) < 10;
+              return !(id(max_current_found_3) && id(data_found_3)) && id(search_counter_3) < ${CAPABILITY_DISCOVERY_ATTEMPTS};
           then:
             - canbus.send:
                 can_id: 0x108350FE
@@ -1172,7 +1221,8 @@ script:
     mode: restart
     then:
       - lambda: |-
-          constexpr float project_max_current = 75.0f;
+          constexpr float project_max_current =
+              ${project_max_dc_current_a}f;
 
           float effective_limit = project_max_current;
           bool capability_available = false;
@@ -1250,8 +1300,9 @@ script:
             ESP_LOGI(
               "current_limit",
               "Effective DC current limit: %.1f A "
-              "(project ceiling 75.0 A, lowest valid detected capability).",
-              effective_limit
+              "(project ceiling %.1f A, lowest valid detected capability).",
+              effective_limit,
+              ${project_max_dc_current_a}f
             );
 
           } else {
@@ -1259,7 +1310,8 @@ script:
             ESP_LOGI(
               "current_limit",
               "No rectifier capability available yet. "
-              "Using 75.0 A R4875G1 fallback."
+              "Using %.1f A R4875G1 fallback.",
+              ${project_max_dc_current_a}f
             );
           }
 
@@ -1479,8 +1531,8 @@ script:
                 max_current;
           }
 
-          if (current_per_rectifier < 1.0f) {
-            current_per_rectifier = 1.0f;
+          if (current_per_rectifier < ${minimum_dc_current_a}f) {
+            current_per_rectifier = ${minimum_dc_current_a}f;
           }
 
           ESP_LOGI(
@@ -1575,7 +1627,7 @@ script:
             lambda: |-
               return id(can_com_ok_1).state &&
                      !isnan(id(output_temperature_1).state) &&
-                     id(output_temperature_1).state <= 90.0f &&
+                     id(output_temperature_1).state <= ${overtemp_trip_c}f &&
                      !id(overtemp_lockout_1);
           then:
             - canbus.send:
@@ -1594,7 +1646,7 @@ script:
                     "blackstart",
                     "Unit 1 skipped - output temperature unavailable."
                   );
-                } else if (id(output_temperature_1).state > 90.0f) {
+                } else if (id(output_temperature_1).state > ${overtemp_trip_c}f) {
                   ESP_LOGW(
                     "blackstart",
                     "Unit 1 skipped - output temperature too high (%.1f°C).",
@@ -1613,7 +1665,7 @@ script:
             lambda: |-
               return id(can_com_ok_2).state &&
                      !isnan(id(output_temperature_2).state) &&
-                     id(output_temperature_2).state <= 90.0f &&
+                     id(output_temperature_2).state <= ${overtemp_trip_c}f &&
                      !id(overtemp_lockout_2);
           then:
             - canbus.send:
@@ -1632,7 +1684,7 @@ script:
                     "blackstart",
                     "Unit 2 skipped - output temperature unavailable."
                   );
-                } else if (id(output_temperature_2).state > 90.0f) {
+                } else if (id(output_temperature_2).state > ${overtemp_trip_c}f) {
                   ESP_LOGW(
                     "blackstart",
                     "Unit 2 skipped - output temperature too high (%.1f°C).",
@@ -1651,7 +1703,7 @@ script:
             lambda: |-
               return id(can_com_ok_3).state &&
                      !isnan(id(output_temperature_3).state) &&
-                     id(output_temperature_3).state <= 90.0f &&
+                     id(output_temperature_3).state <= ${overtemp_trip_c}f &&
                      !id(overtemp_lockout_3);
           then:
             - canbus.send:
@@ -1670,7 +1722,7 @@ script:
                     "blackstart",
                     "Unit 3 skipped - output temperature unavailable."
                   );
-                } else if (id(output_temperature_3).state > 90.0f) {
+                } else if (id(output_temperature_3).state > ${overtemp_trip_c}f) {
                   ESP_LOGW(
                     "blackstart",
                     "Unit 3 skipped - output temperature too high (%.1f°C).",
@@ -2258,7 +2310,7 @@ canbus:
 
               // Unit 1 defines the shared current-command scaling factor.
               id(current_scaling_factor) =
-                  1024.0f / max_current;
+                  static_cast<float>(${protocol_value_scale}) / max_current;
 
               ESP_LOGI(
                 "canbus",
@@ -2326,7 +2378,7 @@ canbus:
               id(max_dc_current_2).publish_state(max_current);
 
               const float unit_2_scaling_factor =
-                  1024.0f / max_current;
+                  static_cast<float>(${protocol_value_scale}) / max_current;
 
               ESP_LOGI(
                 "canbus",
@@ -2394,7 +2446,7 @@ canbus:
               id(max_dc_current_3).publish_state(max_current);
 
               const float unit_3_scaling_factor =
-                  1024.0f / max_current;
+                  static_cast<float>(${protocol_value_scale}) / max_current;
 
               ESP_LOGI(
                 "canbus",
@@ -2437,11 +2489,13 @@ canbus:
                       (static_cast<uint8_t>(x[6]) << 8) |
                       static_cast<uint8_t>(x[7]);
 
-                  float duty =
-                      (static_cast<float>(duty_raw) / 25600.0f) * 100.0f;
-
-                  float duty_set =
-                      (static_cast<float>(duty_set_raw) / 25600.0f) * 100.0f;
+                  const float duty =
+                      static_cast<float>(duty_raw) /
+                      ${fan_duty_counts_per_percent}f;
+                  
+                  const float duty_set =
+                      static_cast<float>(duty_set_raw) /
+                      ${fan_duty_counts_per_percent}f;
 
                   // Publish all decoded fan telemetry.
                   id(fan_duty_1).publish_state(duty);
@@ -2475,9 +2529,14 @@ canbus:
                   uint16_t duty_set_raw = (static_cast<uint8_t>(x[4]) << 8) | static_cast<uint8_t>(x[5]);
                   uint16_t rpm = (static_cast<uint8_t>(x[6]) << 8) | static_cast<uint8_t>(x[7]);
 
-                  // Convert raw duty cycle values to percentages (raw/25600 * 100)
-                  float duty = (static_cast<float>(duty_raw) / 25600.0f) * 100.0f;
-                  float duty_set = (static_cast<float>(duty_set_raw) / 25600.0f) * 100.0f;
+                  const float duty =
+                      static_cast<float>(duty_raw) /
+                      ${fan_duty_counts_per_percent}f;
+                  
+                  const float duty_set =
+                      static_cast<float>(duty_set_raw) /
+                      ${fan_duty_counts_per_percent}f;
+
 
                   // Publish all decoded fan telemetry.
                   id(fan_duty_2).publish_state(duty);
@@ -2511,9 +2570,13 @@ canbus:
                   uint16_t duty_set_raw = (static_cast<uint8_t>(x[4]) << 8) | static_cast<uint8_t>(x[5]);
                   uint16_t rpm = (static_cast<uint8_t>(x[6]) << 8) | static_cast<uint8_t>(x[7]);
 
-                  // Convert raw duty cycle values to percentages (raw/25600 * 100)
-                  float duty = (static_cast<float>(duty_raw) / 25600.0f) * 100.0f;
-                  float duty_set = (static_cast<float>(duty_set_raw) / 25600.0f) * 100.0f;
+                  const float duty =
+                      static_cast<float>(duty_raw) /
+                      ${fan_duty_counts_per_percent}f;
+                  
+                  const float duty_set =
+                      static_cast<float>(duty_set_raw) /
+                      ${fan_duty_counts_per_percent}f;
 
                   // Publish all decoded fan telemetry.
                   id(fan_duty_3).publish_state(duty);
@@ -2951,7 +3014,7 @@ sensor:
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);
-      - timeout: 5s
+      - timeout: ${live_telemetry_timeout}
     icon: "mdi:thermometer"
 
   # --------------------------------------------------------------------------
@@ -2970,7 +3033,7 @@ sensor:
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);
-      - timeout: 5s
+      - timeout: ${live_telemetry_timeout}
     icon: "mdi:thermometer"
 
   # --------------------------------------------------------------------------
@@ -2989,7 +3052,7 @@ sensor:
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);
-      - timeout: 5s
+      - timeout: ${live_telemetry_timeout}
     icon: "mdi:thermometer"
 
   # --------------------------------------------------------------------------
@@ -3165,7 +3228,7 @@ sensor:
     filters:
       - lambda: |-
           return x / id(current_scaling_factor);
-      - timeout: 5s
+      - timeout: ${live_telemetry_timeout}
     icon: "mdi:current-dc"
 
   # --------------------------------------------------------------------------
@@ -3184,7 +3247,7 @@ sensor:
     filters:
       - lambda: |-
           return x / id(current_scaling_factor);
-      - timeout: 5s
+      - timeout: ${live_telemetry_timeout}
     icon: "mdi:current-dc"
 
   # --------------------------------------------------------------------------
@@ -3203,7 +3266,7 @@ sensor:
     filters:
       - lambda: |-
           return x / id(current_scaling_factor);
-      - timeout: 5s
+      - timeout: ${live_telemetry_timeout}
     icon: "mdi:current-dc"
 
   # --------------------------------------------------------------------------
@@ -3222,7 +3285,7 @@ sensor:
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);
-      - timeout: 5s
+      - timeout: ${live_telemetry_timeout}
     icon: "mdi:flash"
 
   # --------------------------------------------------------------------------
@@ -3241,7 +3304,7 @@ sensor:
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);
-      - timeout: 5s
+      - timeout: ${live_telemetry_timeout}
     icon: "mdi:flash"
 
   # --------------------------------------------------------------------------
@@ -3260,7 +3323,7 @@ sensor:
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);
-      - timeout: 5s
+      - timeout: ${live_telemetry_timeout}
     icon: "mdi:flash"
 
   # --------------------------------------------------------------------------
@@ -3279,7 +3342,7 @@ sensor:
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);
-      - timeout: 5s
+      - timeout: ${live_telemetry_timeout}
     icon: "mdi:flash"
 
   # --------------------------------------------------------------------------
@@ -3298,7 +3361,7 @@ sensor:
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);
-      - timeout: 5s
+      - timeout: ${live_telemetry_timeout}
     icon: "mdi:flash"
 
   # --------------------------------------------------------------------------
@@ -3317,7 +3380,7 @@ sensor:
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);
-      - timeout: 5s
+      - timeout: ${live_telemetry_timeout}
     icon: "mdi:flash"
 
   # --------------------------------------------------------------------------
@@ -3336,7 +3399,7 @@ sensor:
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);
-      - timeout: 5s
+      - timeout: ${live_telemetry_timeout}
     icon: "mdi:transmission-tower-import"
 
   # --------------------------------------------------------------------------
@@ -3355,7 +3418,7 @@ sensor:
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);
-      - timeout: 5s
+      - timeout: ${live_telemetry_timeout}
     icon: "mdi:transmission-tower-import"
 
   # --------------------------------------------------------------------------
@@ -3374,7 +3437,7 @@ sensor:
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);
-      - timeout: 5s
+      - timeout: ${live_telemetry_timeout}
     icon: "mdi:transmission-tower-import"
 
   # --------------------------------------------------------------------------
@@ -3393,7 +3456,7 @@ sensor:
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);
-      - timeout: 5s
+      - timeout: ${live_telemetry_timeout}
     icon: "mdi:current-ac"
 
   # --------------------------------------------------------------------------
@@ -3412,7 +3475,7 @@ sensor:
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);
-      - timeout: 5s
+      - timeout: ${live_telemetry_timeout}
     icon: "mdi:current-ac"
 
   # --------------------------------------------------------------------------
@@ -3431,7 +3494,7 @@ sensor:
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);
-      - timeout: 5s
+      - timeout: ${live_telemetry_timeout}
     icon: "mdi:current-ac"
 
   # --------------------------------------------------------------------------
@@ -3450,7 +3513,7 @@ sensor:
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);
-      - timeout: 5s
+      - timeout: ${live_telemetry_timeout}
     icon: "mdi:current-dc"
 
   # --------------------------------------------------------------------------
@@ -3469,7 +3532,7 @@ sensor:
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);
-      - timeout: 5s
+      - timeout: ${live_telemetry_timeout}
     icon: "mdi:current-dc"
 
   # --------------------------------------------------------------------------
@@ -3488,7 +3551,7 @@ sensor:
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);
-      - timeout: 5s
+      - timeout: ${live_telemetry_timeout}
     icon: "mdi:current-dc"
 
   # --------------------------------------------------------------------------
@@ -3507,7 +3570,7 @@ sensor:
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);
-      - timeout: 5s
+      - timeout: ${live_telemetry_timeout}
     icon: "mdi:sine-wave"
 
   # --------------------------------------------------------------------------
@@ -3526,7 +3589,7 @@ sensor:
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);
-      - timeout: 5s
+      - timeout: ${live_telemetry_timeout}
     icon: "mdi:sine-wave"
 
   # --------------------------------------------------------------------------
@@ -3545,17 +3608,14 @@ sensor:
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);
-      - timeout: 5s
+      - timeout: ${live_telemetry_timeout}
     icon: "mdi:sine-wave"
 
   # --------------------------------------------------------------------------
   # Output Temperature Unit 1
   # Rectifier output temperature from telemetry selector 0x7F.
-  # The safety automation trips once when the temperature exceeds 90 °C,
-  # immediately sends an individual OFF command and engages an overtemperature
-  # lockout. Repeated hot telemetry does not generate additional OFF commands.
-  # The lockout remains active throughout the 80..90 °C hysteresis range and
-  # clears only after the temperature falls below 80 °C.
+  # The safety automation trips when the configured overtemperature threshold
+  # is exceeded and clears only below the configured reset threshold.
   - platform: template
     name: "Output Temperature Unit 1"
     id: output_temperature_1
@@ -3569,7 +3629,7 @@ sensor:
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);
-      - timeout: 5s
+      - timeout: ${live_telemetry_timeout}
     icon: "mdi:thermometer"
     on_value:
       then:
@@ -3584,7 +3644,7 @@ sensor:
               lambda: |-
                 return !isnan(x) &&
                        !id(overtemp_lockout_1) &&
-                       x > 90.0f;
+                       x > ${overtemp_trip_c}f;
             then:
               - lambda: |-
                   id(overtemp_lockout_1) = true;
@@ -3611,7 +3671,7 @@ sensor:
               lambda: |-
                 return !isnan(x) &&
                        id(overtemp_lockout_1) &&
-                       x < 80.0f;
+                       x < ${overtemp_reset_c}f;
             then:
               - lambda: |-
                   id(overtemp_lockout_1) = false;
@@ -3626,11 +3686,8 @@ sensor:
   # --------------------------------------------------------------------------
   # Output Temperature Unit 2
   # Rectifier output temperature from telemetry selector 0x7F.
-  # The safety automation trips once when the temperature exceeds 90 °C,
-  # immediately sends an individual OFF command and engages an overtemperature
-  # lockout. Repeated hot telemetry does not generate additional OFF commands.
-  # The lockout remains active throughout the 80..90 °C hysteresis range and
-  # clears only after the temperature falls below 80 °C.
+  # The safety automation trips when the configured overtemperature threshold
+  # is exceeded and clears only below the configured reset threshold.
   - platform: template
     name: "Output Temperature Unit 2"
     id: output_temperature_2
@@ -3644,7 +3701,7 @@ sensor:
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);
-      - timeout: 5s
+      - timeout: ${live_telemetry_timeout}
     icon: "mdi:thermometer"
     on_value:
       then:
@@ -3656,7 +3713,7 @@ sensor:
               lambda: |-
                 return !isnan(x) &&
                        !id(overtemp_lockout_2) &&
-                       x > 90.0f;
+                       x > ${overtemp_trip_c}f;
             then:
               - lambda: |-
                   id(overtemp_lockout_2) = true;
@@ -3681,7 +3738,7 @@ sensor:
               lambda: |-
                 return !isnan(x) &&
                        id(overtemp_lockout_2) &&
-                       x < 80.0f;
+                       x < ${overtemp_reset_c}f;
             then:
               - lambda: |-
                   id(overtemp_lockout_2) = false;
@@ -3696,11 +3753,8 @@ sensor:
   # --------------------------------------------------------------------------
   # Output Temperature Unit 3
   # Rectifier output temperature from telemetry selector 0x7F.
-  # The safety automation trips once when the temperature exceeds 90 °C,
-  # immediately sends an individual OFF command and engages an overtemperature
-  # lockout. Repeated hot telemetry does not generate additional OFF commands.
-  # The lockout remains active throughout the 80..90 °C hysteresis range and
-  # clears only after the temperature falls below 80 °C.
+  # The safety automation trips when the configured overtemperature threshold
+  # is exceeded and clears only below the configured reset threshold.
   - platform: template
     name: "Output Temperature Unit 3"
     id: output_temperature_3
@@ -3714,7 +3768,7 @@ sensor:
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);
-      - timeout: 5s
+      - timeout: ${live_telemetry_timeout}
     icon: "mdi:thermometer"
     on_value:
       then:
@@ -3726,7 +3780,7 @@ sensor:
               lambda: |-
                 return !isnan(x) &&
                        !id(overtemp_lockout_3) &&
-                       x > 90.0f;
+                       x > ${overtemp_trip_c}f;
             then:
               - lambda: |-
                   id(overtemp_lockout_3) = true;
@@ -3751,7 +3805,7 @@ sensor:
               lambda: |-
                 return !isnan(x) &&
                        id(overtemp_lockout_3) &&
-                       x < 80.0f;
+                       x < ${overtemp_reset_c}f;
             then:
               - lambda: |-
                   id(overtemp_lockout_3) = false;
@@ -3779,7 +3833,7 @@ sensor:
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);
-      - timeout: 5s
+      - timeout: ${live_telemetry_timeout}
     icon: "mdi:current-dc"
 
   # --------------------------------------------------------------------------
@@ -3798,7 +3852,7 @@ sensor:
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);
-      - timeout: 5s
+      - timeout: ${live_telemetry_timeout}
     icon: "mdi:current-dc"
 
   # --------------------------------------------------------------------------
@@ -3817,7 +3871,7 @@ sensor:
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);
-      - timeout: 5s
+      - timeout: ${live_telemetry_timeout}
     icon: "mdi:current-dc"
 
   # --------------------------------------------------------------------------
@@ -3836,7 +3890,7 @@ sensor:
     filters:
       - lambda: |-
           return x / id(current_scaling_factor);
-      - timeout: 5s
+      - timeout: ${live_telemetry_timeout}
     icon: "mdi:current-ac"
 
   # --------------------------------------------------------------------------
@@ -3855,7 +3909,7 @@ sensor:
     filters:
       - lambda: |-
           return x / id(current_scaling_factor);
-      - timeout: 5s
+      - timeout: ${live_telemetry_timeout}
     icon: "mdi:current-ac"
 
   # --------------------------------------------------------------------------
@@ -3874,7 +3928,7 @@ sensor:
     filters:
       - lambda: |-
           return x / id(current_scaling_factor);
-      - timeout: 5s
+      - timeout: ${live_telemetry_timeout}
     icon: "mdi:current-ac"
 
   # --------------------------------------------------------------------------
@@ -3888,7 +3942,7 @@ sensor:
     accuracy_decimals: 1
     update_interval: never
     filters:
-      - timeout: 5s
+      - timeout: ${live_telemetry_timeout}
     icon: "mdi:fan"
 
   # --------------------------------------------------------------------------
@@ -3902,7 +3956,7 @@ sensor:
     accuracy_decimals: 1
     update_interval: never
     filters:
-      - timeout: 5s
+      - timeout: ${live_telemetry_timeout}
     icon: "mdi:fan"
 
   # --------------------------------------------------------------------------
@@ -3915,7 +3969,7 @@ sensor:
     accuracy_decimals: 1
     update_interval: never
     filters:
-      - timeout: 5s
+      - timeout: ${live_telemetry_timeout}
     icon: "mdi:fan"
 
   # --------------------------------------------------------------------------
@@ -3928,7 +3982,7 @@ sensor:
     accuracy_decimals: 1
     update_interval: never
     filters:
-      - timeout: 5s
+      - timeout: ${live_telemetry_timeout}
     icon: "mdi:fan"
 
   # --------------------------------------------------------------------------
@@ -3941,7 +3995,7 @@ sensor:
     accuracy_decimals: 1
     update_interval: never
     filters:
-      - timeout: 5s
+      - timeout: ${live_telemetry_timeout}
     icon: "mdi:fan"
 
   # --------------------------------------------------------------------------
@@ -3954,7 +4008,7 @@ sensor:
     accuracy_decimals: 1
     update_interval: never
     filters:
-      - timeout: 5s
+      - timeout: ${live_telemetry_timeout}
     icon: "mdi:fan"
 
   # --------------------------------------------------------------------------
@@ -3968,7 +4022,7 @@ sensor:
     accuracy_decimals: 0
     update_interval: never
     filters:
-      - timeout: 5s
+      - timeout: ${live_telemetry_timeout}
     icon: "mdi:fan"
 
   # --------------------------------------------------------------------------
@@ -3982,7 +4036,7 @@ sensor:
     accuracy_decimals: 0
     update_interval: never
     filters:
-      - timeout: 5s
+      - timeout: ${live_telemetry_timeout}
     icon: "mdi:fan"
 
   # --------------------------------------------------------------------------
@@ -3996,7 +4050,7 @@ sensor:
     accuracy_decimals: 0
     update_interval: never
     filters:
-      - timeout: 5s
+      - timeout: ${live_telemetry_timeout}
     icon: "mdi:fan"
 
   # --------------------------------------------------------------------------
@@ -4341,7 +4395,7 @@ sensor:
       }
 
       if (valid_units == 0 ||
-          ac_power < 100.0f) {
+          ac_power < ${efficiency_min_ac_power_w}f) {
         return NAN;
       }
 
@@ -4440,7 +4494,7 @@ number:
               // Example:
               //   25% * 256 = 6400 = 0x1900
               int scaled_value =
-                  (int)(id(set_fan_min_speed).state * 256);
+                  (int)(id(set_fan_min_speed).state * ${fan_duty_counts_per_percent}f;
               // Store the 16-bit value in big-endian format.
               can_data[2] = (scaled_value >> 8) & 0xFF;
               can_data[3] = scaled_value & 0xFF;
@@ -4496,15 +4550,15 @@ number:
   - platform: template
     name: "Set DC Current Limit"
     id: set_dc_current_limit
-    min_value: 1
+    min_value: ${minimum_dc_current_a}
     # Absolute project/UI ceiling. The runtime effective limit may be lower.
-    max_value: 75
+    max_value: ${project_max_dc_current_a}
     step: 1
     unit_of_measurement: "A"
     optimistic: true
     mode: BOX
     restore_value: true
-    initial_value: 1
+    initial_value: ${minimum_dc_current_a}
     command_topic: "${mqtt_command_prefix}/set_dc_current"
     icon: "mdi:current-dc"
     on_value:
@@ -4564,15 +4618,15 @@ number:
   - platform: template
     name: "Set DC Current Limit Fallback"
     id: set_dc_current_limit_fallback
-    min_value: 1
+    min_value: ${minimum_dc_current_a}
     # Absolute project/UI ceiling. The runtime effective limit may be lower.
-    max_value: 75
+    max_value: ${project_max_dc_current_a}
     step: 1
     unit_of_measurement: "A"
     optimistic: true
     mode: BOX
     restore_value: true
-    initial_value: 1
+    initial_value: ${minimum_dc_current_a}
     command_topic: "${mqtt_command_prefix}/set_dc_current_fallback"
     icon: "mdi:current-dc"
     on_value:
@@ -4853,7 +4907,7 @@ binary_sensor:
 
     lambda: |-
       return id(last_can_rx_1) != 0 &&
-             (uint32_t) (millis() - id(last_can_rx_1)) < 3000U;
+             (uint32_t) (millis() - id(last_can_rx_1)) < ${can_watchdog_timeout_ms}U;
 
     # Whenever Unit 1 becomes reachable, refresh its capability/address data.
     # Unit 1 is the canonical source for current_scaling_factor, so this also
@@ -4980,7 +5034,7 @@ interval:
   # Periodic task: 577 ms
   # Fast cyclic telemetry polling. Unit 1 is requested first; Units 2 and 3 are
   # staggered by 183 ms and 193 ms to distribute CAN traffic.
-  - interval: 577ms
+  - interval: ${telemetry_poll_interval}
     then:
       # Unit 1 cyclic telemetry
       - canbus.send:
@@ -4989,14 +5043,14 @@ interval:
           data: [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
 
       # Unit 1 fan telemetry
-      - delay: 27ms
+      - delay: ${fan_query_delay}
       - canbus.send:
           use_extended_id: true
           can_id: 0x108182FE
           data: [0x01, 0x87, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
 
       # Preserve previous Unit 2 polling offset: 27 + 156 = 183 ms
-      - delay: 156ms
+      - delay: ${unit_2_poll_gap}
 
       # Unit 2 cyclic telemetry
       - canbus.send:
@@ -5005,14 +5059,14 @@ interval:
           data: [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
 
       # Unit 2 fan telemetry
-      - delay: 27ms
+      - delay: ${fan_query_delay}
       - canbus.send:
           use_extended_id: true
           can_id: 0x108282FE
           data: [0x01, 0x87, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
 
       # Preserve previous Unit 3 polling offset: 27 + 166 = 193 ms
-      - delay: 166ms
+      - delay: ${unit_3_poll_gap}
 
       # Unit 3 cyclic telemetry
       - canbus.send:
@@ -5021,7 +5075,7 @@ interval:
           data: [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
 
       # Unit 3 fan telemetry
-      - delay: 27ms
+      - delay: ${fan_query_delay}
       - canbus.send:
           use_extended_id: true
           can_id: 0x108382FE
@@ -5031,7 +5085,7 @@ interval:
   # Periodic task: 30 s
   # Reasserts the broadcast DC voltage setpoint every 30 seconds so restarted
   # or late-joining units recover the requested setting.
-  - interval: 30s
+  - interval: ${setpoint_refresh_interval}
     then:
       - canbus.send:
           use_extended_id: true
@@ -5048,7 +5102,7 @@ interval:
   # Periodic task: 30 s
   # Reasserts the broadcast DC current setpoint every 30 seconds so restarted
   # or late-joining units recover the requested setting.
-  - interval: 30s
+  - interval: ${setpoint_refresh_interval}
     then:
       - canbus.send:
           use_extended_id: true
@@ -5093,9 +5147,9 @@ button:
                   !isnan(id(output_temperature_2).state) &&
                   !isnan(id(output_temperature_3).state) &&
 
-                  id(output_temperature_1).state <= 90.0f &&
-                  id(output_temperature_2).state <= 90.0f &&
-                  id(output_temperature_3).state <= 90.0f &&
+                  id(output_temperature_1).state <= ${overtemp_trip_c}f &&
+                  id(output_temperature_2).state <= ${overtemp_trip_c}f &&
+                  id(output_temperature_3).state <= ${overtemp_trip_c}f &&
 
                   !id(overtemp_lockout_1) &&
                   !id(overtemp_lockout_2) &&
@@ -5128,7 +5182,7 @@ button:
               lambda: |-
                 return id(can_com_ok_1).state &&
                        !isnan(id(output_temperature_1).state) &&
-                       id(output_temperature_1).state <= 90.0f &&
+                       id(output_temperature_1).state <= ${overtemp_trip_c}f &&
                        !id(overtemp_lockout_1);
             then:
               - canbus.send:
@@ -5156,7 +5210,7 @@ button:
               lambda: |-
                 return id(can_com_ok_2).state &&
                        !isnan(id(output_temperature_2).state) &&
-                       id(output_temperature_2).state <= 90.0f &&
+                       id(output_temperature_2).state <= ${overtemp_trip_c}f &&
                        !id(overtemp_lockout_2);
             then:
               - canbus.send:
@@ -5184,7 +5238,7 @@ button:
               lambda: |-
                 return id(can_com_ok_3).state &&
                        !isnan(id(output_temperature_3).state) &&
-                       id(output_temperature_3).state <= 90.0f &&
+                       id(output_temperature_3).state <= ${overtemp_trip_c}f &&
                        !id(overtemp_lockout_3);
             then:
               - canbus.send:
