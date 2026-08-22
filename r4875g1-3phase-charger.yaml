@@ -672,7 +672,7 @@ display:
           id(font_small),
           id(color_black),
           "  DC Target(3U): %.2f kW - %.1f A/u",
-          id(dc_sum_power_set).state,
+          id(set_dc_sum_power).state,
           id(set_dc_current_limit).state
         );
 
@@ -692,7 +692,7 @@ display:
           id(font_small_bold),
           id(color_blue),
           "> DC Target(3U): %.2f kW - %.1f A/u",
-          id(dc_sum_power_set).state,
+          id(set_dc_sum_power).state,
           id(set_dc_current_limit).state
         );
       }
@@ -1425,7 +1425,7 @@ script:
               id(set_dc_voltage_limit).state;
 
           const float power_kw =
-              id(dc_sum_power_set).state;
+              id(set_dc_sum_power).state;
 
           const float max_current =
               id(effective_dc_current_limit);
@@ -2265,7 +2265,7 @@ canbus:
                 id(current_scaling_factor)
               );
 
-              id(sf_value_1).publish_state(
+              id(current_scaling_factor_unit_1).publish_state(
                 id(current_scaling_factor)
               );
 
@@ -2333,7 +2333,7 @@ canbus:
                 unit_2_scaling_factor
               );
 
-              id(sf_value_2).publish_state(
+              id(current_scaling_factor_unit_2).publish_state(
                 unit_2_scaling_factor
               );
 
@@ -2401,7 +2401,7 @@ canbus:
                 unit_3_scaling_factor
               );
 
-              id(sf_value_3).publish_state(
+              id(current_scaling_factor_unit_3).publish_state(
                 unit_3_scaling_factor
               );
 
@@ -2860,7 +2860,7 @@ sensor:
 
   # --------------------------------------------------------------------------
   # local_encoder
-  # Physical local rotary encoder on GPIO17/GPIO18. In voltage mode it changes set_dc_voltage_limit and recalculates current to preserve total power; in power mode it changes dc_sum_power_set. Every movement wakes/restarts the backlight timer.
+  # Physical local rotary encoder on GPIO17/GPIO18. In voltage mode it changes set_dc_voltage_limit and recalculates current to preserve total power; in power mode it changes set_dc_sum_power. Every movement wakes/restarts the backlight timer.
   - platform: rotary_encoder
     id: local_encoder
 
@@ -2893,7 +2893,7 @@ sensor:
               - script.execute: apply_dc_sum_power
             else:
               - number.increment:
-                  id: dc_sum_power_set
+                  id: set_dc_sum_power
                   cycle: false
     on_anticlockwise:
       then:
@@ -2909,7 +2909,7 @@ sensor:
               - script.execute: apply_dc_sum_power
             else:
               - number.decrement:
-                  id: dc_sum_power_set
+                  id: set_dc_sum_power
                   cycle: false
 
   # --------------------------------------------------------------------------
@@ -2974,7 +2974,7 @@ sensor:
   # Diagnostic publication of the dynamically detected current scaling factor.
   - platform: template
     name: "Scaling Factor Unit 1"
-    id: sf_value_1
+    id: current_scaling_factor_unit_1
     accuracy_decimals: 4
     entity_category: diagnostic
     icon: "mdi:information-outline"
@@ -2985,7 +2985,7 @@ sensor:
   # Diagnostic publication of the dynamically detected current scaling factor.
   - platform: template
     name: "Scaling Factor Unit 2"
-    id: sf_value_2
+    id: current_scaling_factor_unit_2
     accuracy_decimals: 4
     entity_category: diagnostic
     icon: "mdi:information-outline"
@@ -2996,7 +2996,7 @@ sensor:
   # Diagnostic publication of the dynamically detected current scaling factor.
   - platform: template
     name: "Scaling Factor Unit 3"
-    id: sf_value_3
+    id: current_scaling_factor_unit_3
     accuracy_decimals: 4
     entity_category: diagnostic
     icon: "mdi:information-outline"
@@ -4495,7 +4495,7 @@ number:
   # proportionally lower than this nominal three-unit target.
   - platform: template
     name: "Set DC Sum Power"
-    id: dc_sum_power_set
+    id: set_dc_sum_power
     unit_of_measurement: "kW"
     min_value: 0.25
     max_value: 12.0
