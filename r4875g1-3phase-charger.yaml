@@ -2409,8 +2409,10 @@ canbus:
       # Fan Duty/RPM for Unit 1
       # ----------------------------------------------------------------------
       # CAN RX 0x1081827E
-      # Unit 1 fan telemetry frame. Bytes 2-3/4-5 report duty cycle
-      # (raw/25600*100 = %), bytes 6-7 report raw fan RPM.
+      # Unit 1 fan telemetry frame:
+      #   bytes 2..3 = actual fan duty, raw / 25600 * 100 = %
+      #   bytes 4..5 = requested fan duty, raw / 25600 * 100 = %
+      #   bytes 6..7 = fan speed in RPM
       - can_id: 0x1081827E
         use_extended_id: true
         then:
@@ -2440,6 +2442,9 @@ canbus:
                   float duty_set =
                       (static_cast<float>(duty_set_raw) / 25600.0f) * 100.0f;
 
+                  // Publish all decoded fan telemetry.
+                  id(fan_duty_1).publish_state(duty);
+                  id(fan_duty_setpoint_1).publish_state(duty_set);
                   id(fan_rpm_1).publish_state(rpm);
                 }
               }
@@ -2448,7 +2453,10 @@ canbus:
       # Fan Duty/RPM for Unit 2
       # ----------------------------------------------------------------------
       # CAN RX 0x1082827E
-      # Unit 2 fan telemetry frame. Bytes 2-3/4-5 report duty cycle (raw/25600*100 = %), bytes 6-7 report raw fan RPM.
+      # Unit 2 fan telemetry frame:
+      #   bytes 2..3 = actual fan duty, raw / 25600 * 100 = %
+      #   bytes 4..5 = requested fan duty, raw / 25600 * 100 = %
+      #   bytes 6..7 = fan speed in RPM
       - can_id: 0x1082827E
         use_extended_id: true
         then:
@@ -2470,7 +2478,9 @@ canbus:
                   float duty = (static_cast<float>(duty_raw) / 25600.0f) * 100.0f;
                   float duty_set = (static_cast<float>(duty_set_raw) / 25600.0f) * 100.0f;
 
-                  // Publish the sensor states
+                  // Publish all decoded fan telemetry.
+                  id(fan_duty_2).publish_state(duty);
+                  id(fan_duty_setpoint_2).publish_state(duty_set);
                   id(fan_rpm_2).publish_state(rpm);
                 }
               }
@@ -2479,7 +2489,10 @@ canbus:
       # Fan Duty/RPM for Unit 3
       # ----------------------------------------------------------------------
       # CAN RX 0x1083827E
-      # Unit 3 fan telemetry frame. Bytes 2-3/4-5 report duty cycle (raw/25600*100 = %), bytes 6-7 report raw fan RPM.
+      # Unit 3 fan telemetry frame:
+      #   bytes 2..3 = actual fan duty, raw / 25600 * 100 = %
+      #   bytes 4..5 = requested fan duty, raw / 25600 * 100 = %
+      #   bytes 6..7 = fan speed in RPM
       - can_id: 0x1083827E
         use_extended_id: true
         then:
@@ -2501,7 +2514,9 @@ canbus:
                   float duty = (static_cast<float>(duty_raw) / 25600.0f) * 100.0f;
                   float duty_set = (static_cast<float>(duty_set_raw) / 25600.0f) * 100.0f;
 
-                  // Publish the sensor states
+                  // Publish all decoded fan telemetry.
+                  id(fan_duty_3).publish_state(duty);
+                  id(fan_duty_setpoint_3).publish_state(duty_set);
                   id(fan_rpm_3).publish_state(rpm);
                 }
               }
@@ -3820,6 +3835,86 @@ sensor:
           return x / id(current_scaling_factor);  
       - timeout: 5s
     icon: "mdi:current-ac"
+
+  # --------------------------------------------------------------------------
+  # Fan Duty Unit-1
+  # Actual fan duty reported by the rectifier's 0x1081827E fan telemetry frame.
+  - platform: template
+    name: "Fan Duty Unit-1"
+    id: fan_duty_1
+    unit_of_measurement: "%"
+    state_class: measurement
+    accuracy_decimals: 1
+    update_interval: never
+    filters:
+      - timeout: 5s
+    icon: "mdi:fan"
+
+  # --------------------------------------------------------------------------
+  # Fan Duty Setpoint Unit-1
+  # Requested fan duty reported by the rectifier's fan telemetry frame.
+  - platform: template
+    name: "Fan Duty Setpoint Unit-1"
+    id: fan_duty_setpoint_1
+    unit_of_measurement: "%"
+    state_class: measurement
+    accuracy_decimals: 1
+    update_interval: never
+    filters:
+      - timeout: 5s
+    icon: "mdi:fan"
+
+  # --------------------------------------------------------------------------
+  # Fan Duty Unit-2
+  - platform: template
+    name: "Fan Duty Unit-2"
+    id: fan_duty_2
+    unit_of_measurement: "%"
+    state_class: measurement
+    accuracy_decimals: 1
+    update_interval: never
+    filters:
+      - timeout: 5s
+    icon: "mdi:fan"
+
+  # --------------------------------------------------------------------------
+  # Fan Duty Setpoint Unit-2
+  - platform: template
+    name: "Fan Duty Setpoint Unit-2"
+    id: fan_duty_setpoint_2
+    unit_of_measurement: "%"
+    state_class: measurement
+    accuracy_decimals: 1
+    update_interval: never
+    filters:
+      - timeout: 5s
+    icon: "mdi:fan"
+
+  # --------------------------------------------------------------------------
+  # Fan Duty Unit-3
+  - platform: template
+    name: "Fan Duty Unit-3"
+    id: fan_duty_3
+    unit_of_measurement: "%"
+    state_class: measurement
+    accuracy_decimals: 1
+    update_interval: never
+    filters:
+      - timeout: 5s
+    icon: "mdi:fan"
+
+  # --------------------------------------------------------------------------
+  # Fan Duty Setpoint Unit-3
+  - platform: template
+    name: "Fan Duty Setpoint Unit-3"
+    id: fan_duty_setpoint_3
+    unit_of_measurement: "%"
+    state_class: measurement
+    accuracy_decimals: 1
+    update_interval: never
+    filters:
+      - timeout: 5s
+    icon: "mdi:fan"
 
   # --------------------------------------------------------------------------
   # FAN RPM Unit-1

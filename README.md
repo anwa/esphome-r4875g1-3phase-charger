@@ -239,6 +239,9 @@ Per unit, the controller decodes values including:
 - configured maximum output current,
 - input temperature,
 - output temperature,
+- fan speed,
+- actual fan duty,
+- requested fan duty,
 - power state,
 - unit capability and identification information.
 
@@ -582,6 +585,42 @@ The implementation currently decodes identifiers including:
 | `0x81` | Output current |
 
 Raw values are published into ESPHome template sensors and converted using the configured scaling factors.
+
+### Fan telemetry
+
+Each rectifier also provides a dedicated fan telemetry frame:
+
+```text
+Unit 1: 0x1081827E
+Unit 2: 0x1082827E
+Unit 3: 0x1083827E
+```
+
+Valid fan telemetry frames use message selector `0x01 / 0x87`.
+
+The payload contains three 16-bit big-endian values:
+
+```text
+bytes 2..3 = actual fan duty
+bytes 4..5 = requested fan duty
+bytes 6..7 = fan RPM
+```
+
+The fan-duty values are converted to percent using:
+
+```text
+fan duty [%] = raw value / 25600 × 100
+```
+
+The resulting per-unit entities are:
+
+```text
+Fan Duty Unit-1..3
+Fan Duty Setpoint Unit-1..3
+FAN RPM Unit-1..3
+```
+
+All fan telemetry entities are CAN-driven and use a 5-second freshness timeout. If no new fan frame is received within that period, the corresponding values become unavailable instead of retaining stale measurements.
 
 ### Voltage/value scaling
 
@@ -1265,6 +1304,9 @@ The following table documents the main CAN IDs used by this project. It is inten
 | `0x108180FE` | ESP → Unit 1 | Individual control |
 | `0x108280FE` | ESP → Unit 2 | Individual control |
 | `0x108380FE` | ESP → Unit 3 | Individual control |
+| `0x1081827E` | Unit 1 → ESP | Fan duty, duty setpoint and RPM |
+| `0x1082827E` | Unit 2 → ESP | Fan duty, duty setpoint and RPM |
+| `0x1083827E` | Unit 3 → ESP | Fan duty, duty setpoint and RPM |
 
 Broadcast command payloads in the current project include functions for:
 
