@@ -143,6 +143,25 @@ logger:
 # is available. Local blackstart operation does not depend on this web server.
 web_server:
   version: 3
+  port: 80
+
+  # Keep all web UI assets on the ESP32 so the interface remains usable
+  # without internet access, including during blackstart scenarios.
+  local: true
+
+  # Internal helper entities are implementation details and should not be
+  # exposed through the browser UI.
+  include_internal: false
+
+  # Protect browser access to charger controls and diagnostics.
+  auth:
+    username: !secret web_server_username
+    password: !secret web_server_password
+    type: digest
+
+  # Native ESPHome OTA is already configured separately. Do not expose
+  # firmware upload through the normal web interface.
+  ota: false
 
 # ==============================================================================
 # HOME ASSISTANT NATIVE API

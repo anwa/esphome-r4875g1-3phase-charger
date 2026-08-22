@@ -1065,9 +1065,37 @@ Controller diagnostics, CAN health, rectifier capability information and static 
 
 ### Web server
 
-ESPHome Web Server v3 is enabled, providing a direct browser-based interface to available entities.
+ESPHome Web Server v3 provides a direct browser-based interface to charger
+telemetry, diagnostics and controls.
 
-This remains useful for fine adjustment of parameters that are intentionally not exposed through the simplified local encoder UI.
+Browser access is protected using HTTP Digest authentication. The credentials
+are stored in `secrets.yaml` and must not be committed to the repository.
+
+```yaml
+web_server:
+  version: 3
+  port: 80
+  local: true
+  include_internal: false
+  auth:
+    username: !secret web_server_username
+    password: !secret web_server_password
+    type: digest
+  ota: false
+```
+
+`local: true` embeds the required web-interface assets in the ESP32 firmware.
+The web UI therefore remains usable on the local network even when internet
+access is unavailable.
+
+Internal ESPHome helper entities are not exposed through the web interface.
+
+Firmware upload through the normal web interface is disabled. Firmware updates
+continue to use the separately configured native ESPHome OTA platform.
+
+Web-server authentication affects only HTTP access. Local CAN communication,
+the TFT display, rotary-encoder control and blackstart operation remain fully
+independent of the web server.
 
 ### MQTT
 
@@ -1215,6 +1243,9 @@ fallback_ap_password: "YOUR_FALLBACK_AP_PASSWORD"
 mqtt_host: "192.168.1.10"
 mqtt_username: "YOUR_MQTT_USERNAME"
 mqtt_password: "YOUR_MQTT_PASSWORD"
+
+web_server_username: "admin"
+web_server_password: "YOUR_WEB_SERVER_PASSWORD"
 ```
 
 Do not commit real credentials to a public repository.
