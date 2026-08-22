@@ -31,8 +31,8 @@
 # -----------------------------
 #   Rotary encoder + push button
 #          |
-#          +--> choose DC voltage or total DC power
-#          +--> calculate equal current setpoint for all three units
+#          +--> choose DC voltage or nominal three-unit DC power target
+#          +--> calculate the common per-unit current setpoint from that target
 #          +--> broadcast voltage/current setpoints over CAN
 #          +--> long press starts/stops all units
 #
@@ -281,8 +281,6 @@ spi:
   mosi_pin: GPIO11 # SDI(MOSI)
   miso_pin: GPIO12 # SDO(MISI)
 
-# Define a PWM output on the ESP32
-
 # ==============================================================================
 # DISPLAY BACKLIGHT PWM
 # ==============================================================================
@@ -291,8 +289,6 @@ output:
   - platform: ledc
     pin: GPIO4  # LED
     id: backlight_pwm
-
-# Define a monochromatic, dimmable light for the backlight
 
 # ==============================================================================
 # DISPLAY BACKLIGHT LIGHT ENTITY
@@ -657,7 +653,7 @@ display:
           375, 220,
           id(font_small_bold),
           id(color_green),
-          "3/3 ON"
+          "3/3 On"
         );
 
       } else if (rectifiers_on == 0) {
@@ -666,7 +662,7 @@ display:
           410, 220,
           id(font_small_bold),
           id(color_red),
-          "OFF"
+          "Off"
         );
 
       } else {
@@ -675,7 +671,7 @@ display:
           375, 220,
           id(font_small_bold),
           id(color_blue),
-          "%d/3 ON",
+          "%d/3 On",
           rectifiers_on
         );
       }
@@ -746,10 +742,8 @@ globals:
     restore_value: no
     initial_value: '0'
 
-  # Last valid cyclic CAN telemetry frame received from each charger unit.
-  # Used by can_com_ok_1..3 to detect stale/lost communication.
-  # Timestamp (millis) of the last valid cyclic telemetry frame from
-  # Unit 1. Used only by the communication watchdog.
+  # Timestamp (millis) of the last valid cyclic telemetry frame from Unit 1.
+  # Used by the communication watchdog to detect stale/lost communication.
   - id: last_can_rx_1
     type: uint32_t
     restore_value: no
@@ -938,7 +932,7 @@ globals:
 
   # Overtemperature lockout for Unit 1. Set when output temperature exceeds
   # 90 °C; cleared only once it drops below the 80 °C hysteresis threshold.
-  # While set, this unit is excluded from ON commands.
+  # While set, this unit is excluded from On commands.
   - id: overtemp_lockout_1
     type: bool
     restore_value: no
@@ -1528,11 +1522,11 @@ script:
   # Offline START sequence. Recalculates current, explicitly sends voltage and
   # current setpoints, then evaluates each rectifier independently. Only units
   # with valid CAN communication, fresh safe temperature telemetry and no
-  # overtemperature lockout receive an individual ON command.
+  # overtemperature lockout receive an individual On command.
   - id: blackstart_start
     mode: single
     then:
-      # Calculate current from voltage and total power
+      # Calculate per-unit current from voltage and the nominal three-unit power target.
       - script.execute: apply_dc_sum_power
       - script.wait: apply_dc_sum_power
 
@@ -1704,12 +1698,12 @@ script:
 
       - logger.log:
           level: INFO
-          format: "BLACKSTART: Start sequence completed; only units passing CAN, temperature and lockout checks were commanded ON."
+          format: "BLACKSTART: Start sequence completed; only units passing CAN, temperature and lockout checks were commanded On."
 
   # --------------------------------------------------------------------------
   # blackstart_stop
   # --------------------------------------------------------------------------
-  # Offline STOP sequence. Broadcasts the OFF command to all units.
+  # Offline STOP sequence. Broadcasts the Off command to all units.
   - id: blackstart_stop
     mode: single
     then:
@@ -1720,11 +1714,8 @@ script:
 
       - logger.log:
           level: INFO
-          format: "BLACKSTART: Rectifiers switched OFF"
+          format: "BLACKSTART: Rectifiers switched Off"
 
-  # ------------------------------------------------------------------
-  # Display backlight inactivity timer
-  # ------------------------------------------------------------------
   # --------------------------------------------------------------------------
   # display_inactivity_timer
   # --------------------------------------------------------------------------
@@ -3552,8 +3543,8 @@ sensor:
   # Output Temperature Unit 1
   # Rectifier output temperature from telemetry selector 0x7F.
   # The safety automation trips once when the temperature exceeds 90 °C,
-  # immediately sends an individual OFF command and engages an overtemperature
-  # lockout. Repeated hot telemetry does not generate additional OFF commands.
+  # immediately sends an individual Off command and engages an overtemperature
+  # lockout. Repeated hot telemetry does not generate additional Off commands.
   # The lockout remains active throughout the 80..90 °C hysteresis range and
   # clears only after the temperature falls below 80 °C.
   - platform: template
@@ -3577,8 +3568,8 @@ sensor:
         # Overtemperature trip
         # --------------------------------------------------------------
         # Trigger only once when the temperature first exceeds 90 °C.
-        # Setting the lockout before sending OFF prevents subsequent
-        # telemetry updates above 90 °C from sending repeated OFF frames.
+        # Setting the lockout before sending Off prevents subsequent
+        # telemetry updates above 90 °C from sending repeated Off frames.
         - if:
             condition:
               lambda: |-
@@ -3592,7 +3583,7 @@ sensor:
                   ESP_LOGW(
                     "overtemp",
                     "Unit 1 exceeded 90°C (%.1f°C). "
-                    "Sending CAN OFF and engaging overtemperature lockout.",
+                    "Sending CAN Off and engaging overtemperature lockout.",
                     x
                   );
 
@@ -3627,8 +3618,8 @@ sensor:
   # Output Temperature Unit 2
   # Rectifier output temperature from telemetry selector 0x7F.
   # The safety automation trips once when the temperature exceeds 90 °C,
-  # immediately sends an individual OFF command and engages an overtemperature
-  # lockout. Repeated hot telemetry does not generate additional OFF commands.
+  # immediately sends an individual Off command and engages an overtemperature
+  # lockout. Repeated hot telemetry does not generate additional Off commands.
   # The lockout remains active throughout the 80..90 °C hysteresis range and
   # clears only after the temperature falls below 80 °C.
   - platform: template
@@ -3664,7 +3655,7 @@ sensor:
                   ESP_LOGW(
                     "overtemp",
                     "Unit 2 exceeded 90°C (%.1f°C). "
-                    "Sending CAN OFF and engaging overtemperature lockout.",
+                    "Sending CAN Off and engaging overtemperature lockout.",
                     x
                   );
 
@@ -3697,8 +3688,8 @@ sensor:
   # Output Temperature Unit 3
   # Rectifier output temperature from telemetry selector 0x7F.
   # The safety automation trips once when the temperature exceeds 90 °C,
-  # immediately sends an individual OFF command and engages an overtemperature
-  # lockout. Repeated hot telemetry does not generate additional OFF commands.
+  # immediately sends an individual Off command and engages an overtemperature
+  # lockout. Repeated hot telemetry does not generate additional Off commands.
   # The lockout remains active throughout the 80..90 °C hysteresis range and
   # clears only after the temperature falls below 80 °C.
   - platform: template
@@ -3734,7 +3725,7 @@ sensor:
                   ESP_LOGW(
                     "overtemp",
                     "Unit 3 exceeded 90°C (%.1f°C). "
-                    "Sending CAN OFF and engaging overtemperature lockout.",
+                    "Sending CAN Off and engaging overtemperature lockout.",
                     x
                   );
 
@@ -4266,7 +4257,7 @@ number:
             float voltage_value = id(set_dc_voltage_limit).state;
             ESP_LOGI(
               "custom",
-              "Received dc voltage  limit: %.0fV",
+              "Received DC voltage limit: %.1f V",
               voltage_value
             );
 
@@ -4360,7 +4351,7 @@ number:
     id: set_dc_current_limit_fallback
     min_value: 1
     # Absolute project/UI ceiling. The runtime effective limit may be lower.
-    max_value: 75  
+    max_value: 75
     step: 1
     unit_of_measurement: "A"
     optimistic: true
@@ -4418,7 +4409,7 @@ number:
               can_data[7] = scaled_value & 0xFF;
               return can_data;
 
-  #  DC Voltage Fallback Setting
+  # DC Voltage Fallback Setting
   # --------------------------------------------------------------------------
   # Set DC Voltage Limit Fallback
   # Fallback voltage parameter. Encoded with the same
@@ -4442,7 +4433,7 @@ number:
             float fallback_voltage_value = id(set_dc_voltage_limit_fallback).state;  // Get the fallback voltage value
             ESP_LOGI(
               "custom",
-              "Received fallback voltage setpoint: %.0fV",
+              "Received fallback DC voltage limit: %.1f V",
               fallback_voltage_value
             );
 
@@ -4461,9 +4452,11 @@ number:
   # AC Current Setting
   # --------------------------------------------------------------------------
   # Set AC Current Limit
-  # Primary all-rectifier current setpoint. The requested current is
-  # validated against the detected unit model/capability, encoded using
-  # current_scaling_factor and broadcast with command selector 0x03.
+  # Broadcast AC input-current limit for all rectifiers.
+  # A model-dependent maximum is derived from current_scaling_factor.
+  # The requested amperage is encoded using voltage_scaling_factor
+  # (1024 counts per ampere) and sent with command selector 0x09.
+  # Byte 3 enables the limit when the requested value is greater than zero.
   - platform: template
     name: "Set AC Current Limit"
     id: set_ac_current_limit
@@ -4497,7 +4490,7 @@ number:
             if (current_value == 0) {
               ESP_LOGI("custom", "AC Current Limit disabled.");
             } else {
-              ESP_LOGI("custom", "AC Current Limit set to %.1fA.", current_value);
+              ESP_LOGI("custom", "AC Current Limit set to %.1f A.", current_value);
             }
         - canbus.send:
             use_extended_id: true
@@ -4589,7 +4582,7 @@ binary_sensor:
               );
           - component.update: tft
       # Long press:
-      # Toggle rectifier units ON/OFF for local blackstart control.
+      # Toggle rectifier units On/Off for local blackstart control.
       #
       # Safety rules:
       # - If at least one reachable unit reports ON, send STOP.
@@ -4686,14 +4679,13 @@ binary_sensor:
              (uint32_t) (millis() - id(last_can_rx_2)) < 3000U;
 
     # Whenever Unit 2 becomes reachable, refresh its capability/address data.
-    # Unit 2 is the canonical source for current_scaling_factor, so this also
-    # verifies or corrects the model-specific fallback automatically.
+    # Unit 2's detected scaling factor is exposed for diagnostics only; the shared
+    # current_scaling_factor remains based on Unit 1.
     on_press:
       then:
         - logger.log:
             level: INFO
             format: "Unit 2 CAN communication available - refreshing current capability and scaling factor."
-
         - script.execute: detect_data_unit_2
 
     on_release:
@@ -4722,13 +4714,13 @@ binary_sensor:
              (uint32_t) (millis() - id(last_can_rx_3)) < 3000U;
 
     # Whenever Unit 3 becomes reachable, refresh its capability/address data.
-    # Unit 3 is the canonical source for current_scaling_factor, so this also
-    # verifies or corrects the model-specific fallback automatically.
+    # Unit 3's detected scaling factor is exposed for diagnostics only; the shared
+    # current_scaling_factor remains based on Unit 1.
     on_press:
       then:
         - logger.log:
             level: INFO
-            format: "Unit 3 CAN communication available - refreshing current capability and scaling factor."
+            format: "Unit 3 CAN communication available - refreshing capability/address diagnostics."
 
         - script.execute: detect_data_unit_3
 
@@ -4769,10 +4761,10 @@ binary_sensor:
 # Polls live telemetry frequently and periodically reasserts active voltage and
 # current setpoints so units that restart can recover the requested settings.
 interval:
-  # Interval for sending the first CAN message every 05 seconds
   # --------------------------------------------------------------------------
-  # Periodic task: 577ms
-  # Fast cyclic telemetry polling. Unit 1 is requested first; Units 2 and 3 are staggered by 183 ms and 193 ms to spread CAN traffic instead of creating one large burst.
+  # Periodic task: 577 ms
+  # Fast cyclic telemetry polling. Unit 1 is requested first; Units 2 and 3 are
+  # staggered by 183 ms and 193 ms to distribute CAN traffic.
   - interval: 577ms
     then:
       - canbus.send:
@@ -4790,10 +4782,10 @@ interval:
           can_id: 0x108340FE
           data: [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
 
-  # Interval for sending voltage CAN message every 30 seconds
   # --------------------------------------------------------------------------
-  # Periodic task: 30s
-  # Reasserts the broadcast DC voltage setpoint every 30 seconds so restarted/late units recover it.
+  # Periodic task: 30 s
+  # Reasserts the broadcast DC voltage setpoint every 30 seconds so restarted
+  # or late-joining units recover the requested setting.
   - interval: 30s
     then:
       - canbus.send:
@@ -4807,10 +4799,10 @@ interval:
             can_data[7] = scaled_value & 0xFF;         // Encode the low byte in the 8th byte
             return can_data;
 
-  # Interval for sending Current setting CAN message every 10 seconds
   # --------------------------------------------------------------------------
-  # Periodic task: 30s
-  # Reasserts the broadcast current setpoint every 30 seconds for the same recovery reason.
+  # Periodic task: 30 s
+  # Reasserts the broadcast DC current setpoint every 30 seconds so restarted
+  # or late-joining units recover the requested setting.
   - interval: 30s
     then:
       - canbus.send:
@@ -4825,16 +4817,13 @@ interval:
             can_data[7] = scaled_value & 0xFF;         // Encode the low byte in the 8th byte
             return can_data;
 
-
-# Define a button component for turning ON
-
 # ==============================================================================
 # MANUAL CONTROL BUTTON ENTITIES
 # ==============================================================================
-# Home Assistant/web controls for broadcast and individual ON/OFF commands,
+# Home Assistant/web controls for broadcast and individual On/Off commands,
 # fan overrides and manual unit discovery.
 button:
-  # Broadcast ON command to all three rectifiers.
+  # Broadcast On command to all three rectifiers.
   # Because this command cannot exclude individual units, all three rectifiers
   # must have valid CAN communication, valid safe temperature telemetry and no
   # active overtemperature lockout.
@@ -4845,7 +4834,7 @@ button:
     on_press:
       then:
         - lambda: |-
-            ESP_LOGI("custom", "All Unit ON button pressed.");
+            ESP_LOGI("custom", "All Unit On button pressed.");
 
         - if:
             condition:
@@ -4876,9 +4865,9 @@ button:
             else:
               - logger.log:
                   level: WARN
-                  format: "All ON blocked - all three units require valid CAN communication, valid output temperature <= 90°C and no overtemperature lockout."
+                  format: "All On blocked - all three units require valid CAN communication, valid output temperature <= 90°C and no overtemperature lockout."
 
-  # Individual ON command for one rectifier; useful for diagnostics and service.
+  # Individual On command for one rectifier; useful for diagnostics and service.
   # Blocked while Unit 1 is in overtemperature lockout (see output_temperature_1).
   - platform: template
     name: "Turn On Unit 1"
@@ -4887,7 +4876,7 @@ button:
     on_press:
       then:
         - lambda: |-
-            ESP_LOGI("custom", "Unit 1 ON Button pressed.");
+            ESP_LOGI("custom", "Unit 1 On Button pressed.");
 
         - if:
             condition:
@@ -4904,9 +4893,9 @@ button:
             else:
               - logger.log:
                   level: WARN
-                  format: "Unit 1 ON blocked - CAN communication, valid safe temperature and cleared overtemperature lockout are required."
+                  format: "Unit 1 On blocked - CAN communication, valid safe temperature and cleared overtemperature lockout are required."
 
-  # Individual ON command for one rectifier; useful for diagnostics and service.
+  # Individual On command for one rectifier; useful for diagnostics and service.
   # Blocked while Unit 2 is in overtemperature lockout (see output_temperature_2).
   - platform: template
     name: "Turn On Unit 2"
@@ -4915,7 +4904,7 @@ button:
     on_press:
       then:
         - lambda: |-
-            ESP_LOGI("custom", "Unit 2 ON Button pressed.");
+            ESP_LOGI("custom", "Unit 2 On Button pressed.");
 
         - if:
             condition:
@@ -4932,9 +4921,9 @@ button:
             else:
               - logger.log:
                   level: WARN
-                  format: "Unit 2 ON blocked - CAN communication, valid safe temperature and cleared overtemperature lockout are required."
+                  format: "Unit 2 On blocked - CAN communication, valid safe temperature and cleared overtemperature lockout are required."
 
-  # Individual ON command for one rectifier; useful for diagnostics and service.
+  # Individual On command for one rectifier; useful for diagnostics and service.
   # Blocked while Unit 3 is in overtemperature lockout (see output_temperature_3).
   - platform: template
     name: "Turn On Unit 3"
@@ -4943,7 +4932,7 @@ button:
     on_press:
       then:
         - lambda: |-
-            ESP_LOGI("custom", "Unit 3 ON Button pressed.");
+            ESP_LOGI("custom", "Unit 3 On Button pressed.");
 
         - if:
             condition:
@@ -4960,10 +4949,9 @@ button:
             else:
               - logger.log:
                   level: WARN
-                  format: "Unit 3 ON blocked - CAN communication, valid safe temperature and cleared overtemperature lockout are required."
+                  format: "Unit 3 On blocked - CAN communication, valid safe temperature and cleared overtemperature lockout are required."
 
-  # Define a button component for turning OFF
-  # Broadcast OFF command to all three rectifiers.
+  # Broadcast Off command to all three rectifiers.
   - platform: template
     name: "Turn Off All Units"
     id: off_button_all
@@ -4971,55 +4959,54 @@ button:
     on_press:
       then:
         - lambda: |-
-            ESP_LOGI("custom", "All Units OFF Button pressed.");
+            ESP_LOGI("custom", "All Units Off Button pressed.");
         - canbus.send:
             use_extended_id: true
             can_id: 0x108080FE
             data: [0x01, 0x32, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00]
 
-  # Individual OFF command for one rectifier.
+  # Individual Off command for one rectifier.
   - platform: template
-    name: "Turn OFF Unit 1"
+    name: "Turn Off Unit 1"
     id: off_button_1
     icon: "mdi:power"
     on_press:
       then:
         - lambda: |-
-            ESP_LOGI("custom", "Unit 1 OFF Button pressed.");
+            ESP_LOGI("custom", "Unit 1 Off Button pressed.");
         - canbus.send:
             use_extended_id: true
             can_id: 0x108180FE
             data: [0x01, 0x32, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00]
 
-  # Individual OFF command for one rectifier.
+  # Individual Off command for one rectifier.
   - platform: template
-    name: "Turn OFF Unit 2"
+    name: "Turn Off Unit 2"
     id: off_button_2
     icon: "mdi:power"
     on_press:
       then:
         - lambda: |-
-            ESP_LOGI("custom", "Unit 2 OFF Button pressed.");
+            ESP_LOGI("custom", "Unit 2 Off Button pressed.");
         - canbus.send:
             use_extended_id: true
             can_id: 0x108280FE
             data: [0x01, 0x32, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00]
 
-  # Individual OFF command for one rectifier.
+  # Individual Off command for one rectifier.
   - platform: template
-    name: "Turn OFF Unit 3"
+    name: "Turn OffUnit 3"
     id: off_button_3
     icon: "mdi:power"
     on_press:
       then:
         - lambda: |-
-            ESP_LOGI("custom", "Unit 3 OFF Button pressed.");
+            ESP_LOGI("custom", "Unit 3 Off Button pressed.");
         - canbus.send:
             use_extended_id: true
             can_id: 0x108380FE
             data: [0x01, 0x32, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00]
 
-# Define a button component for setting the fan to full speed
   # Broadcast fan override: force full fan speed on all rectifiers.
   - platform: template
     name: "Set Fan Full Speed All Units"
@@ -5068,7 +5055,6 @@ button:
             can_id: 0x108380FE
             data: [0x01, 0x34, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00]
 
-# Define a button component for setting the fan to auto mode
   # Broadcast command returning all rectifier fans to automatic control.
   - platform: template
     name: "Set Fan Auto Mode All Units"
@@ -5081,7 +5067,7 @@ button:
             can_id: 0x108080FE
             data: [0x01, 0x34, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
 
-# Define a button component for setting the fan to auto mode for Unit 1
+  # Define a button component for setting the fan to auto mode for Unit 1
   - platform: template
     name: "Set Fan Auto Mode Unit 1"
     id: fan_auto_mode_button_1
@@ -5093,7 +5079,7 @@ button:
             can_id: 0x108180FE
             data: [0x01, 0x34, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
 
-# Define a button component for setting the fan to auto mode for Unit 2
+  # Define a button component for setting the fan to auto mode for Unit 2
   - platform: template
     name: "Set Fan Auto Mode Unit 2"
     id: fan_auto_mode_button_2
@@ -5105,7 +5091,7 @@ button:
             can_id: 0x108280FE
             data: [0x01, 0x34, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
 
-# Define a button component for setting the fan to auto mode for Unit 3
+  # Define a button component for setting the fan to auto mode for Unit 3
   - platform: template
     name: "Set Fan Auto Mode Unit 3"
     id: fan_auto_mode_button_3

@@ -180,7 +180,7 @@ graph TD;
     S --> U
     T --> U
     U --> W[48–58 V 16S BATTERY]
-    B -->|CAN-H/L| E[Paralell]
+    B -->|CAN-H/L| E[Shared CAN bus]
     C -->|CAN-H/L| E
     D -->|CAN-H/L| E
     E -->|CAN-H/L| V[SN65HVD230 3.3 V CAN transceiver]
