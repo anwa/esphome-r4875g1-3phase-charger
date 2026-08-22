@@ -27,7 +27,6 @@ The project combines CAN-bus control, live telemetry, Home Assistant integration
   - [Rectifier Units](#rectifier-units)
   - [CAN Interface](#can-interface)
   - [Display](#display-1)
-    - [Touchscreen](#touchscreen)
   - [Rotary Encoder](#rotary-encoder)
   - [GPIO Assignment](#gpio-assignment)
 - [Electrical Architecture](#electrical-architecture)
@@ -378,12 +377,6 @@ Display pins:
 - Backlight PWM: GPIO4
 
 The display backlight is exposed as a dimmable ESPHome light entity.
-
-### Touchscreen
-
-An XPT2046 resistive touchscreen configuration exists in the YAML as commented reference code, but it is **currently disabled**.
-
-Important: the old touchscreen IRQ example uses GPIO17, but GPIO17 is now used by the rotary encoder. Do not enable the old touchscreen block without changing the pin assignment.
 
 ## Rotary Encoder
 
@@ -1551,8 +1544,6 @@ Check in this order:
 - The firmware is optimized for **three identical R4875G1 units**.
 - The current calculation always divides total requested power by three, even if one unit has lost CAN communication. The local setpoint model therefore assumes the intended three-unit system is available for charging.
 - Current scaling is global and derived from Unit 1.
-- The touchscreen configuration is currently disabled.
-- GPIO17 is now used by the encoder, so the old XPT2046 IRQ configuration cannot be enabled unchanged.
 - If all units are offline, the combined DC power sensor becomes unavailable. The current DC header on the TFT formats the combined sensor directly, so depending on ESPHome display formatting it may show an unavailable/NaN representation until a dedicated DC-header communication-fault branch is added.
 - SNTP-based time requires network access to synchronize after a cold start.
 - This project does not replace correctly engineered hardware safety mechanisms such as fuses, breakers, contactors, BMS protection, thermal protection, earthing or isolation.

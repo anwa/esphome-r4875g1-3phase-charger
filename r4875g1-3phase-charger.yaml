@@ -273,8 +273,7 @@ i2c:
 # ==============================================================================
 # SPI BUS
 # ==============================================================================
-# Shared hardware SPI bus for the ILI9488 TFT and the optional XPT2046 touch
-# controller. Each peripheral uses its own chip-select line.
+# Hardware SPI bus used by the ILI9488 TFT display.
 spi:
   id: spi_bus
   clk_pin: GPIO13  # SCK
@@ -301,25 +300,6 @@ light:
     name: "Display Backlight"
     id: back_light
     restore_mode: ALWAYS_ON
-
-# Optional XPT2046 resistive touchscreen (currently disabled).
-#touchscreen:
-#  - platform: xpt2046
-#    display: tft
-#    id: touch
-#    cs_pin: GPIO32  # Touch controller chip-select pin
-#    interrupt_pin: GPIO33  # Optional IRQ pin
-#    spi_id: spi_bus
-#    update_interval: 50ms
-#    calibration:
-#      x_min: 200
-#      x_max: 3900
-#      y_min: 200
-#      y_max: 3900
-#    on_touch:
-#      then:
-#        - logger.log: "Touch pressed"
-
 
 # ==============================================================================
 # ILI9488 480x320 LOCAL TFT
