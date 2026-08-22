@@ -2806,23 +2806,30 @@ canbus:
 # rectifier telemetry, CAN-aware aggregate power and daily energy counters.
 sensor:
   # --------------------------------------------------------------------------
-  # Heap Free
-  # ESPHome internal diagnostics: free heap, largest block, loop time, free PSRAM and CPU frequency.
+  # ESPHome internal diagnostics
   - platform: debug
     free:
       name: "Heap Free"
+      entity_category: diagnostic
+
     block:
       name: "Heap Max Block"
+      entity_category: diagnostic
+
     loop_time:
       name: "Loop Time"
+      entity_category: diagnostic
+
     psram:
       name: "Free PSRAM"
+      entity_category: diagnostic
+
     cpu_frequency:
       name: "CPU Frequency"
+      entity_category: diagnostic
 
   # --------------------------------------------------------------------------
   # ESP32 Internal Temperature Sensor
-  # ESP32 controller-die temperature. This is not a rectifier temperature.
   - platform: internal_temperature
     name: "Controller CPU Temperature"
     id: cpu_temp
@@ -2835,14 +2842,13 @@ sensor:
 
   # --------------------------------------------------------------------------
   # Uptime Sensor
-  # Controller uptime in seconds since the last ESP32 boot.
   - platform: uptime
     type: seconds
-    name: Uptime Sensor
+    name: "Uptime"
+    entity_category: diagnostic
 
   # --------------------------------------------------------------------------
   # WiFi RSSI
-  # Wi-Fi RSSI diagnostic, also displayed in the TFT footer.
   - platform: wifi_signal
     name: "WiFi RSSI"
     id: wifi_sig
@@ -2850,6 +2856,7 @@ sensor:
     icon: mdi:wifi
     unit_of_measurement: "dBm"
     device_class: signal_strength
+    entity_category: diagnostic
 
   # --------------------------------------------------------------------------
   # local_encoder
@@ -2969,6 +2976,7 @@ sensor:
     name: "Scaling Factor Unit-1"
     id: sf_value_1
     accuracy_decimals: 4
+    entity_category: diagnostic
     icon: "mdi:information-outline"
     update_interval: never
 
@@ -2979,6 +2987,7 @@ sensor:
     name: "Scaling Factor Unit-2"
     id: sf_value_2
     accuracy_decimals: 4
+    entity_category: diagnostic
     icon: "mdi:information-outline"
     update_interval: never
 
@@ -2989,6 +2998,7 @@ sensor:
     name: "Scaling Factor Unit-3"
     id: sf_value_3
     accuracy_decimals: 4
+    entity_category: diagnostic
     icon: "mdi:information-outline"
     update_interval: never
 
@@ -2998,6 +3008,7 @@ sensor:
   - platform: template
     name: "Pin 11 Unit-1"
     id: pin11_1
+    entity_category: diagnostic
     update_interval: never
 
   # --------------------------------------------------------------------------
@@ -3006,6 +3017,7 @@ sensor:
   - platform: template
     name: "Pin 11 Unit-2"
     id: pin11_2
+    entity_category: diagnostic
     update_interval: never
 
   # --------------------------------------------------------------------------
@@ -3014,6 +3026,7 @@ sensor:
   - platform: template
     name: "Pin 11 Unit-3"
     id: pin11_3
+    entity_category: diagnostic
     update_interval: never
 
   # --------------------------------------------------------------------------
@@ -3022,6 +3035,7 @@ sensor:
   - platform: template
     name: "Pin 12 Unit-1"
     id: pin12_1
+    entity_category: diagnostic
     update_interval: never
 
   # --------------------------------------------------------------------------
@@ -3030,14 +3044,15 @@ sensor:
   - platform: template
     name: "Pin 12 Unit-2"
     id: pin12_2
+    entity_category: diagnostic
     update_interval: never
   # --------------------------------------------------------------------------
   # Pin 12 Unit-3
   # Slot/address diagnostic extracted from the unit capability/address response.
   - platform: template
-
     name: "Pin 12 Unit-3"
     id: pin12_3
+    entity_category: diagnostic
     update_interval: never
 
   # --------------------------------------------------------------------------
@@ -3050,6 +3065,7 @@ sensor:
     device_class: current
     state_class: measurement
     accuracy_decimals: 3
+    entity_category: diagnostic
     icon: "mdi:information-outline"
     update_interval: never
 
@@ -3068,6 +3084,7 @@ sensor:
     device_class: current
     state_class: measurement
     accuracy_decimals: 3
+    entity_category: diagnostic
     icon: "mdi:information-outline"
     update_interval: never
 
@@ -3086,6 +3103,7 @@ sensor:
     device_class: current
     state_class: measurement
     accuracy_decimals: 3
+    entity_category: diagnostic
     icon: "mdi:information-outline"
     update_interval: never
 
@@ -3959,52 +3977,57 @@ sensor:
     icon: "mdi:fan"
 
   # --------------------------------------------------------------------------
-  # Info: Operating Hours Unit-1
+  # Operating Hours Unit-1
   # Rectifier lifetime operating-hours counter from telemetry selector 0x0E; raw value is a whole-hour count with no scaling applied. Monotonically increasing, like an odometer.
+  # --------------------------------------------------------------------------
+  # Operating Hours Unit-1
+  # Lifetime operating-hours counter reported by the rectifier.
   - platform: template
-    name: "Info: Operating Hours Unit-1"
+    name: "Operating Hours Unit-1"
     id: operating_hours_1
     unit_of_measurement: "h"
     device_class: duration
     state_class: total_increasing
     accuracy_decimals: 0
+    entity_category: diagnostic
     update_interval: never
     filters:
       - lambda: |-
           return x;
-    icon: "mdi:information-outline"
+    icon: "mdi:clock-outline"
 
   # --------------------------------------------------------------------------
-  # Info: Operating Hours Unit-2
-  # Rectifier lifetime operating-hours counter from telemetry selector 0x0E; raw value is a whole-hour count with no scaling applied. Monotonically increasing, like an odometer.
+  # Operating Hours Unit-2
+  # Lifetime operating-hours counter reported by the rectifier.
   - platform: template
-    name: "Info: Operating Hours Unit-2"
+    name: "Operating Hours Unit-2"
     id: operating_hours_2
     unit_of_measurement: "h"
     device_class: duration
     state_class: total_increasing
     accuracy_decimals: 0
+    entity_category: diagnostic
     update_interval: never
     filters:
       - lambda: |-
           return x;
-    icon: "mdi:information-outline"
+    icon: "mdi:clock-outline"
 
-  # --------------------------------------------------------------------------
-  # Info: Operating Hours Unit-3
-  # Rectifier lifetime operating-hours counter from telemetry selector 0x0E; raw value is a whole-hour count with no scaling applied. Monotonically increasing, like an odometer.
+  # Operating Hours Unit-3
+  # Lifetime operating-hours counter reported by the rectifier.
   - platform: template
-    name: "Info: Operating Hours Unit-3"
+    name: "Operating Hours Unit-3"
     id: operating_hours_3
     unit_of_measurement: "h"
     device_class: duration
     state_class: total_increasing
     accuracy_decimals: 0
+    entity_category: diagnostic
     update_interval: never
     filters:
       - lambda: |-
           return x;
-    icon: "mdi:information-outline"
+    icon: "mdi:clock-outline"
 
   # Combined AC Power sensor
   # Only units with valid CAN communication are included.
@@ -5072,19 +5095,26 @@ button:
 # Publishes device/unit text information and receives custom MQTT command
 # topics that feed the same canonical setpoint entities used elsewhere.
 text_sensor:
-  # Publishes IP/network information; the IP address is also shown in the TFT footer.
+  # Network diagnostic used by the TFT footer.
   - platform: wifi_info
     ip_address:
       id: ip_address
-  # Publishes the running ESPHome firmware version.
+      entity_category: diagnostic
+
+  # Running ESPHome firmware version.
   - platform: version
     name: "ESPHome Version"
-  # Publishes ESPHome device information and the last reset reason.
+    entity_category: diagnostic
+
+  # ESPHome device information and last reset reason.
   - platform: debug
     device:
       name: "Device Info"
+      entity_category: diagnostic
+
     reset_reason:
       name: "Reset Reason"
+      entity_category: diagnostic
 
   # Human-readable ON/OFF/ERROR state decoded from the unit's 0x100x117E frame.
   - platform: template
@@ -5109,107 +5139,123 @@ text_sensor:
 
   # Static unit type parsed from the multi-frame property response.
   - platform: template
-    name: "Info: Board Type Unit-1"
+    name: "Board Type Unit-1"
     id: unit_type_1
+    entity_category: diagnostic
     update_interval: never
     icon: "mdi:information-outline"
 
   # Static unit type parsed from the multi-frame property response.
   - platform: template
-    name: "Info: Board Type Unit-2"
+    name: "Board Type Unit-2"
     id: unit_type_2
+    entity_category: diagnostic
     update_interval: never
     icon: "mdi:information-outline"
 
   # Static unit type parsed from the multi-frame property response.
   - platform: template
-    name: "Info: Board Type Unit-3"
+    name: "Board Type Unit-3"
     id: unit_type_3
+    entity_category: diagnostic
     update_interval: never
     icon: "mdi:information-outline"
 
   # Unit barcode parsed from the property response.
   - platform: template
-    name: "Info: Barcode Unit-1"
+    name: "Barcode Unit-1"
     id: barcode_1
+    entity_category: diagnostic
     update_interval: never
     icon: "mdi:information-outline"
 
   # Unit barcode parsed from the property response.
   - platform: template
-    name: "Info: Barcode Unit-2"
+    name: "Barcode Unit-2"
     id: barcode_2
+    entity_category: diagnostic
     update_interval: never
     icon: "mdi:information-outline"
 
   # Unit barcode parsed from the property response.
   - platform: template
-    name: "Info: Barcode Unit-3"
+    name: "Barcode Unit-3"
     id: barcode_3
+    entity_category: diagnostic
     update_interval: never
     icon: "mdi:information-outline"
 
   # Unit item/part number parsed from the property response.
   - platform: template
-    name: "Info: Item Number Unit-1"
+    name: "Item Number Unit-1"
     id: item_no_1
+    entity_category: diagnostic
     update_interval: never
     icon: "mdi:information-outline"
 
   # Unit item/part number parsed from the property response.
   - platform: template
-    name: "Info: Item Number Unit-2"
+    name: "Item Number Unit-2"
     id: item_no_2
+    entity_category: diagnostic
     update_interval: never
     icon: "mdi:information-outline"
 
   # Unit item/part number parsed from the property response.
   - platform: template
-    name: "Info: Item Number Unit-3"
+    name: "Item Number Unit-3"
     id: item_no_3
+    entity_category: diagnostic
     update_interval: never
     icon: "mdi:information-outline"
 
   # Unit description parsed from the property response.
   - platform: template
-    name: "Info: Description Unit-1"
+    name: "Description Unit-1"
     id: description_1
+    entity_category: diagnostic
     update_interval: never
     icon: "mdi:information-outline"
 
   # Unit description parsed from the property response.
   - platform: template
-    name: "Info: Description Unit-2"
+    name: "Description Unit-2"
     id: description_2
+    entity_category: diagnostic
     update_interval: never
     icon: "mdi:information-outline"
 
   # Unit description parsed from the property response.
   - platform: template
-    name: "Info: Description Unit-3"
+    name: "Description Unit-3"
     id: description_3
+    entity_category: diagnostic
     update_interval: never
     icon: "mdi:information-outline"
 
   # Manufacturing information parsed from the property response.
   - platform: template
-    name: "Info: Manufacturing Date Unit-1"
-    update_interval: never
+    name: "Manufacturing Date Unit-1"
     id: manufactured_1
+    entity_category: diagnostic
+    update_interval: never
+    icon: "mdi:calendar"
 
   # Manufacturing information parsed from the property response.
   - platform: template
-    name: "Info: Manufacturing Date Unit-2"
+    name: "Manufacturing Date Unit-2"
     id: manufactured_2
+    entity_category: diagnostic
     update_interval: never
-    icon: "mdi:information-outline"
+    icon: "mdi:calendar"
 
   # Manufacturing information parsed from the property response.
   - platform: template
-    name: "Info: Manufacturing Date Unit-3"
+    name: "Manufacturing Date Unit-3"
     id: manufactured_3
+    entity_category: diagnostic
     update_interval: never
-    icon: "mdi:information-outline"
+    icon: "mdi:calendar"
 
   ###################################################################################################################################
   ##This Block must be added to enable voltage and currrent SET topics when using the mqtt: component

@@ -1041,6 +1041,8 @@ The native ESPHome API is enabled with encryption.
 
 This exposes normal ESPHome entities to Home Assistant while keeping the local charger logic independent of Home Assistant availability.
 
+Controller diagnostics, CAN health, rectifier capability information and static unit identification data are exposed using Home Assistant's `diagnostic` entity category, keeping operational telemetry and controls separate from service data.
+
 ### Web server
 
 ESPHome Web Server v3 is enabled, providing a direct browser-based interface to available entities.
