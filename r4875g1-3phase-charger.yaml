@@ -2970,10 +2970,10 @@ sensor:
     icon: "mdi:thermometer"
 
   # --------------------------------------------------------------------------
-  # Scaling Factor Unit 1
+  # Current Scaling Factor Unit 1
   # Diagnostic publication of the dynamically detected current scaling factor.
   - platform: template
-    name: "Scaling Factor Unit 1"
+    name: "Current Scaling Factor Unit 1"
     id: current_scaling_factor_unit_1
     accuracy_decimals: 4
     entity_category: diagnostic
@@ -2981,10 +2981,10 @@ sensor:
     update_interval: never
 
   # --------------------------------------------------------------------------
-  # Scaling Factor Unit 2
+  # Current Scaling Factor Unit 2
   # Diagnostic publication of the dynamically detected current scaling factor.
   - platform: template
-    name: "Scaling Factor Unit 2"
+    name: "Current Scaling Factor Unit 2"
     id: current_scaling_factor_unit_2
     accuracy_decimals: 4
     entity_category: diagnostic
@@ -2992,10 +2992,10 @@ sensor:
     update_interval: never
 
   # --------------------------------------------------------------------------
-  # Scaling Factor Unit 3
+  # Current Scaling Factor Unit 3
   # Diagnostic publication of the dynamically detected current scaling factor.
   - platform: template
-    name: "Scaling Factor Unit 3"
+    name: "Current Scaling Factor Unit 3"
     id: current_scaling_factor_unit_3
     accuracy_decimals: 4
     entity_category: diagnostic
