@@ -252,7 +252,9 @@ Per unit, the controller decodes values including:
 - Failed units are excluded from combined AC/DC power calculations.
 - Stale unit values are not included in combined power.
 - Display replaces unavailable unit values with a clear CAN communication fault message.
-- AC overview continues operating with one or two units if the other units lose communication.
+- AC and DC overviews continue operating with one or two units if other units lose communication.
+- AC and DC overview headers show how many of the three rectifier units currently contribute valid telemetry.
+- The DC overview displays a CAN communication fault instead of an invalid `nan` value when no rectifier telemetry is available.
 
 ## Display
 

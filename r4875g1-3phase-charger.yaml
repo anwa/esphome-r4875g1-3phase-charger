@@ -471,15 +471,55 @@ display:
           "No charger unit reachable"
         );
       }
-      // combined_dc_power is CAN-aware, so stale power from a disconnected
-      // rectifier is automatically excluded from this total.
-      it.printf(10, 125,
-        id(font_small_bold),
-        id(color_red),
-        "DC Output: %.3f kW",
-        id(combined_dc_power).state
-      );
-
+      // -----------------------------------------------------------------
+      // DC Output - use only units with valid CAN communication
+      // -----------------------------------------------------------------
+      //
+      // combined_dc_power already excludes stale values from disconnected
+      // rectifiers. Count the same valid units here so the display can show
+      // whether the total currently represents 1/3, 2/3 or all 3 units.
+      int dc_units_ok = 0;
+      
+      if (id(can_com_ok_1).state &&
+          !isnan(id(dc_power_1).state)) {
+        dc_units_ok++;
+      }
+      
+      if (id(can_com_ok_2).state &&
+          !isnan(id(dc_power_2).state)) {
+        dc_units_ok++;
+      }
+      
+      if (id(can_com_ok_3).state &&
+          !isnan(id(dc_power_3).state)) {
+        dc_units_ok++;
+      }
+      
+      
+      // Display the CAN-aware combined DC power only when at least one
+      // rectifier has valid telemetry. If no unit is available, show a
+      // clear communication fault instead of formatting NAN as "nan kW".
+      if (dc_units_ok > 0 &&
+          !isnan(id(combined_dc_power).state)) {
+      
+        it.printf(
+          10, 125,
+          id(font_small_bold),
+          id(color_red),
+          "DC Output: %.3f kW  (%d/3)",
+          id(combined_dc_power).state,
+          dc_units_ok
+        );
+      
+      } else {
+      
+        it.print(
+          10, 125,
+          id(font_small_bold),
+          id(color_red),
+          "DC Output: CAN bus communication fault!"
+        );
+      }
       if (id(can_com_ok_1).state) {
         it.printf(
           10, 150,
