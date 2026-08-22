@@ -746,13 +746,6 @@ globals:
     restore_value: no
     initial_value: '0'
 
-  # Local/legacy charger-state flag. Actual long-press start/stop
-  # decisions currently use the live power_state_1..3 values instead.
-  - id: charger_local_on
-    type: bool
-    restore_value: no
-    initial_value: 'false'
-
   # Last valid cyclic CAN telemetry frame received from each charger unit.
   # Used by can_com_ok_1..3 to detect stale/lost communication.
   # Timestamp (millis) of the last valid cyclic telemetry frame from
