@@ -190,7 +190,7 @@ time:
       - seconds: 0
         minutes: /1  # Refresh the display once per minute.
         then:
-          - component.update: my_tft
+          - component.update: tft
 
 # ==============================================================================
 # ESPHOME DEBUG METRICS
@@ -262,7 +262,7 @@ light:
 # Optional XPT2046 resistive touchscreen (currently disabled).
 #touchscreen:
 #  - platform: xpt2046
-#    display: my_tft
+#    display: tft
 #    id: touch
 #    cs_pin: GPIO32  # Touch controller chip-select pin
 #    interrupt_pin: GPIO33  # Optional IRQ pin
@@ -288,7 +288,7 @@ light:
 display:
   - platform: mipi_spi
     model: ILI9488
-    id: my_tft
+    id: tft
 
     cs_pin: GPIO5
     dc_pin: GPIO7
@@ -3495,7 +3495,7 @@ binary_sensor:
                   ? "DC Voltage"
                   : "DC Sum Power"
               );
-          - component.update: my_tft
+          - component.update: tft
       # Long press:
       # Toggle all rectifier units ON/OFF for local blackstart control.
       - timing:
