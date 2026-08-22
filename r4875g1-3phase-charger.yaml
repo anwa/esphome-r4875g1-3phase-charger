@@ -780,7 +780,7 @@ globals:
   - id: voltage_scaling_factor
     type: int
     initial_value: "1024"
-    restore_value: True
+    restore_value: true
 
   # Discovery flag: maximum-current capability for Unit 1
   # has been received during the current search.
@@ -4182,6 +4182,7 @@ number:
     optimistic: true
     mode: SLIDER
     restore_value: true
+    initial_value: 0
     icon: "mdi:fan"
     on_value:
       then:
@@ -4232,7 +4233,8 @@ number:
     unit_of_measurement: "V"
     optimistic: true
     mode: BOX
-    restore_value: True
+    restore_value: true
+    initial_value: 53.0
     on_value:
       then:
         - lambda: |-
@@ -4272,6 +4274,7 @@ number:
     optimistic: true
     mode: BOX
     restore_value: true
+    initial_value: 1
     icon: "mdi:current-dc"
     on_value:
       then:
@@ -4338,6 +4341,7 @@ number:
     optimistic: true
     mode: BOX
     restore_value: true
+    initial_value: 1
     icon: "mdi:current-dc"
     on_value:
       then:
@@ -4402,7 +4406,8 @@ number:
     unit_of_measurement: "V"
     optimistic: true
     mode: BOX
-    restore_value: True
+    restore_value: true
+    initial_value: 53.0
     on_value:
       then:
         - lambda: |-
@@ -4441,7 +4446,8 @@ number:
     unit_of_measurement: "A"
     optimistic: true
     mode: BOX
-    restore_value: True
+    restore_value: true
+    initial_value: 0
     icon: "mdi:current-ac"
     on_value:
       then:

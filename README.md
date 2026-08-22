@@ -943,6 +943,26 @@ After a short encoder-button press:
 
 `DC Target(3U)` is the nominal power target for the complete three-rectifier system. The actual measured combined output is shown separately in the `DC Output` header.
 
+### First-boot setpoint defaults
+
+All persistent user-adjustable setpoints have explicit first-boot defaults.
+
+These values are used only when no previously stored value is available:
+
+| Setpoint | First-boot default |
+|---|---:|
+| Fan minimum speed | 0 % |
+| DC voltage limit | 53.0 V |
+| DC current limit | 1 A |
+| DC fallback voltage | 53.0 V |
+| DC fallback current | 1 A |
+| AC current limit | 0 A / disabled |
+| Nominal three-unit DC power target | 1.0 kW |
+
+After a value has been changed and stored, `restore_value` restores the previous setting on subsequent boots instead of using the first-boot default.
+
+The direct DC-current default is intentionally kept at the minimum 1 A. During local blackstart, the actual current target is recalculated from the configured DC voltage and nominal three-unit power target before the rectifiers are started.
+
 ### Charger state
 
 The display derives the number of active rectifiers from the three CAN-reported power-state sensors:
