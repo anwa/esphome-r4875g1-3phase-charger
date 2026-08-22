@@ -637,7 +637,7 @@ This watchdog is more reliable than simply checking for `NaN`, because an ESPHom
 
 ### Combined AC power
 
-`combined_ac_power_sensor` includes only units that:
+`combined_ac_power` includes only units that:
 
 1. currently have valid CAN communication, and
 2. have a valid non-NaN AC power value.
@@ -648,7 +648,7 @@ If no valid unit is available, the sensor returns `NAN`/unavailable rather than 
 
 ### Combined DC power
 
-`combined_dc_power_sensor` uses the same CAN-aware logic for DC output power.
+`combined_dc_power` uses the same CAN-aware logic for DC output power.
 
 ### AC values on the display
 
@@ -879,7 +879,7 @@ Temperatures between 80 °C and 90 °C keep the lockout active.
 
 If temperature telemetry becomes unavailable while a lockout is active, the lockout is retained. Missing or stale temperature data cannot automatically clear an overtemperature condition.
 
-Unknown temperature is also treated fail-safe for startup. A unit with no valid current output-temperature value cannot receive an ON command. This prevents a controller reboot or temporary loss of temperature elemetry from bypassing the temperature protection before the actual thermal state of the rectifier is known.
+Unknown temperature is also treated fail-safe for startup. A unit with no valid current output-temperature value cannot receive an ON command. This prevents a controller reboot or temporary loss of temperature telemetry from bypassing the temperature protection before the actual thermal state of the rectifier is known.
 
 The shutdown and lockout logic operate locally and do not require Home Assistant, MQTT, Wi-Fi, or another network connection.
 

@@ -4170,8 +4170,8 @@ binary_sensor:
       return id(last_can_rx_2) != 0 &&
              (uint32_t) (millis() - id(last_can_rx_2)) < 3000U;
 
-    # Whenever Unit 1 becomes reachable, refresh its capability/address data.
-    # Unit 1 is the canonical source for current_scaling_factor, so this also
+    # Whenever Unit 2 becomes reachable, refresh its capability/address data.
+    # Unit 2 is the canonical source for current_scaling_factor, so this also
     # verifies or corrects the model-specific fallback automatically.
     on_press:
       then:
@@ -4206,8 +4206,8 @@ binary_sensor:
       return id(last_can_rx_3) != 0 &&
              (uint32_t) (millis() - id(last_can_rx_3)) < 3000U;
 
-    # Whenever Unit 1 becomes reachable, refresh its capability/address data.
-    # Unit 1 is the canonical source for current_scaling_factor, so this also
+    # Whenever Unit 3 becomes reachable, refresh its capability/address data.
+    # Unit 3 is the canonical source for current_scaling_factor, so this also
     # verifies or corrects the model-specific fallback automatically.
     on_press:
       then:
