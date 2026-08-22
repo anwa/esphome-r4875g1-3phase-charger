@@ -106,6 +106,7 @@ substitutions:
   property_discovery_attempts: "3"
   capability_discovery_attempts: "10"
   discovery_retry_delay: "1s"
+  discovery_startup_delay: "3s"
 
 esphome:
   name: hg-dg-technik-charger3ph
@@ -1809,7 +1810,7 @@ script:
 
       - logger.log:
           level: INFO
-          format: "BLACKSTART: Start sequence completed; only units passing CAN, temperature and lockout checks were commanded ON."
+          format: "BLACKSTART: Start sequence completed; only units passing CAN, power-state, temperature and lockout checks were commanded ON."
 
   # --------------------------------------------------------------------------
   # blackstart_stop
@@ -4991,9 +4992,23 @@ binary_sensor:
       then:
         - logger.log:
             level: INFO
-            format: "Unit 1 CAN communication available - starting full automatic discovery."
+            format: "Unit 1 CAN communication available - waiting for bus stabilization before automatic discovery."
 
-        - script.execute: discover_unit_1
+        - delay: ${discovery_startup_delay}
+
+        - if:
+            condition:
+              binary_sensor.is_on: can_com_ok_1
+            then:
+              - logger.log:
+                  level: INFO
+                  format: "Unit 1 CAN communication stable - starting full automatic discovery."
+
+              - script.execute: discover_unit_1
+            else:
+              - logger.log:
+                  level: WARN
+                  format: "Unit 1 CAN communication was lost during discovery startup delay - automatic discovery cancelled."
 
     on_release:
       then:
@@ -5029,9 +5044,23 @@ binary_sensor:
       then:
         - logger.log:
             level: INFO
-            format: "Unit 2 CAN communication available - starting full automatic discovery."
+            format: "Unit 2 CAN communication available - waiting for bus stabilization before automatic discovery."
 
-        - script.execute: discover_unit_2
+        - delay: ${discovery_startup_delay}
+
+        - if:
+            condition:
+              binary_sensor.is_on: can_com_ok_2
+            then:
+              - logger.log:
+                  level: INFO
+                  format: "Unit 2 CAN communication stable - starting full automatic discovery."
+
+              - script.execute: discover_unit_2
+            else:
+              - logger.log:
+                  level: WARN
+                  format: "Unit 2 CAN communication was lost during discovery startup delay - automatic discovery cancelled."
 
     on_release:
       then:
@@ -5065,9 +5094,23 @@ binary_sensor:
       then:
         - logger.log:
             level: INFO
-            format: "Unit 3 CAN communication available - starting full automatic discovery."
-
-        - script.execute: discover_unit_3
+            format: "Unit 3 CAN communication available - waiting for bus stabilization before automatic discovery."
+    
+        - delay: ${discovery_startup_delay}
+    
+        - if:
+            condition:
+              binary_sensor.is_on: can_com_ok_3
+            then:
+              - logger.log:
+                  level: INFO
+                  format: "Unit 3 CAN communication stable - starting full automatic discovery."
+    
+              - script.execute: discover_unit_3
+            else:
+              - logger.log:
+                  level: WARN
+                  format: "Unit 3 CAN communication was lost during discovery startup delay - automatic discovery cancelled."
 
     on_release:
       then:

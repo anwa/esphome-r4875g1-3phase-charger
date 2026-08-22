@@ -1069,11 +1069,19 @@ The shutdown and lockout logic operate locally and do not require Home Assistant
 
 Each rectifier is discovered automatically when valid CAN communication with that unit becomes available.
 
-The CAN communication watchdog detects the transition from offline to online and starts a complete per-unit discovery sequence consisting of:
+The CAN communication watchdog detects the transition from offline to online. Automatic discovery does not start immediately after the first valid CAN frame. Instead, the controller waits for a short stabilization period before starting the discovery sequence.
+
+This delay allows the rectifier to complete its internal power-up sequence and gives the ESP32 TWAI transmit queue time to recover from previously unacknowledged CAN traffic that may have accumulated while no rectifier was online.
+
+After the stabilization period, CAN communication is checked again.
+
+If the rectifier is still reachable, the controller starts a complete per-unit discovery sequence consisting of:
 
 1. static unit-property discovery,
 2. maximum-current capability discovery,
 3. hardware pin/shelf address discovery.
+
+If CAN communication is lost again during the stabilization period, automatic discovery is cancelled. It will be attempted again the next time the rectifier transitions from offline to online.
 
 The property and capability stages are executed sequentially using ESPHome script synchronization. No fixed inter-stage waiting periods are used; the next stage begins immediately after the previous stage has completed or exhausted its configured retry limit.
 
@@ -1095,9 +1103,19 @@ The discovery process queries information including:
 
 Property queries use unit-specific CAN IDs and reconstruct multi-frame text responses before extracting key/value fields.
 
-The `Discover Rectifier Units` button remains available as a manual service function. It runs complete discovery for Unit 1, Unit 2 and Unit 3 sequentially and waits for each unit's discovery process to finish before continuing.
+Each property discovery stage has a defined retry limit. A failed property request does not block the controller indefinitely; once the configured retry count is exhausted, the sequence continues to the capability/address stage.
+
+Capability and address discovery also use a configurable retry limit and terminate when either all required information has been received or the retry limit has been reached.
+
+The automatic stabilization delay applies only to discovery triggered by a rectifier becoming newly reachable over CAN.
+
+The `Discover Rectifier Units` button remains available as a manual service function. Manual discovery starts immediately without the automatic startup stabilization delay because the rectifiers are expected to already be powered and operational when the service action is used.
+
+The manual discovery sequence processes Unit 1, Unit 2 and Unit 3 sequentially and waits for each unit's complete discovery process to finish before continuing with the next unit.
 
 For the intended 75 A R4875G1 units, the controller still starts with the known model-specific current-scaling fallback. Successful Unit 1 capability discovery verifies or updates the shared current scaling factor automatically.
+
+Unit 1 remains the canonical source for the shared current scaling factor. Unit 2 and Unit 3 capability values are retained for diagnostics and hardware-consistency checks.
 
 ## Home Assistant, Web UI and MQTT
 
