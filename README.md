@@ -1093,19 +1093,27 @@ Automatic discovery therefore also works when a rectifier:
 
 The static property response is transmitted by the rectifier as a burst of several dozen CAN frames.
 
-The ESP32 TWAI receive queue is therefore configured larger than the driver's small default queue. This provides enough buffering to receive a complete multi-frame property response even when the ESP32 is temporarily busy with display refreshes, logging or other ESPHome processing.
+The ESP32 TWAI receive queue is therefore configured larger than the driver's small default queue. This provides sufficient buffering for a complete multi-frame property response while allowing ESPHome to process the incoming frames reliably.
 
-Without sufficient receive buffering, individual CAN frames can be lost before ESPHome processes them. Because the property response contains plain-text key/value data split across consecutive frames, even one missing frame can corrupt fields such as:
+Normal cyclic telemetry and fan polling are temporarily suspended while a property-discovery script is active.
 
-- board type,
-- barcode,
-- item number,
-- description,
-- manufacturing information.
+Before the first property request is transmitted, the controller also waits for a short CAN-bus quiet period. This allows any already-running telemetry polling sequence to finish before the rectifier begins transmitting its multi-frame property response.
 
-A larger CAN receive queue does not change the CAN protocol or the property-response format. It only provides additional buffering between the TWAI hardware/driver and the ESPHome CAN processing loop.
+The resulting sequence is:
 
-The transmit queue is intentionally not enlarged. When no rectifier is connected or powered, transmitted requests may remain unacknowledged and occupy the transmit queue. Increasing that queue would allow more stale requests to accumulate before a rectifier becomes available.
+1. property discovery becomes active,
+2. normal cyclic telemetry and fan polling are suspended,
+3. an already-running polling sequence is allowed to finish,
+4. the property request is transmitted,
+5. the complete multi-frame response is received and reconstructed,
+6. the property-discovery script completes,
+7. normal cyclic polling resumes automatically.
+
+This prevents normal telemetry traffic from competing with the high-rate property response and reduces the chance of individual property frames being lost before ESPHome can process them.
+
+A property response begins with a protocol-defined start frame and ends with a dedicated end frame. Property data is accepted only after a valid start frame has been received.
+
+If an end frame arrives without a valid start/data sequence, the incomplete response is discarded instead of attempting to parse corrupted property data. The configured retry mechanism can then issue another property request.
 
 The discovery process queries information including:
 
@@ -1124,8 +1132,6 @@ Each property discovery stage has a defined retry limit. A failed or incomplete 
 Capability and address discovery also use a configurable retry limit and terminate when either all required information has been received or the retry limit has been reached.
 
 Complete raw property responses are logged only at DEBUG level. Normal INFO logging still reports discovery progress, extracted property values and whether all required fields were received successfully.
-
-Reducing the raw property dump at normal logging levels also avoids unnecessary UART/logging workload while a high-rate multi-frame CAN response is being processed.
 
 The automatic stabilization delay applies only to discovery triggered by a rectifier becoming newly reachable over CAN.
 

@@ -112,6 +112,7 @@ substitutions:
   capability_discovery_attempts: "10"
   discovery_retry_delay: "1s"
   discovery_startup_delay: "3s"
+  property_bus_quiet_delay: "500ms"
 
 esphome:
   name: hg-dg-technik-charger3ph
@@ -996,28 +997,44 @@ script:
     mode: single
     then:
       - lambda: |-
-          id(unit_properties_complete_1) = false; // Reset the completion flag before starting
-          id(frame_counter_bp_1) = 0; // Reset the frame counter
+          id(unit_properties_complete_1) = false;
+          id(frame_counter_bp_1) = 0;
+          id(frame_counter_msg_start_1) = 0;
+          id(unit_properties_1).clear();
+
+      - delay: ${property_bus_quiet_delay}
+
       - while:
           condition:
             lambda: |-
               return !id(unit_properties_complete_1) &&
-                      id(frame_counter_bp_1) < ${property_discovery_attempts};
+                     id(frame_counter_bp_1) < ${property_discovery_attempts};
           then:
             - canbus.send:
                 can_id: 0x1081D2FE
                 use_extended_id: true
                 data: [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+
             - delay: ${discovery_retry_delay}
+
             - lambda: |-
-                id(frame_counter_bp_1) += 1; // Increment the frame counter
-                ESP_LOGI("unit_properties", "Unit 1 Frame Counter: %d", id(frame_counter_bp_1));
+                id(frame_counter_bp_1) += 1;
+
+                ESP_LOGI(
+                  "unit_properties",
+                  "Unit 1 Frame Counter: %d",
+                  id(frame_counter_bp_1)
+                );
+
       - lambda: |-
           if (id(unit_properties_complete_1)) {
-            ESP_LOGI("unit_properties", "Unit 1 properties detected successfully.");
+            ESP_LOGI(
+              "unit_properties",
+              "Unit 1 properties detected successfully."
+            );
           } else {
             ESP_LOGW(
-              "unit_properties_1",
+              "unit_properties",
               "Unit 1 Fail-safe triggered: Loop stopped after %d attempts.",
               ${property_discovery_attempts}
             );
@@ -1031,28 +1048,44 @@ script:
     mode: single
     then:
       - lambda: |-
-          id(unit_properties_complete_2) = false; // Reset the completion flag before starting
-          id(frame_counter_bp_2) = 0; // Reset the frame counter
+          id(unit_properties_complete_2) = false;
+          id(frame_counter_bp_2) = 0;
+          id(frame_counter_msg_start_2) = 0;
+          id(unit_properties_2).clear();
+
+      - delay: ${property_bus_quiet_delay}
+
       - while:
           condition:
             lambda: |-
               return !id(unit_properties_complete_2) &&
-                      id(frame_counter_bp_2) < ${property_discovery_attempts};
+                     id(frame_counter_bp_2) < ${property_discovery_attempts};
           then:
             - canbus.send:
                 can_id: 0x1082D2FE
                 use_extended_id: true
                 data: [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+
             - delay: ${discovery_retry_delay}
+
             - lambda: |-
-                id(frame_counter_bp_2) += 1; // Increment the frame counter
-                ESP_LOGI("unit_properties_2", "Unit 2 Frame Counter: %d", id(frame_counter_bp_2));
+                id(frame_counter_bp_2) += 1;
+
+                ESP_LOGI(
+                  "unit_properties",
+                  "Unit 2 Frame Counter: %d",
+                  id(frame_counter_bp_2)
+                );
+
       - lambda: |-
           if (id(unit_properties_complete_2)) {
-            ESP_LOGI("unit_properties_2", "Unit 2 properties detected successfully.");
+            ESP_LOGI(
+              "unit_properties",
+              "Unit 2 properties detected successfully."
+            );
           } else {
             ESP_LOGW(
-              "unit_properties_2",
+              "unit_properties",
               "Unit 2 Fail-safe triggered: Loop stopped after %d attempts.",
               ${property_discovery_attempts}
             );
@@ -1066,28 +1099,44 @@ script:
     mode: single
     then:
       - lambda: |-
-          id(unit_properties_complete_3) = false; // Reset the completion flag before starting
-          id(frame_counter_bp_3) = 0; // Reset the frame counter
+          id(unit_properties_complete_3) = false;
+          id(frame_counter_bp_3) = 0;
+          id(frame_counter_msg_start_3) = 0;
+          id(unit_properties_3).clear();
+
+      - delay: ${property_bus_quiet_delay}
+
       - while:
           condition:
             lambda: |-
               return !id(unit_properties_complete_3) &&
-                      id(frame_counter_bp_3) < ${property_discovery_attempts};
+                     id(frame_counter_bp_3) < ${property_discovery_attempts};
           then:
             - canbus.send:
                 can_id: 0x1083D2FE
                 use_extended_id: true
                 data: [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+
             - delay: ${discovery_retry_delay}
+
             - lambda: |-
-                id(frame_counter_bp_3) += 1; // Increment the frame counter
-                ESP_LOGI("unit_properties_3", "Unit 3 Frame Counter: %d", id(frame_counter_bp_3));
+                id(frame_counter_bp_3) += 1;
+
+                ESP_LOGI(
+                  "unit_properties",
+                  "Unit 3 Frame Counter: %d",
+                  id(frame_counter_bp_3)
+                );
+
       - lambda: |-
           if (id(unit_properties_complete_3)) {
-            ESP_LOGI("unit_properties_3", "Unit 3 properties detected successfully.");
+            ESP_LOGI(
+              "unit_properties",
+              "Unit 3 properties detected successfully."
+            );
           } else {
             ESP_LOGW(
-              "unit_properties_3",
+              "unit_properties",
               "Unit 3 Fail-safe triggered: Loop stopped after %d attempts.",
               ${property_discovery_attempts}
             );
@@ -1896,7 +1945,10 @@ canbus:
                   id(unit_properties_complete_1) = false;
                   message_started = true;
                   id(frame_counter_msg_start_1) = 0;  // Reset global frame counter
-                  ESP_LOGI("unit_properties_1", "Unit 1: Message Start Detected");
+                  ESP_LOGI(
+                    "unit_properties_1",
+                    "Unit 1: Message Start Detected"
+                  );
                 }
 
                 if (message_started) {
@@ -1908,7 +1960,12 @@ canbus:
                   id(frame_counter_msg_start_1)++;
 
                   // Log for debugging purposes
-                  ESP_LOGD("unit_properties_1", "Unit 1: Captured Frame #%d: %s", id(frame_counter_msg_start_1), frame_data.c_str());
+                  ESP_LOGD(
+                    "unit_properties_1",
+                    "Unit 1: Captured Frame #%d: %s",
+                    id(frame_counter_msg_start_1),
+                    frame_data.c_str()
+                  );
                 }
               }
 
@@ -1929,7 +1986,10 @@ canbus:
                   id(unit_properties_complete_2) = false;
                   message_started = true;
                   id(frame_counter_msg_start_2) = 0;  // Reset global frame counter
-                  ESP_LOGI("unit_properties_2", "Unit 2: Message Start Detected");
+                  ESP_LOGI(
+                    "unit_properties_2",
+                    "Unit 2: Message Start Detected"
+                  );
                 }
 
                 if (message_started) {
@@ -1941,7 +2001,12 @@ canbus:
                   id(frame_counter_msg_start_2)++;
 
                   // Log for debugging purposes
-                  ESP_LOGD("unit_properties_2", "Unit 2: Captured Frame #%d: %s", id(frame_counter_msg_start_2), frame_data.c_str());
+                  ESP_LOGD(
+                    "unit_properties_2",
+                    "Unit 2: Captured Frame #%d: %s",
+                    id(frame_counter_msg_start_2),
+                    frame_data.c_str()
+                  );
                 }
               }
 
@@ -1962,7 +2027,10 @@ canbus:
                   id(unit_properties_complete_3) = false;
                   message_started = true;
                   id(frame_counter_msg_start_3) = 0;  // Reset global frame counter
-                  ESP_LOGI("unit_properties_3", "Unit 3: Message Start Detected");
+                  ESP_LOGI(
+                    "unit_properties_3",
+                    "Unit 3: Message Start Detected"
+                  );
                 }
 
                 if (message_started) {
@@ -1974,7 +2042,12 @@ canbus:
                   id(frame_counter_msg_start_3)++;
 
                   // Log for debugging purposes
-                  ESP_LOGD("unit_properties_3", "Unit 3: Captured Frame #%d: %s", id(frame_counter_msg_start_3), frame_data.c_str());
+                  ESP_LOGD(
+                    "unit_properties_3",
+                    "Unit 3: Captured Frame #%d: %s",
+                    id(frame_counter_msg_start_3),
+                    frame_data.c_str()
+                  );
                 }
               }
 
@@ -2003,6 +2076,17 @@ canbus:
                 "Unit 1: Total Frames Captured: %d",
                 id(frame_counter_msg_start_1)
               );
+              if (id(frame_counter_msg_start_1) == 0) {
+                ESP_LOGW(
+                  "unit_properties_1",
+                  "Unit 1: Property end frame received without a valid start/data frame. "
+                  "Discarding incomplete response."
+                );
+
+                id(unit_properties_1).clear();
+                id(unit_properties_complete_1) = false;
+                return;
+              }
               ESP_LOGD(
                 "unit_properties_1",
                 "Unit 1: Final Unit Properties: %s",
@@ -2104,6 +2188,17 @@ canbus:
                 "Unit 2: Total Frames Captured: %d",
                 id(frame_counter_msg_start_2)
               );
+              if (id(frame_counter_msg_start_2) == 0) {
+                ESP_LOGW(
+                  "unit_properties_2",
+                  "Unit 2: Property end frame received without a valid start/data frame. "
+                  "Discarding incomplete response."
+                );
+
+                id(unit_properties_2).clear();
+                id(unit_properties_complete_2) = false;
+                return;
+              }
               ESP_LOGD(
                 "unit_properties_2",
                 "Unit 2: Final Unit Properties: %s",
@@ -2205,6 +2300,17 @@ canbus:
                 "Unit 3: Total Frames Captured: %d",
                 id(frame_counter_msg_start_3)
               );
+              if (id(frame_counter_msg_start_3) == 0) {
+                ESP_LOGW(
+                  "unit_properties_3",
+                  "Unit 3: Property end frame received without a valid start/data frame. "
+                  "Discarding incomplete response."
+                );
+
+                id(unit_properties_3).clear();
+                id(unit_properties_complete_3) = false;
+                return;
+              }
               ESP_LOGD(
                 "unit_properties_3",
                 "Unit 3: Final Unit Properties: %s",
@@ -4916,9 +5022,16 @@ number:
               current_value = max_current;
             }
             if (current_value == 0) {
-              ESP_LOGI("custom", "AC Current Limit disabled.");
+              ESP_LOGI(
+                "custom",
+                "AC Current Limit disabled."
+              );
             } else {
-              ESP_LOGI("custom", "AC Current Limit set to %.1f A.", current_value);
+              ESP_LOGI(
+                "custom",
+                "AC Current Limit set to %.1f A.",
+                current_value
+              );
             }
         - canbus.send:
             use_extended_id: true
@@ -5238,51 +5351,58 @@ interval:
   # staggered by 183 ms and 193 ms to distribute CAN traffic.
   - interval: ${telemetry_poll_interval}
     then:
-      # Unit 1 cyclic telemetry
-      - canbus.send:
-          use_extended_id: true
-          can_id: 0x108140FE
-          data: [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+      - if:
+          condition:
+            lambda: |-
+              return
+                !id(detect_unit_1_properties).is_running() &&
+                !id(detect_unit_2_properties).is_running() &&
+                !id(detect_unit_3_properties).is_running();
 
-      # Unit 1 fan telemetry
-      - delay: ${fan_query_delay}
-      - canbus.send:
-          use_extended_id: true
-          can_id: 0x108182FE
-          data: [0x01, 0x87, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+          then:
+            # Unit 1 cyclic telemetry
+            - canbus.send:
+                use_extended_id: true
+                can_id: 0x108140FE
+                data: [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
 
-      # Preserve previous Unit 2 polling offset: 27 + 156 = 183 ms
-      - delay: ${unit_2_poll_gap}
+            # Unit 1 fan telemetry
+            - delay: ${fan_query_delay}
+            - canbus.send:
+                use_extended_id: true
+                can_id: 0x108182FE
+                data: [0x01, 0x87, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
 
-      # Unit 2 cyclic telemetry
-      - canbus.send:
-          use_extended_id: true
-          can_id: 0x108240FE
-          data: [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+            - delay: ${unit_2_poll_gap}
 
-      # Unit 2 fan telemetry
-      - delay: ${fan_query_delay}
-      - canbus.send:
-          use_extended_id: true
-          can_id: 0x108282FE
-          data: [0x01, 0x87, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+            # Unit 2 cyclic telemetry
+            - canbus.send:
+                use_extended_id: true
+                can_id: 0x108240FE
+                data: [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
 
-      # Preserve previous Unit 3 polling offset: 27 + 166 = 193 ms
-      - delay: ${unit_3_poll_gap}
+            # Unit 2 fan telemetry
+            - delay: ${fan_query_delay}
+            - canbus.send:
+                use_extended_id: true
+                can_id: 0x108282FE
+                data: [0x01, 0x87, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
 
-      # Unit 3 cyclic telemetry
-      - canbus.send:
-          use_extended_id: true
-          can_id: 0x108340FE
-          data: [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+            - delay: ${unit_3_poll_gap}
 
-      # Unit 3 fan telemetry
-      - delay: ${fan_query_delay}
-      - canbus.send:
-          use_extended_id: true
-          can_id: 0x108382FE
-          data: [0x01, 0x87, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+            # Unit 3 cyclic telemetry
+            - canbus.send:
+                use_extended_id: true
+                can_id: 0x108340FE
+                data: [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
 
+            # Unit 3 fan telemetry
+            - delay: ${fan_query_delay}
+            - canbus.send:
+                use_extended_id: true
+                can_id: 0x108382FE
+                data: [0x01, 0x87, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+  
   # --------------------------------------------------------------------------
   # Periodic task: 30 s
   # Reasserts the broadcast DC voltage setpoint every 30 seconds so restarted
@@ -5335,8 +5455,10 @@ button:
     on_press:
       then:
         - lambda: |-
-            ESP_LOGI("custom", "All Unit ON button pressed.");
-
+            ESP_LOGI(
+              "custom",
+              "All Unit ON button pressed."
+            );
         - if:
             condition:
               lambda: |-
@@ -5381,8 +5503,10 @@ button:
     on_press:
       then:
         - lambda: |-
-            ESP_LOGI("custom", "Unit 1 ON Button pressed.");
-
+            ESP_LOGI(
+              "custom",
+              "Unit 1 ON Button pressed."
+            );
         - if:
             condition:
               lambda: |-
@@ -5410,8 +5534,10 @@ button:
     on_press:
       then:
         - lambda: |-
-            ESP_LOGI("custom", "Unit 2 ON Button pressed.");
-
+            ESP_LOGI(
+              "custom",
+              "Unit 2 ON Button pressed."
+            );
         - if:
             condition:
               lambda: |-
@@ -5439,8 +5565,10 @@ button:
     on_press:
       then:
         - lambda: |-
-            ESP_LOGI("custom", "Unit 3 ON Button pressed.");
-
+            ESP_LOGI(
+              "custom",
+              "Unit 3 ON Button pressed."
+            );
         - if:
             condition:
               lambda: |-
@@ -5467,7 +5595,10 @@ button:
     on_press:
       then:
         - lambda: |-
-            ESP_LOGI("custom", "All Units OFF Button pressed.");
+            ESP_LOGI(
+              "custom",
+              "All Units OFF Button pressed."
+            );
         - canbus.send:
             use_extended_id: true
             can_id: 0x108080FE
@@ -5481,7 +5612,10 @@ button:
     on_press:
       then:
         - lambda: |-
-            ESP_LOGI("custom", "Unit 1 OFF Button pressed.");
+            ESP_LOGI(
+              "custom",
+              "Unit 1 OFF Button pressed."
+            );
         - canbus.send:
             use_extended_id: true
             can_id: 0x108180FE
@@ -5495,7 +5629,10 @@ button:
     on_press:
       then:
         - lambda: |-
-            ESP_LOGI("custom", "Unit 2 OFF Button pressed.");
+            ESP_LOGI(
+              "custom",
+              "Unit 2 OFF Button pressed."
+            );
         - canbus.send:
             use_extended_id: true
             can_id: 0x108280FE
@@ -5509,7 +5646,10 @@ button:
     on_press:
       then:
         - lambda: |-
-            ESP_LOGI("custom", "Unit 3 OFF Button pressed.");
+            ESP_LOGI(
+              "custom",
+              "Unit 3 OFF Button pressed."
+            );
         - canbus.send:
             use_extended_id: true
             can_id: 0x108380FE
