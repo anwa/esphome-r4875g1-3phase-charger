@@ -1191,9 +1191,10 @@ script:
   # --------------------------------------------------------------------------
   # blackstart_start
   # --------------------------------------------------------------------------
-  # Offline START sequence. Recalculates current, explicitly sends
-  # voltage, explicitly sends current, waits for the setpoints to be accepted and
-  # then broadcasts the ON command. No network connection is required.
+  # Offline START sequence. Recalculates current, explicitly sends voltage and
+  # current setpoints, then evaluates each rectifier independently. Only units
+  # with valid CAN communication, fresh safe temperature telemetry and no
+  # overtemperature lockout receive an individual ON command.
   - id: blackstart_start
     mode: single
     then:
@@ -1242,51 +1243,134 @@ script:
 
       - delay: 250ms
 
-      # Start each rectifier individually, skipping any unit that is still
-      # in overtemperature lockout instead of blindly broadcasting ON to all.
+      # Start each rectifier individually.
+      #
+      # A unit is eligible for START only when:
+      # - fresh cyclic CAN communication is available,
+      # - a valid output temperature has been received,
+      # - the output temperature is not above the 90 °C trip threshold,
+      # - no overtemperature lockout is active.
+      #
+      # This also makes startup fail-safe after an ESP32 reboot: a unit cannot
+      # be started before its first valid temperature telemetry has arrived.
+
+      # Unit 1
       - if:
           condition:
-            lambda: 'return !id(overtemp_lockout_1);'
+            lambda: |-
+              return id(can_com_ok_1).state &&
+                     !isnan(id(output_temperature_1).state) &&
+                     id(output_temperature_1).state <= 90.0f &&
+                     !id(overtemp_lockout_1);
           then:
             - canbus.send:
                 use_extended_id: true
                 can_id: 0x108180FE
                 data: [0x01, 0x32, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
           else:
-            - logger.log:
-                level: WARN
-                format: "BLACKSTART: Unit 1 skipped - overtemperature lockout active."
+            - lambda: |-
+                if (!id(can_com_ok_1).state) {
+                  ESP_LOGW(
+                    "blackstart",
+                    "Unit 1 skipped - CAN communication unavailable."
+                  );
+                } else if (isnan(id(output_temperature_1).state)) {
+                  ESP_LOGW(
+                    "blackstart",
+                    "Unit 1 skipped - output temperature unavailable."
+                  );
+                } else if (id(output_temperature_1).state > 90.0f) {
+                  ESP_LOGW(
+                    "blackstart",
+                    "Unit 1 skipped - output temperature too high (%.1f°C).",
+                    id(output_temperature_1).state
+                  );
+                } else if (id(overtemp_lockout_1)) {
+                  ESP_LOGW(
+                    "blackstart",
+                    "Unit 1 skipped - overtemperature lockout active."
+                  );
+                }
 
+      # Unit 2
       - if:
           condition:
-            lambda: 'return !id(overtemp_lockout_2);'
+            lambda: |-
+              return id(can_com_ok_2).state &&
+                     !isnan(id(output_temperature_2).state) &&
+                     id(output_temperature_2).state <= 90.0f &&
+                     !id(overtemp_lockout_2);
           then:
             - canbus.send:
                 use_extended_id: true
                 can_id: 0x108280FE
                 data: [0x01, 0x32, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
           else:
-            - logger.log:
-                level: WARN
-                format: "BLACKSTART: Unit 2 skipped - overtemperature lockout active."
+            - lambda: |-
+                if (!id(can_com_ok_2).state) {
+                  ESP_LOGW(
+                    "blackstart",
+                    "Unit 2 skipped - CAN communication unavailable."
+                  );
+                } else if (isnan(id(output_temperature_2).state)) {
+                  ESP_LOGW(
+                    "blackstart",
+                    "Unit 2 skipped - output temperature unavailable."
+                  );
+                } else if (id(output_temperature_2).state > 90.0f) {
+                  ESP_LOGW(
+                    "blackstart",
+                    "Unit 2 skipped - output temperature too high (%.1f°C).",
+                    id(output_temperature_2).state
+                  );
+                } else if (id(overtemp_lockout_2)) {
+                  ESP_LOGW(
+                    "blackstart",
+                    "Unit 2 skipped - overtemperature lockout active."
+                  );
+                }
 
+      # Unit 3
       - if:
           condition:
-            lambda: 'return !id(overtemp_lockout_3);'
+            lambda: |-
+              return id(can_com_ok_3).state &&
+                     !isnan(id(output_temperature_3).state) &&
+                     id(output_temperature_3).state <= 90.0f &&
+                     !id(overtemp_lockout_3);
           then:
             - canbus.send:
                 use_extended_id: true
                 can_id: 0x108380FE
                 data: [0x01, 0x32, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
           else:
-            - logger.log:
-                level: WARN
-                format: "BLACKSTART: Unit 3 skipped - overtemperature lockout active."
+            - lambda: |-
+                if (!id(can_com_ok_3).state) {
+                  ESP_LOGW(
+                    "blackstart",
+                    "Unit 3 skipped - CAN communication unavailable."
+                  );
+                } else if (isnan(id(output_temperature_3).state)) {
+                  ESP_LOGW(
+                    "blackstart",
+                    "Unit 3 skipped - output temperature unavailable."
+                  );
+                } else if (id(output_temperature_3).state > 90.0f) {
+                  ESP_LOGW(
+                    "blackstart",
+                    "Unit 3 skipped - output temperature too high (%.1f°C).",
+                    id(output_temperature_3).state
+                  );
+                } else if (id(overtemp_lockout_3)) {
+                  ESP_LOGW(
+                    "blackstart",
+                    "Unit 3 skipped - overtemperature lockout active."
+                  );
+                }
 
       - logger.log:
           level: INFO
-          format: "BLACKSTART: Rectifiers switched ON (excluding any overtemperature-locked units)"
-
+          format: "BLACKSTART: Start sequence completed; only units passing CAN, temperature and lockout checks were commanded ON."
 
   # --------------------------------------------------------------------------
   # blackstart_stop
@@ -4132,40 +4216,70 @@ interval:
 # fan overrides and manual unit discovery.
 button:
   # Broadcast ON command to all three rectifiers.
+  # Because this command cannot exclude individual units, all three rectifiers
+  # must have valid CAN communication, valid safe temperature telemetry and no
+  # active overtemperature lockout.
   - platform: template
     name: "!ON!"
-    id: fan_on_button_all
+    id: on_button_all
     icon: "mdi:power"
     on_press:
       then:
         - lambda: |-
-            ESP_LOGI("custom", "All Unit ON Button pressed => sending ON message...");
+            ESP_LOGI(
+              "custom",
+              "All Unit ON button pressed."
+            );
+
         - if:
             condition:
-              lambda: 'return !(id(overtemp_lockout_1) || id(overtemp_lockout_2) || id(overtemp_lockout_3));'
+              lambda: |-
+                return
+                  id(can_com_ok_1).state &&
+                  id(can_com_ok_2).state &&
+                  id(can_com_ok_3).state &&
+
+                  !isnan(id(output_temperature_1).state) &&
+                  !isnan(id(output_temperature_2).state) &&
+                  !isnan(id(output_temperature_3).state) &&
+
+                  id(output_temperature_1).state <= 90.0f &&
+                  id(output_temperature_2).state <= 90.0f &&
+                  id(output_temperature_3).state <= 90.0f &&
+
+                  !id(overtemp_lockout_1) &&
+                  !id(overtemp_lockout_2) &&
+                  !id(overtemp_lockout_3);
+
             then:
               - canbus.send:
                   use_extended_id: true
                   can_id: 0x108080FE
                   data: [0x01, 0x32, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+
             else:
               - logger.log:
                   level: WARN
-                  format: "All ON blocked by one unit: overtemperature lockout active."
+                  format: "All ON blocked - all three units require valid CAN communication, valid output temperature <= 90°C and no overtemperature lockout."
 
   # Individual ON command for one rectifier; useful for diagnostics and service.
   # Blocked while Unit 1 is in overtemperature lockout (see output_temperature_1).
   - platform: template
     name: "ON Unit-1"
     icon: "mdi:power"
-    id: fan_on_button_1
+    id: on_button_1
     on_press:
       then:
         - lambda: |-
-            ESP_LOGI("custom", "ON Button Unit-1 pressed => sending ON message...");
+            ESP_LOGI("custom", "ON Button Unit-1 pressed.");
+
         - if:
             condition:
-              lambda: 'return !id(overtemp_lockout_1);'
+              lambda: |-
+                return id(can_com_ok_1).state &&
+                       !isnan(id(output_temperature_1).state) &&
+                       id(output_temperature_1).state <= 90.0f &&
+                       !id(overtemp_lockout_1);
             then:
               - canbus.send:
                   use_extended_id: true
@@ -4174,21 +4288,26 @@ button:
             else:
               - logger.log:
                   level: WARN
-                  format: "ON Unit-1 blocked: overtemperature lockout active."
+                  format: "ON Unit-1 blocked - CAN communication, valid safe temperature and cleared overtemperature lockout are required."
 
   # Individual ON command for one rectifier; useful for diagnostics and service.
   # Blocked while Unit 2 is in overtemperature lockout (see output_temperature_2).
   - platform: template
     name: "ON Unit-2"
     icon: "mdi:power"
-    id: fan_on_button_2
+    id: on_button_2
     on_press:
       then:
         - lambda: |-
-            ESP_LOGI("custom", "ON Button Unit-2 pressed => sending ON message...");
+            ESP_LOGI("custom", "ON Button Unit-2 pressed.");
+
         - if:
             condition:
-              lambda: 'return !id(overtemp_lockout_2);'
+              lambda: |-
+                return id(can_com_ok_2).state &&
+                       !isnan(id(output_temperature_2).state) &&
+                       id(output_temperature_2).state <= 90.0f &&
+                       !id(overtemp_lockout_2);
             then:
               - canbus.send:
                   use_extended_id: true
@@ -4197,21 +4316,26 @@ button:
             else:
               - logger.log:
                   level: WARN
-                  format: "ON Unit-2 blocked: overtemperature lockout active."
+                  format: "ON Unit-2 blocked - CAN communication, valid safe temperature and cleared overtemperature lockout are required."
 
   # Individual ON command for one rectifier; useful for diagnostics and service.
   # Blocked while Unit 3 is in overtemperature lockout (see output_temperature_3).
   - platform: template
     name: "ON Unit-3"
     icon: "mdi:power"
-    id: fan_on_button_3
+    id: on_button_3
     on_press:
       then:
         - lambda: |-
-            ESP_LOGI("custom", "ON Button Unit-3 pressed => sending ON message...");
+            ESP_LOGI("custom", "ON Button Unit-3 pressed.");
+
         - if:
             condition:
-              lambda: 'return !id(overtemp_lockout_3);'
+              lambda: |-
+                return id(can_com_ok_3).state &&
+                       !isnan(id(output_temperature_3).state) &&
+                       id(output_temperature_3).state <= 90.0f &&
+                       !id(overtemp_lockout_3);
             then:
               - canbus.send:
                   use_extended_id: true
@@ -4220,13 +4344,13 @@ button:
             else:
               - logger.log:
                   level: WARN
-                  format: "ON Unit-3 blocked: overtemperature lockout active."
+                  format: "ON Unit-3 blocked - CAN communication, valid safe temperature and cleared overtemperature lockout are required."
 
 # Define a button component for turning OFF
   # Broadcast OFF command to all three rectifiers.
   - platform: template
     name: "!OFF!"
-    id: fan_off_button_all
+    id: off_button_all
     icon: "mdi:power"
     on_press:
       then:
@@ -4238,7 +4362,7 @@ button:
   # Individual OFF command for one rectifier.
   - platform: template
     name: "OFF Unit-1"
-    id: fan_off_button_1
+    id: off_button_1
     icon: "mdi:power"
     on_press:
       then:
@@ -4246,10 +4370,11 @@ button:
             use_extended_id: true
             can_id: 0x108180FE
             data: [0x01, 0x32, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00]
+
   # Individual OFF command for one rectifier.
   - platform: template
     name: "OFF Unit-2"
-    id: fan_off_button_2
+    id: off_button_2
     icon: "mdi:power"
     on_press:
       then:
@@ -4261,7 +4386,7 @@ button:
   # Individual OFF command for one rectifier.
   - platform: template
     name: "OFF Unit-3"
-    id: fan_off_button_3
+    id: off_button_3
     icon: "mdi:power"
     on_press:
       then:

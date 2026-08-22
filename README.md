@@ -727,9 +727,21 @@ The sequence is intentionally deterministic:
 4. wait 50 ms,
 5. explicitly send the calculated current setpoint,
 6. wait 250 ms,
-7. send the broadcast ON command.
+7. evaluate the safety state of each rectifier independently,
+8. send an individual ON command only to units that pass all start-safety checks.
 
-This avoids a race where a charger could be enabled before the latest current limit has reached the rectifiers.
+A rectifier is eligible for START only when:
+
+- valid cyclic CAN communication is available,
+- a fresh output-temperature value is available,
+- output temperature is not above 90 °C,
+- no overtemperature lockout is active.
+
+This also makes controller startup fail-safe. After an ESP32 reboot, a rectifier cannot be started until its first valid output-temperature telemetry has been received.
+
+A rectifier whose temperature telemetry becomes stale is again prevented from starting until fresh telemetry is available.
+
+The three-unit broadcast ON control is stricter because it cannot exclude an individual rectifier: all three units must pass the start-safety checks before the broadcast ON command is transmitted.
 
 ### Stop sequence
 
@@ -855,6 +867,8 @@ Recovery: < 80 °C
 Temperatures between 80 °C and 90 °C keep the lockout active.
 
 If temperature telemetry becomes unavailable while a lockout is active, the lockout is retained. Missing or stale temperature data cannot automatically clear an overtemperature condition.
+
+Unknown temperature is also treated fail-safe for startup. A unit with no valid current output-temperature value cannot receive an ON command. This prevents a controller reboot or temporary loss of temperature elemetry from bypassing the temperature protection before the actual thermal state of the rectifier is known.
 
 The shutdown and lockout logic operate locally and do not require Home Assistant, MQTT, Wi-Fi, or another network connection.
 
