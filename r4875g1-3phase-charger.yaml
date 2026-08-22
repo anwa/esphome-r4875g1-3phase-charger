@@ -111,7 +111,7 @@ substitutions:
   property_discovery_attempts: "3"
   capability_discovery_attempts: "10"
   discovery_retry_delay: "1s"
-  discovery_startup_delay: "3s"
+  discovery_startup_delay: "5s"
   property_bus_quiet_delay: "500ms"
 
 esphome:
