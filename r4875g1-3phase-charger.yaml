@@ -81,6 +81,12 @@ esphome:
           id(power_state_2).publish_state("UNKNOWN");
           id(power_state_3).publish_state("UNKNOWN");
 
+          // Publish the model-specific fallback until actual rectifier
+          // capabilities become available.
+          id(effective_dc_current_limit_sensor).publish_state(
+            id(effective_dc_current_limit)
+          );
+
       - script.execute: display_inactivity_timer
 
 # ==============================================================================
@@ -755,7 +761,20 @@ globals:
     type: float
     initial_value: "13.653333f"
     restore_value: no
-    
+
+  # Effective maximum DC current command used by all current-control paths.
+  #
+  # 75 A is the absolute project ceiling for the intended R4875G1 installation.
+  # As rectifier capability data becomes available, this value is reduced to
+  # the lowest valid capability reported by any of the three units.
+  #
+  # This prevents the shared current command from exceeding the weakest known
+  # rectifier capability.
+  - id: effective_dc_current_limit
+    type: float
+    initial_value: "75.0f"
+    restore_value: no
+
   # Fixed-point protocol scale used by voltage and most
   # telemetry fields. 1024 means one engineering unit equals 1024 raw counts.
   - id: voltage_scaling_factor
@@ -1136,6 +1155,152 @@ script:
           }
 
   # --------------------------------------------------------------------------
+  # update_effective_dc_current_limit
+  # --------------------------------------------------------------------------
+  # Maintains one common runtime current ceiling for every DC current command.
+  #
+  # The project ceiling is 75 A. Any valid detected rectifier capability below
+  # that value lowers the effective limit. The lowest known capability wins.
+  #
+  # Existing active and fallback current settings are reduced immediately when
+  # a newly detected capability lowers the permitted current.
+  - id: update_effective_dc_current_limit
+    mode: restart
+    then:
+      - lambda: |-
+          constexpr float project_max_current = 75.0f;
+
+          float effective_limit = project_max_current;
+          bool capability_available = false;
+
+          const float capability_1 =
+              id(max_dc_current_1).state;
+
+          const float capability_2 =
+              id(max_dc_current_2).state;
+
+          const float capability_3 =
+              id(max_dc_current_3).state;
+
+
+          // Unit 1
+          if (!isnan(capability_1) &&
+              capability_1 > 0.0f) {
+
+            capability_available = true;
+
+            if (capability_1 < effective_limit) {
+              effective_limit = capability_1;
+            }
+          }
+
+
+          // Unit 2
+          if (!isnan(capability_2) &&
+              capability_2 > 0.0f) {
+
+            capability_available = true;
+
+            if (capability_2 < effective_limit) {
+              effective_limit = capability_2;
+            }
+          }
+
+
+          // Unit 3
+          if (!isnan(capability_3) &&
+              capability_3 > 0.0f) {
+
+            capability_available = true;
+
+            if (capability_3 < effective_limit) {
+              effective_limit = capability_3;
+            }
+          }
+
+
+          const float previous_limit =
+              id(effective_dc_current_limit);
+
+          id(effective_dc_current_limit) =
+              effective_limit;
+
+          id(effective_dc_current_limit_sensor).publish_state(
+            effective_limit
+          );
+
+
+          if (fabsf(previous_limit - effective_limit) > 0.01f) {
+
+            ESP_LOGI(
+              "current_limit",
+              "Effective DC current limit changed from %.1f A to %.1f A.",
+              previous_limit,
+              effective_limit
+            );
+          }
+
+
+          if (capability_available) {
+
+            ESP_LOGI(
+              "current_limit",
+              "Effective DC current limit: %.1f A "
+              "(project ceiling 75.0 A, lowest valid detected capability).",
+              effective_limit
+            );
+
+          } else {
+
+            ESP_LOGI(
+              "current_limit",
+              "No rectifier capability available yet. "
+              "Using 75.0 A R4875G1 fallback."
+            );
+          }
+
+
+          // If a newly detected capability lowered the safe limit, immediately
+          // reduce the active DC-current command.
+          if (!isnan(id(set_dc_current_limit).state) &&
+              id(set_dc_current_limit).state > effective_limit) {
+
+            ESP_LOGW(
+              "current_limit",
+              "Active DC current %.1f A exceeds new effective limit %.1f A. "
+              "Reducing setpoint.",
+              id(set_dc_current_limit).state,
+              effective_limit
+            );
+
+            auto current_call =
+                id(set_dc_current_limit).make_call();
+
+            current_call.set_value(effective_limit);
+            current_call.perform();
+          }
+
+
+          // Apply the same protection to the rectifier fallback-current value.
+          if (!isnan(id(set_dc_current_limit_fallback).state) &&
+              id(set_dc_current_limit_fallback).state > effective_limit) {
+
+            ESP_LOGW(
+              "current_limit",
+              "Fallback DC current %.1f A exceeds new effective limit %.1f A. "
+              "Reducing setpoint.",
+              id(set_dc_current_limit_fallback).state,
+              effective_limit
+            );
+
+            auto fallback_call =
+                id(set_dc_current_limit_fallback).make_call();
+
+            fallback_call.set_value(effective_limit);
+            fallback_call.perform();
+          }
+
+  # --------------------------------------------------------------------------
   # evaluate_rectifier_capabilities
   # --------------------------------------------------------------------------
   # Compares the maximum-current capability reported by all three rectifiers.
@@ -1236,46 +1401,88 @@ script:
   # Converts the requested total DC power into an equal current
   # target for each of the three parallel rectifiers:
   # I_each = P_total / (3 * V_DC).
-  # The result is limited to 1..75 A and applied through set_dc_current_limit.
+  # The result is limited to at least 1 A and at most the current
+  # effective_dc_current_limit derived from detected rectifier capabilities.
   - id: apply_dc_sum_power
     mode: restart
     then:
       - lambda: |-
-          // Read the canonical setpoint entities shared by local encoder, web/API and
-          // MQTT control paths.
-          float voltage = id(set_dc_voltage_limit).state;
-          float power_kw = id(dc_sum_power_set).state;
+          const float voltage =
+              id(set_dc_voltage_limit).state;
 
-          if (isnan(voltage) || voltage < 49.0) {
-            ESP_LOGW("encoder", "Invalid DC voltage - cannot calculate current");
+          const float power_kw =
+              id(dc_sum_power_set).state;
+
+          const float max_current =
+              id(effective_dc_current_limit);
+
+
+          if (isnan(voltage) || voltage < 49.0f) {
+
+            ESP_LOGW(
+              "encoder",
+              "Invalid DC voltage - cannot calculate current."
+            );
+
             return;
           }
 
-          // Total DC power distributed equally across 3 rectifiers
-          // Three parallel units are expected to share the total requested power
-          // equally, hence the division by both voltage and unit count (3).
+          if (isnan(max_current) ||
+              max_current <= 0.0f) {
+
+            ESP_LOGE(
+              "current_limit",
+              "Invalid effective DC current limit - "
+              "cannot calculate current."
+            );
+
+            return;
+          }
+
+          const float requested_current_per_rectifier =
+              (power_kw * 1000.0f) /
+              (voltage * 3.0f);
+
           float current_per_rectifier =
-              (power_kw * 1000.0f) / (voltage * 3.0f);
+              requested_current_per_rectifier;
 
-          // Existing configuration allows max. 75 A
-          if (current_per_rectifier > 75.0f)
-            current_per_rectifier = 75.0f;
+          if (current_per_rectifier > max_current) {
 
-          if (current_per_rectifier < 1.0f)
+            ESP_LOGW(
+              "encoder",
+              "Requested %.2f kW requires %.1f A/unit, "
+              "but effective current limit is %.1f A. Clamping.",
+              power_kw,
+              requested_current_per_rectifier,
+              max_current
+            );
+
+            current_per_rectifier =
+                max_current;
+          }
+
+          if (current_per_rectifier < 1.0f) {
             current_per_rectifier = 1.0f;
+          }
 
           ESP_LOGI(
             "encoder",
-            "DC Sum Power %.2f kW @ %.2f V -> %.1f A per rectifier",
+            "DC Sum Power %.2f kW @ %.2f V -> "
+            "%.1f A per rectifier "
+            "(effective maximum %.1f A)",
             power_kw,
             voltage,
+            current_per_rectifier,
+            max_current
+          );
+
+          auto call =
+              id(set_dc_current_limit).make_call();
+
+          call.set_value(
             current_per_rectifier
           );
 
-          // Use NumberCall so the normal set_dc_current_limit automation performs the final
-          // validation and CAN transmission; do not bypass that centralized path.
-          auto call = id(set_dc_current_limit).make_call();
-          call.set_value(current_per_rectifier);
           call.perform();
 
   # --------------------------------------------------------------------------
@@ -2819,6 +3026,7 @@ sensor:
 
     on_value:
       then:
+        - script.execute: update_effective_dc_current_limit
         - script.execute: evaluate_rectifier_capabilities
 
   # --------------------------------------------------------------------------
@@ -2836,6 +3044,7 @@ sensor:
 
     on_value:
       then:
+        - script.execute: update_effective_dc_current_limit
         - script.execute: evaluate_rectifier_capabilities
 
   # --------------------------------------------------------------------------
@@ -2853,7 +3062,22 @@ sensor:
 
     on_value:
       then:
+        - script.execute: update_effective_dc_current_limit
         - script.execute: evaluate_rectifier_capabilities
+
+  # --------------------------------------------------------------------------
+  # Effective DC Current Limit
+  # Runtime current ceiling shared by normal current control, fallback current
+  # and local total-power conversion.
+  - platform: template
+    name: "Effective DC Current Limit"
+    id: effective_dc_current_limit_sensor
+    unit_of_measurement: "A"
+    device_class: current
+    accuracy_decimals: 1
+    entity_category: diagnostic
+    update_interval: never
+    icon: "mdi:current-dc"
 
   # --------------------------------------------------------------------------
   # Output Current alt Unit-1
@@ -3911,7 +4135,8 @@ number:
     name: "Set DC Current Limit"
     id: set_dc_current_limit
     min_value: 1
-    max_value: 75 
+    # Absolute project/UI ceiling. The runtime effective limit may be lower.
+    max_value: 75
     step: 1
     unit_of_measurement: "A"
     optimistic: true
@@ -3922,23 +4147,38 @@ number:
       then:
         - delay: 0.01s
         - lambda: |-
-            // Validate the requested current against the detected rectifier model before
-            // creating the raw CAN setpoint.
-            float current_value = id(set_dc_current_limit).state;
-            float max_current = 75;  // Default max currnet
-            if (id(current_scaling_factor) <= 18) {
-              max_current = 75;
-            } else if (id(current_scaling_factor) <= 25) {
-              max_current = 50;
-            } else if (id(current_scaling_factor) > 25) {
-              max_current = 30;
-            }
+            float current_value =
+                id(set_dc_current_limit).state;
+
+            const float max_current =
+                id(effective_dc_current_limit);
+
 
             if (current_value > max_current) {
-              ESP_LOGW("custom", "Entered DC Current %.1f exceeds max limit %.1f for model, resetting.", current_value, max_current);
-              id(set_dc_current_limit).publish_state(max_current);  // Reset to max value
+
+              ESP_LOGW(
+                "current_limit",
+                "Requested DC current %.1f A exceeds effective limit %.1f A. "
+                "Clamping setpoint.",
+                current_value,
+                max_current
+              );
+
+              id(set_dc_current_limit).publish_state(
+                max_current
+              );
+
+              current_value = max_current;
             }
-            ESP_LOGI("custom", "DC Current Limit set to %.1fA.", current_value);
+
+
+            ESP_LOGI(
+              "custom",
+              "DC Current Limit set to %.1f A "
+              "(effective maximum %.1f A).",
+              current_value,
+              max_current
+            );
 
         - canbus.send:
             use_extended_id: true
@@ -3961,6 +4201,7 @@ number:
     name: "Set DC Current Limit Fallback"
     id: set_dc_current_limit_fallback
     min_value: 1
+    # Absolute project/UI ceiling. The runtime effective limit may be lower.
     max_value: 75  
     step: 1
     unit_of_measurement: "A"
@@ -3972,22 +4213,38 @@ number:
       then:
         - delay: 0.01s
         - lambda: |-
-            // Fallback current uses the same model-dependent current limit.
-            float fallback_current_value = id(set_dc_current_limit_fallback).state;
-            float max_current = 75;  // Default max current
-            if (id(current_scaling_factor) <= 18) {
-              max_current = 75;
-            } else if (id(current_scaling_factor) <= 25) {
-              max_current = 50;
-            } else if (id(current_scaling_factor) > 25) {
-              max_current = 30;
-            }
+            float fallback_current_value =
+                id(set_dc_current_limit_fallback).state;
+
+            const float max_current =
+                id(effective_dc_current_limit);
+
 
             if (fallback_current_value > max_current) {
-              ESP_LOGW("custom", "Entered Fallback DC Current %.1f exceeds max limit %.1f for model, resetting.", fallback_current_value, max_current);
-              id(set_dc_current_limit_fallback).publish_state(max_current);  // Reset to max value
+
+              ESP_LOGW(
+                "current_limit",
+                "Requested fallback DC current %.1f A exceeds "
+                "effective limit %.1f A. Clamping setpoint.",
+                fallback_current_value,
+                max_current
+              );
+
+              id(set_dc_current_limit_fallback).publish_state(
+                max_current
+              );
+
+              fallback_current_value = max_current;
             }
-            ESP_LOGI("custom", "DC Current Limit fallback set to %.1fA.", fallback_current_value);
+
+
+            ESP_LOGI(
+              "custom",
+              "DC Current Limit fallback set to %.1f A "
+              "(effective maximum %.1f A).",
+              fallback_current_value,
+              max_current
+            );
 
         - canbus.send:
             use_extended_id: true

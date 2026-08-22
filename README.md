@@ -633,6 +633,32 @@ The reported capability has a resolution of 0.5 A. The comparison therefore uses
 
 A mismatch may indicate that a different Huawei R48xx model has been installed, that a rectifier was replaced with a unit having different current capability, or that the detected hardware configuration is otherwise inconsistent.
 
+
+The controller also derives one shared runtime safety limit:
+
+```text
+Effective DC Current Limit
+```
+
+The limit starts at the project's 75 A R4875G1 ceiling and is reduced to the
+lowest valid maximum-current capability reported by any rectifier.
+
+For example:
+
+```text
+Unit 1: 75 A
+Unit 2: 50 A
+Unit 3: 75 A
+
+Effective DC Current Limit: 50 A
+```
+
+This effective limit is used consistently for the normal DC-current command, fallback current and local total-power-to-current calculation.
+
+If capability discovery lowers the effective limit below an existing current setpoint, the controller immediately reduces that setpoint.
+
+The effective limit is a protective current ceiling only. It does not make mixed rectifier models fully compatible because the shared CAN current scaling factor is still derived from Unit 1.
+
 The diagnostic does not currently inhibit charger operation. Unit 1 remains the canonical source for the shared current_scaling_factor. A capability mismatch should therefore be investigated before relying on normal three-unit operation.
 
 ## CAN Communication Watchdog
@@ -745,14 +771,21 @@ $$
 I_{unit} = \frac{P_{total}}{3 \cdot U_{DC}}
 $$
 
+Therefore requesting 12 kW at a low DC voltage may result in less than 12 kW of actual power because the per-unit current is capped at 75 A.
+
 The calculated current is constrained to the supported range of the current configuration:
 
 ```text
 minimum: 1 A
-maximum: 75 A
+maximum: lowest of
+         - 75 A project ceiling
+         - valid detected rectifier current capabilities
 ```
 
-Therefore requesting 12 kW at a low DC voltage may result in less than 12 kW of actual power because the per-unit current is capped at 75 A.
+For the intended three 75 A R4875G1 rectifiers, the effective maximum is 75 A.
+
+If a lower-capability rectifier is detected, the total-power calculation is automatically limited to that lower current.
+
 
 ### Blackstart start sequence
 
@@ -1222,11 +1255,21 @@ https://github.com/mjpalmowski/CAN-BUS-control-R4875G1-with-ESPHome-and-MQTT
 
 ## 75 A per-unit current cap
 
-The local total-power calculation caps current at 75 A per unit.
+The project has an absolute current ceiling of 75 A per rectifier.
 
-Therefore the configured 12 kW power selector does **not** guarantee that 12 kW can be produced at every voltage.
+At runtime, the actual effective limit may be lower if capability discovery reports a rectifier with a lower maximum-current rating.
 
-Example at 49 V:
+The firmware therefore uses:
+
+```text
+effective current limit = min(75 A, all valid detected rectifier capabilities)
+```
+
+For the intended three 75 A R4875G1 units, the effective limit remains 75 A.
+
+Therefore the configured 12 kW power selector does not guarantee that 12 kW can be produced at every voltage.
+
+Example at 49 V with a 75 A effective limit:
 
 ```text
 12,000 W / (49 V × 3) = 81.63 A/unit
@@ -1237,6 +1280,8 @@ The firmware limits this to 75 A/unit, so actual achievable power is lower:
 ```text
 49 V × 75 A × 3 ≈ 11.0 kW
 ```
+
+A lower detected rectifier capability reduces the achievable power further.
 
 ## Identical-unit assumption
 
