@@ -67,6 +67,9 @@
 # Defines the device identity used by ESPHome/Home Assistant. The boot hook
 # starts the display inactivity timer so the backlight will eventually switch off
 # even if the user never touches the encoder after power-up.
+substitutions:
+  mqtt_command_prefix: "home/canbus"
+
 esphome:
   name: hg-dg-technik-charger3ph
   friendly_name: HG|DG|Technik|Charger-3Ph
@@ -227,6 +230,14 @@ mqtt:
   broker: !secret mqtt_host
   username: !secret mqtt_username
   password: !secret mqtt_password
+
+  # Home Assistant uses the native ESPHome API as the canonical integration.
+  # Keep MQTT available for external command/state transport without creating
+  # duplicate MQTT-discovered entities in Home Assistant.
+  discovery: false
+  discover_ip: true
+
+  # MQTT availability must never affect local charger operation.
   reboot_timeout: 0s
 
 # ==============================================================================
@@ -4235,6 +4246,7 @@ number:
     mode: BOX
     restore_value: true
     initial_value: 53.0
+    command_topic: "${mqtt_command_prefix}/set_dc_voltage"
     on_value:
       then:
         - lambda: |-
@@ -4275,6 +4287,7 @@ number:
     mode: BOX
     restore_value: true
     initial_value: 1
+    command_topic: "${mqtt_command_prefix}/set_dc_current"
     icon: "mdi:current-dc"
     on_value:
       then:
@@ -4342,6 +4355,7 @@ number:
     mode: BOX
     restore_value: true
     initial_value: 1
+    command_topic: "${mqtt_command_prefix}/set_dc_current_fallback"
     icon: "mdi:current-dc"
     on_value:
       then:
@@ -4408,6 +4422,7 @@ number:
     mode: BOX
     restore_value: true
     initial_value: 53.0
+    command_topic: "${mqtt_command_prefix}/set_dc_voltage_fallback"
     on_value:
       then:
         - lambda: |-
@@ -5099,10 +5114,10 @@ button:
         - script.execute: setup_sequence
 
 # ==============================================================================
-# TEXT / STATUS SENSORS AND MQTT COMMAND INPUTS
+# TEXT / STATUS SENSORS
 # ==============================================================================
-# Publishes device/unit text information and receives custom MQTT command
-# topics that feed the same canonical setpoint entities used elsewhere.
+# Publishes controller diagnostics, rectifier status and static unit
+# identification information.
 text_sensor:
   # Network diagnostic used by the TFT footer.
   - platform: wifi_info
@@ -5265,87 +5280,6 @@ text_sensor:
     entity_category: diagnostic
     update_interval: never
     icon: "mdi:calendar"
-
-  ###################################################################################################################################
-  ##This Block must be added to enable voltage and currrent SET topics when using the mqtt: component
-  ## Subscribe to MQTT topic to update CAN voltage
-  # MQTT voltage command. Payload is parsed/validated and then published into set_dc_voltage_limit.
-  - platform: mqtt_subscribe
-    name: "CAN Voltage MQTT"
-    id: mqtt_set_dc_voltage
-    topic: "home/canbus/set_dc_voltage"
-    internal: true  # This makes the sensor internal
-    on_value:
-      then:
-        - delay: 0.01s  # Small delay to ensure the value is properly updated
-        - lambda: |-
-            // Convert MQTT message to float
-            float mqtt_dc_voltage = atof(x.c_str());
-            // Update the number input with the new value
-            if (mqtt_dc_voltage >= 49.0 && mqtt_dc_voltage <= 58.0) {
-              id(set_dc_voltage_limit).publish_state(mqtt_dc_voltage);
-            } else {
-              ESP_LOGW("custom", "Received out-of-range voltage value: %.1fV", mqtt_dc_voltage);
-            }
-  # Subscribe to MQTT topic to update current
-  # MQTT current command. Payload is parsed/validated and then published into set_dc_current_limit.
-  - platform: mqtt_subscribe
-    name: "CAN Current MQTT"
-    id: mqtt_set_dc_current
-    topic: "home/canbus/set_dc_current"
-    internal: true  # This makes the sensor internal
-    on_value:
-      then:
-        - delay: 0.01s  # Small delay to ensure the value is properly updated
-        - lambda: |-
-            // Convert MQTT message to float
-            float mqtt_dc_current = atof(x.c_str());
-            // Update the number input with the new value
-            if (mqtt_dc_current >= 1.0 && mqtt_dc_current <= 75.0) {
-              id(set_dc_current_limit).publish_state(mqtt_dc_current);
-            } else {
-              ESP_LOGW("custom", "Received out-of-range current value: %.1fA", mqtt_dc_current);
-            }
-  # Subscribe to MQTT topic to update Fallback Voltage
-  # MQTT fallback-voltage command feeding set_dc_voltage_limit_fallback.
-  - platform: mqtt_subscribe
-    name: "Fallback Voltage MQTT"
-    id: mqtt_set_dc_voltage_fallback
-    topic: "home/canbus/set_dc_voltage_fallback"
-    internal: true  # This makes the sensor internal
-    on_value:
-      then:
-        - delay: 0.01s  # Small delay to ensure the value is properly updated
-        - lambda: |-
-            // Convert MQTT message to float
-            float fallback_voltage = atof(x.c_str());
-            // Update the number input with the new value
-            if (fallback_voltage >= 49.0 && fallback_voltage <= 58.0) {
-              id(set_dc_voltage_limit_fallback).publish_state(fallback_voltage);
-            } else {
-              ESP_LOGW("custom", "Received out-of-range fallback voltage value: %.1fV", fallback_voltage);
-            }
-  # Subscribe to MQTT topic to update Fallback current
-  # MQTT fallback-current command feeding set_dc_current_limit_fallback.
-  - platform: mqtt_subscribe
-    name: "Fallback Current MQTT"
-    id: mqtt_set_dc_current_fallback
-    topic: "home/canbus/set_dc_current_fallback"
-    internal: true  # This makes the sensor internal
-    on_value:
-      then:
-        - delay: 0.01s  # Small delay to ensure the value is properly updated
-        - lambda: |-
-            // Convert MQTT message to float
-            float fallback_current = atof(x.c_str());
-            // Update the number input with the new value
-            if (fallback_current >= 1.0 && fallback_current <= 75.0) {
-              id(set_dc_current_limit_fallback).publish_state(fallback_current);
-            } else {
-              ESP_LOGW("custom", "Received out-of-range fallback current value: %.1fA", fallback_current);
-            }
- #############################################################################################################################
- 
 
 # ==============================================================================
 # DISPLAY FONTS

@@ -1071,9 +1071,14 @@ This remains useful for fine adjustment of parameters that are intentionally not
 
 ### MQTT
 
-MQTT is enabled alongside the ESPHome API.
+MQTT is enabled alongside the native ESPHome API.
 
-Custom MQTT subscription topics allow remote updates of key setpoints:
+Home Assistant uses the native API as the canonical entity integration.
+MQTT entity discovery is therefore disabled to avoid duplicate Home Assistant
+entities, while MQTT remains available for external command and state transport.
+
+Four stable custom command topics are assigned directly to the corresponding
+ESPHome number entities:
 
 ```text
 home/canbus/set_dc_voltage
@@ -1082,9 +1087,20 @@ home/canbus/set_dc_voltage_fallback
 home/canbus/set_dc_current_fallback
 ```
 
-Incoming values are range-checked before they are applied.
+The common command namespace is defined once in the YAML as:
 
-MQTT failure does not restart the ESP32, preserving offline charger availability.
+```yaml
+mqtt_command_prefix: "home/canbus"
+```
+
+MQTT commands use ESPHome's native number command handling. Payloads must be
+valid numeric values and must remain within the configured range of the
+corresponding number entity.
+
+No intermediate MQTT subscribe text sensors are required.
+
+MQTT failure does not restart the ESP32 and does not affect local CAN or
+blackstart operation.
 
 ## Energy Counters
 
