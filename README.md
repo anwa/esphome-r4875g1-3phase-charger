@@ -839,9 +839,24 @@ If a unit reports an output temperature above:
 90 °C
 ```
 
-the controller sends an individual OFF command to that unit.
+the controller:
+1. engages an overtemperature lockout for that unit,
+2. sends an individual OFF command to the affected rectifier,
+3. blocks subsequent ON commands for that unit while the lockout remains active.
 
-The shutdown does not require Home Assistant, MQTT, or a network connection.
+The overtemperature trip is edge-triggered. Only the transition into the overtemperature condition sends the OFF command; subsequent telemetry values above 90 °C do not continuously retransmit the same command.
+
+A 10 °C hysteresis prevents rapid cycling around the shutdown threshold:
+
+```text
+Trip:     > 90 °C
+Recovery: < 80 °C
+```
+Temperatures between 80 °C and 90 °C keep the lockout active.
+
+If temperature telemetry becomes unavailable while a lockout is active, the lockout is retained. Missing or stale temperature data cannot automatically clear an overtemperature condition.
+
+The shutdown and lockout logic operate locally and do not require Home Assistant, MQTT, Wi-Fi, or another network connection.
 
 ## Unit Discovery
 

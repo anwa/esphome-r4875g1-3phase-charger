@@ -3035,7 +3035,12 @@ sensor:
 
   # --------------------------------------------------------------------------
   # Output Temperature Unit-1
-  # Rectifier output temperature from telemetry selector 0x7F. The on_value safety automation sends an individual OFF command and engages a lockout once this unit exceeds 90 °C; the lockout only clears below the 80 °C hysteresis threshold.
+  # Rectifier output temperature from telemetry selector 0x7F.
+  # The safety automation trips once when the temperature exceeds 90 °C,
+  # immediately sends an individual OFF command and engages an overtemperature
+  # lockout. Repeated hot telemetry does not generate additional OFF commands.
+  # The lockout remains active throughout the 80..90 °C hysteresis range and
+  # clears only after the temperature falls below 80 °C.
   - platform: template
     name: "Output Temperature Unit-1"
     id: output_temperature_1
@@ -3053,28 +3058,64 @@ sensor:
     icon: "mdi:thermometer"
     on_value:
       then:
-        - lambda: |-
-            // Edge-triggered: only act when crossing the trip or recovery threshold,
-            // not on every 3s update while the state is unchanged.
-            if (!id(overtemp_lockout_1) && x > 90.0f) {
-              id(overtemp_lockout_1) = true;
-              ESP_LOGW("overtemp", "Unit 1 exceeded 90°C (%.1f°C). Sending CAN OFF and engaging lockout.", x);
-            } else if (id(overtemp_lockout_1) && x < 80.0f) {
-              id(overtemp_lockout_1) = false;
-              ESP_LOGI("overtemp", "Unit 1 cooled below 80°C (%.1f°C). Lockout cleared.", x);
-            }
+        # --------------------------------------------------------------
+        # Overtemperature trip
+        # --------------------------------------------------------------
+        # Trigger only once when the temperature first exceeds 90 °C.
+        # Setting the lockout before sending OFF prevents subsequent
+        # telemetry updates above 90 °C from sending repeated OFF frames.
         - if:
             condition:
-              lambda: 'return id(overtemp_lockout_1) && x > 90.0f;'
+              lambda: |-
+                return !isnan(x) &&
+                       !id(overtemp_lockout_1) &&
+                       x > 90.0f;
             then:
+              - lambda: |-
+                  id(overtemp_lockout_1) = true;
+
+                  ESP_LOGW(
+                    "overtemp",
+                    "Unit 1 exceeded 90°C (%.1f°C). "
+                    "Sending CAN OFF and engaging overtemperature lockout.",
+                    x
+                  );
+
               - canbus.send:
                   use_extended_id: true
                   can_id: 0x108180FE
-                  data: [1, 50, 0, 1, 0, 0, 0, 0]
+                  data: [0x01, 0x32, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00]
+
+        # --------------------------------------------------------------
+        # Overtemperature recovery
+        # --------------------------------------------------------------
+        # Keep the lockout active throughout the 80..90 °C hysteresis
+        # range. Only temperatures below 80 °C release the unit again.
+        - if:
+            condition:
+              lambda: |-
+                return !isnan(x) &&
+                       id(overtemp_lockout_1) &&
+                       x < 80.0f;
+            then:
+              - lambda: |-
+                  id(overtemp_lockout_1) = false;
+
+                  ESP_LOGI(
+                    "overtemp",
+                    "Unit 1 cooled below 80°C (%.1f°C). "
+                    "Overtemperature lockout cleared.",
+                    x
+                  );
 
   # --------------------------------------------------------------------------
   # Output Temperature Unit-2
-  # Rectifier output temperature from telemetry selector 0x7F. The on_value safety automation sends an individual OFF command and engages a lockout once this unit exceeds 90 °C; the lockout only clears below the 80 °C hysteresis threshold.
+  # Rectifier output temperature from telemetry selector 0x7F.
+  # The safety automation trips once when the temperature exceeds 90 °C,
+  # immediately sends an individual OFF command and engages an overtemperature
+  # lockout. Repeated hot telemetry does not generate additional OFF commands.
+  # The lockout remains active throughout the 80..90 °C hysteresis range and
+  # clears only after the temperature falls below 80 °C.
   - platform: template
     name: "Output Temperature Unit-2"
     id: output_temperature_2
@@ -3092,28 +3133,59 @@ sensor:
     icon: "mdi:thermometer"
     on_value:
       then:
-        - lambda: |-
-            // Edge-triggered: only act when crossing the trip or recovery threshold,
-            // not on every 3s update while the state is unchanged.
-            if (!id(overtemp_lockout_2) && x > 90.0f) {
-              id(overtemp_lockout_2) = true;
-              ESP_LOGW("overtemp", "Unit 2 exceeded 90°C (%.1f°C). Sending CAN OFF and engaging lockout.", x);
-            } else if (id(overtemp_lockout_2) && x < 80.0f) {
-              id(overtemp_lockout_2) = false;
-              ESP_LOGI("overtemp", "Unit 2 cooled below 80°C (%.1f°C). Lockout cleared.", x);
-            }
+        # --------------------------------------------------------------
+        # Overtemperature trip
+        # --------------------------------------------------------------
         - if:
             condition:
-              lambda: 'return id(overtemp_lockout_2) && x > 90.0f;'
+              lambda: |-
+                return !isnan(x) &&
+                       !id(overtemp_lockout_2) &&
+                       x > 90.0f;
             then:
+              - lambda: |-
+                  id(overtemp_lockout_2) = true;
+
+                  ESP_LOGW(
+                    "overtemp",
+                    "Unit 2 exceeded 90°C (%.1f°C). "
+                    "Sending CAN OFF and engaging overtemperature lockout.",
+                    x
+                  );
+
               - canbus.send:
                   use_extended_id: true
                   can_id: 0x108280FE
-                  data: [1, 50, 0, 1, 0, 0, 0, 0]
+                  data: [0x01, 0x32, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00]
+
+        # --------------------------------------------------------------
+        # Overtemperature recovery
+        # --------------------------------------------------------------
+        - if:
+            condition:
+              lambda: |-
+                return !isnan(x) &&
+                       id(overtemp_lockout_2) &&
+                       x < 80.0f;
+            then:
+              - lambda: |-
+                  id(overtemp_lockout_2) = false;
+
+                  ESP_LOGI(
+                    "overtemp",
+                    "Unit 2 cooled below 80°C (%.1f°C). "
+                    "Overtemperature lockout cleared.",
+                    x
+                  );
 
   # --------------------------------------------------------------------------
   # Output Temperature Unit-3
-  # Rectifier output temperature from telemetry selector 0x7F. The on_value safety automation sends an individual OFF command and engages a lockout once this unit exceeds 90 °C; the lockout only clears below the 80 °C hysteresis threshold.
+  # Rectifier output temperature from telemetry selector 0x7F.
+  # The safety automation trips once when the temperature exceeds 90 °C,
+  # immediately sends an individual OFF command and engages an overtemperature
+  # lockout. Repeated hot telemetry does not generate additional OFF commands.
+  # The lockout remains active throughout the 80..90 °C hysteresis range and
+  # clears only after the temperature falls below 80 °C.
   - platform: template
     name: "Output Temperature Unit-3"
     id: output_temperature_3
@@ -3131,24 +3203,50 @@ sensor:
     icon: "mdi:thermometer"
     on_value:
       then:
-        - lambda: |-
-            // Edge-triggered: only act when crossing the trip or recovery threshold,
-            // not on every 3s update while the state is unchanged.
-            if (!id(overtemp_lockout_3) && x > 90.0f) {
-              id(overtemp_lockout_3) = true;
-              ESP_LOGW("overtemp", "Unit 3 exceeded 90°C (%.1f°C). Sending CAN OFF and engaging lockout.", x);
-            } else if (id(overtemp_lockout_3) && x < 80.0f) {
-              id(overtemp_lockout_3) = false;
-              ESP_LOGI("overtemp", "Unit 3 cooled below 80°C (%.1f°C). Lockout cleared.", x);
-            }
+        # --------------------------------------------------------------
+        # Overtemperature trip
+        # --------------------------------------------------------------
         - if:
             condition:
-              lambda: 'return id(overtemp_lockout_3) && x > 90.0f;'
+              lambda: |-
+                return !isnan(x) &&
+                       !id(overtemp_lockout_3) &&
+                       x > 90.0f;
             then:
+              - lambda: |-
+                  id(overtemp_lockout_3) = true;
+
+                  ESP_LOGW(
+                    "overtemp",
+                    "Unit 3 exceeded 90°C (%.1f°C). "
+                    "Sending CAN OFF and engaging overtemperature lockout.",
+                    x
+                  );
+
               - canbus.send:
                   use_extended_id: true
                   can_id: 0x108380FE
-                  data: [1, 50, 0, 1, 0, 0, 0, 0]
+                  data: [0x01, 0x32, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00]
+
+        # --------------------------------------------------------------
+        # Overtemperature recovery
+        # --------------------------------------------------------------
+        - if:
+            condition:
+              lambda: |-
+                return !isnan(x) &&
+                       id(overtemp_lockout_3) &&
+                       x < 80.0f;
+            then:
+              - lambda: |-
+                  id(overtemp_lockout_3) = false;
+
+                  ESP_LOGI(
+                    "overtemp",
+                    "Unit 3 cooled below 80°C (%.1f°C). "
+                    "Overtemperature lockout cleared.",
+                    x
+                  );
 
   # --------------------------------------------------------------------------
   # DC Current Unit-1
