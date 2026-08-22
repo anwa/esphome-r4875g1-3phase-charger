@@ -671,7 +671,7 @@ display:
           10, 270,
           id(font_small),
           id(color_black),
-          "  DC Power: %.2f kW  -  %.1f A/unit",
+          "  DC Target(3U): %.2f kW - %.1f A/u",
           id(dc_sum_power_set).state,
           id(set_dc_current_limit).state
         );
@@ -691,7 +691,7 @@ display:
           10, 270,
           id(font_small_bold),
           id(color_blue),
-          "> DC Power: %.2f kW  -  %.1f A/unit",
+          "> DC Target(3U): %.2f kW - %.1f A/u",
           id(dc_sum_power_set).state,
           id(set_dc_current_limit).state
         );
@@ -1398,11 +1398,25 @@ script:
   # --------------------------------------------------------------------------
   # apply_dc_sum_power
   # --------------------------------------------------------------------------
-  # Converts the requested total DC power into an equal current
-  # target for each of the three parallel rectifiers:
-  # I_each = P_total / (3 * V_DC).
-  # The result is limited to at least 1 A and at most the current
-  # effective_dc_current_limit derived from detected rectifier capabilities.
+  # Converts the configured nominal three-unit DC power target into one common
+  # current command for all rectifiers:
+  #
+  #     I_each = P_target / (3 * V_DC)
+  #
+  # The divisor intentionally remains fixed at three. The controller does not
+  # increase the current of remaining units when another rectifier is offline,
+  # unavailable or excluded by an overtemperature lockout.
+  #
+  # Therefore partial operation produces proportionally less total power:
+  #   3 active units -> approximately 100% of the configured target
+  #   2 active units -> approximately  67% of the configured target
+  #   1 active unit  -> approximately  33% of the configured target
+  #
+  # This conservative behavior avoids automatically increasing current when a
+  # rectifier's actual physical state cannot be determined reliably.
+  #
+  # The calculated per-unit current is limited to at least 1 A and at most the
+  # current effective_dc_current_limit derived from detected capabilities.
   - id: apply_dc_sum_power
     mode: restart
     then:
@@ -1448,14 +1462,14 @@ script:
 
           if (current_per_rectifier > max_current) {
 
-            ESP_LOGW(
-              "encoder",
-              "Requested %.2f kW requires %.1f A/unit, "
-              "but effective current limit is %.1f A. Clamping.",
-              power_kw,
-              requested_current_per_rectifier,
-              max_current
-            );
+          ESP_LOGW(
+            "encoder",
+            "Nominal 3-unit target %.2f kW requires %.1f A/unit, "
+            "but effective current limit is %.1f A. Clamping.",
+            power_kw,
+            requested_current_per_rectifier,
+            max_current
+          );
 
             current_per_rectifier =
                 max_current;
@@ -1467,7 +1481,7 @@ script:
 
           ESP_LOGI(
             "encoder",
-            "DC Sum Power %.2f kW @ %.2f V -> "
+            "Nominal 3-unit DC target %.2f kW @ %.2f V -> "
             "%.1f A per rectifier "
             "(effective maximum %.1f A)",
             power_kw,
@@ -4351,9 +4365,16 @@ number:
 
   # --------------------------------------------------------------------------
   # DC Sum Power Set
-  # Convenience total-power target for local operation. This is
-  # not a native rectifier parameter; changing it runs apply_dc_sum_power, which
-  # derives an equal current target for all three units.
+  # Nominal total DC power target for the complete three-rectifier system.
+  #
+  # This is not a native rectifier parameter. Changing it runs
+  # apply_dc_sum_power, which always calculates the common current command as:
+  #
+  #     I_each = P_target / (3 * V_DC)
+  #
+  # The target is intentionally not redistributed across fewer available units.
+  # If only one or two rectifiers operate, actual total output power will be
+  # proportionally lower than this nominal three-unit target.
   - platform: template
     name: "DC Sum Power Set"
     id: dc_sum_power_set

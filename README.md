@@ -436,6 +436,24 @@ $$
 I_{Unit} = \frac{P_{total}}{3 \cdot U_{DC}}
 $$
 
+`DC Sum Power Set` is a **nominal three-rectifier power target**.
+
+The divisor in the current calculation intentionally remains fixed at three, even when one or more rectifiers are unavailable, offline or excluded by a temperature lockout.
+
+The controller does not automatically redistribute the requested total power across the remaining units.
+
+Therefore, before current limiting and conversion losses:
+
+```text
+3 active units -> approximately 100% of the configured target
+2 active units -> approximately  67% of the configured target
+1 active unit  -> approximately  33% of the configured target
+```
+
+For example, a 6 kW target at 53 V produces a common current command of approximately 37.7 A per rectifier. If only two rectifiers are operating, their combined nominal output is therefore approximately 4 kW rather than increasing their current to maintain 6 kW.
+
+This behavior is intentional and conservative. A rectifier that has lost CAN communication may still be physically operating, so automatically increasing the current of the remaining visible units could cause the actual total power to exceed the requested value.
+
 This approach is particularly convenient for local control because the operator only needs to choose:
 
 1. desired DC voltage,
@@ -757,6 +775,18 @@ step: 0.1 V
 ```
 
 ### Total DC power
+
+The local power control is configured as a nominal **three-unit DC power target**.
+
+The current command is always calculated using:
+
+$$
+I_{unit} = \frac{P_{target}}{3 \cdot U_{DC}}
+$$
+
+The factor of three is fixed and does not change during partial-unit operation.
+
+If fewer than three rectifiers are actually operating, the controller does not raise the current of the remaining units to compensate. Actual combined output power is therefore lower than the configured target.
 
 Configured range:
 
@@ -1298,6 +1328,8 @@ If one unit loses CAN:
 - its individual display line shows a CAN communication fault,
 - its stale power value is excluded from combined AC/DC power,
 - AC average values are calculated from the remaining valid units.
+- The nominal three-unit power target is not redistributed across remaining units.
+- Losing one rectifier therefore reduces actual charger power instead of increasing the current command of the remaining units.
 
 If all units lose CAN:
 
