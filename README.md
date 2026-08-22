@@ -223,7 +223,7 @@ The ESP32 does not carry the CAN physical layer directly. This build uses an **S
   - DC output voltage,
   - total requested DC charging power.
 - Controller calculates the required current per rectifier automatically.
-- Long press starts or stops the charger.
+- Local START requires valid CAN communication with at least one rectifier.
 
 ## Telemetry
 
@@ -246,6 +246,9 @@ Per unit, the controller decodes values including:
 
 - Independent CAN communication watchdog for each rectifier.
 - A unit is considered offline when valid cyclic telemetry has not been received for 3 seconds.
+- The reported power state is changed to `UNKNOWN` when a unit loses CAN communication.
+- Stale `ON`/`OFF` states are never used for local charger start/stop decisions.
+- Local START is inhibited when no rectifier has valid CAN communication.
 - Failed units are excluded from combined AC/DC power calculations.
 - Stale unit values are not included in combined power.
 - Display replaces unavailable unit values with a clear CAN communication fault message.

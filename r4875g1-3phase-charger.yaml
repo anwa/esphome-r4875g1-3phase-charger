@@ -68,8 +68,16 @@ esphome:
   name: hg-dg-technik-charger3ph
   friendly_name: HG|DG|Technik|Charger-3Ph
   min_version: 2026.7.4
+
   on_boot:
     then:
+      # Until valid rectifier status frames have been received, the actual
+      # power state of each unit is unknown.
+      - lambda: |-
+          id(power_state_1).publish_state("UNKNOWN");
+          id(power_state_2).publish_state("UNKNOWN");
+          id(power_state_3).publish_state("UNKNOWN");
+
       - script.execute: display_inactivity_timer
 
 # ==============================================================================
@@ -550,9 +558,20 @@ display:
       // to show partial operation such as 1/3 or 2/3 units running.
       int rectifiers_on = 0;
 
-      if (id(power_state_1).state == "ON") rectifiers_on++;
-      if (id(power_state_2).state == "ON") rectifiers_on++;
-      if (id(power_state_3).state == "ON") rectifiers_on++;
+      if (id(can_com_ok_1).state &&
+          id(power_state_1).state == "ON") {
+        rectifiers_on++;
+      }
+
+      if (id(can_com_ok_2).state &&
+          id(power_state_2).state == "ON") {
+        rectifiers_on++;
+      }
+
+      if (id(can_com_ok_3).state &&
+          id(power_state_3).state == "ON") {
+        rectifiers_on++;
+      }
 
       if (rectifiers_on == 3) {
 
@@ -2219,7 +2238,6 @@ canbus:
         then:
           - lambda: |-
               static uint16_t last_alt_current_value_1 = 0;
-              static std::string last_power_state_1 = "";
               if (x.size() == 8) {
                 // Extract data from the message
                 const uint8_t state_byte = x[3];
@@ -2244,10 +2262,11 @@ canbus:
                   new_power_state = "OFF";
                 }
 
-                // Publish power state only if it has changed
-                if (new_power_state != last_power_state_1) {
+                // Compare against the actual published sensor state instead of a separate
+                // local cache. This allows the CAN watchdog to set the sensor to UNKNOWN
+                // and ensures the next valid CAN frame restores ON/OFF/ERROR correctly.
+                if (id(power_state_1).state != new_power_state) {
                   id(power_state_1).publish_state(new_power_state.c_str());
-                  last_power_state_1 = new_power_state;
                 }
               }
 
@@ -2261,7 +2280,6 @@ canbus:
         then:
           - lambda: |-
               static uint16_t last_alt_current_value_2 = 0;
-              static std::string last_power_state_2 = "";
               if (x.size() == 8) {
                 // Extract data from the message
                 const uint8_t state_byte = x[3];
@@ -2286,10 +2304,11 @@ canbus:
                   new_power_state = "OFF";
                 }
 
-                // Publish power state only if it has changed
-                if (new_power_state != last_power_state_2) {
+                // Compare against the actual published sensor state instead of a separate
+                // local cache. This allows the CAN watchdog to set the sensor to UNKNOWN
+                // and ensures the next valid CAN frame restores ON/OFF/ERROR correctly.
+                if (id(power_state_2).state != new_power_state) {
                   id(power_state_2).publish_state(new_power_state.c_str());
-                  last_power_state_2 = new_power_state;
                 }
               }
 
@@ -2303,7 +2322,6 @@ canbus:
         then:
           - lambda: |-
               static uint16_t last_alt_current_value_3 = 0;
-              static std::string last_power_state_3 = "";
               if (x.size() == 8) {
                 // Extract data from the message
                 const uint8_t state_byte = x[3];
@@ -2328,10 +2346,11 @@ canbus:
                   new_power_state = "OFF";
                 }
 
-                // Publish power state only if it has changed
-                if (new_power_state != last_power_state_3) {
+                // Compare against the actual published sensor state instead of a separate
+                // local cache. This allows the CAN watchdog to set the sensor to UNKNOWN
+                // and ensures the next valid CAN frame restores ON/OFF/ERROR correctly.
+                if (id(power_state_3).state != new_power_state) {
                   id(power_state_3).publish_state(new_power_state.c_str());
-                  last_power_state_3 = new_power_state;
                 }
               }
 
@@ -3713,7 +3732,13 @@ binary_sensor:
               );
           - component.update: tft
       # Long press:
-      # Toggle all rectifier units ON/OFF for local blackstart control.
+      # Toggle rectifier units ON/OFF for local blackstart control.
+      #
+      # Safety rules:
+      # - If at least one reachable unit reports ON, send STOP.
+      # - If CAN communication exists and no reachable unit reports ON, START.
+      # - If no unit is reachable at all, do nothing because the actual charger
+      #   state cannot be determined safely.
       - timing:
           - ON for at least 3000ms
         then:
@@ -3721,13 +3746,30 @@ binary_sensor:
               condition:
                 lambda: |-
                   return
-                    id(power_state_1).state == "ON" ||
-                    id(power_state_2).state == "ON" ||
-                    id(power_state_3).state == "ON";
+                    (id(can_com_ok_1).state &&
+                     id(power_state_1).state == "ON") ||
+                    (id(can_com_ok_2).state &&
+                     id(power_state_2).state == "ON") ||
+                    (id(can_com_ok_3).state &&
+                     id(power_state_3).state == "ON");
               then:
                 - script.execute: blackstart_stop
+
               else:
-                - script.execute: blackstart_start
+                - if:
+                    condition:
+                      lambda: |-
+                        return
+                          id(can_com_ok_1).state ||
+                          id(can_com_ok_2).state ||
+                          id(can_com_ok_3).state;
+                    then:
+                      - script.execute: blackstart_start
+
+                    else:
+                      - logger.log:
+                          level: WARN
+                          format: "BLACKSTART: Start/stop ignored - no rectifier CAN communication available."
 
   # CAN communication watchdogs
   #
@@ -3747,6 +3789,20 @@ binary_sensor:
       return id(last_can_rx_1) != 0 &&
              (uint32_t) (millis() - id(last_can_rx_1)) < 3000U;
 
+    on_release:
+      then:
+        - lambda: |-
+            // The last reported power state is no longer trustworthy once
+            // communication with the rectifier has timed out.
+            if (id(power_state_1).state != "UNKNOWN") {
+              id(power_state_1).publish_state("UNKNOWN");
+
+              ESP_LOGW(
+                "canbus",
+                "Unit 1: CAN communication lost - power state set to UNKNOWN."
+              );
+            }
+
   # --------------------------------------------------------------------------
   # CAN Communication Unit-2
   # CAN connectivity watchdog for Unit 2. True only when a valid cyclic telemetry frame was received within the last 3000 ms. Unsigned millis() subtraction remains correct across wrap-around.
@@ -3759,6 +3815,18 @@ binary_sensor:
       return id(last_can_rx_2) != 0 &&
              (uint32_t) (millis() - id(last_can_rx_2)) < 3000U;
 
+    on_release:
+      then:
+        - lambda: |-
+            if (id(power_state_2).state != "UNKNOWN") {
+              id(power_state_2).publish_state("UNKNOWN");
+
+              ESP_LOGW(
+                "canbus",
+                "Unit 2: CAN communication lost - power state set to UNKNOWN."
+              );
+            }
+
   # --------------------------------------------------------------------------
   # CAN Communication Unit-3
   # CAN connectivity watchdog for Unit 3. True only when a valid cyclic telemetry frame was received within the last 3000 ms. Unsigned millis() subtraction remains correct across wrap-around.
@@ -3770,6 +3838,18 @@ binary_sensor:
     lambda: |-
       return id(last_can_rx_3) != 0 &&
              (uint32_t) (millis() - id(last_can_rx_3)) < 3000U;
+
+    on_release:
+      then:
+        - lambda: |-
+            if (id(power_state_3).state != "UNKNOWN") {
+              id(power_state_3).publish_state("UNKNOWN");
+
+              ESP_LOGW(
+                "canbus",
+                "Unit 3: CAN communication lost - power state set to UNKNOWN."
+              );
+            }
 
 # ==============================================================================
 # PERIODIC CAN TRAFFIC
