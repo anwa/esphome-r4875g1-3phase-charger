@@ -995,7 +995,8 @@ script:
       - while:
           condition:
             lambda: |-
-              return !id(unit_properties_complete_1) && id(frame_counter_bp_1) ${property_discovery_attempts};
+              return !id(unit_properties_complete_1) &&
+                      id(frame_counter_bp_1) < ${property_discovery_attempts};
           then:
             - canbus.send:
                 can_id: 0x1081D2FE
@@ -1029,7 +1030,8 @@ script:
       - while:
           condition:
             lambda: |-
-              return !id(unit_properties_complete_2) && id(frame_counter_bp_2) ${property_discovery_attempts};
+              return !id(unit_properties_complete_2) &&
+                      id(frame_counter_bp_2) < ${property_discovery_attempts};
           then:
             - canbus.send:
                 can_id: 0x1082D2FE
@@ -1063,7 +1065,8 @@ script:
       - while:
           condition:
             lambda: |-
-              return !id(unit_properties_complete_3) && id(frame_counter_bp_3) ${property_discovery_attempts};
+              return !id(unit_properties_complete_3) &&
+                      id(frame_counter_bp_3) < ${property_discovery_attempts};
           then:
             - canbus.send:
                 can_id: 0x1083D2FE
@@ -4537,8 +4540,11 @@ number:
               // Convert percentage to the rectifier fixed-point format.
               // Example:
               //   25% * 256 = 6400 = 0x1900
-              int scaled_value =
-                  (int)(id(set_fan_min_speed).state * ${fan_duty_counts_per_percent}f;
+              const int scaled_value =
+                  static_cast<int>(
+                    id(set_fan_min_speed).state *
+                    ${fan_duty_counts_per_percent}f
+                  );
               // Store the 16-bit value in big-endian format.
               can_data[2] = (scaled_value >> 8) & 0xFF;
               can_data[3] = scaled_value & 0xFF;
@@ -4989,7 +4995,7 @@ binary_sensor:
 
     lambda: |-
       return id(last_can_rx_2) != 0 &&
-             (uint32_t) (millis() - id(last_can_rx_2)) < 3000U;
+             (uint32_t) (millis() - id(last_can_rx_2)) < ${can_watchdog_timeout_ms}U;
 
     # Whenever Unit 2 becomes reachable, refresh its capability/address data.
     # Unit 2's detected scaling factor is exposed for diagnostics only; the shared
@@ -5025,7 +5031,7 @@ binary_sensor:
 
     lambda: |-
       return id(last_can_rx_3) != 0 &&
-             (uint32_t) (millis() - id(last_can_rx_3)) < 3000U;
+             (uint32_t) (millis() - id(last_can_rx_3)) < ${can_watchdog_timeout_ms}U;
 
     # Whenever Unit 3 becomes reachable, refresh its capability/address data.
     # Unit 3's detected scaling factor is exposed for diagnostics only; the shared
