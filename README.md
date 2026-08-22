@@ -71,7 +71,7 @@ The project combines CAN-bus control, live telemetry, Home Assistant integration
   - [4. Compile](#4-compile)
   - [5. First flash](#5-first-flash)
   - [6. Verify CAN wiring](#6-verify-can-wiring)
-  - [7. Run SETUP](#7-run-setup)
+  - [7. Run Unit Discovery](#7-run-unit-discovery)
 - [secrets.yaml](#secretsyaml)
 - [Local Operation](#local-operation)
   - [Rotate while DC Voltage is selected](#rotate-while-dc-voltage-is-selected)
@@ -1031,7 +1031,7 @@ A `Discover Rectifier Units` template button starts the sequential discovery pro
 
 Because the setup sequence deliberately queries the units one after another with delays, it may take roughly a minute to complete.
 
-For the intended three identical 75 A R4875G1 units, the controller starts with the known 75 A current-scaling fallback. Unit 1 capability discovery is triggered automatically when CAN communication becomes available, allowing the fallback to be verified or corrected without requiring the manual `SETUP` sequence.
+For the intended three identical 75 A R4875G1 units, the controller starts with the known 75 A current-scaling fallback. Unit 1 capability discovery is triggered automatically when CAN communication becomes available, allowing the fallback to be verified or corrected without requiring the manual unit discovery sequence.
 
 ## Home Assistant, Web UI and MQTT
 
@@ -1153,7 +1153,7 @@ CAN Communication Unit 3
 
 should become connected/ON when valid cyclic telemetry is being received.
 
-## 7. Run SETUP
+## 7. Run Unit Discovery
 
 Use the `Discover Rectifier Units` button to query unit information and capability data.
 
