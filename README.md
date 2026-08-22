@@ -745,7 +745,7 @@ can_com_ok_2
 can_com_ok_3
 ```
 
-A unit is considered online when a valid cyclic telemetry frame has been received within the previous **3 seconds**.
+A unit is considered online when valid CAN communication from that rectifier has been received within the previous **3 seconds**.
 
 Internally the firmware stores:
 
@@ -755,11 +755,53 @@ last_can_rx_2
 last_can_rx_3
 ```
 
-These values contain the `millis()` timestamp of the most recent valid telemetry frame.
+These values contain the `millis()` timestamp of the most recent valid CAN activity received from the corresponding rectifier.
 
-The timeout calculation uses unsigned arithmetic so it remains safe across the normal `millis()` wrap-around.
+The watchdog timestamp is refreshed by:
 
-This watchdog is more reliable than simply checking for `NaN`, because an ESPHome sensor can retain its last valid value after CAN communication has stopped. Without the watchdog, stale measurements could appear to remain valid indefinitely.
+* valid cyclic telemetry frames,
+* valid property START/DATA frames,
+* valid property END frames.
+
+Cyclic telemetry remains the normal communication heartbeat during regular charger operation.
+
+Property frames also refresh the watchdog while unit discovery is active. This is necessary because normal cyclic telemetry and fan polling are intentionally suspended during property discovery to give the multi-frame property response exclusive access to the CAN bus.
+
+Without refreshing the watchdog from property frames, a long property-discovery sequence could incorrectly cause:
+
+```text
+CAN communication lost
+```
+
+even though the rectifier is actively transmitting valid discovery data.
+
+Using actual received property frames as watchdog activity preserves fail-safe behaviour. Discovery itself does not force a unit to remain online; if the rectifier stops responding and no valid CAN frames are received, the watchdog still expires normally.
+
+The timeout calculation uses unsigned arithmetic:
+
+```cpp
+(uint32_t) (millis() - last_can_rx)
+```
+
+so it remains safe across the normal `millis()` wrap-around.
+
+When no valid CAN communication has been received from a unit within the configured watchdog period, its `can_com_ok_x` sensor becomes false.
+
+When communication is lost, the corresponding CAN-reported power-state sensor is also changed to:
+
+```text
+UNKNOWN
+```
+
+because the previous ON/OFF state can no longer be trusted.
+
+This prevents stale rectifier state from being interpreted as current operating status.
+
+The CAN watchdog is more reliable than simply checking individual telemetry sensors for `NaN`, because an ESPHome sensor can retain its last valid value after CAN communication has stopped. Without the watchdog, stale measurements could appear to remain valid indefinitely.
+
+Combined measurements, display logic and start-safety checks therefore use the CAN communication state to distinguish currently reachable rectifiers from stale data.
+
+When a rectifier becomes reachable again, the watchdog changes back to online and the automatic unit-discovery sequence is started after the configured stabilization delay.
 
 ## Combined AC and DC Values
 
@@ -1071,59 +1113,101 @@ Each rectifier is discovered automatically when valid CAN communication with tha
 
 The CAN communication watchdog detects the transition from offline to online. Automatic discovery does not start immediately after the first valid CAN frame. Instead, the controller waits for a short stabilization period before starting the discovery sequence.
 
+The current automatic startup stabilization period is **5 seconds**.
+
 This delay allows the rectifier to complete its internal power-up sequence and gives the ESP32 TWAI transmit queue time to recover from previously unacknowledged CAN traffic that may have accumulated while no rectifier was online.
 
 After the stabilization period, CAN communication is checked again.
 
-If the rectifier is still reachable, the controller starts a complete per-unit discovery sequence consisting of:
+If the rectifier is still reachable, its discovery request is submitted to one shared global discovery queue.
+
+All automatic and manual discovery operations use this same queue.
+
+The queue is intentionally serialized: only one rectifier discovery operation can run at a time. Additional discovery requests wait until the currently active discovery has completely finished.
+
+This prevents multiple rectifiers from simultaneously transmitting large multi-frame property responses onto the shared CAN bus.
+
+When several rectifiers become available at approximately the same time, discovery therefore proceeds sequentially rather than in parallel.
+
+For example:
+
+```text
+Unit 1 becomes available
+Unit 2 becomes available
+Unit 3 becomes available
+
+        ↓
+
+Unit 1 discovery
+        ↓
+Unit 1 complete
+        ↓
+Unit 2 discovery
+        ↓
+Unit 2 complete
+        ↓
+Unit 3 discovery
+        ↓
+Unit 3 complete
+```
+
+A complete per-unit discovery sequence consists of:
 
 1. static unit-property discovery,
 2. maximum-current capability discovery,
 3. hardware pin/shelf address discovery.
 
-If CAN communication is lost again during the stabilization period, automatic discovery is cancelled. It will be attempted again the next time the rectifier transitions from offline to online.
+The property and capability stages for an individual unit are also executed sequentially using ESPHome script synchronization. The capability/address stage does not begin until the property stage has either completed successfully or exhausted its configured retry limit.
 
-The property and capability stages are executed sequentially using ESPHome script synchronization. No fixed inter-stage waiting periods are used; the next stage begins immediately after the previous stage has completed or exhausted its configured retry limit.
+If CAN communication is lost during the initial startup stabilization period, automatic discovery is cancelled. It will be attempted again the next time the rectifier transitions from offline to online.
 
 Automatic discovery therefore also works when a rectifier:
 
-- is already powered when the ESP32 starts,
-- is powered up after the controller has already started,
-- temporarily loses CAN communication and later reconnects.
+* is already powered when the ESP32 starts,
+* is powered up after the controller has already started,
+* temporarily loses CAN communication and later reconnects.
 
 The static property response is transmitted by the rectifier as a burst of several dozen CAN frames.
 
-The ESP32 TWAI receive queue is therefore configured larger than the driver's small default queue. This provides sufficient buffering for a complete multi-frame property response while allowing ESPHome to process the incoming frames reliably.
+The ESP32 TWAI receive queue is configured for **64 frames**, substantially larger than the driver's small default queue. This provides sufficient buffering for a complete multi-frame property response while allowing ESPHome to process the incoming frames reliably.
 
 Normal cyclic telemetry and fan polling are temporarily suspended while a property-discovery script is active.
 
-Before the first property request is transmitted, the controller also waits for a short CAN-bus quiet period. This allows any already-running telemetry polling sequence to finish before the rectifier begins transmitting its multi-frame property response.
+Before the first property request is transmitted, the controller waits for a **500 ms CAN-bus quiet period**. This allows any already-running telemetry polling sequence to finish before the rectifier begins transmitting its multi-frame property response.
 
-The resulting sequence is:
+The resulting property-discovery sequence is:
 
-1. property discovery becomes active,
-2. normal cyclic telemetry and fan polling are suspended,
-3. an already-running polling sequence is allowed to finish,
-4. the property request is transmitted,
-5. the complete multi-frame response is received and reconstructed,
-6. the property-discovery script completes,
-7. normal cyclic polling resumes automatically.
+1. the serialized discovery worker selects one rectifier,
+2. property discovery becomes active,
+3. normal cyclic telemetry and fan polling are suspended,
+4. an already-running polling sequence is allowed to finish,
+5. the controller waits for the configured CAN-bus quiet period,
+6. the property request is transmitted,
+7. the complete multi-frame response is received and reconstructed,
+8. the property data is validated and parsed,
+9. capability/address discovery is performed,
+10. the unit discovery completes,
+11. the next queued rectifier discovery may begin.
 
-This prevents normal telemetry traffic from competing with the high-rate property response and reduces the chance of individual property frames being lost before ESPHome can process them.
+This prevents normal telemetry traffic and discovery traffic from competing with a high-rate property response and also prevents property responses from multiple rectifiers from overlapping.
 
 A property response begins with a protocol-defined start frame and ends with a dedicated end frame. Property data is accepted only after a valid start frame has been received.
 
 If an end frame arrives without a valid start/data sequence, the incomplete response is discarded instead of attempting to parse corrupted property data. The configured retry mechanism can then issue another property request.
 
+Valid property START/DATA and END frames also refresh the corresponding unit's CAN communication watchdog timestamp.
+
+This keeps the unit correctly marked as reachable while normal cyclic telemetry polling is intentionally suspended during property discovery. If the rectifier stops responding completely, no property frames are received and the normal CAN watchdog can still expire.
+
 The discovery process queries information including:
 
-- board type,
-- barcode / serial information,
-- item number,
-- description,
-- manufacturing information,
-- maximum current capability,
-- hardware pin/shelf information.
+* board type,
+* barcode / serial information,
+* item number,
+* description,
+* manufacturing information,
+* maximum current capability,
+* hardware pin/shelf information.
 
 Property queries use unit-specific CAN IDs and reconstruct multi-frame text responses before extracting key/value fields.
 
@@ -1133,11 +1217,21 @@ Capability and address discovery also use a configurable retry limit and termina
 
 Complete raw property responses are logged only at DEBUG level. Normal INFO logging still reports discovery progress, extracted property values and whether all required fields were received successfully.
 
-The automatic stabilization delay applies only to discovery triggered by a rectifier becoming newly reachable over CAN.
+The `Discover Rectifier Units` button remains available as a manual service and retry function.
 
-The `Discover Rectifier Units` button remains available as a manual service function. Manual discovery starts immediately without the automatic startup stabilization delay because the rectifiers are expected to already be powered and operational when the service action is used.
+Manual discovery is submitted to the same global serialized discovery queue used by automatic discovery. A manual full discovery therefore cannot overlap an automatic per-unit discovery already in progress.
 
-The manual discovery sequence processes Unit 1, Unit 2 and Unit 3 sequentially and waits for each unit's complete discovery process to finish before continuing with the next unit.
+The manual full sequence processes:
+
+```text
+Unit 1
+↓
+Unit 2
+↓
+Unit 3
+```
+
+and waits for each unit's complete discovery process before continuing with the next unit.
 
 For the intended 75 A R4875G1 units, the controller still starts with the known model-specific current-scaling fallback. Successful Unit 1 capability discovery verifies or updates the shared current scaling factor automatically.
 

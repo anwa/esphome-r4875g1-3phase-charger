@@ -1554,6 +1554,105 @@ script:
           format: "Full rectifier discovery sequence completed."
 
   # --------------------------------------------------------------------------
+  # discovery_queue
+  # --------------------------------------------------------------------------
+  # Global serialized discovery worker.
+  #
+  # All automatic per-unit discovery requests and the manual full discovery
+  # sequence are routed through this queue so only one discovery operation can
+  # use the CAN bus at a time.
+  #
+  # unit:
+  #   0 = full manual discovery sequence
+  #   1 = Unit 1 only
+  #   2 = Unit 2 only
+  #   3 = Unit 3 only
+  - id: discovery_queue
+    mode: queued
+    max_runs: 8
+    parameters:
+      unit: int
+    then:
+      # Full three-unit discovery sequence.
+      - if:
+          condition:
+            lambda: |-
+              return unit == 0;
+          then:
+            - logger.log:
+                level: INFO
+                format: "Discovery queue: starting full three-unit discovery."
+
+            - script.execute: setup_sequence
+            - script.wait: setup_sequence
+
+            - logger.log:
+                level: INFO
+                format: "Discovery queue: full three-unit discovery completed."
+
+          else:
+            # Unit 1
+            - if:
+                condition:
+                  lambda: |-
+                    return unit == 1;
+                then:
+                  - logger.log:
+                      level: INFO
+                      format: "Discovery queue: starting Unit 1 discovery."
+
+                  - script.execute: discover_unit_1
+                  - script.wait: discover_unit_1
+
+                  - logger.log:
+                      level: INFO
+                      format: "Discovery queue: Unit 1 discovery completed."
+
+                else:
+                  # Unit 2
+                  - if:
+                      condition:
+                        lambda: |-
+                          return unit == 2;
+                      then:
+                        - logger.log:
+                            level: INFO
+                            format: "Discovery queue: starting Unit 2 discovery."
+
+                        - script.execute: discover_unit_2
+                        - script.wait: discover_unit_2
+
+                        - logger.log:
+                            level: INFO
+                            format: "Discovery queue: Unit 2 discovery completed."
+
+                      else:
+                        # Unit 3
+                        - if:
+                            condition:
+                              lambda: |-
+                                return unit == 3;
+                            then:
+                              - logger.log:
+                                  level: INFO
+                                  format: "Discovery queue: starting Unit 3 discovery."
+
+                              - script.execute: discover_unit_3
+                              - script.wait: discover_unit_3
+
+                              - logger.log:
+                                  level: INFO
+                                  format: "Discovery queue: Unit 3 discovery completed."
+
+                            else:
+                              - lambda: |-
+                                  ESP_LOGW(
+                                    "discovery",
+                                    "Discovery queue received invalid unit number: %d",
+                                    unit
+                                  );
+
+  # --------------------------------------------------------------------------
   # apply_dc_sum_power
   # --------------------------------------------------------------------------
   # Converts the configured nominal three-unit DC power target into one common
@@ -5223,7 +5322,10 @@ binary_sensor:
                   level: INFO
                   format: "Unit 1 CAN communication stable - starting full automatic discovery."
 
-              - script.execute: discover_unit_1
+              - script.execute:
+                  id: discovery_queue
+                  unit: 1
+
             else:
               - logger.log:
                   level: WARN
@@ -5275,7 +5377,10 @@ binary_sensor:
                   level: INFO
                   format: "Unit 2 CAN communication stable - starting full automatic discovery."
 
-              - script.execute: discover_unit_2
+              - script.execute:
+                  id: discovery_queue
+                  unit: 2
+
             else:
               - logger.log:
                   level: WARN
@@ -5325,7 +5430,10 @@ binary_sensor:
                   level: INFO
                   format: "Unit 3 CAN communication stable - starting full automatic discovery."
 
-              - script.execute: discover_unit_3
+              - script.execute:
+                  id: discovery_queue
+                  unit: 3
+
             else:
               - logger.log:
                   level: WARN
@@ -5777,7 +5885,9 @@ button:
     id: setup_button
     on_press:
       then:
-        - script.execute: setup_sequence
+        - script.execute:
+            id: discovery_queue
+            unit: 0
 
 # ==============================================================================
 # TEXT / STATUS SENSORS
