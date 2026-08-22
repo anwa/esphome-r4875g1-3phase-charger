@@ -995,7 +995,7 @@ script:
       - while:
           condition:
             lambda: |-
-              return !id(unit_properties_complete_1) && id(frame_counter_bp_1) ${PROPERTY_DISCOVERY_ATTEMPTS};
+              return !id(unit_properties_complete_1) && id(frame_counter_bp_1) ${property_discovery_attempts};
           then:
             - canbus.send:
                 can_id: 0x1081D2FE
@@ -1029,7 +1029,7 @@ script:
       - while:
           condition:
             lambda: |-
-              return !id(unit_properties_complete_2) && id(frame_counter_bp_2) ${PROPERTY_DISCOVERY_ATTEMPTS};
+              return !id(unit_properties_complete_2) && id(frame_counter_bp_2) ${property_discovery_attempts};
           then:
             - canbus.send:
                 can_id: 0x1082D2FE
@@ -1063,7 +1063,7 @@ script:
       - while:
           condition:
             lambda: |-
-              return !id(unit_properties_complete_3) && id(frame_counter_bp_3) ${PROPERTY_DISCOVERY_ATTEMPTS};
+              return !id(unit_properties_complete_3) && id(frame_counter_bp_3) ${property_discovery_attempts};
           then:
             - canbus.send:
                 can_id: 0x1083D2FE
@@ -1100,13 +1100,13 @@ script:
       - while:
           condition:
             lambda: |-
-              return !(id(max_current_found_1) && id(data_found_1)) && id(search_counter_1) < ${CAPABILITY_DISCOVERY_ATTEMPTS};
+              return !(id(max_current_found_1) && id(data_found_1)) && id(search_counter_1) < ${capability_discovery_attempts};
           then:
             - canbus.send:
                 can_id: 0x108150FE
                 use_extended_id: true
                 data: [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
-            - delay: 1s
+            - delay: ${discovery_retry_delay}
             - lambda: |-
                 id(search_counter_1) += 1; // Increment the fail-safe counter
       - lambda: |-
@@ -1140,13 +1140,13 @@ script:
       - while:
           condition:
             lambda: |-
-              return !(id(max_current_found_2) && id(data_found_2)) && id(search_counter_2) < ${CAPABILITY_DISCOVERY_ATTEMPTS};
+              return !(id(max_current_found_2) && id(data_found_2)) && id(search_counter_2) < ${capability_discovery_attempts};
           then:
             - canbus.send:
                 can_id: 0x108250FE
                 use_extended_id: true
                 data: [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
-            - delay: 1s
+            - delay: ${discovery_retry_delay}
             - lambda: |-
                 id(search_counter_2) += 1; // Increment the fail-safe counter
       - lambda: |-
@@ -1180,13 +1180,13 @@ script:
       - while:
           condition:
             lambda: |-
-              return !(id(max_current_found_3) && id(data_found_3)) && id(search_counter_3) < ${CAPABILITY_DISCOVERY_ATTEMPTS};
+              return !(id(max_current_found_3) && id(data_found_3)) && id(search_counter_3) < ${capability_discovery_attempts};
           then:
             - canbus.send:
                 can_id: 0x108350FE
                 use_extended_id: true
                 data: [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
-            - delay: 1s
+            - delay: ${discovery_retry_delay}
             - lambda: |-
                 id(search_counter_3) += 1; // Increment the fail-safe counter
       - lambda: |-
