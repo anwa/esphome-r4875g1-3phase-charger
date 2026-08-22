@@ -4119,12 +4119,11 @@ sensor:
       return power;
     icon: "mdi:flash"
 
-  # Combined Daily AC Energy kWh sensor
   # --------------------------------------------------------------------------
-  # AC Energy Total (kWh)
-  # Daily AC energy integrator driven by the CAN-aware combined AC power sensor and SNTP time.
+  # AC Energy Today
+  # Daily AC input energy integrated from the CAN-aware combined AC power.
   - platform: total_daily_energy
-    name: "AC Energy Total (kWh)"
+    name: "AC Energy Today"
     power_id: combined_ac_power
     time_id: sntp_time
     unit_of_measurement: "kWh"
@@ -4133,12 +4132,11 @@ sensor:
     accuracy_decimals: 3
     icon: "mdi:counter"
 
-  # Combined Daily DC Energy kWh sensor
   # --------------------------------------------------------------------------
-  # DC Energy Total (kWh)
-  # Daily DC energy integrator driven by the CAN-aware combined DC power sensor and SNTP time.
+  # DC Energy Today
+  # Daily DC output energy integrated from the CAN-aware combined DC power.
   - platform: total_daily_energy
-    name: "DC Energy Total (kWh)"
+    name: "DC Energy Today"
     power_id: combined_dc_power
     time_id: sntp_time
     unit_of_measurement: "kWh"

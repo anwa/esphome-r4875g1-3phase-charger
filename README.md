@@ -1068,14 +1068,17 @@ MQTT failure does not restart the ESP32, preserving offline charger availability
 
 ## Energy Counters
 
-The configuration includes daily energy integration for:
+The configuration includes two daily energy counters:
 
-- total AC input energy,
-- total DC output energy.
+- `AC Energy Today` — AC input energy accumulated since midnight,
+- `DC Energy Today` — DC output energy accumulated since midnight.
 
-These are based on the CAN-aware combined power sensors.
+Both counters are calculated from the CAN-aware combined power sensors and
+reset at midnight using the configured SNTP time source.
 
-Because failed units are excluded from combined power calculations, stale measurements from a disconnected rectifier do not continue to inflate the integrated energy values.
+Because failed units are excluded from combined power calculations, stale
+measurements from a disconnected rectifier do not continue to inflate the
+daily energy values.
 
 ---
 
