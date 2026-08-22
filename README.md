@@ -43,6 +43,7 @@ The project combines CAN-bus control, live telemetry, Home Assistant integration
   - [Combined AC and DC Values](#combined-ac-and-dc-values)
     - [Combined AC power](#combined-ac-power)
     - [Combined DC power](#combined-dc-power)
+    - [Additional aggregate values](#additional-aggregate-values)
     - [AC values on the display](#ac-values-on-the-display)
   - [Local Blackstart Control](#local-blackstart-control)
     - [DC voltage](#dc-voltage)
@@ -776,6 +777,22 @@ If no valid unit is available, the sensor returns `NAN`/unavailable rather than 
 ### Combined DC power
 
 `combined_dc_power` uses the same CAN-aware logic for DC output power.
+
+### Additional aggregate values
+
+Additional CAN-aware aggregate sensors are provided for monitoring:
+
+- `Available Units` — number of rectifiers currently reachable over CAN,
+- `Combined DC Current All Units` — summed DC output current,
+- `Average DC Voltage All Units` — average output voltage of reachable units,
+- `Highest Output Temperature All Units` — highest valid rectifier output temperature,
+- `Conversion Efficiency All Units` — combined DC output power divided by AC input power for units with valid paired telemetry.
+
+Aggregate measurements exclude units without valid CAN communication or without the required live telemetry.
+
+`Conversion Efficiency All Units` only includes rectifiers that simultaneously provide valid AC and DC power telemetry. The value becomes unavailable below 100 W total AC input power to avoid meaningless or unstable efficiency values near idle operation.
+
+`Available Units` is different from the other aggregates: it intentionally reports `0` when no rectifiers are reachable instead of becoming unavailable.
 
 ### AC values on the display
 

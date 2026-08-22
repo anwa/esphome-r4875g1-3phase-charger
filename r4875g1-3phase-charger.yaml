@@ -4143,6 +4143,212 @@ sensor:
     icon: "mdi:flash"
 
   # --------------------------------------------------------------------------
+  # Available Units
+  # Number of rectifier units currently providing valid CAN communication.
+  - platform: template
+    name: "Available Units"
+    id: available_units
+    accuracy_decimals: 0
+    state_class: measurement
+    update_interval: 1s
+    lambda: |-
+      int count = 0;
+
+      if (id(can_com_ok_1).state) {
+        count++;
+      }
+
+      if (id(can_com_ok_2).state) {
+        count++;
+      }
+
+      if (id(can_com_ok_3).state) {
+        count++;
+      }
+
+      return count;
+    icon: "mdi:server-network"
+
+  # --------------------------------------------------------------------------
+  # Combined DC Current All Units
+  # Sum of DC output current from all reachable rectifiers with valid telemetry.
+  - platform: template
+    name: "Combined DC Current All Units"
+    id: combined_dc_current
+    unit_of_measurement: "A"
+    device_class: current
+    state_class: measurement
+    accuracy_decimals: 2
+    update_interval: 1s
+    lambda: |-
+      float current = 0.0f;
+      int valid_units = 0;
+
+      if (id(can_com_ok_1).state &&
+          !isnan(id(dc_current_1).state)) {
+        current += id(dc_current_1).state;
+        valid_units++;
+      }
+
+      if (id(can_com_ok_2).state &&
+          !isnan(id(dc_current_2).state)) {
+        current += id(dc_current_2).state;
+        valid_units++;
+      }
+
+      if (id(can_com_ok_3).state &&
+          !isnan(id(dc_current_3).state)) {
+        current += id(dc_current_3).state;
+        valid_units++;
+      }
+
+      if (valid_units == 0) {
+        return NAN;
+      }
+
+      return current;
+    icon: "mdi:current-dc"
+
+  # --------------------------------------------------------------------------
+  # Average DC Voltage All Units
+  # Average DC output voltage across all reachable rectifiers.
+  # The rectifier outputs are connected in parallel, so their voltages should
+  # normally be nearly identical.
+  - platform: template
+    name: "Average DC Voltage All Units"
+    id: average_dc_voltage
+    unit_of_measurement: "V"
+    device_class: voltage
+    state_class: measurement
+    accuracy_decimals: 2
+    update_interval: 1s
+    lambda: |-
+      float voltage = 0.0f;
+      int valid_units = 0;
+
+      if (id(can_com_ok_1).state &&
+          !isnan(id(dc_voltage_1).state)) {
+        voltage += id(dc_voltage_1).state;
+        valid_units++;
+      }
+
+      if (id(can_com_ok_2).state &&
+          !isnan(id(dc_voltage_2).state)) {
+        voltage += id(dc_voltage_2).state;
+        valid_units++;
+      }
+
+      if (id(can_com_ok_3).state &&
+          !isnan(id(dc_voltage_3).state)) {
+        voltage += id(dc_voltage_3).state;
+        valid_units++;
+      }
+
+      if (valid_units == 0) {
+        return NAN;
+      }
+
+      return voltage / valid_units;
+    icon: "mdi:current-dc"
+
+  # --------------------------------------------------------------------------
+  # Highest Output Temperature All Units
+  # Reports the hottest currently reachable rectifier.
+  - platform: template
+    name: "Highest Output Temperature All Units"
+    id: highest_output_temperature
+    unit_of_measurement: "°C"
+    device_class: temperature
+    state_class: measurement
+    accuracy_decimals: 1
+    update_interval: 1s
+    lambda: |-
+      float highest = 0.0f;
+      bool valid = false;
+
+      if (id(can_com_ok_1).state &&
+          !isnan(id(output_temperature_1).state)) {
+        highest = id(output_temperature_1).state;
+        valid = true;
+      }
+
+      if (id(can_com_ok_2).state &&
+          !isnan(id(output_temperature_2).state)) {
+        if (!valid ||
+            id(output_temperature_2).state > highest) {
+          highest = id(output_temperature_2).state;
+        }
+        valid = true;
+      }
+
+      if (id(can_com_ok_3).state &&
+          !isnan(id(output_temperature_3).state)) {
+        if (!valid ||
+            id(output_temperature_3).state > highest) {
+          highest = id(output_temperature_3).state;
+        }
+        valid = true;
+      }
+
+      if (!valid) {
+        return NAN;
+      }
+
+      return highest;
+    icon: "mdi:thermometer-high"
+
+  # --------------------------------------------------------------------------
+  # Conversion Efficiency All Units
+  # Calculates DC output power divided by AC input power.
+  #
+  # Only units that simultaneously provide valid AC and DC power telemetry are
+  # included. Values below 100 W AC input are ignored because efficiency becomes
+  # meaningless and unstable close to idle operation.
+  - platform: template
+    name: "Conversion Efficiency All Units"
+    id: conversion_efficiency
+    unit_of_measurement: "%"
+    state_class: measurement
+    accuracy_decimals: 1
+    update_interval: 1s
+    lambda: |-
+      float ac_power = 0.0f;
+      float dc_power = 0.0f;
+      int valid_units = 0;
+
+      if (id(can_com_ok_1).state &&
+          !isnan(id(ac_power_1).state) &&
+          !isnan(id(dc_power_1).state)) {
+        ac_power += id(ac_power_1).state;
+        dc_power += id(dc_power_1).state;
+        valid_units++;
+      }
+
+      if (id(can_com_ok_2).state &&
+          !isnan(id(ac_power_2).state) &&
+          !isnan(id(dc_power_2).state)) {
+        ac_power += id(ac_power_2).state;
+        dc_power += id(dc_power_2).state;
+        valid_units++;
+      }
+
+      if (id(can_com_ok_3).state &&
+          !isnan(id(ac_power_3).state) &&
+          !isnan(id(dc_power_3).state)) {
+        ac_power += id(ac_power_3).state;
+        dc_power += id(dc_power_3).state;
+        valid_units++;
+      }
+
+      if (valid_units == 0 ||
+          ac_power < 100.0f) {
+        return NAN;
+      }
+
+      return (dc_power / ac_power) * 100.0f;
+    icon: "mdi:gauge"
+
+  # --------------------------------------------------------------------------
   # AC Energy Today
   # Daily AC input energy integrated from the CAN-aware combined AC power.
   - platform: total_daily_energy
