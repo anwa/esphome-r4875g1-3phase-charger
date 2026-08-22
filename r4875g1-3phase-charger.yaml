@@ -1760,23 +1760,58 @@ canbus:
                 return; // Skip processing if already found
               }
 
-              uint8_t packet_number = x.data()[1];
-              uint8_t packet_data[8];
-              memcpy(packet_data, x.data(), 8);
+              // Capability responses are expected to use the full 8-byte CAN
+              // payload. Reject malformed/truncated frames before accessing
+              // fixed byte positions.
+              if (x.size() != 8) {
+                ESP_LOGW(
+                  "canbus",
+                  "Unit 1: Ignoring invalid capability frame 0x1081507F "
+                  "(DLC=%u, expected 8).",
+                  static_cast<unsigned>(x.size())
+                );
+                return;
+              }
+
+              const uint8_t packet_number =
+                  static_cast<uint8_t>(x[1]);
+
               if (packet_number == 1) {
-                uint8_t max_current_raw = packet_data[5];
-                float max_current = max_current_raw / 2; // Adjust scaling factor if necessary
-                ESP_LOGI("canbus", "Unit 1: Max current capability: %.1f A", max_current);
+                const uint8_t max_current_raw =
+                    static_cast<uint8_t>(x[5]);
+
+                float max_current =
+                    max_current_raw / 2.0f;
+
+                ESP_LOGI(
+                  "canbus",
+                  "Unit 1: Max current capability: %.1f A",
+                  max_current
+                );
+
                 id(max_dc_current_1).publish_state(max_current);
-                id(max_current_found_1) = true; // Set the flag to true
+                id(max_current_found_1) = true;
 
                 // Calculate and update current_scaling_factor
                 if (max_current > 0) {
-                  id(current_scaling_factor) = 1024.0 / max_current;
-                  ESP_LOGI("canbus", "Unit 1: New current_scaling_factor: %.3f", id(current_scaling_factor));
-                  id(sf_value_1).publish_state(id(current_scaling_factor));
+                  id(current_scaling_factor) =
+                      1024.0f / max_current;
+
+                  ESP_LOGI(
+                    "canbus",
+                    "Unit 1: New current_scaling_factor: %.3f",
+                    id(current_scaling_factor)
+                  );
+
+                  id(sf_value_1).publish_state(
+                    id(current_scaling_factor)
+                  );
                 } else {
-                  ESP_LOGW("canbus", "Unit 1: Max current is zero. Cannot calculate current_scaling_factor.");
+                  ESP_LOGW(
+                    "canbus",
+                    "Unit 1: Max current is zero. "
+                    "Cannot calculate current_scaling_factor."
+                  );
                 }
               }
 
@@ -1793,25 +1828,59 @@ canbus:
                 return; // Skip processing if already found
               }
 
-              uint8_t packet_number = x.data()[1];
-              uint8_t packet_data[8];
-              memcpy(packet_data, x.data(), 8);
-              if (packet_number == 1) {
-                uint8_t max_current_raw = packet_data[5];
-                float max_current = max_current_raw / 2; // Adjust scaling factor if necessary
-                ESP_LOGI("canbus", "Unit 2: Max current capability: %.1f A", max_current);
-                id(max_dc_current_2).publish_state(max_current);
-                id(max_current_found_2) = true; // Set the flag to true
+              // Capability responses are expected to use the full 8-byte CAN
+              // payload. Reject malformed/truncated frames before accessing
+              // fixed byte positions.
+              if (x.size() != 8) {
+                ESP_LOGW(
+                  "canbus",
+                  "Unit 2: Ignoring invalid capability frame 0x1082507F "
+                  "(DLC=%u, expected 8).",
+                  static_cast<unsigned>(x.size())
+                );
+                return;
+              }
 
-                // Diagnostic-only: publish Unit 2's own scaling factor for comparison, but
-                // do not overwrite the shared current_scaling_factor (that remains Unit 1's
-                // responsibility, per the architecture note at the top of this file).
+              const uint8_t packet_number =
+                  static_cast<uint8_t>(x[1]);
+
+              if (packet_number == 1) {
+                const uint8_t max_current_raw =
+                    static_cast<uint8_t>(x[5]);
+
+                float max_current =
+                    max_current_raw / 2.0f;
+
+                ESP_LOGI(
+                  "canbus",
+                  "Unit 2: Max current capability: %.1f A",
+                  max_current
+                );
+
+                id(max_dc_current_2).publish_state(max_current);
+                id(max_current_found_2) = true;
+
+                // Diagnostic-only: Unit 2 does not overwrite the shared
+                // current_scaling_factor.
                 if (max_current > 0) {
-                  float unit_2_scaling_factor = 1024.0 / max_current;
-                  ESP_LOGI("canbus", "Unit 2: Diagnostic scaling factor: %.3f", unit_2_scaling_factor);
-                  id(sf_value_2).publish_state(unit_2_scaling_factor);
+                  float unit_2_scaling_factor =
+                      1024.0f / max_current;
+
+                  ESP_LOGI(
+                    "canbus",
+                    "Unit 2: Diagnostic scaling factor: %.3f",
+                    unit_2_scaling_factor
+                  );
+
+                  id(sf_value_2).publish_state(
+                    unit_2_scaling_factor
+                  );
                 } else {
-                  ESP_LOGW("canbus", "Unit 2: Max current is zero. Cannot calculate scaling factor.");
+                  ESP_LOGW(
+                    "canbus",
+                    "Unit 2: Max current is zero. "
+                    "Cannot calculate scaling factor."
+                  );
                 }
               }
 
@@ -1855,29 +1924,67 @@ canbus:
       # ----------------------------------------------------------------------
       # CAN RX 0x1081827E
       # Unit 1 fan telemetry frame. Bytes 2-3/4-5 report duty cycle (raw/25600*100 = %), bytes 6-7 report raw fan RPM.
-      - can_id: 0x1081827E
+      - can_id: 0x1083507F
         use_extended_id: true
         then:
           - lambda: |-
-              if (x.size() >= 8) {
-                // Check that the first two bytes match 0x01 and 0x87
-                const uint8_t reg_byte0 = static_cast<uint8_t>(x[0]);
-                const uint8_t reg_byte1 = static_cast<uint8_t>(x[1]);
-                if (reg_byte0 == 0x01 && reg_byte1 == 0x87) {
-                  // Decode the three 16-bit big-endian values:
-                  // - Bytes 2-3: duty raw value
-                  // - Bytes 4-5: duty set raw value
-                  // - Bytes 6-7: RPM
-                  uint16_t duty_raw = (static_cast<uint8_t>(x[2]) << 8) | static_cast<uint8_t>(x[3]);
-                  uint16_t duty_set_raw = (static_cast<uint8_t>(x[4]) << 8) | static_cast<uint8_t>(x[5]);
-                  uint16_t rpm = (static_cast<uint8_t>(x[6]) << 8) | static_cast<uint8_t>(x[7]);
+              if (id(max_current_found_3)) {
+                return; // Skip processing if already found
+              }
 
-                  // Convert raw duty cycle values to percentages (raw/25600 * 100)
-                  float duty = (static_cast<float>(duty_raw) / 25600.0f) * 100.0f;
-                  float duty_set = (static_cast<float>(duty_set_raw) / 25600.0f) * 100.0f;
+              // Capability responses are expected to use the full 8-byte CAN
+              // payload. Reject malformed/truncated frames before accessing
+              // fixed byte positions.
+              if (x.size() != 8) {
+                ESP_LOGW(
+                  "canbus",
+                  "Unit 3: Ignoring invalid capability frame 0x1083507F "
+                  "(DLC=%u, expected 8).",
+                  static_cast<unsigned>(x.size())
+                );
+                return;
+              }
 
-                  // Publish the sensor states
-                  id(fan_rpm_1).publish_state(rpm);
+              const uint8_t packet_number =
+                  static_cast<uint8_t>(x[1]);
+
+              if (packet_number == 1) {
+                const uint8_t max_current_raw =
+                    static_cast<uint8_t>(x[5]);
+
+                float max_current =
+                    max_current_raw / 2.0f;
+
+                ESP_LOGI(
+                  "canbus",
+                  "Unit 3: Max current capability: %.1f A",
+                  max_current
+                );
+
+                id(max_dc_current_3).publish_state(max_current);
+                id(max_current_found_3) = true;
+
+                // Diagnostic-only: Unit 3 does not overwrite the shared
+                // current_scaling_factor.
+                if (max_current > 0) {
+                  float unit_3_scaling_factor =
+                      1024.0f / max_current;
+
+                  ESP_LOGI(
+                    "canbus",
+                    "Unit 3: Diagnostic scaling factor: %.3f",
+                    unit_3_scaling_factor
+                  );
+
+                  id(sf_value_3).publish_state(
+                    unit_3_scaling_factor
+                  );
+                } else {
+                  ESP_LOGW(
+                    "canbus",
+                    "Unit 3: Max current is zero. "
+                    "Cannot calculate scaling factor."
+                  );
                 }
               }
 
@@ -1953,24 +2060,49 @@ canbus:
         then:
           - lambda: |-
               if (id(data_found_1)) {
-                ESP_LOGI("canbus", "Unit 1: Data already found. Skipping further processing.");
-                return; // Skip processing if already found
+                ESP_LOGI(
+                  "canbus",
+                  "Unit 1: Data already found. Skipping further processing."
+                );
+                return;
               }
 
-              ESP_LOGI("canbus", "Unit 1: Received CAN message 0x1081507E (Packet 6)");
+              // Address responses are expected to contain a complete 8-byte
+              // payload. Reject malformed frames before reading Pin 11/12.
+              if (x.size() != 8) {
+                ESP_LOGW(
+                  "canbus",
+                  "Unit 1: Ignoring invalid address frame 0x1081507E "
+                  "(DLC=%u, expected 8).",
+                  static_cast<unsigned>(x.size())
+                );
+                return;
+              }
 
-              uint8_t packet_data[8];
-              memcpy(packet_data, x.data(), 8);
+              ESP_LOGI(
+                "canbus",
+                "Unit 1: Received CAN message 0x1081507E (Packet 6)"
+              );
 
-              uint8_t pin11 = packet_data[2];
-              uint8_t pin12 = packet_data[3];
-              ESP_LOGI("canbus", "Unit 1: Pin 11: %d, Pin 12: %d", pin11, pin12);
+              const uint8_t pin11 =
+                  static_cast<uint8_t>(x[2]);
+
+              const uint8_t pin12 =
+                  static_cast<uint8_t>(x[3]);
+
+              ESP_LOGI(
+                "canbus",
+                "Unit 1: Pin 11: %u, Pin 12: %u",
+                static_cast<unsigned>(pin11),
+                static_cast<unsigned>(pin12)
+              );
 
               id(pin11_1).publish_state(pin11);
               id(pin12_1).publish_state(pin12);
 
-              if ((pin11 >= 1 && pin11 <= 4) && (pin12 >= 1 && pin12 <= 4)) {
-                id(data_found_1) = true; // Set the flag to true
+              if ((pin11 >= 1 && pin11 <= 4) &&
+                  (pin12 >= 1 && pin12 <= 4)) {
+                id(data_found_1) = true;
               }
 
       # Handler for CAN ID 0x1082507E (Packet 6)
@@ -1983,24 +2115,47 @@ canbus:
         then:
           - lambda: |-
               if (id(data_found_2)) {
-                ESP_LOGI("canbus", "Unit 2: Data already found. Skipping further processing.");
-                return; // Skip processing if already found
+                ESP_LOGI(
+                  "canbus",
+                  "Unit 2: Data already found. Skipping further processing."
+                );
+                return;
               }
 
-              ESP_LOGI("canbus", "Unit 2: Received CAN message 0x1082507E (Packet 6)");
+              if (x.size() != 8) {
+                ESP_LOGW(
+                  "canbus",
+                  "Unit 2: Ignoring invalid address frame 0x1082507E "
+                  "(DLC=%u, expected 8).",
+                  static_cast<unsigned>(x.size())
+                );
+                return;
+              }
 
-              uint8_t packet_data[8];
-              memcpy(packet_data, x.data(), 8);
+              ESP_LOGI(
+                "canbus",
+                "Unit 2: Received CAN message 0x1082507E (Packet 6)"
+              );
 
-              uint8_t pin11 = packet_data[2];
-              uint8_t pin12 = packet_data[3];
-              ESP_LOGI("canbus", "Unit 2: Pin 11: %d, Pin 12: %d", pin11, pin12);
+              const uint8_t pin11 =
+                  static_cast<uint8_t>(x[2]);
+
+              const uint8_t pin12 =
+                  static_cast<uint8_t>(x[3]);
+
+              ESP_LOGI(
+                "canbus",
+                "Unit 2: Pin 11: %u, Pin 12: %u",
+                static_cast<unsigned>(pin11),
+                static_cast<unsigned>(pin12)
+              );
 
               id(pin11_2).publish_state(pin11);
               id(pin12_2).publish_state(pin12);
 
-              if ((pin11 >= 1 && pin11 <= 4) && (pin12 >= 1 && pin12 <= 4)) {
-                id(data_found_2) = true; // Set the flag to true
+              if ((pin11 >= 1 && pin11 <= 4) &&
+                  (pin12 >= 1 && pin12 <= 4)) {
+                id(data_found_2) = true;
               }
 
       # Handler for CAN ID 0x1083507E (Packet 6)
@@ -2013,24 +2168,47 @@ canbus:
         then:
           - lambda: |-
               if (id(data_found_3)) {
-                ESP_LOGI("canbus", "Unit 3: Data already found. Skipping further processing.");
-                return; // Skip processing if already found
+                ESP_LOGI(
+                  "canbus",
+                  "Unit 3: Data already found. Skipping further processing."
+                );
+                return;
               }
 
-              ESP_LOGI("canbus", "Unit 3: Received CAN message 0x1083507E (Packet 6)");
+              if (x.size() != 8) {
+                ESP_LOGW(
+                  "canbus",
+                  "Unit 3: Ignoring invalid address frame 0x1083507E "
+                  "(DLC=%u, expected 8).",
+                  static_cast<unsigned>(x.size())
+                );
+                return;
+              }
 
-              uint8_t packet_data[8];
-              memcpy(packet_data, x.data(), 8);
+              ESP_LOGI(
+                "canbus",
+                "Unit 3: Received CAN message 0x1083507E (Packet 6)"
+              );
 
-              uint8_t pin11 = packet_data[2];
-              uint8_t pin12 = packet_data[3];
-              ESP_LOGI("canbus", "Unit 3: Pin 11: %d, Pin 12: %d", pin11, pin12);
+              const uint8_t pin11 =
+                  static_cast<uint8_t>(x[2]);
+
+              const uint8_t pin12 =
+                  static_cast<uint8_t>(x[3]);
+
+              ESP_LOGI(
+                "canbus",
+                "Unit 3: Pin 11: %u, Pin 12: %u",
+                static_cast<unsigned>(pin11),
+                static_cast<unsigned>(pin12)
+              );
 
               id(pin11_3).publish_state(pin11);
               id(pin12_3).publish_state(pin12);
 
-              if ((pin11 >= 1 && pin11 <= 4) && (pin12 >= 1 && pin12 <= 4)) {
-                id(data_found_3) = true; // Set the flag to true
+              if ((pin11 >= 1 && pin11 <= 4) &&
+                  (pin12 >= 1 && pin12 <= 4)) {
+                id(data_found_3) = true;
               }
 
       # Handler for CAN ID 0x1001117E (Packet x)
