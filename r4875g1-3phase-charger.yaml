@@ -1760,6 +1760,39 @@ canbus:
                 return; // Skip processing if already found
               }
 
+              uint8_t packet_number = x.data()[1];
+              uint8_t packet_data[8];
+              memcpy(packet_data, x.data(), 8);
+              if (packet_number == 1) {
+                uint8_t max_current_raw = packet_data[5];
+                float max_current = max_current_raw / 2; // Adjust scaling factor if necessary
+                ESP_LOGI("canbus", "Unit 1: Max current capability: %.1f A", max_current);
+                id(max_dc_current_1).publish_state(max_current);
+                id(max_current_found_1) = true; // Set the flag to true
+
+                // Calculate and update current_scaling_factor
+                if (max_current > 0) {
+                  id(current_scaling_factor) = 1024.0 / max_current;
+                  ESP_LOGI("canbus", "Unit 1: New current_scaling_factor: %.3f", id(current_scaling_factor));
+                  id(sf_value_1).publish_state(id(current_scaling_factor));
+                } else {
+                  ESP_LOGW("canbus", "Unit 1: Max current is zero. Cannot calculate current_scaling_factor.");
+                }
+              }
+
+      # Handler for CAN ID 0x1082507F (Packet 1)
+      # Max current for Unit 2
+      # ----------------------------------------------------------------------
+      # CAN RX 0x1082507F
+      # Unit 2 maximum-current capability packet.
+      - can_id: 0x1081507F
+        use_extended_id: true
+        then:
+          - lambda: |-
+              if (id(max_current_found_1)) {
+                return; // Skip processing if already found
+              }
+
               // Capability responses are expected to use the full 8-byte CAN
               // payload. Reject malformed/truncated frames before accessing
               // fixed byte positions.
@@ -1815,11 +1848,11 @@ canbus:
                 }
               }
 
-      # Handler for CAN ID 0x1082507F (Packet 1)
-      # Max current for Unit 2
+      # Handler for CAN ID 0x1083507F (Packet 1)
+      # Max current for Unit 3
       # ----------------------------------------------------------------------
-      # CAN RX 0x1082507F
-      # Unit 2 maximum-current capability packet.
+      # CAN RX 0x1083507F
+      # Unit 3 maximum-current capability packet.
       - can_id: 0x1082507F
         use_extended_id: true
         then:
@@ -1881,41 +1914,6 @@ canbus:
                     "Unit 2: Max current is zero. "
                     "Cannot calculate scaling factor."
                   );
-                }
-              }
-
-      # Handler for CAN ID 0x1083507F (Packet 1)
-      # Max current for Unit 3
-      # ----------------------------------------------------------------------
-      # CAN RX 0x1083507F
-      # Unit 3 maximum-current capability packet.
-      - can_id: 0x1083507F
-        use_extended_id: true
-        then:
-          - lambda: |-
-              if (id(max_current_found_3)) {
-                return; // Skip processing if already found
-              }
-
-              uint8_t packet_number = x.data()[1];
-              uint8_t packet_data[8];
-              memcpy(packet_data, x.data(), 8);
-              if (packet_number == 1) {
-                uint8_t max_current_raw = packet_data[5];
-                float max_current = max_current_raw / 2; // Adjust scaling factor if necessary
-                ESP_LOGI("canbus", "Unit 3: Max current capability: %.1f A", max_current);
-                id(max_dc_current_3).publish_state(max_current);
-                id(max_current_found_3) = true; // Set the flag to true
-
-                // Diagnostic-only: publish Unit 3's own scaling factor for comparison, but
-                // do not overwrite the shared current_scaling_factor (that remains Unit 1's
-                // responsibility, per the architecture note at the top of this file).
-                if (max_current > 0) {
-                  float unit_3_scaling_factor = 1024.0 / max_current;
-                  ESP_LOGI("canbus", "Unit 3: Diagnostic scaling factor: %.3f", unit_3_scaling_factor);
-                  id(sf_value_3).publish_state(unit_3_scaling_factor);
-                } else {
-                  ESP_LOGW("canbus", "Unit 3: Max current is zero. Cannot calculate scaling factor.");
                 }
               }
 
