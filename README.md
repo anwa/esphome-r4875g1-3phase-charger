@@ -441,7 +441,7 @@ $$
 I_{Unit} = \frac{P_{total}}{3 \cdot U_{DC}}
 $$
 
-`DC Sum Power Set` is a **nominal three-rectifier power target**.
+`Set DC Sum Power` is a **nominal three-rectifier power target**.
 
 The divisor in the current calculation intentionally remains fixed at three, even when one or more rectifiers are unavailable, offline or excluded by a temperature lockout.
 
@@ -615,9 +615,9 @@ fan duty [%] = raw value / 25600 × 100
 The resulting per-unit entities are:
 
 ```text
-Fan Duty Unit-1..3
-Fan Duty Setpoint Unit-1..3
-FAN RPM Unit-1..3
+Fan Duty Unit 1..3
+Fan Duty Setpoint Unit 1..3
+FAN RPM Unit 1..3
 ```
 
 All fan telemetry entities are CAN-driven and use a 5-second freshness timeout. If no new fan frame is received within that period, the corresponding values become unavailable instead of retaining stale measurements.
@@ -1027,7 +1027,7 @@ The setup process can query unit properties such as:
 
 Property queries use unit-specific CAN IDs and reconstruct multi-frame text responses before extracting key/value fields.
 
-A `SETUP` template button starts the sequential discovery process.
+A `Discover Rectifier Units` template button starts the sequential discovery process.
 
 Because the setup sequence deliberately queries the units one after another with delays, it may take roughly a minute to complete.
 
@@ -1146,16 +1146,16 @@ Before enabling high-power charging, verify:
 The Home Assistant diagnostic entities:
 
 ```text
-CAN Communication Unit-1
-CAN Communication Unit-2
-CAN Communication Unit-3
+CAN Communication Unit 1
+CAN Communication Unit 2
+CAN Communication Unit 3
 ```
 
 should become connected/ON when valid cyclic telemetry is being received.
 
 ## 7. Run SETUP
 
-Use the `SETUP` button to query unit information and capability data.
+Use the `Discover Rectifier Units` button to query unit information and capability data.
 
 Check that all expected unit identification and maximum-current values are populated.
 

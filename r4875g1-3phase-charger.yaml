@@ -2913,10 +2913,10 @@ sensor:
                   cycle: false
 
   # --------------------------------------------------------------------------
-  # Input Temperature Unit-1
+  # Input Temperature Unit 1
   # Rectifier input temperature decoded from cyclic CAN telemetry and scaled by 1/1024.
   - platform: template
-    name: "Input Temperature Unit-1"
+    name: "Input Temperature Unit 1"
     id: input_temperature_1
     unit_of_measurement: "°C"
     device_class: temperature
@@ -2932,10 +2932,10 @@ sensor:
     icon: "mdi:thermometer"
 
   # --------------------------------------------------------------------------
-  # Input Temperature Unit-2
+  # Input Temperature Unit 2
   # Rectifier input temperature decoded from cyclic CAN telemetry and scaled by 1/1024.
   - platform: template
-    name: "Input Temperature Unit-2"
+    name: "Input Temperature Unit 2"
     id: input_temperature_2
     unit_of_measurement: "°C"
     device_class: temperature
@@ -2951,10 +2951,10 @@ sensor:
     icon: "mdi:thermometer"
 
   # --------------------------------------------------------------------------
-  # Input Temperature Unit-3
+  # Input Temperature Unit 3
   # Rectifier input temperature decoded from cyclic CAN telemetry and scaled by 1/1024.
   - platform: template
-    name: "Input Temperature Unit-3"
+    name: "Input Temperature Unit 3"
     id: input_temperature_3
     unit_of_measurement: "°C"
     device_class: temperature
@@ -2970,10 +2970,10 @@ sensor:
     icon: "mdi:thermometer"
 
   # --------------------------------------------------------------------------
-  # Scaling Factor Unit-1
+  # Scaling Factor Unit 1
   # Diagnostic publication of the dynamically detected current scaling factor.
   - platform: template
-    name: "Scaling Factor Unit-1"
+    name: "Scaling Factor Unit 1"
     id: sf_value_1
     accuracy_decimals: 4
     entity_category: diagnostic
@@ -2981,10 +2981,10 @@ sensor:
     update_interval: never
 
   # --------------------------------------------------------------------------
-  # Scaling Factor Unit-2
+  # Scaling Factor Unit 2
   # Diagnostic publication of the dynamically detected current scaling factor.
   - platform: template
-    name: "Scaling Factor Unit-2"
+    name: "Scaling Factor Unit 2"
     id: sf_value_2
     accuracy_decimals: 4
     entity_category: diagnostic
@@ -2992,10 +2992,10 @@ sensor:
     update_interval: never
 
   # --------------------------------------------------------------------------
-  # Scaling Factor Unit-3
+  # Scaling Factor Unit 3
   # Diagnostic publication of the dynamically detected current scaling factor.
   - platform: template
-    name: "Scaling Factor Unit-3"
+    name: "Scaling Factor Unit 3"
     id: sf_value_3
     accuracy_decimals: 4
     entity_category: diagnostic
@@ -3003,63 +3003,63 @@ sensor:
     update_interval: never
 
   # --------------------------------------------------------------------------
-  # Pin 11 Unit-1
+  # Pin 11 Unit 1
   # Shelf/address diagnostic extracted from the unit capability/address response.
   - platform: template
-    name: "Pin 11 Unit-1"
+    name: "Pin 11 Unit 1"
     id: pin11_1
     entity_category: diagnostic
     update_interval: never
 
   # --------------------------------------------------------------------------
-  # Pin 11 Unit-2
+  # Pin 11 Unit 2
   # Shelf/address diagnostic extracted from the unit capability/address response.
   - platform: template
-    name: "Pin 11 Unit-2"
+    name: "Pin 11 Unit 2"
     id: pin11_2
     entity_category: diagnostic
     update_interval: never
 
   # --------------------------------------------------------------------------
-  # Pin 11 Unit-3
+  # Pin 11 Unit 3
   # Shelf/address diagnostic extracted from the unit capability/address response.
   - platform: template
-    name: "Pin 11 Unit-3"
+    name: "Pin 11 Unit 3"
     id: pin11_3
     entity_category: diagnostic
     update_interval: never
 
   # --------------------------------------------------------------------------
-  # Pin 12 Unit-1
+  # Pin 12 Unit 1
   # Slot/address diagnostic extracted from the unit capability/address response.
   - platform: template
-    name: "Pin 12 Unit-1"
+    name: "Pin 12 Unit 1"
     id: pin12_1
     entity_category: diagnostic
     update_interval: never
 
   # --------------------------------------------------------------------------
-  # Pin 12 Unit-2
+  # Pin 12 Unit 2
   # Slot/address diagnostic extracted from the unit capability/address response.
   - platform: template
-    name: "Pin 12 Unit-2"
+    name: "Pin 12 Unit 2"
     id: pin12_2
     entity_category: diagnostic
     update_interval: never
   # --------------------------------------------------------------------------
-  # Pin 12 Unit-3
+  # Pin 12 Unit 3
   # Slot/address diagnostic extracted from the unit capability/address response.
   - platform: template
-    name: "Pin 12 Unit-3"
+    name: "Pin 12 Unit 3"
     id: pin12_3
     entity_category: diagnostic
     update_interval: never
 
   # --------------------------------------------------------------------------
-  # Max Current Capability Unit-1
+  # Max Current Capability Unit 1
   # Maximum output-current capability reported by this rectifier during discovery.
   - platform: template
-    name: "Max Current Capability Unit-1"
+    name: "Max Current Capability Unit 1"
     id: max_dc_current_1
     unit_of_measurement: "A"
     device_class: current
@@ -3075,10 +3075,10 @@ sensor:
         - script.execute: evaluate_rectifier_capabilities
 
   # --------------------------------------------------------------------------
-  # Max Current Capability Unit-2
+  # Max Current Capability Unit 2
   # Maximum output-current capability reported by this rectifier during discovery.
   - platform: template
-    name: "Max Current Capability Unit-2"
+    name: "Max Current Capability Unit 2"
     id: max_dc_current_2
     unit_of_measurement: "A"
     device_class: current
@@ -3094,10 +3094,10 @@ sensor:
         - script.execute: evaluate_rectifier_capabilities
 
   # --------------------------------------------------------------------------
-  # Max Current Capability Unit-3
+  # Max Current Capability Unit 3
   # Maximum output-current capability reported by this rectifier during discovery.
   - platform: template
-    name: "Max Current Capability Unit-3"
+    name: "Max Current Capability Unit 3"
     id: max_dc_current_3
     unit_of_measurement: "A"
     device_class: current
@@ -3127,10 +3127,10 @@ sensor:
     icon: "mdi:current-dc"
 
   # --------------------------------------------------------------------------
-  # Output Current alt Unit-1
+  # Output Current alt Unit 1
   # Alternate DC current reading from the 0x100x117E frame, scaled with current_scaling_factor.
   - platform: template
-    name: "Output Current alt Unit-1"
+    name: "Output Current alt Unit 1"
     id: alt_dc_current_1
     unit_of_measurement: "A"
     device_class: current
@@ -3146,10 +3146,10 @@ sensor:
     icon: "mdi:current-dc"
 
   # --------------------------------------------------------------------------
-  # Output Current alt Unit-2
+  # Output Current alt Unit 2
   # Alternate DC current reading from the 0x100x117E frame, scaled with current_scaling_factor.
   - platform: template
-    name: "Output Current alt Unit-2"
+    name: "Output Current alt Unit 2"
     id: alt_dc_current_2
     unit_of_measurement: "A"
     device_class: current
@@ -3165,10 +3165,10 @@ sensor:
     icon: "mdi:current-dc"
 
   # --------------------------------------------------------------------------
-  # Output Current alt Unit-3
+  # Output Current alt Unit 3
   # Alternate DC current reading from the 0x100x117E frame, scaled with current_scaling_factor.
   - platform: template
-    name: "Output Current alt Unit-3"
+    name: "Output Current alt Unit 3"
     id: alt_dc_current_3
     unit_of_measurement: "A"
     device_class: current
@@ -3184,10 +3184,10 @@ sensor:
     icon: "mdi:current-dc"
 
   # --------------------------------------------------------------------------
-  # AC Power Unit-1
+  # AC Power Unit 1
   # Individual rectifier AC input power from telemetry selector 0x70; raw value is divided by 1024.
   - platform: template
-    name: "AC Power Unit-1"
+    name: "AC Power Unit 1"
     id: ac_power_1
     unit_of_measurement: "W"
     device_class: power
@@ -3203,10 +3203,10 @@ sensor:
     icon: "mdi:flash"
 
   # --------------------------------------------------------------------------
-  # AC Power Unit-2
+  # AC Power Unit 2
   # Individual rectifier AC input power from telemetry selector 0x70; raw value is divided by 1024.
   - platform: template
-    name: "AC Power Unit-2"
+    name: "AC Power Unit 2"
     id: ac_power_2
     unit_of_measurement: "W"
     device_class: power
@@ -3222,10 +3222,10 @@ sensor:
     icon: "mdi:flash"
 
   # --------------------------------------------------------------------------
-  # AC Power Unit-3
+  # AC Power Unit 3
   # Individual rectifier AC input power from telemetry selector 0x70; raw value is divided by 1024.
   - platform: template
-    name: "AC Power Unit-3"
+    name: "AC Power Unit 3"
     id: ac_power_3
     unit_of_measurement: "W"
     device_class: power
@@ -3241,10 +3241,10 @@ sensor:
     icon: "mdi:flash"
 
   # --------------------------------------------------------------------------
-  # DC Power Unit-1
+  # DC Power Unit 1
   # Individual rectifier DC output power from telemetry selector 0x73; raw value is divided by 1024.
   - platform: template
-    name: "DC Power Unit-1"
+    name: "DC Power Unit 1"
     id: dc_power_1
     unit_of_measurement: "W"
     device_class: power
@@ -3260,10 +3260,10 @@ sensor:
     icon: "mdi:flash"
 
   # --------------------------------------------------------------------------
-  # DC Power Unit-2
+  # DC Power Unit 2
   # Individual rectifier DC output power from telemetry selector 0x73; raw value is divided by 1024.
   - platform: template
-    name: "DC Power Unit-2"
+    name: "DC Power Unit 2"
     id: dc_power_2
     unit_of_measurement: "W"
     device_class: power
@@ -3279,10 +3279,10 @@ sensor:
     icon: "mdi:flash"
 
   # --------------------------------------------------------------------------
-  # DC Power Unit-3
+  # DC Power Unit 3
   # Individual rectifier DC output power from telemetry selector 0x73; raw value is divided by 1024.
   - platform: template
-    name: "DC Power Unit-3"
+    name: "DC Power Unit 3"
     id: dc_power_3
     unit_of_measurement: "W"
     device_class: power
@@ -3298,10 +3298,10 @@ sensor:
     icon: "mdi:flash"
 
   # --------------------------------------------------------------------------
-  # AC Frequency Unit-1
+  # AC Frequency Unit 1
   # Individual rectifier AC input frequency from telemetry selector 0x71; raw value is divided by 1024.
   - platform: template
-    name: "AC Frequency Unit-1"
+    name: "AC Frequency Unit 1"
     id: ac_frequency_1
     unit_of_measurement: "Hz"
     device_class: frequency
@@ -3317,10 +3317,10 @@ sensor:
     icon: "mdi:transmission-tower-import"
 
   # --------------------------------------------------------------------------
-  # AC Frequency Unit-2
+  # AC Frequency Unit 2
   # Individual rectifier AC input frequency from telemetry selector 0x71; raw value is divided by 1024.
   - platform: template
-    name: "AC Frequency Unit-2"
+    name: "AC Frequency Unit 2"
     id: ac_frequency_2
     unit_of_measurement: "Hz"
     device_class: frequency
@@ -3336,10 +3336,10 @@ sensor:
     icon: "mdi:transmission-tower-import"
 
   # --------------------------------------------------------------------------
-  # AC Frequency Unit-3
+  # AC Frequency Unit 3
   # Individual rectifier AC input frequency from telemetry selector 0x71; raw value is divided by 1024.
   - platform: template
-    name: "AC Frequency Unit-3"
+    name: "AC Frequency Unit 3"
     id: ac_frequency_3
     unit_of_measurement: "Hz"
     device_class: frequency
@@ -3355,10 +3355,10 @@ sensor:
     icon: "mdi:transmission-tower-import"
 
   # --------------------------------------------------------------------------
-  # AC Current Unit-1
+  # AC Current Unit 1
   # Individual rectifier AC input current from telemetry selector 0x72; raw value is divided by 1024.
   - platform: template
-    name: "AC Current Unit-1"
+    name: "AC Current Unit 1"
     id: ac_current_1
     unit_of_measurement: "A"
     device_class: current
@@ -3374,10 +3374,10 @@ sensor:
     icon: "mdi:current-ac"
 
   # --------------------------------------------------------------------------
-  # AC Current Unit-2
+  # AC Current Unit 2
   # Individual rectifier AC input current from telemetry selector 0x72; raw value is divided by 1024.
   - platform: template
-    name: "AC Current Unit-2"
+    name: "AC Current Unit 2"
     id: ac_current_2
     unit_of_measurement: "A"
     device_class: current
@@ -3393,10 +3393,10 @@ sensor:
     icon: "mdi:current-ac"
 
   # --------------------------------------------------------------------------
-  # AC Current Unit-3
+  # AC Current Unit 3
   # Individual rectifier AC input current from telemetry selector 0x72; raw value is divided by 1024.
   - platform: template
-    name: "AC Current Unit-3"
+    name: "AC Current Unit 3"
     id: ac_current_3
     unit_of_measurement: "A"
     device_class: current
@@ -3412,10 +3412,10 @@ sensor:
     icon: "mdi:current-ac"
 
   # --------------------------------------------------------------------------
-  # DC Voltage Unit-1
+  # DC Voltage Unit 1
   # Individual rectifier DC output voltage from telemetry selector 0x75; raw value is divided by 1024.
   - platform: template
-    name: "DC Voltage Unit-1"
+    name: "DC Voltage Unit 1"
     id: dc_voltage_1
     unit_of_measurement: "V"
     device_class: voltage
@@ -3431,10 +3431,10 @@ sensor:
     icon: "mdi:current-dc"
 
   # --------------------------------------------------------------------------
-  # DC Voltage Unit-2
+  # DC Voltage Unit 2
   # Individual rectifier DC output voltage from telemetry selector 0x75; raw value is divided by 1024.
   - platform: template
-    name: "DC Voltage Unit-2"
+    name: "DC Voltage Unit 2"
     id: dc_voltage_2
     unit_of_measurement: "V"
     device_class: voltage
@@ -3450,10 +3450,10 @@ sensor:
     icon: "mdi:current-dc"
 
   # --------------------------------------------------------------------------
-  # DC Voltage Unit-3
+  # DC Voltage Unit 3
   # Individual rectifier DC output voltage from telemetry selector 0x75; raw value is divided by 1024.
   - platform: template
-    name: "DC Voltage Unit-3"
+    name: "DC Voltage Unit 3"
     id: dc_voltage_3
     unit_of_measurement: "V"
     device_class: voltage
@@ -3469,10 +3469,10 @@ sensor:
     icon: "mdi:current-dc"
 
   # --------------------------------------------------------------------------
-  # AC Voltage Unit-1
+  # AC Voltage Unit 1
   # Individual rectifier AC input voltage from telemetry selector 0x78; raw value is divided by 1024.
   - platform: template
-    name: "AC Voltage Unit-1"
+    name: "AC Voltage Unit 1"
     id: ac_voltage_1
     unit_of_measurement: "V"
     device_class: voltage
@@ -3488,10 +3488,10 @@ sensor:
     icon: "mdi:sine-wave"
 
   # --------------------------------------------------------------------------
-  # AC Voltage Unit-2
+  # AC Voltage Unit 2
   # Individual rectifier AC input voltage from telemetry selector 0x78; raw value is divided by 1024.
   - platform: template
-    name: "AC Voltage Unit-2"
+    name: "AC Voltage Unit 2"
     id: ac_voltage_2
     unit_of_measurement: "V"
     device_class: voltage
@@ -3507,10 +3507,10 @@ sensor:
     icon: "mdi:sine-wave"
 
   # --------------------------------------------------------------------------
-  # AC Voltage Unit-3
+  # AC Voltage Unit 3
   # Individual rectifier AC input voltage from telemetry selector 0x78; raw value is divided by 1024.
   - platform: template
-    name: "AC Voltage Unit-3"
+    name: "AC Voltage Unit 3"
     id: ac_voltage_3
     unit_of_measurement: "V"
     device_class: voltage
@@ -3526,7 +3526,7 @@ sensor:
     icon: "mdi:sine-wave"
 
   # --------------------------------------------------------------------------
-  # Output Temperature Unit-1
+  # Output Temperature Unit 1
   # Rectifier output temperature from telemetry selector 0x7F.
   # The safety automation trips once when the temperature exceeds 90 °C,
   # immediately sends an individual OFF command and engages an overtemperature
@@ -3534,7 +3534,7 @@ sensor:
   # The lockout remains active throughout the 80..90 °C hysteresis range and
   # clears only after the temperature falls below 80 °C.
   - platform: template
-    name: "Output Temperature Unit-1"
+    name: "Output Temperature Unit 1"
     id: output_temperature_1
     unit_of_measurement: "°C"
     device_class: temperature
@@ -3601,7 +3601,7 @@ sensor:
                   );
 
   # --------------------------------------------------------------------------
-  # Output Temperature Unit-2
+  # Output Temperature Unit 2
   # Rectifier output temperature from telemetry selector 0x7F.
   # The safety automation trips once when the temperature exceeds 90 °C,
   # immediately sends an individual OFF command and engages an overtemperature
@@ -3609,7 +3609,7 @@ sensor:
   # The lockout remains active throughout the 80..90 °C hysteresis range and
   # clears only after the temperature falls below 80 °C.
   - platform: template
-    name: "Output Temperature Unit-2"
+    name: "Output Temperature Unit 2"
     id: output_temperature_2
     unit_of_measurement: "°C"
     device_class: temperature
@@ -3671,7 +3671,7 @@ sensor:
                   );
 
   # --------------------------------------------------------------------------
-  # Output Temperature Unit-3
+  # Output Temperature Unit 3
   # Rectifier output temperature from telemetry selector 0x7F.
   # The safety automation trips once when the temperature exceeds 90 °C,
   # immediately sends an individual OFF command and engages an overtemperature
@@ -3679,7 +3679,7 @@ sensor:
   # The lockout remains active throughout the 80..90 °C hysteresis range and
   # clears only after the temperature falls below 80 °C.
   - platform: template
-    name: "Output Temperature Unit-3"
+    name: "Output Temperature Unit 3"
     id: output_temperature_3
     unit_of_measurement: "°C"
     device_class: temperature
@@ -3741,10 +3741,10 @@ sensor:
                   );
 
   # --------------------------------------------------------------------------
-  # DC Current Unit-1
+  # DC Current Unit 1
   # Main rectifier DC output current from telemetry selector 0x81; raw value is divided by 1024.
   - platform: template
-    name: "DC Current Unit-1"
+    name: "DC Current Unit 1"
     id: dc_current_1
     unit_of_measurement: "A"
     device_class: current
@@ -3760,10 +3760,10 @@ sensor:
     icon: "mdi:current-dc"
 
   # --------------------------------------------------------------------------
-  # DC Current Unit-2
+  # DC Current Unit 2
   # Main rectifier DC output current from telemetry selector 0x81; raw value is divided by 1024.
   - platform: template
-    name: "DC Current Unit-2"
+    name: "DC Current Unit 2"
     id: dc_current_2
     unit_of_measurement: "A"
     device_class: current
@@ -3779,10 +3779,10 @@ sensor:
     icon: "mdi:current-dc"
 
   # --------------------------------------------------------------------------
-  # DC Current Unit-3
+  # DC Current Unit 3
   # Main rectifier DC output current from telemetry selector 0x81; raw value is divided by 1024.
   - platform: template
-    name: "DC Current Unit-3"
+    name: "DC Current Unit 3"
     id: dc_current_3
     unit_of_measurement: "A"
     device_class: current
@@ -3798,10 +3798,10 @@ sensor:
     icon: "mdi:current-dc"
 
   # --------------------------------------------------------------------------
-  # Max DC Current Setpoint Unit-1
-  # Unit-reported active maximum-current setpoint from telemetry selector 0x76, scaled with current_scaling_factor.
+  # Max DC Current Setpoint Unit 1
+  # Rectifier reported active maximum-current setpoint from telemetry selector 0x76, scaled with current_scaling_factor.
   - platform: template
-    name: "Max DC Current Setpoint Unit-1"
+    name: "Max DC Current Setpoint Unit 1"
     id: max_dc_current_setpoint_1
     unit_of_measurement: "A"
     device_class: current
@@ -3817,10 +3817,10 @@ sensor:
     icon: "mdi:current-ac"
 
   # --------------------------------------------------------------------------
-  # Max DC Current Setpoint Unit-2
-  # Unit-reported active maximum-current setpoint from telemetry selector 0x76, scaled with current_scaling_factor.
+  # Max DC Current Setpoint Unit 2
+  # Rectifier reported active maximum-current setpoint from telemetry selector 0x76, scaled with current_scaling_factor.
   - platform: template
-    name: "Max DC Current Setpoint Unit-2"
+    name: "Max DC Current Setpoint Unit 2"
     id: max_dc_current_setpoint_2
     unit_of_measurement: "A"
     device_class: current
@@ -3836,10 +3836,10 @@ sensor:
     icon: "mdi:current-ac"
 
   # --------------------------------------------------------------------------
-  # Max DC Current Setpoint Unit-3
-  # Unit-reported active maximum-current setpoint from telemetry selector 0x76, scaled with current_scaling_factor.
+  # Max DC Current Setpoint Unit 3
+  # Rectifier reported active maximum-current setpoint from telemetry selector 0x76, scaled with current_scaling_factor.
   - platform: template
-    name: "Max DC Current Setpoint Unit-3"
+    name: "Max DC Current Setpoint Unit 3"
     id: max_dc_current_setpoint_3
     unit_of_measurement: "A"
     device_class: current
@@ -3855,10 +3855,10 @@ sensor:
     icon: "mdi:current-ac"
 
   # --------------------------------------------------------------------------
-  # Fan Duty Unit-1
+  # Fan Duty Unit 1
   # Actual fan duty reported by the rectifier's 0x1081827E fan telemetry frame.
   - platform: template
-    name: "Fan Duty Unit-1"
+    name: "Fan Duty Unit 1"
     id: fan_duty_1
     unit_of_measurement: "%"
     state_class: measurement
@@ -3869,10 +3869,10 @@ sensor:
     icon: "mdi:fan"
 
   # --------------------------------------------------------------------------
-  # Fan Duty Setpoint Unit-1
+  # Fan Duty Setpoint Unit 1
   # Requested fan duty reported by the rectifier's fan telemetry frame.
   - platform: template
-    name: "Fan Duty Setpoint Unit-1"
+    name: "Fan Duty Setpoint Unit 1"
     id: fan_duty_setpoint_1
     unit_of_measurement: "%"
     state_class: measurement
@@ -3883,9 +3883,9 @@ sensor:
     icon: "mdi:fan"
 
   # --------------------------------------------------------------------------
-  # Fan Duty Unit-2
+  # Fan Duty Unit 2
   - platform: template
-    name: "Fan Duty Unit-2"
+    name: "Fan Duty Unit 2"
     id: fan_duty_2
     unit_of_measurement: "%"
     state_class: measurement
@@ -3896,9 +3896,9 @@ sensor:
     icon: "mdi:fan"
 
   # --------------------------------------------------------------------------
-  # Fan Duty Setpoint Unit-2
+  # Fan Duty Setpoint Unit 2
   - platform: template
-    name: "Fan Duty Setpoint Unit-2"
+    name: "Fan Duty Setpoint Unit 2"
     id: fan_duty_setpoint_2
     unit_of_measurement: "%"
     state_class: measurement
@@ -3909,9 +3909,9 @@ sensor:
     icon: "mdi:fan"
 
   # --------------------------------------------------------------------------
-  # Fan Duty Unit-3
+  # Fan Duty Unit 3
   - platform: template
-    name: "Fan Duty Unit-3"
+    name: "Fan Duty Unit 3"
     id: fan_duty_3
     unit_of_measurement: "%"
     state_class: measurement
@@ -3922,9 +3922,9 @@ sensor:
     icon: "mdi:fan"
 
   # --------------------------------------------------------------------------
-  # Fan Duty Setpoint Unit-3
+  # Fan Duty Setpoint Unit 3
   - platform: template
-    name: "Fan Duty Setpoint Unit-3"
+    name: "Fan Duty Setpoint Unit 3"
     id: fan_duty_setpoint_3
     unit_of_measurement: "%"
     state_class: measurement
@@ -3935,10 +3935,10 @@ sensor:
     icon: "mdi:fan"
 
   # --------------------------------------------------------------------------
-  # FAN RPM Unit-1
+  # Fan RPM Unit 1
   # Rectifier fan speed decoded from the 0x108x827E duty/RPM frame (Bytes 6-7, raw RPM, no scaling).
   - platform: template
-    name: "FAN RPM Unit-1"
+    name: "Fan RPM Unit 1"
     id: fan_rpm_1
     unit_of_measurement: "RPM"
     state_class: measurement
@@ -3949,10 +3949,10 @@ sensor:
     icon: "mdi:fan"
 
   # --------------------------------------------------------------------------
-  # FAN RPM Unit-2
+  # Fan RPM Unit 2
   # Rectifier fan speed decoded from the 0x108x827E duty/RPM frame (Bytes 6-7, raw RPM, no scaling).
   - platform: template
-    name: "FAN RPM Unit-2"
+    name: "Fan RPM Unit 2"
     id: fan_rpm_2
     unit_of_measurement: "RPM"
     state_class: measurement
@@ -3963,10 +3963,10 @@ sensor:
     icon: "mdi:fan"
 
   # --------------------------------------------------------------------------
-  # FAN RPM Unit-3
+  # Fan RPM Unit 3
   # Rectifier fan speed decoded from the 0x108x827E duty/RPM frame (Bytes 6-7, raw RPM, no scaling).
   - platform: template
-    name: "FAN RPM Unit-3"
+    name: "Fan RPM Unit 3"
     id: fan_rpm_3
     unit_of_measurement: "RPM"
     state_class: measurement
@@ -3977,13 +3977,13 @@ sensor:
     icon: "mdi:fan"
 
   # --------------------------------------------------------------------------
-  # Operating Hours Unit-1
+  # Operating Hours
   # Rectifier lifetime operating-hours counter from telemetry selector 0x0E; raw value is a whole-hour count with no scaling applied. Monotonically increasing, like an odometer.
   # --------------------------------------------------------------------------
-  # Operating Hours Unit-1
+  # Operating Hours Unit 1
   # Lifetime operating-hours counter reported by the rectifier.
   - platform: template
-    name: "Operating Hours Unit-1"
+    name: "Operating Hours Unit 1"
     id: operating_hours_1
     unit_of_measurement: "h"
     device_class: duration
@@ -3997,10 +3997,10 @@ sensor:
     icon: "mdi:clock-outline"
 
   # --------------------------------------------------------------------------
-  # Operating Hours Unit-2
+  # Operating Hours Unit 2
   # Lifetime operating-hours counter reported by the rectifier.
   - platform: template
-    name: "Operating Hours Unit-2"
+    name: "Operating Hours Unit 2"
     id: operating_hours_2
     unit_of_measurement: "h"
     device_class: duration
@@ -4013,10 +4013,10 @@ sensor:
           return x;
     icon: "mdi:clock-outline"
 
-  # Operating Hours Unit-3
+  # Operating Hours Unit 3
   # Lifetime operating-hours counter reported by the rectifier.
   - platform: template
-    name: "Operating Hours Unit-3"
+    name: "Operating Hours Unit 3"
     id: operating_hours_3
     unit_of_measurement: "h"
     device_class: duration
@@ -4032,10 +4032,10 @@ sensor:
   # Combined AC Power sensor
   # Only units with valid CAN communication are included.
   # --------------------------------------------------------------------------
-  # Combined AC Power Unit-1-2-3
+  # Combined AC Power All Units
   # CAN-aware AC power total. Only currently reachable units with numeric values are summed. If none are valid, NAN is returned so the entity becomes unavailable instead of reporting a false 0 kW.
   - platform: template
-    name: "Combined AC Power Unit-1-2-3"
+    name: "Combined AC Power All Units"
     id: combined_ac_power
     unit_of_measurement: "kW"
     device_class: power
@@ -4077,10 +4077,10 @@ sensor:
   # Combined DC Power sensor
   # Only units with valid CAN communication are included.
   # --------------------------------------------------------------------------
-  # Combined DC Power Unit-1-2-3
+  # Combined DC Power All Units
   # CAN-aware DC power total with the same stale-data protection as the AC total. The lambda sums watts and the multiply filter converts W to kW.
   - platform: template
-    name: "Combined DC Power Unit-1-2-3"
+    name: "Combined DC Power All Units"
     id: combined_dc_power
     unit_of_measurement: "kW"
     device_class: power
@@ -4482,7 +4482,7 @@ number:
               return can_data;
 
   # --------------------------------------------------------------------------
-  # DC Sum Power Set
+  # Set DC Sum Power
   # Nominal total DC power target for the complete three-rectifier system.
   #
   # This is not a native rectifier parameter. Changing it runs
@@ -4494,7 +4494,7 @@ number:
   # If only one or two rectifiers operate, actual total output power will be
   # proportionally lower than this nominal three-unit target.
   - platform: template
-    name: "DC Sum Power Set"
+    name: "Set DC Sum Power"
     id: dc_sum_power_set
     unit_of_measurement: "kW"
     min_value: 0.25
@@ -4604,11 +4604,11 @@ binary_sensor:
   # the last 3 seconds. Unsigned subtraction keeps this safe across millis()
   # wrap-around.
   # --------------------------------------------------------------------------
-  # CAN Communication Unit-1
+  # CAN Communication Unit 1
   # CAN connectivity watchdog for Unit 1. True only when a valid cyclic telemetry frame was received within the last 3000 ms. Unsigned millis() subtraction remains correct across wrap-around.
   - platform: template
     id: can_com_ok_1
-    name: "CAN Communication Unit-1"
+    name: "CAN Communication Unit 1"
     device_class: connectivity
     entity_category: diagnostic
 
@@ -4642,11 +4642,11 @@ binary_sensor:
             }
 
   # --------------------------------------------------------------------------
-  # CAN Communication Unit-2
+  # CAN Communication Unit 2
   # CAN connectivity watchdog for Unit 2. True only when a valid cyclic telemetry frame was received within the last 3000 ms. Unsigned millis() subtraction remains correct across wrap-around.
   - platform: template
     id: can_com_ok_2
-    name: "CAN Communication Unit-2"
+    name: "CAN Communication Unit 2"
     device_class: connectivity
     entity_category: diagnostic
 
@@ -4678,11 +4678,11 @@ binary_sensor:
             }
 
   # --------------------------------------------------------------------------
-  # CAN Communication Unit-3
+  # CAN Communication Unit 3
   # CAN connectivity watchdog for Unit 3. True only when a valid cyclic telemetry frame was received within the last 3000 ms. Unsigned millis() subtraction remains correct across wrap-around.
   - platform: template
     id: can_com_ok_3
-    name: "CAN Communication Unit-3"
+    name: "CAN Communication Unit 3"
     device_class: connectivity
     entity_category: diagnostic
 
@@ -4808,16 +4808,13 @@ button:
   # must have valid CAN communication, valid safe temperature telemetry and no
   # active overtemperature lockout.
   - platform: template
-    name: "!ON!"
+    name: "Turn On All Units"
     id: on_button_all
     icon: "mdi:power"
     on_press:
       then:
         - lambda: |-
-            ESP_LOGI(
-              "custom",
-              "All Unit ON button pressed."
-            );
+            ESP_LOGI("custom", "All Unit ON button pressed.");
 
         - if:
             condition:
@@ -4853,13 +4850,13 @@ button:
   # Individual ON command for one rectifier; useful for diagnostics and service.
   # Blocked while Unit 1 is in overtemperature lockout (see output_temperature_1).
   - platform: template
-    name: "ON Unit-1"
+    name: "Turn On Unit 1"
     icon: "mdi:power"
     id: on_button_1
     on_press:
       then:
         - lambda: |-
-            ESP_LOGI("custom", "ON Button Unit-1 pressed.");
+            ESP_LOGI("custom", "Unit 1 ON Button pressed.");
 
         - if:
             condition:
@@ -4876,18 +4873,18 @@ button:
             else:
               - logger.log:
                   level: WARN
-                  format: "ON Unit-1 blocked - CAN communication, valid safe temperature and cleared overtemperature lockout are required."
+                  format: "Unit 1 ON blocked - CAN communication, valid safe temperature and cleared overtemperature lockout are required."
 
   # Individual ON command for one rectifier; useful for diagnostics and service.
   # Blocked while Unit 2 is in overtemperature lockout (see output_temperature_2).
   - platform: template
-    name: "ON Unit-2"
+    name: "Turn On Unit 2"
     icon: "mdi:power"
     id: on_button_2
     on_press:
       then:
         - lambda: |-
-            ESP_LOGI("custom", "ON Button Unit-2 pressed.");
+            ESP_LOGI("custom", "Unit 2 ON Button pressed.");
 
         - if:
             condition:
@@ -4904,18 +4901,18 @@ button:
             else:
               - logger.log:
                   level: WARN
-                  format: "ON Unit-2 blocked - CAN communication, valid safe temperature and cleared overtemperature lockout are required."
+                  format: "Unit 2 ON blocked - CAN communication, valid safe temperature and cleared overtemperature lockout are required."
 
   # Individual ON command for one rectifier; useful for diagnostics and service.
   # Blocked while Unit 3 is in overtemperature lockout (see output_temperature_3).
   - platform: template
-    name: "ON Unit-3"
+    name: "Turn On Unit 3"
     icon: "mdi:power"
     id: on_button_3
     on_press:
       then:
         - lambda: |-
-            ESP_LOGI("custom", "ON Button Unit-3 pressed.");
+            ESP_LOGI("custom", "Unit 3 ON Button pressed.");
 
         - if:
             condition:
@@ -4932,16 +4929,18 @@ button:
             else:
               - logger.log:
                   level: WARN
-                  format: "ON Unit-3 blocked - CAN communication, valid safe temperature and cleared overtemperature lockout are required."
+                  format: "Unit 3 ON blocked - CAN communication, valid safe temperature and cleared overtemperature lockout are required."
 
-# Define a button component for turning OFF
+  # Define a button component for turning OFF
   # Broadcast OFF command to all three rectifiers.
   - platform: template
-    name: "!OFF!"
+    name: "Turn Off All Units"
     id: off_button_all
     icon: "mdi:power"
     on_press:
       then:
+        - lambda: |-
+            ESP_LOGI("custom", "All Units OFF Button pressed.");
         - canbus.send:
             use_extended_id: true
             can_id: 0x108080FE
@@ -4949,11 +4948,13 @@ button:
 
   # Individual OFF command for one rectifier.
   - platform: template
-    name: "OFF Unit-1"
+    name: "Turn OFF Unit 1"
     id: off_button_1
     icon: "mdi:power"
     on_press:
       then:
+        - lambda: |-
+            ESP_LOGI("custom", "Unit 1 OFF Button pressed.");
         - canbus.send:
             use_extended_id: true
             can_id: 0x108180FE
@@ -4961,11 +4962,13 @@ button:
 
   # Individual OFF command for one rectifier.
   - platform: template
-    name: "OFF Unit-2"
+    name: "Turn OFF Unit 2"
     id: off_button_2
     icon: "mdi:power"
     on_press:
       then:
+        - lambda: |-
+            ESP_LOGI("custom", "Unit 2 OFF Button pressed.");
         - canbus.send:
             use_extended_id: true
             can_id: 0x108280FE
@@ -4973,11 +4976,13 @@ button:
 
   # Individual OFF command for one rectifier.
   - platform: template
-    name: "OFF Unit-3"
+    name: "Turn OFF Unit 3"
     id: off_button_3
     icon: "mdi:power"
     on_press:
       then:
+        - lambda: |-
+            ESP_LOGI("custom", "Unit 3 OFF Button pressed.");
         - canbus.send:
             use_extended_id: true
             can_id: 0x108380FE
@@ -4986,7 +4991,7 @@ button:
 # Define a button component for setting the fan to full speed
   # Broadcast fan override: force full fan speed on all rectifiers.
   - platform: template
-    name: "All Fans Full Speed Button"
+    name: "Set Fan Full Speed All Units"
     id: fan_full_speed_button_all
     icon: "mdi:fan"
     on_press:
@@ -4998,7 +5003,7 @@ button:
 
   # Per-unit full-speed fan override.
   - platform: template
-    name: "Fan UNIT-1 Full Speed Button"
+    name: "Set Fan Full Speed Unit 1"
     id: fan_full_speed_button_1
     icon: "mdi:fan"
     on_press:
@@ -5010,7 +5015,7 @@ button:
 
   # Per-unit full-speed fan override.
   - platform: template
-    name: "Fan UNIT-2 Full Speed Button"
+    name: "Set Fan Full Speed Unit 2"
     id: fan_full_speed_button_2
     icon: "mdi:fan"
     on_press:
@@ -5022,7 +5027,7 @@ button:
 
   # Per-unit full-speed fan override.
   - platform: template
-    name: "Fan UNIT-3 Full Speed Button"
+    name: "Set Fan Full Speed Unit 3"
     id: fan_full_speed_button_3
     icon: "mdi:fan"
     on_press:
@@ -5035,7 +5040,7 @@ button:
 # Define a button component for setting the fan to auto mode
   # Broadcast command returning all rectifier fans to automatic control.
   - platform: template
-    name: "All Fans Auto Mode Button"
+    name: "Set Fan Auto Mode All Units"
     id: fan_auto_mode_button_all
     icon: "mdi:fan"
     on_press:
@@ -5047,7 +5052,7 @@ button:
 
 # Define a button component for setting the fan to auto mode for Unit 1
   - platform: template
-    name: "Fan Auto Mode Unit-1"
+    name: "Set Fan Auto Mode Unit 1"
     id: fan_auto_mode_button_1
     icon: "mdi:fan"
     on_press:
@@ -5059,7 +5064,7 @@ button:
 
 # Define a button component for setting the fan to auto mode for Unit 2
   - platform: template
-    name: "Fan Auto Mode Unit-2"
+    name: "Set Fan Auto Mode Unit 2"
     id: fan_auto_mode_button_2
     icon: "mdi:fan"
     on_press:
@@ -5071,7 +5076,7 @@ button:
 
 # Define a button component for setting the fan to auto mode for Unit 3
   - platform: template
-    name: "Fan Auto Mode Unit-3"
+    name: "Set Fan Auto Mode Unit 3"
     id: fan_auto_mode_button_3
     icon: "mdi:fan"
     on_press:
@@ -5083,7 +5088,7 @@ button:
 
   # Manually launches the full unit property/capability discovery sequence.
   - platform: template
-    name: "SETUP"
+    name: "Discover Rectifier Units"
     id: setup_button
     on_press:
       then:
@@ -5119,27 +5124,27 @@ text_sensor:
   # Human-readable ON/OFF/ERROR state decoded from the unit's 0x100x117E frame.
   - platform: template
     id: power_state_1
-    name: "Power State Unit-1"
+    name: "Power State Unit 1"
     update_interval: never
     icon: "mdi:information-outline"
 
   # Human-readable ON/OFF/ERROR state decoded from the unit's 0x100x117E frame.
   - platform: template
     id: power_state_2
-    name: "Power State Unit-2"
+    name: "Power State Unit 2"
     update_interval: never
     icon: "mdi:information-outline"
 
   # Human-readable ON/OFF/ERROR state decoded from the unit's 0x100x117E frame.
   - platform: template
     id: power_state_3
-    name: "Power State Unit-3"
+    name: "Power State Unit 3"
     update_interval: never
     icon: "mdi:information-outline"
 
   # Static unit type parsed from the multi-frame property response.
   - platform: template
-    name: "Board Type Unit-1"
+    name: "Board Type Unit 1"
     id: unit_type_1
     entity_category: diagnostic
     update_interval: never
@@ -5147,7 +5152,7 @@ text_sensor:
 
   # Static unit type parsed from the multi-frame property response.
   - platform: template
-    name: "Board Type Unit-2"
+    name: "Board Type Unit 2"
     id: unit_type_2
     entity_category: diagnostic
     update_interval: never
@@ -5155,7 +5160,7 @@ text_sensor:
 
   # Static unit type parsed from the multi-frame property response.
   - platform: template
-    name: "Board Type Unit-3"
+    name: "Board Type Unit 3"
     id: unit_type_3
     entity_category: diagnostic
     update_interval: never
@@ -5163,7 +5168,7 @@ text_sensor:
 
   # Unit barcode parsed from the property response.
   - platform: template
-    name: "Barcode Unit-1"
+    name: "Barcode Unit 1"
     id: barcode_1
     entity_category: diagnostic
     update_interval: never
@@ -5171,7 +5176,7 @@ text_sensor:
 
   # Unit barcode parsed from the property response.
   - platform: template
-    name: "Barcode Unit-2"
+    name: "Barcode Unit 2"
     id: barcode_2
     entity_category: diagnostic
     update_interval: never
@@ -5179,7 +5184,7 @@ text_sensor:
 
   # Unit barcode parsed from the property response.
   - platform: template
-    name: "Barcode Unit-3"
+    name: "Barcode Unit 3"
     id: barcode_3
     entity_category: diagnostic
     update_interval: never
@@ -5187,7 +5192,7 @@ text_sensor:
 
   # Unit item/part number parsed from the property response.
   - platform: template
-    name: "Item Number Unit-1"
+    name: "Item Number Unit 1"
     id: item_no_1
     entity_category: diagnostic
     update_interval: never
@@ -5195,7 +5200,7 @@ text_sensor:
 
   # Unit item/part number parsed from the property response.
   - platform: template
-    name: "Item Number Unit-2"
+    name: "Item Number Unit 2"
     id: item_no_2
     entity_category: diagnostic
     update_interval: never
@@ -5203,7 +5208,7 @@ text_sensor:
 
   # Unit item/part number parsed from the property response.
   - platform: template
-    name: "Item Number Unit-3"
+    name: "Item Number Unit 3"
     id: item_no_3
     entity_category: diagnostic
     update_interval: never
@@ -5211,7 +5216,7 @@ text_sensor:
 
   # Unit description parsed from the property response.
   - platform: template
-    name: "Description Unit-1"
+    name: "Description Unit 1"
     id: description_1
     entity_category: diagnostic
     update_interval: never
@@ -5219,7 +5224,7 @@ text_sensor:
 
   # Unit description parsed from the property response.
   - platform: template
-    name: "Description Unit-2"
+    name: "Description Unit 2"
     id: description_2
     entity_category: diagnostic
     update_interval: never
@@ -5227,7 +5232,7 @@ text_sensor:
 
   # Unit description parsed from the property response.
   - platform: template
-    name: "Description Unit-3"
+    name: "Description Unit 3"
     id: description_3
     entity_category: diagnostic
     update_interval: never
@@ -5235,7 +5240,7 @@ text_sensor:
 
   # Manufacturing information parsed from the property response.
   - platform: template
-    name: "Manufacturing Date Unit-1"
+    name: "Manufacturing Date Unit 1"
     id: manufactured_1
     entity_category: diagnostic
     update_interval: never
@@ -5243,7 +5248,7 @@ text_sensor:
 
   # Manufacturing information parsed from the property response.
   - platform: template
-    name: "Manufacturing Date Unit-2"
+    name: "Manufacturing Date Unit 2"
     id: manufactured_2
     entity_category: diagnostic
     update_interval: never
@@ -5251,7 +5256,7 @@ text_sensor:
 
   # Manufacturing information parsed from the property response.
   - platform: template
-    name: "Manufacturing Date Unit-3"
+    name: "Manufacturing Date Unit 3"
     id: manufactured_3
     entity_category: diagnostic
     update_interval: never
