@@ -126,7 +126,7 @@ The controller has two operating philosophies at the same time:
    - no Home Assistant required,
    - no MQTT broker required,
    - no Wi-Fi connection required,
-   - voltage and total charger power can be set with a rotary encoder,
+   - voltage and the nominal three-unit DC power target can be set with a rotary encoder
    - a long encoder-button press starts or stops the rectifiers directly via CAN.
 
 This is especially useful for an **off-grid or islanded energy system** where the battery/inverter side may be too deeply discharged to start the normal system. If an external AC source is still available, the charger can be operated locally to bring the battery/DC bus back to a usable voltage.
@@ -317,7 +317,7 @@ The local power-control algorithm treats the configured power as a nominal three
 
 ```text
 Current per unit = Nominal three-unit DC power target / (DC voltage × 3)
-````
+```
 
 For example:
 
@@ -459,7 +459,7 @@ This behavior is intentional and conservative. A rectifier that has lost CAN com
 This approach is particularly convenient for local control because the operator only needs to choose:
 
 1. desired DC voltage,
-2. desired total charger power.
+2. desired nominal three-unit DC power target.
 
 The per-unit current becomes an implementation detail calculated by the controller.
 
@@ -797,7 +797,7 @@ Configured range:
 ```text
 0.25–12.0 kW
 step: 0.25 kW
-````
+```
 
 The calculated current is constrained to:
 
@@ -893,7 +893,7 @@ The selected local control field is shown in bold blue with a `>` marker:
 ```text
 > DC Voltage: 53.0 V
   DC Target(3U): 6.00 kW - 37.7 A/u
-````
+```
 
 After a short encoder-button press:
 
@@ -1227,7 +1227,7 @@ Example conservative startup values might be:
 
 ```text
 DC Voltage: 53.0 V
-DC Power:   1.0 kW
+DC Target(3U): 1.0 kW
 ```
 
 The correct values depend on the battery chemistry, BMS, inverter requirements and installation. Do not use example values blindly.
