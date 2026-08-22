@@ -211,8 +211,8 @@ captive_portal:
 # ==============================================================================
 # TIME SYNCHRONIZATION
 # ==============================================================================
-# SNTP supplies Europe/Berlin local time for the TFT clock and daily energy
-# integration. The minute callback also forces an occasional display refresh.
+# SNTP provides Europe/Berlin local time for the TFT clock and daily energy
+# integration. Display updates are handled independently by the TFT component.
 time:
   - platform: sntp
     id: sntp_time
@@ -221,15 +221,22 @@ time:
       - 0.de.pool.ntp.org
       - 1.de.pool.ntp.org
       - 2.de.pool.ntp.org
-    on_time:
-      - seconds: 0
-        then:
-          - lambda: |-
-              ESP_LOGI("zeit", "Uhrzeit: %02d:%02d:%02d", id(sntp_time).now().hour, id(sntp_time).now().minute, id(sntp_time).now().second);
-      - seconds: 0
-        minutes: /1  # Refresh the display once per minute.
-        then:
-          - component.update: tft
+
+    on_time_sync:
+      then:
+        - lambda: |-
+            auto now = id(sntp_time).now();
+
+            ESP_LOGI(
+              "time",
+              "SNTP synchronized: %02d.%02d.%04d %02d:%02d:%02d",
+              now.day_of_month,
+              now.month,
+              now.year,
+              now.hour,
+              now.minute,
+              now.second
+            );
 
 # ==============================================================================
 # ESPHOME DEBUG METRICS
