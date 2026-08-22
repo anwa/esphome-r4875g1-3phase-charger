@@ -88,6 +88,11 @@ substitutions:
   fan_duty_counts_per_percent: "256.0"
 
   # --------------------------------------------------------------------------
+  # CAN communication buffering
+  # --------------------------------------------------------------------------
+  can_rx_queue_len: "64"
+  
+  # --------------------------------------------------------------------------
   # CAN communication timing
   # --------------------------------------------------------------------------
   can_watchdog_timeout_ms: "3000"
@@ -1872,6 +1877,7 @@ canbus:
     can_id: 0xE5F32E5
     bit_rate: 125kbps
     use_extended_id: true
+    rx_queue_len: ${can_rx_queue_len}
     on_frame:
       # Handler for CAN ID 0x1081D27F (Packet x)
       # Handle unit 1 properties message start
@@ -1984,13 +1990,24 @@ canbus:
               // Check if this frame contains additional payload data
               if (x.size() > 2) {  // Payload starts at x[2], so size must be > 2
                 std::string frame_data((char*)&x[2], x.size() - 2);
-                ESP_LOGI("unit_properties_1", "Unit 1: End Message Frame Data: %s", frame_data.c_str());
-
+                ESP_LOGI(
+                  "unit_properties_1",
+                  "Unit 1: End Message Frame Data: %s",
+                  frame_data.c_str()
+                );
                 // Append any remaining data to unit_properties_1
                 id(unit_properties_1) += frame_data;
               }
-              ESP_LOGI("unit_properties_1", "Unit 1: Total Frames Captured: %d", id(frame_counter_msg_start_1));
-              ESP_LOGI("unit_properties_1", "Unit 1: Final Unit Properties: %s", id(unit_properties_1).c_str());
+              ESP_LOGI(
+                "unit_properties_1",
+                "Unit 1: Total Frames Captured: %d",
+                id(frame_counter_msg_start_1)
+              );
+              ESP_LOGD(
+                "unit_properties_1",
+                "Unit 1: Final Unit Properties: %s",
+                id(unit_properties_1).c_str()
+              );
 
               auto extract_value = [](const std::string &data, const std::string &key) -> std::string {
                 size_t start = data.find(key);
@@ -2025,13 +2042,22 @@ canbus:
               for (const auto& mapping : mappings) {
                 std::string value = extract_value(id(unit_properties_1), mapping.key);
                 if (!value.empty()) {
-                  ESP_LOGI("unit_properties_1", "Unit 1: Extracted %s: %s", mapping.key, value.c_str());
+                  ESP_LOGI(
+                    "unit_properties_1",
+                    "Unit 1: Extracted %s: %s",
+                    mapping.key,
+                    value.c_str()
+                  );
                   mapping.sensor->publish_state(value.c_str());
                   if (mapping.flag) {
                     *(mapping.flag) = true;
                   }
                 } else {
-                  ESP_LOGW("unit_properties_1", "Unit 1: Key %s not found or empty", mapping.key);
+                  ESP_LOGW(
+                    "unit_properties_1",
+                    "Unit 1: Key %s not found or empty",
+                    mapping.key
+                  );
                   all_keys_found = false;
                   if (mapping.flag) {
                     *(mapping.flag) = false; // Reset the flag for missing keys
@@ -2041,10 +2067,16 @@ canbus:
 
               if (all_keys_found) {
                 id(unit_properties_complete_1) = true; // Mark completion only if all keys are found
-                ESP_LOGI("unit_properties_1", "Unit 1: All required keys found. Marking as complete.");
+                ESP_LOGI(
+                  "unit_properties_1",
+                  "Unit 1: All required keys found. Marking as complete."
+                );
               } else {
                 id(unit_properties_complete_1) = false; // Explicitly reset the flag if keys are missing
-                ESP_LOGI("unit_properties_1", "Unit 1: Not all keys found. Will continue processing.");
+                ESP_LOGI(
+                  "unit_properties_1",
+                  "Unit 1: Not all keys found. Will continue processing."
+                );
               }
 
       # Handler for CAN ID 0x1082D27E (Packet x)
@@ -2059,13 +2091,24 @@ canbus:
               // Check if this frame contains additional payload data
               if (x.size() > 2) {  // Payload starts at x[2], so size must be > 2
                 std::string frame_data((char*)&x[2], x.size() - 2);
-                ESP_LOGI("unit_properties_2", "Unit 2: End Message Frame Data: %s", frame_data.c_str());
-
+                ESP_LOGI(
+                  "unit_properties_2",
+                  "Unit 2: End Message Frame Data: %s",
+                  frame_data.c_str()
+                );
                 // Append any remaining data to unit_properties_2
                 id(unit_properties_2) += frame_data;
               }
-              ESP_LOGI("unit_properties_2", "Unit 2: Total Frames Captured: %d", id(frame_counter_msg_start_2));
-              ESP_LOGI("unit_properties_2", "Unit 2: Final Unit Properties: %s", id(unit_properties_2).c_str());
+              ESP_LOGI(
+                "unit_properties_2",
+                "Unit 2: Total Frames Captured: %d",
+                id(frame_counter_msg_start_2)
+              );
+              ESP_LOGD(
+                "unit_properties_2",
+                "Unit 2: Final Unit Properties: %s",
+                id(unit_properties_2).c_str()
+              );
 
               auto extract_value = [](const std::string &data, const std::string &key) -> std::string {
                 size_t start = data.find(key);
@@ -2100,13 +2143,22 @@ canbus:
               for (const auto& mapping : mappings) {
                 std::string value = extract_value(id(unit_properties_2), mapping.key);
                 if (!value.empty()) {
-                  ESP_LOGI("unit_properties_2", "Unit 2: Extracted %s: %s", mapping.key, value.c_str());
+                  ESP_LOGI(
+                    "unit_properties_2",
+                    "Unit 2: Extracted %s: %s",
+                    mapping.key,
+                    value.c_str()
+                  );
                   mapping.sensor->publish_state(value.c_str());
                   if (mapping.flag) {
                     *(mapping.flag) = true;
                   }
                 } else {
-                  ESP_LOGW("unit_properties_2", "Unit 2: Key %s not found or empty", mapping.key);
+                  ESP_LOGW(
+                    "unit_properties_2",
+                    "Unit 2: Key %s not found or empty",
+                    mapping.key
+                  );
                   all_keys_found = false;
                   if (mapping.flag) {
                     *(mapping.flag) = false; // Reset the flag for missing keys
@@ -2116,10 +2168,16 @@ canbus:
 
               if (all_keys_found) {
                 id(unit_properties_complete_2) = true; // Mark completion only if all keys are found
-                ESP_LOGI("unit_properties_2", "Unit 2: All required keys found. Marking as complete.");
+                ESP_LOGI(
+                  "unit_properties_2",
+                  "Unit 2: All required keys found. Marking as complete."
+                );
               } else {
                 id(unit_properties_complete_2) = false; // Explicitly reset the flag if keys are missing
-                ESP_LOGI("unit_properties_2", "Unit 2: Not all keys found. Will continue processing.");
+                ESP_LOGI(
+                  "unit_properties_2",
+                  "Unit 2: Not all keys found. Will continue processing."
+                );
               }
 
       # Handler for CAN ID 0x1083D27E (Packet x)
@@ -2134,13 +2192,24 @@ canbus:
               // Check if this frame contains additional payload data
               if (x.size() > 2) {  // Payload starts at x[2], so size must be > 2
                 std::string frame_data((char*)&x[2], x.size() - 2);
-                ESP_LOGI("unit_properties_3", "Unit 3: End Message Frame Data: %s", frame_data.c_str());
-
+                ESP_LOGI(
+                  "unit_properties_3",
+                  "Unit 3: End Message Frame Data: %s",
+                  frame_data.c_str()
+                );
                 // Append any remaining data to unit_properties_2
                 id(unit_properties_3) += frame_data;
               }
-              ESP_LOGI("unit_properties_3", "Unit 3: Total Frames Captured: %d", id(frame_counter_msg_start_3));
-              ESP_LOGI("unit_properties_3", "Unit 3: Final Unit Properties: %s", id(unit_properties_3).c_str());
+              ESP_LOGI(
+                "unit_properties_3",
+                "Unit 3: Total Frames Captured: %d",
+                id(frame_counter_msg_start_3)
+              );
+              ESP_LOGD(
+                "unit_properties_3",
+                "Unit 3: Final Unit Properties: %s",
+                id(unit_properties_3).c_str()
+              );
 
               auto extract_value = [](const std::string &data, const std::string &key) -> std::string {
                 size_t start = data.find(key);
@@ -2175,13 +2244,21 @@ canbus:
               for (const auto& mapping : mappings) {
                 std::string value = extract_value(id(unit_properties_3), mapping.key);
                 if (!value.empty()) {
-                  ESP_LOGI("unit_properties_3", "Unit 3: Extracted %s: %s", mapping.key, value.c_str());
+                  ESP_LOGI(
+                    "unit_properties_3",
+                    "Unit 3: Extracted %s: %s",
+                    mapping.key,
+                    value.c_str()
+                  );
                   mapping.sensor->publish_state(value.c_str());
                   if (mapping.flag) {
                     *(mapping.flag) = true;
                   }
                 } else {
-                  ESP_LOGW("unit_properties_3", "Unit 3: Key %s not found or empty", mapping.key);
+                  ESP_LOGW(
+                    "unit_properties_3",
+                    "Unit 3: Key %s not found or empty", mapping.key
+                  );
                   all_keys_found = false;
                   if (mapping.flag) {
                     *(mapping.flag) = false; // Reset the flag for missing keys
@@ -2191,10 +2268,16 @@ canbus:
 
               if (all_keys_found) {
                 id(unit_properties_complete_3) = true; // Mark completion only if all keys are found
-                ESP_LOGI("unit_properties_3", "Unit 3: All required keys found. Marking as complete.");
+                ESP_LOGI(
+                  "unit_properties_3",
+                  "Unit 3: All required keys found. Marking as complete."
+                );
               } else {
                 id(unit_properties_complete_3) = false; // Explicitly reset the flag if keys are missing
-                ESP_LOGI("unit_properties_3", "Unit 3: Not all keys found. Will continue processing.");
+                ESP_LOGI(
+                  "unit_properties_3",
+                  "Unit 3: Not all keys found. Will continue processing."
+                );
               }
 
       # Handler for CAN ID 0x1081407F (Packet x)
@@ -5095,9 +5178,9 @@ binary_sensor:
         - logger.log:
             level: INFO
             format: "Unit 3 CAN communication available - waiting for bus stabilization before automatic discovery."
-    
+
         - delay: ${discovery_startup_delay}
-    
+
         - if:
             condition:
               binary_sensor.is_on: can_com_ok_3
@@ -5105,7 +5188,7 @@ binary_sensor:
               - logger.log:
                   level: INFO
                   format: "Unit 3 CAN communication stable - starting full automatic discovery."
-    
+
               - script.execute: discover_unit_3
             else:
               - logger.log:

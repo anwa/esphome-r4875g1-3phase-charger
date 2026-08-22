@@ -1091,6 +1091,22 @@ Automatic discovery therefore also works when a rectifier:
 - is powered up after the controller has already started,
 - temporarily loses CAN communication and later reconnects.
 
+The static property response is transmitted by the rectifier as a burst of several dozen CAN frames.
+
+The ESP32 TWAI receive queue is therefore configured larger than the driver's small default queue. This provides enough buffering to receive a complete multi-frame property response even when the ESP32 is temporarily busy with display refreshes, logging or other ESPHome processing.
+
+Without sufficient receive buffering, individual CAN frames can be lost before ESPHome processes them. Because the property response contains plain-text key/value data split across consecutive frames, even one missing frame can corrupt fields such as:
+
+- board type,
+- barcode,
+- item number,
+- description,
+- manufacturing information.
+
+A larger CAN receive queue does not change the CAN protocol or the property-response format. It only provides additional buffering between the TWAI hardware/driver and the ESPHome CAN processing loop.
+
+The transmit queue is intentionally not enlarged. When no rectifier is connected or powered, transmitted requests may remain unacknowledged and occupy the transmit queue. Increasing that queue would allow more stale requests to accumulate before a rectifier becomes available.
+
 The discovery process queries information including:
 
 - board type,
@@ -1103,9 +1119,13 @@ The discovery process queries information including:
 
 Property queries use unit-specific CAN IDs and reconstruct multi-frame text responses before extracting key/value fields.
 
-Each property discovery stage has a defined retry limit. A failed property request does not block the controller indefinitely; once the configured retry count is exhausted, the sequence continues to the capability/address stage.
+Each property discovery stage has a defined retry limit. A failed or incomplete property response does not block the controller indefinitely. Once the configured retry count is exhausted, the property stage terminates and the sequence continues to the capability/address stage.
 
 Capability and address discovery also use a configurable retry limit and terminate when either all required information has been received or the retry limit has been reached.
+
+Complete raw property responses are logged only at DEBUG level. Normal INFO logging still reports discovery progress, extracted property values and whether all required fields were received successfully.
+
+Reducing the raw property dump at normal logging levels also avoids unnecessary UART/logging workload while a high-rate multi-frame CAN response is being processed.
 
 The automatic stabilization delay applies only to discovery triggered by a rectifier becoming newly reachable over CAN.
 
