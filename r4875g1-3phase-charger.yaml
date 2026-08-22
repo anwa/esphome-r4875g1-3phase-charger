@@ -479,29 +479,28 @@ display:
       // rectifiers. Count the same valid units here so the display can show
       // whether the total currently represents 1/3, 2/3 or all 3 units.
       int dc_units_ok = 0;
-      
+
       if (id(can_com_ok_1).state &&
           !isnan(id(dc_power_1).state)) {
         dc_units_ok++;
       }
-      
+
       if (id(can_com_ok_2).state &&
           !isnan(id(dc_power_2).state)) {
         dc_units_ok++;
       }
-      
+
       if (id(can_com_ok_3).state &&
           !isnan(id(dc_power_3).state)) {
         dc_units_ok++;
       }
-      
-      
+
       // Display the CAN-aware combined DC power only when at least one
       // rectifier has valid telemetry. If no unit is available, show a
       // clear communication fault instead of formatting NAN as "nan kW".
       if (dc_units_ok > 0 &&
           !isnan(id(combined_dc_power).state)) {
-      
+
         it.printf(
           10, 125,
           id(font_small_bold),
@@ -510,9 +509,9 @@ display:
           id(combined_dc_power).state,
           dc_units_ok
         );
-      
+
       } else {
-      
+
         it.print(
           10, 125,
           id(font_small_bold),
@@ -2247,7 +2246,6 @@ canbus:
         use_extended_id: true
         then:
           - lambda: |-
-              static uint16_t last_alt_current_value_1 = 0;
               if (x.size() == 8) {
                 // Extract data from the message
                 const uint8_t state_byte = x[3];
@@ -2256,11 +2254,9 @@ canbus:
                   (static_cast<uint16_t>(x[6]) << 8) |
                   static_cast<uint16_t>(x[7]);
 
-                // Publish alt current value only if it has changed
-                if (alt_current_value != last_alt_current_value_1) {
-                  id(alt_dc_current_1).publish_state(alt_current_value);
-                  last_alt_current_value_1 = alt_current_value;
-                }
+                // Publish every valid frame so the sensor timeout represents actual
+                // communication freshness rather than value changes.
+                id(alt_dc_current_1).publish_state(alt_current_value);
 
                 // Determine the new power state
                 std::string new_power_state;
@@ -2289,7 +2285,6 @@ canbus:
         use_extended_id: true
         then:
           - lambda: |-
-              static uint16_t last_alt_current_value_2 = 0;
               if (x.size() == 8) {
                 // Extract data from the message
                 const uint8_t state_byte = x[3];
@@ -2298,11 +2293,9 @@ canbus:
                   (static_cast<uint16_t>(x[6]) << 8) |
                   static_cast<uint16_t>(x[7]);
 
-                // Publish alt current value only if it has changed
-                if (alt_current_value != last_alt_current_value_2) {
-                  id(alt_dc_current_2).publish_state(alt_current_value);
-                  last_alt_current_value_2 = alt_current_value;
-                }
+                // Publish every valid frame so the sensor timeout represents actual
+                // communication freshness rather than value changes.
+                id(alt_dc_current_2).publish_state(alt_current_value);
 
                 // Determine the new power state
                 std::string new_power_state;
@@ -2331,7 +2324,6 @@ canbus:
         use_extended_id: true
         then:
           - lambda: |-
-              static uint16_t last_alt_current_value_3 = 0;
               if (x.size() == 8) {
                 // Extract data from the message
                 const uint8_t state_byte = x[3];
@@ -2340,11 +2332,9 @@ canbus:
                   (static_cast<uint16_t>(x[6]) << 8) |
                   static_cast<uint16_t>(x[7]);
 
-                // Publish alt current value only if it has changed
-                if (alt_current_value != last_alt_current_value_3) {
-                  id(alt_dc_current_3).publish_state(alt_current_value);
-                  last_alt_current_value_3 = alt_current_value;
-                }
+                // Publish every valid frame so the sensor timeout represents actual
+                // communication freshness rather than value changes.
+                id(alt_dc_current_3).publish_state(alt_current_value);
 
                 // Determine the new power state
                 std::string new_power_state;
@@ -2483,7 +2473,8 @@ sensor:
     update_interval: 3s
     filters:
       - lambda: |-
-          return x / id(voltage_scaling_factor);  
+          return x / id(voltage_scaling_factor);
+      - timeout: 5s
     icon: "mdi:thermometer"
 
   # --------------------------------------------------------------------------
@@ -2500,6 +2491,7 @@ sensor:
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);  
+      - timeout: 5s
     icon: "mdi:thermometer"
 
   # --------------------------------------------------------------------------
@@ -2516,6 +2508,7 @@ sensor:
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);  
+      - timeout: 5s
     icon: "mdi:thermometer"
 
   # --------------------------------------------------------------------------
@@ -2648,6 +2641,7 @@ sensor:
     filters:
       - lambda: |-
           return x / id(current_scaling_factor);  
+      - timeout: 5s
     icon: "mdi:current-dc"
     update_interval: 3s
 
@@ -2664,6 +2658,7 @@ sensor:
     filters:
       - lambda: |-
           return x / id(current_scaling_factor);  
+      - timeout: 5s
     icon: "mdi:current-dc"
     update_interval: 3s
 
@@ -2680,6 +2675,7 @@ sensor:
     filters:
       - lambda: |-
           return x / id(current_scaling_factor);  
+      - timeout: 5s
     icon: "mdi:current-dc"
     update_interval: 3s
 
@@ -2696,6 +2692,7 @@ sensor:
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);  
+      - timeout: 5s
     icon: "mdi:flash"
     update_interval: 3s  # Updates every second
 
@@ -2712,6 +2709,7 @@ sensor:
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);  
+      - timeout: 5s
     icon: "mdi:flash"
     update_interval: 3s  # Updates every second
 
@@ -2728,6 +2726,7 @@ sensor:
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);  
+      - timeout: 5s
     icon: "mdi:flash"
     update_interval: 3s  # Updates every second
 
@@ -2744,6 +2743,7 @@ sensor:
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);  
+      - timeout: 5s
     icon: "mdi:flash"
     update_interval: 3s  # Updates every second
 
@@ -2760,6 +2760,7 @@ sensor:
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);  
+      - timeout: 5s
     icon: "mdi:flash"
     update_interval: 3s  # Updates every second
 
@@ -2776,6 +2777,7 @@ sensor:
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);  
+      - timeout: 5s
     icon: "mdi:flash"
     update_interval: 3s  # Updates every second
 
@@ -2792,6 +2794,7 @@ sensor:
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);  
+      - timeout: 5s
     icon: "mdi:transmission-tower-import"
     update_interval: 3s
 
@@ -2808,6 +2811,7 @@ sensor:
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);  
+      - timeout: 5s
     icon: "mdi:transmission-tower-import"
     update_interval: 3s
 
@@ -2824,6 +2828,7 @@ sensor:
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);  
+      - timeout: 5s
     icon: "mdi:transmission-tower-import"
     update_interval: 3s
 
@@ -2840,6 +2845,7 @@ sensor:
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);  
+      - timeout: 5s
     icon: "mdi:current-ac"
     update_interval: 3s
 
@@ -2856,6 +2862,7 @@ sensor:
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);  
+      - timeout: 5s
     icon: "mdi:current-ac"
     update_interval: 3s
 
@@ -2872,6 +2879,7 @@ sensor:
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);  
+      - timeout: 5s
     icon: "mdi:current-ac"
     update_interval: 3s
 
@@ -2888,6 +2896,7 @@ sensor:
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);  
+      - timeout: 5s
     icon: "mdi:current-dc"
     update_interval: 3s
 
@@ -2904,6 +2913,7 @@ sensor:
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);  
+      - timeout: 5s
     icon: "mdi:current-dc"
     update_interval: 3s
 
@@ -2920,6 +2930,7 @@ sensor:
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);  
+      - timeout: 5s
     icon: "mdi:current-dc"
     update_interval: 3s
 
@@ -2936,6 +2947,7 @@ sensor:
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);  
+      - timeout: 5s
     icon: "mdi:sine-wave"
     update_interval: 3s
 
@@ -2952,6 +2964,7 @@ sensor:
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);  
+      - timeout: 5s
     icon: "mdi:sine-wave"
     update_interval: 3s
 
@@ -2968,6 +2981,7 @@ sensor:
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);  
+      - timeout: 5s
     icon: "mdi:sine-wave"
     update_interval: 3s
 
@@ -2985,6 +2999,7 @@ sensor:
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);  
+      - timeout: 5s
     icon: "mdi:thermometer"
     on_value:
       then:
@@ -3021,6 +3036,7 @@ sensor:
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);  
+      - timeout: 5s
     icon: "mdi:thermometer"
     on_value:
       then:
@@ -3057,6 +3073,7 @@ sensor:
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);  
+      - timeout: 5s
     icon: "mdi:thermometer"
     on_value:
       then:
@@ -3092,6 +3109,7 @@ sensor:
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);  
+      - timeout: 5s
     icon: "mdi:current-dc"
     update_interval: 3s
 
@@ -3108,6 +3126,7 @@ sensor:
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);  
+      - timeout: 5s
     icon: "mdi:current-dc"
     update_interval: 3s
 
@@ -3124,6 +3143,7 @@ sensor:
     filters:
       - lambda: |-
           return x / id(voltage_scaling_factor);  
+      - timeout: 5s
     icon: "mdi:current-dc"
     update_interval: 3s
 
@@ -3140,6 +3160,7 @@ sensor:
     filters:
       - lambda: |-
           return x / id(current_scaling_factor);  
+      - timeout: 5s
     icon: "mdi:current-ac"
     update_interval: 3s
 
@@ -3156,6 +3177,7 @@ sensor:
     filters:
       - lambda: |-
           return x / id(current_scaling_factor);  
+      - timeout: 5s
     icon: "mdi:current-ac"
     update_interval: 3s
 
@@ -3172,6 +3194,7 @@ sensor:
     filters:
       - lambda: |-
           return x / id(current_scaling_factor);  
+      - timeout: 5s
     icon: "mdi:current-ac"
     update_interval: 3s
 
@@ -3184,6 +3207,8 @@ sensor:
     unit_of_measurement: "RPM"
     state_class: measurement
     accuracy_decimals: 0
+    filters:
+      - timeout: 5s
     icon: "mdi:fan"
 
   # --------------------------------------------------------------------------
@@ -3195,6 +3220,8 @@ sensor:
     unit_of_measurement: "RPM"
     state_class: measurement
     accuracy_decimals: 0
+    filters:
+      - timeout: 5s
     icon: "mdi:fan"
 
   # --------------------------------------------------------------------------
@@ -3206,6 +3233,8 @@ sensor:
     unit_of_measurement: "RPM"
     state_class: measurement
     accuracy_decimals: 0
+    filters:
+      - timeout: 5s
     icon: "mdi:fan"
 
   # --------------------------------------------------------------------------

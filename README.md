@@ -246,6 +246,9 @@ Per unit, the controller decodes values including:
 
 - Independent CAN communication watchdog for each rectifier.
 - A unit is considered offline when valid cyclic telemetry has not been received for 3 seconds.
+- Live per-unit telemetry sensors use a 5-second freshness timeout and become unavailable when no new CAN value is received.
+- The telemetry timeout applies to live voltage, current, power, frequency, temperature, current-setpoint and fan-speed measurements.
+- Static discovery information, hardware capabilities and lifetime operating-hour counters retain their last valid values across temporary CAN communication loss.
 - The reported power state is changed to `UNKNOWN` when a unit loses CAN communication.
 - Stale `ON`/`OFF` states are never used for local charger start/stop decisions.
 - Local START is inhibited when no rectifier has valid CAN communication.
