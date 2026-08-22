@@ -265,7 +265,7 @@ mqtt:
 # I2C is reserved on GPIO10/GPIO9 with scanning enabled. GPIO8 is intentionally
 # not used because the Androegg board has an onboard WS2812 connected there.
 i2c:
-  - id: bus_a
+  - id: i2c_bus
     sda: GPIO10
     scl: GPIO9
     scan: true
@@ -2851,6 +2851,28 @@ sensor:
     unit_of_measurement: "dBm"
     device_class: signal_strength
     entity_category: diagnostic
+
+  # --------------------------------------------------------------------------
+  # Ambient Temperature and Humidity
+  # AHT10 environmental sensor connected to the dedicated I²C bus.
+  # The AHT10 uses I²C address 0x38.
+  - platform: aht10
+    variant: AHT10
+    i2c_id: i2c_bus
+    address: 0x38
+    update_interval: 60s
+
+    temperature:
+      name: "Ambient Temperature"
+      id: ambient_temperature
+      accuracy_decimals: 1
+      icon: "mdi:thermometer"
+
+    humidity:
+      name: "Ambient Humidity"
+      id: ambient_humidity
+      accuracy_decimals: 1
+      icon: "mdi:water-percent"
 
   # --------------------------------------------------------------------------
   # local_encoder

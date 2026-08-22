@@ -26,6 +26,7 @@ The project combines CAN-bus control, live telemetry, Home Assistant integration
   - [Main Controller](#main-controller)
   - [Rectifier Units](#rectifier-units)
   - [CAN Interface](#can-interface)
+  - [Ambient Sensor](#ambient-sensor)
   - [Display](#display-1)
   - [Rotary Encoder](#rotary-encoder)
   - [GPIO Assignment](#gpio-assignment)
@@ -242,6 +243,8 @@ Per unit, the controller decodes values including:
 - actual fan duty,
 - requested fan duty,
 - power state,
+- ambient temperature,
+- ambient relative humidity,
 - unit capability and identification information.
 
 ## Reliability and fault handling
@@ -356,6 +359,24 @@ Current GPIO assignment:
 
 The CAN bus should use proper twisted-pair wiring and suitable termination for the physical topology.
 
+## Ambient Sensor
+
+Ambient temperature and relative humidity are measured using an **AHT10** I²C sensor.
+
+Connection:
+
+- supply: **3.3 V**
+- SDA: **GPIO10**
+- SCL: **GPIO9**
+- I²C address: **0x38**
+
+The sensor provides:
+
+- `Ambient Temperature`
+- `Ambient Humidity`
+
+Both values are updated every 60 seconds and are available through Home Assistant, the ESPHome API and the local web interface.
+
 ## Display
 
 The local UI uses an:
@@ -405,8 +426,8 @@ The encoder is intentionally designed to work without any network connectivity.
 | TFT CS | GPIO5 | ILI9488 |
 | TFT RESET | GPIO6 | ILI9488 |
 | TFT DC/RS | GPIO7 | ILI9488 |
-| I²C SCL | GPIO9 | Reserved/configured I²C bus |
-| I²C SDA | GPIO10 | Reserved/configured I²C bus |
+| I²C SCL | GPIO9 | AHT10 environmental sensor |
+| I²C SDA | GPIO10 | AHT10 environmental sensor |
 | SPI MOSI | GPIO11 | TFT / SPI bus |
 | SPI MISO | GPIO12 | TFT / SPI bus |
 | SPI CLK | GPIO13 | TFT / SPI bus |
