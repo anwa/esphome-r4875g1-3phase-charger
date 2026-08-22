@@ -771,7 +771,7 @@ $$
 I_{unit} = \frac{P_{total}}{3 \cdot U_{DC}}
 $$
 
-Therefore requesting 12 kW at a low DC voltage may result in less than 12 kW of actual power because the per-unit current is capped at 75 A.
+Therefore requesting 12 kW at a low DC voltage may result in less than 12 kW of actual power because the per-unit current is limited by the effective DC current limit, which can never exceed the 75 A project ceiling.
 
 The calculated current is constrained to the supported range of the current configuration:
 
@@ -1189,7 +1189,7 @@ A typical procedure is:
    - current calculation,
    - voltage setpoint,
    - current setpoint,
-   - broadcast ON command.
+   - individual ON commands to rectifiers that pass the startup safety checks.
 10. Monitor the DC bus/battery voltage, temperatures and charger state.
 11. Once the battery/inverter system has recovered, normal system control can resume.
 
