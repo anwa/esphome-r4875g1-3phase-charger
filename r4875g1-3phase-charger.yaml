@@ -48,8 +48,11 @@
 #     engineering_value = raw_CAN_value / 1024
 #     raw_CAN_value     = engineering_value * 1024
 #
-# Current commands use current_scaling_factor. That factor is derived from the
-# detected maximum-current capability of Unit 1.
+# Current commands use current_scaling_factor.
+# The controller starts with the known 75 A R4875G1 fallback value
+# (1024 / 75 = 13.653333) and automatically refreshes the factor from
+# Unit 1's detected maximum-current capability whenever Unit 1 becomes
+# available on the CAN bus.
 #
 # COMMUNICATION HEALTH
 # --------------------
@@ -735,12 +738,23 @@ globals:
     restore_value: no
     initial_value: '0'
 
-  # Current-command scale factor. It is initialized to 15 and
-  # updated from the detected Unit 1 current capability.
+  # Current-command scaling factor.
+  #
+  # The R4875G1 reports a maximum output current of 75 A, therefore the
+  # correct model-specific fallback is:
+  #
+  #     1024 / 75 A = 13.653333...
+  #
+  # This value is available immediately after boot so local blackstart remains
+  # usable even before capability discovery has completed.
+  #
+  # The value is not restored from flash because it is a hardware-derived
+  # parameter. Unit 1 capability discovery refreshes it automatically whenever
+  # Unit 1 becomes available on the CAN bus.
   - id: current_scaling_factor
     type: float
-    initial_value: "15.0"
-    restore_value: True
+    initial_value: "13.653333f"
+    restore_value: no
     
   # Fixed-point protocol scale used by voltage and most
   # telemetry fields. 1024 means one engineering unit equals 1024 raw counts.
@@ -4113,9 +4127,21 @@ binary_sensor:
     name: "CAN Communication Unit-1"
     device_class: connectivity
     entity_category: diagnostic
+
     lambda: |-
       return id(last_can_rx_1) != 0 &&
              (uint32_t) (millis() - id(last_can_rx_1)) < 3000U;
+
+    # Whenever Unit 1 becomes reachable, refresh its capability/address data.
+    # Unit 1 is the canonical source for current_scaling_factor, so this also
+    # verifies or corrects the model-specific fallback automatically.
+    on_press:
+      then:
+        - logger.log:
+            level: INFO
+            format: "Unit 1 CAN communication available - refreshing current capability and scaling factor."
+
+        - script.execute: detect_data_unit_1
 
     on_release:
       then:
@@ -4139,9 +4165,21 @@ binary_sensor:
     name: "CAN Communication Unit-2"
     device_class: connectivity
     entity_category: diagnostic
+
     lambda: |-
       return id(last_can_rx_2) != 0 &&
              (uint32_t) (millis() - id(last_can_rx_2)) < 3000U;
+
+    # Whenever Unit 1 becomes reachable, refresh its capability/address data.
+    # Unit 1 is the canonical source for current_scaling_factor, so this also
+    # verifies or corrects the model-specific fallback automatically.
+    on_press:
+      then:
+        - logger.log:
+            level: INFO
+            format: "Unit 2 CAN communication available - refreshing current capability and scaling factor."
+
+        - script.execute: detect_data_unit_2
 
     on_release:
       then:
@@ -4163,9 +4201,21 @@ binary_sensor:
     name: "CAN Communication Unit-3"
     device_class: connectivity
     entity_category: diagnostic
+
     lambda: |-
       return id(last_can_rx_3) != 0 &&
              (uint32_t) (millis() - id(last_can_rx_3)) < 3000U;
+
+    # Whenever Unit 1 becomes reachable, refresh its capability/address data.
+    # Unit 1 is the canonical source for current_scaling_factor, so this also
+    # verifies or corrects the model-specific fallback automatically.
+    on_press:
+      then:
+        - logger.log:
+            level: INFO
+            format: "Unit 3 CAN communication available - refreshing current capability and scaling factor."
+
+        - script.execute: detect_data_unit_3
 
     on_release:
       then:

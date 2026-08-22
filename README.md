@@ -576,25 +576,36 @@ engineering value = raw CAN value / 1024
 
 ### Current scaling
 
-The current scaling factor is initially configured as:
+Current commands use a model-dependent fixed-point scaling factor.
+
+Because this project specifically targets the 75 A Huawei R4875G1, the
+controller starts with the known model-specific fallback:
 
 ```text
-15.0
+current_scaling_factor = 1024 / 75
+                       ≈ 13.653333
 ```
 
-During unit discovery, the controller reads the unit's maximum-current capability and recalculates:
+This fallback is available immediately after controller startup so local blackstart operation does not depend on successful capability discovery.
+
+The scaling factor is a hardware-derived value and is therefore not restored from persistent ESP32 storage. Each boot starts from the known R4875G1 fallback.
+
+Whenever Unit 1 becomes reachable on the CAN bus, the controller automatically runs its capability discovery sequence. The reported maximum-current capability is then used to recalculate:
 
 ```text
-amp_scaling_factor = 1024 / maximum_current
+current_scaling_factor = 1024 / maximum_current
 ```
 
-For a 75 A R4875G1 this is approximately:
+For the intended 75 A R4875G1 units this resolves to approximately:
 
 ```text
 1024 / 75 ≈ 13.653
 ```
 
-The current implementation stores one global current scaling factor and derives it from Unit 1. This is appropriate for the intended installation of three identical R4875G1 units. Mixed rectifier models would require additional consideration.
+Unit 1 remains the canonical source for the shared current scaling factor.
+Unit 2 and Unit 3 capability values are decoded separately for diagnostic comparison but do not overwrite the shared factor.
+
+This architecture assumes the intended installation of three identical R4875G1 rectifiers. Mixed rectifier models require additional capability validation.
 
 ## CAN Communication Watchdog
 
@@ -892,7 +903,7 @@ A `SETUP` template button starts the sequential discovery process.
 
 Because the setup sequence deliberately queries the units one after another with delays, it may take roughly a minute to complete.
 
-For the intended three identical 75 A R4875G1 units, the configured defaults are sufficient for basic local blackstart operation even before the discovery sequence is run.
+For the intended three identical 75 A R4875G1 units, the controller starts with the known 75 A current-scaling fallback. Unit 1 capability discovery is triggered automatically when CAN communication becomes available, allowing the fallback to be verified or corrected without requiring the manual `SETUP` sequence.
 
 ## Home Assistant, Web UI and MQTT
 
