@@ -124,18 +124,6 @@ substitutions:
   # Normal runtime CAN watchdog.
   can_watchdog_timeout_ms: "3000"
 
-  # Stop high-rate polling before repeated missing-ACK errors can drive TWAI
-  # into Error Warning / BUS_OFF. Normal CAN Error Warning starts at TEC 96.
-  fast_poll_tx_error_quiet_threshold: "64"
-
-  # A recent valid response from an ONLINE rectifier proves that the physical
-  # CAN bus is currently usable even if the TWAI TX error counter is still
-  # elevated from an earlier outage.
-  #
-  # Keep this window short so a newly disconnected bus cannot continue fast
-  # polling for long merely because its last valid response is still recent.
-  fast_poll_recent_rx_ms: "1000"
-
   # Grace period after property discovery so normal cyclic polling has enough
   # time to resume before lifecycle connectivity is evaluated again.
   property_poll_resume_grace_ms: "2000"
@@ -1561,6 +1549,122 @@ script:
           }
 
   # --------------------------------------------------------------------------
+  # send_single_shot_active_setpoint
+  # --------------------------------------------------------------------------
+  # Sends one active voltage/current setpoint to a specific rectifier using
+  # Single-Shot transmission.
+  #
+  # This helper is used during reconnect discovery only. At that point the
+  # TWAI transmit error counter may still be elevated from a previous complete
+  # bus outage. Using normal unlimited retransmission here could immediately
+  # drive the controller back into BUS_OFF if communication disappears again.
+  #
+  # selector:
+  #   0x00 = active DC voltage
+  #   0x03 = active DC current
+  - id: send_single_shot_active_setpoint
+    mode: queued
+    max_runs: 8
+
+    parameters:
+      unit: int
+      selector: int
+      raw_value: int
+
+    then:
+      - lambda: |-
+          uint32_t can_id = 0;
+
+          switch (unit) {
+            case 1:
+              can_id = 0x108180FE;
+              break;
+
+            case 2:
+              can_id = 0x108280FE;
+              break;
+
+            case 3:
+              can_id = 0x108380FE;
+              break;
+
+            default:
+              ESP_LOGW(
+                "setpoint_restore",
+                "Invalid Unit %d for Single-Shot setpoint restore.",
+                unit
+              );
+              return;
+          }
+
+          if (
+            (selector != 0x00 && selector != 0x03) ||
+            raw_value < 0 ||
+            raw_value > 0xFFFF
+          ) {
+            ESP_LOGW(
+              "setpoint_restore",
+              "Invalid Single-Shot setpoint parameters for Unit %d.",
+              unit
+            );
+            return;
+          }
+
+          twai_status_info_t status_info{};
+
+          if (
+            twai_get_status_info(&status_info) != ESP_OK ||
+            status_info.state != TWAI_STATE_RUNNING
+          ) {
+            ESP_LOGW(
+              "setpoint_restore",
+              "Single-Shot setpoint for Unit %d skipped because TWAI is not RUNNING.",
+              unit
+            );
+            return;
+          }
+
+          twai_message_t message{};
+
+          message.flags =
+              TWAI_MSG_FLAG_EXTD |
+              TWAI_MSG_FLAG_SS;
+
+          message.identifier = can_id;
+          message.data_length_code = 8;
+
+          memset(
+            message.data,
+            0x00,
+            sizeof(message.data)
+          );
+
+          message.data[0] = 0x01;
+          message.data[1] =
+              static_cast<uint8_t>(selector);
+
+          message.data[6] =
+              (static_cast<uint16_t>(raw_value) >> 8) & 0xFF;
+
+          message.data[7] =
+              static_cast<uint16_t>(raw_value) & 0xFF;
+
+          const esp_err_t transmit_result =
+              twai_transmit(
+                &message,
+                0
+              );
+
+          if (transmit_result != ESP_OK) {
+            ESP_LOGW(
+              "setpoint_restore",
+              "Unable to queue Single-Shot setpoint for Unit %d: %s",
+              unit,
+              esp_err_to_name(transmit_result)
+            );
+          }
+
+  # --------------------------------------------------------------------------
   # detect_unit_1_properties
   # --------------------------------------------------------------------------
   # Requests Unit 1's static multi-frame property block.
@@ -2456,8 +2560,14 @@ script:
   # Restores the currently configured active voltage and current to one
   # specifically verified rectifier after discovery.
   #
-  # The unit is still DISCOVERING while these commands are sent. It is marked
-  # ONLINE by the discovery queue only after this script has completed.
+  # Reconnect discovery can complete while the TWAI error counters are still
+  # elevated from the preceding bus outage. The restore therefore uses
+  # Single-Shot frames so a disappearing CAN peer cannot immediately drive
+  # the controller back into BUS_OFF through unlimited retransmission.
+  #
+  # The rectifier remains DISCOVERING until this script completes. Normal
+  # ONLINE polling afterwards provides continuous successful CAN traffic and
+  # allows the TWAI error counters to recover naturally.
   - id: reapply_active_setpoints
     mode: queued
     max_runs: 8
@@ -2485,7 +2595,8 @@ script:
 
                 !isnan(current) &&
                 current >= ${minimum_dc_current_a}f &&
-                current <= id(effective_dc_current_limit) + 0.01f &&
+                current <=
+                  id(effective_dc_current_limit) + 0.01f &&
 
                 !isnan(id(current_scaling_factor)) &&
                 id(current_scaling_factor) > 0.0f;
@@ -2494,28 +2605,49 @@ script:
             - lambda: |-
                 ESP_LOGI(
                   "setpoint_restore",
-                  "Reapplying active DC setpoints to Unit %d after discovery: "
-                  "%.1f V, %.1f A/unit.",
+                  "Reapplying active DC setpoints to Unit %d after discovery "
+                  "using Single-Shot CAN: %.1f V, %.1f A/unit.",
                   unit,
                   id(set_dc_voltage_limit).state,
                   id(set_dc_current_limit).state
                 );
 
-                id(send_active_voltage_to_unit)->execute(unit);
+                const int raw_voltage =
+                    static_cast<int>(
+                      id(set_dc_voltage_limit).state *
+                      id(voltage_scaling_factor)
+                    );
 
-            - script.wait: send_active_voltage_to_unit
+                id(send_single_shot_active_setpoint)->execute(
+                  unit,
+                  0x00,
+                  raw_voltage
+                );
+
+            - script.wait: send_single_shot_active_setpoint
 
             - delay: 50ms
 
             - lambda: |-
-                id(send_active_current_to_unit)->execute(unit);
+                const int raw_current =
+                    static_cast<int>(
+                      id(set_dc_current_limit).state *
+                      id(current_scaling_factor)
+                    );
 
-            - script.wait: send_active_current_to_unit
+                id(send_single_shot_active_setpoint)->execute(
+                  unit,
+                  0x03,
+                  raw_current
+                );
+
+            - script.wait: send_single_shot_active_setpoint
 
             - lambda: |-
                 ESP_LOGI(
                   "setpoint_restore",
-                  "Active DC setpoints reapplied successfully to Unit %d.",
+                  "Active DC setpoint restore frames queued for Unit %d "
+                  "using Single-Shot CAN.",
                   unit
                 );
 
@@ -7089,7 +7221,8 @@ interval:
       - if:
           condition:
             lambda: |-
-              // Property discovery deliberately owns the CAN bus exclusively.
+              // Static property discovery deliberately owns the CAN bus
+              // exclusively because its response is a large multi-frame burst.
               if (
                 id(detect_unit_1_properties).is_running() ||
                 id(detect_unit_2_properties).is_running() ||
@@ -7098,76 +7231,18 @@ interval:
                 return false;
               }
 
+              // All normal polling requests are Single-Shot. Therefore no
+              // additional TEC threshold is required here. Keeping successful
+              // polling active after a reconnect also allows the CAN controller
+              // to recover naturally from a previously elevated error counter.
               twai_status_info_t status_info{};
 
               if (twai_get_status_info(&status_info) != ESP_OK) {
                 return false;
               }
 
-              if (status_info.state != TWAI_STATE_RUNNING) {
-                return false;
-              }
-
-              const uint32_t now = millis();
-
-              // ------------------------------------------------------------
-              // Recent valid CAN RX
-              // ------------------------------------------------------------
-              // If an ONLINE unit has answered very recently, the physical
-              // CAN bus is demonstrably healthy. In that case fast polling
-              // may continue even while the TX error counter is still
-              // recovering from an earlier outage.
-              const auto has_recent_rx =
-                  [now](uint32_t last_rx) -> bool {
-
-                return
-                  last_rx != 0 &&
-                  static_cast<uint32_t>(
-                    now - last_rx
-                  ) < ${fast_poll_recent_rx_ms}U;
-              };
-
-              const bool recent_online_rx =
-                  (
-                    id(rectifier_control_state_1) ==
-                      ${rectifier_state_online} &&
-                    has_recent_rx(id(last_can_rx_1))
-                  ) ||
-                  (
-                    id(rectifier_control_state_2) ==
-                      ${rectifier_state_online} &&
-                    has_recent_rx(id(last_can_rx_2))
-                  ) ||
-                  (
-                    id(rectifier_control_state_3) ==
-                      ${rectifier_state_online} &&
-                    has_recent_rx(id(last_can_rx_3))
-                  );
-
-              // ------------------------------------------------------------
-              // Post-property-discovery resume grace
-              // ------------------------------------------------------------
-              // Discovery may complete while the TX error counter is still
-              // elevated from the previous outage. Give normal polling one
-              // opportunity to resume. Successful responses then keep
-              // recent_online_rx true and allow the TEC to recover naturally.
-              const bool property_resume_grace =
-                  id(last_property_discovery_end) != 0 &&
-                  static_cast<uint32_t>(
-                    now - id(last_property_discovery_end)
-                  ) < ${property_poll_resume_grace_ms}U;
-
-              // Normal case:
-              //   low TEC -> polling permitted
-              //
-              // Recovery case:
-              //   recent valid RX or just-completed discovery proves that the
-              //   bus is usable despite an elevated historical TEC.
               return
-                status_info.tx_error_counter <
-                  ${fast_poll_tx_error_quiet_threshold}U ||
-                recent_online_rx ||
-                property_resume_grace;
+                status_info.state == TWAI_STATE_RUNNING;
 
           then:
             # --------------------------------------------------------------
