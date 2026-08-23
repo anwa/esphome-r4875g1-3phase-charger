@@ -3387,8 +3387,13 @@ sensor:
     entity_category: diagnostic
 
   # --------------------------------------------------------------------------
-  # Ambient Temperature and Humidity
-  # AHT10 environmental sensor connected to the dedicated I²C bus.
+  # Rectifier Compartment Temperature and Humidity
+  #
+  # AHT10 sensor installed in the shared rear connection compartment behind
+  # the three rectifier units. The measured air is influenced by the warm
+  # exhaust/airflow from all rectifiers and therefore represents the thermal
+  # conditions inside the rectifier compartment rather than room temperature.
+  #
   # The AHT10 uses I²C address 0x38.
   - platform: aht10
     variant: AHT10
@@ -3397,14 +3402,14 @@ sensor:
     update_interval: 60s
 
     temperature:
-      name: "Ambient Temperature"
-      id: ambient_temperature
+      name: "Rectifier Compartment Temperature"
+      id: rectifier_compartment_temperature
       accuracy_decimals: 1
       icon: "mdi:thermometer"
 
     humidity:
-      name: "Ambient Humidity"
-      id: ambient_humidity
+      name: "Rectifier Compartment Humidity"
+      id: rectifier_compartment_humidity
       accuracy_decimals: 1
       icon: "mdi:water-percent"
 

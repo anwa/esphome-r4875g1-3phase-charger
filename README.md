@@ -26,7 +26,7 @@ The project combines CAN-bus control, live telemetry, Home Assistant integration
   - [Main Controller](#main-controller)
   - [Rectifier Units](#rectifier-units)
   - [CAN Interface](#can-interface)
-  - [Ambient Sensor](#ambient-sensor)
+  - [Rectifier Compartment Sensor](#rectifier-compartment-sensor)
   - [Display](#display-1)
   - [Rotary Encoder](#rotary-encoder)
   - [GPIO Assignment](#gpio-assignment)
@@ -258,12 +258,21 @@ Per rectifier, the controller decodes values including:
 - hardware address / shelf information,
 - static unit identification information.
 
-Controller-side environmental telemetry is provided separately by the AHT10 sensor:
+A separate AHT10 sensor monitors the shared rear connection compartment behind the three rectifier units:
 
-- ambient temperature,
-- ambient relative humidity.
+- rectifier compartment temperature,
+- rectifier compartment relative humidity.
 
-The AHT10 values describe the controller environment and are not per-rectifier measurements.
+The AHT10 is exposed as:
+
+```text
+Rectifier Compartment Temperature
+Rectifier Compartment Humidity
+```
+
+These values are not room-temperature measurements and are not associated with one individual rectifier.
+
+The sensor is installed in the common rear connection compartment where it is exposed to air warmed by all three rectifier units. Its temperature value therefore represents the thermal conditions in that shared compartment and can be used as an additional indication of accumulated charger heat.
 
 ## Reliability and fault handling
 
@@ -387,9 +396,13 @@ Current GPIO assignment:
 
 The CAN bus should use proper twisted-pair wiring and suitable termination for the physical topology.
 
-## Ambient Sensor
+## Rectifier Compartment Sensor
 
-Ambient temperature and relative humidity are measured using an **AHT10** I²C sensor.
+Temperature and relative humidity inside the shared rear rectifier connection compartment are measured using an **AHT10** I²C sensor.
+
+The sensor is installed behind the three rectifier units in the common connection area.
+
+This location is exposed to air warmed by all three rectifiers. The temperature therefore does **not** represent normal room or ambient temperature. Instead, it provides an additional measurement of the thermal conditions around the rear connection and exhaust-air area of the complete charger assembly.
 
 Connection:
 
@@ -400,10 +413,21 @@ Connection:
 
 The sensor provides:
 
-- `Ambient Temperature`
-- `Ambient Humidity`
+```text
+Rectifier Compartment Temperature
+Rectifier Compartment Humidity
+```
 
 Both values are updated every 60 seconds and are available through Home Assistant, the ESPHome API and the local web interface.
+
+The compartment-temperature value complements the individual rectifier telemetry:
+
+```text
+Input Temperature Unit 1..3
+Output Temperature Unit 1..3
+```
+
+Unlike those CAN-reported values, the AHT10 measures the shared air conditions around all three rectifiers rather than an internal temperature of one specific unit.
 
 ## Display
 
@@ -454,8 +478,8 @@ The encoder is intentionally designed to work without any network connectivity.
 | TFT CS | GPIO5 | ILI9488 |
 | TFT RESET | GPIO6 | ILI9488 |
 | TFT DC/RS | GPIO7 | ILI9488 |
-| I²C SCL | GPIO9 | AHT10 environmental sensor |
-| I²C SDA | GPIO10 | AHT10 environmental sensor |
+| I²C SCL | GPIO9 | AHT10 rectifier compartment sensor |
+| I²C SDA | GPIO10 | AHT10 rectifier compartment sensor |
 | SPI MOSI | GPIO11 | TFT / SPI bus |
 | SPI MISO | GPIO12 | TFT / SPI bus |
 | SPI CLK | GPIO13 | TFT / SPI bus |
@@ -1414,7 +1438,7 @@ daily energy values.
 - **[CAN Bus Module SN65HVD230 Transceiver](https://www.ebay.de/itm/187121483571?mkevt=1&mkpid=0&emsid=e11412.m144671.l197929&mkcid=7&ch=osgood&euid=a3c94179b4b74512bcd68a2bfb44fee2&bu=43162872420&exe=0&ext=0&osub=-1%7E1&crd=20260816180453&segname=11412)** or another suitable 3.3 V CAN transceiver
 - ILI9488 display if local display functionality is required
 - rotary encoder with push button if local blackstart control is required
-- AHT10 sensor if ambient controller temperature/humidity monitoring is required
+- AHT10 sensor if shared rear rectifier-compartment temperature/humidity monitoring is required
 - one to three compatible rectifier units; this project is specifically developed for three R4875G1 units
 
 ## 1. Copy the YAML
