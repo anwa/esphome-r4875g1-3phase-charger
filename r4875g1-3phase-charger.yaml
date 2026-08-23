@@ -3306,12 +3306,18 @@ canbus:
                 return;
               }
 
+              // A valid address response confirms active communication during discovery.
+              id(last_can_rx_1) = millis();
+
               const uint8_t packet_number =
                   static_cast<uint8_t>(x[1]);
 
               if (packet_number != 1) {
                 return;
               }
+
+              // A valid capability response confirms active communication during discovery.
+              id(last_can_rx_1) = millis();
 
               const uint8_t max_current_raw =
                   static_cast<uint8_t>(x[5]);
@@ -3375,12 +3381,18 @@ canbus:
                 return;
               }
 
+              // A valid address response confirms active communication during discovery.
+              id(last_can_rx_2) = millis();
+
               const uint8_t packet_number =
                   static_cast<uint8_t>(x[1]);
 
               if (packet_number != 1) {
                 return;
               }
+
+              // A valid capability response confirms active communication during discovery.
+              id(last_can_rx_2) = millis();
 
               const uint8_t max_current_raw =
                   static_cast<uint8_t>(x[5]);
@@ -3443,12 +3455,18 @@ canbus:
                 return;
               }
 
+              // A valid address response confirms active communication during discovery.
+              id(last_can_rx_3) = millis();
+
               const uint8_t packet_number =
                   static_cast<uint8_t>(x[1]);
 
               if (packet_number != 1) {
                 return;
               }
+
+              // A valid capability response confirms active communication during discovery.
+              id(last_can_rx_3) = millis();
 
               const uint8_t max_current_raw =
                   static_cast<uint8_t>(x[5]);
@@ -5984,44 +6002,68 @@ binary_sensor:
     # verifies or corrects the model-specific fallback automatically.
     on_press:
       then:
-        - script.execute:
-            id: set_rectifier_control_state
-            unit: 1
-            state: ${rectifier_state_discovering}
-
-        - logger.log:
-            level: INFO
-            format: "Unit 1 CAN communication available - waiting for bus stabilization before automatic discovery."
-
-        - delay: ${discovery_startup_delay}
-
+        # Raw CAN communication is allowed to start a reconnect/discovery
+        # sequence only while the lifecycle state is OFFLINE.
+        #
+        # CAN watchdog transitions occurring during an already-running
+        # discovery must not queue another discovery request.
         - if:
             condition:
-              binary_sensor.is_on: can_com_ok_1
+              lambda: |-
+                return
+                  id(rectifier_control_state_1) ==
+                    ${rectifier_state_offline};
+
             then:
+              - script.execute:
+                  id: set_rectifier_control_state
+                  unit: 1
+                  state: ${rectifier_state_discovering}
+
               - logger.log:
                   level: INFO
-                  format: "Unit 1 CAN communication stable - starting full automatic discovery."
+                  format: "Unit 1 CAN communication detected - entering discovery stabilization."
 
-              - script.execute:
-                  id: discovery_queue
-                  unit: 1
+              - delay: ${discovery_startup_delay}
 
-            else:
-              - logger.log:
-                  level: WARN
-                  format: "Unit 1 CAN communication was lost during discovery startup delay - automatic discovery cancelled."
+              - if:
+                  condition:
+                    lambda: |-
+                      return
+                        id(rectifier_control_state_1) ==
+                          ${rectifier_state_discovering};
+
+                  then:
+                    - logger.log:
+                        level: INFO
+                        format: "Unit 1 discovery stabilization complete - starting automatic discovery."
+
+                    - script.execute:
+                        id: discovery_queue
+                        unit: 1
 
     on_release:
       then:
-        - script.execute:
-            id: set_rectifier_control_state
-            unit: 1
-            state: ${rectifier_state_offline}
+        # Only a fully ONLINE unit is demoted immediately when the normal CAN
+        # watchdog expires.
+        #
+        # During DISCOVERING the raw watchdog is allowed to expire because
+        # normal cyclic polling is intentionally suspended. The discovery
+        # process itself decides whether the unit returns ONLINE or OFFLINE.
+        - if:
+            condition:
+              lambda: |-
+                return
+                  id(rectifier_control_state_1) ==
+                    ${rectifier_state_online};
+
+            then:
+              - script.execute:
+                  id: set_rectifier_control_state
+                  unit: 1
+                  state: ${rectifier_state_offline}
 
         - lambda: |-
-            // The last reported power state is no longer trustworthy once
-            // communication with the rectifier has timed out.
             if (id(power_state_1).state != "UNKNOWN") {
               id(power_state_1).publish_state("UNKNOWN");
 
@@ -6049,40 +6091,55 @@ binary_sensor:
     # current_scaling_factor remains based on Unit 1.
     on_press:
       then:
-        - script.execute:
-            id: set_rectifier_control_state
-            unit: 2
-            state: ${rectifier_state_discovering}
-
-        - logger.log:
-            level: INFO
-            format: "Unit 2 CAN communication available - waiting for bus stabilization before automatic discovery."
-
-        - delay: ${discovery_startup_delay}
-
         - if:
             condition:
-              binary_sensor.is_on: can_com_ok_2
+              lambda: |-
+                return
+                  id(rectifier_control_state_2) ==
+                    ${rectifier_state_offline};
+
             then:
+              - script.execute:
+                  id: set_rectifier_control_state
+                  unit: 2
+                  state: ${rectifier_state_discovering}
+
               - logger.log:
                   level: INFO
-                  format: "Unit 2 CAN communication stable - starting full automatic discovery."
+                  format: "Unit 2 CAN communication detected - entering discovery stabilization."
 
-              - script.execute:
-                  id: discovery_queue
-                  unit: 2
+              - delay: ${discovery_startup_delay}
 
-            else:
-              - logger.log:
-                  level: WARN
-                  format: "Unit 2 CAN communication was lost during discovery startup delay - automatic discovery cancelled."
+              - if:
+                  condition:
+                    lambda: |-
+                      return
+                        id(rectifier_control_state_2) ==
+                          ${rectifier_state_discovering};
+
+                  then:
+                    - logger.log:
+                        level: INFO
+                        format: "Unit 2 discovery stabilization complete - starting automatic discovery."
+
+                    - script.execute:
+                        id: discovery_queue
+                        unit: 2
 
     on_release:
       then:
-        - script.execute:
-            id: set_rectifier_control_state
-            unit: 2
-            state: ${rectifier_state_offline}
+        - if:
+            condition:
+              lambda: |-
+                return
+                  id(rectifier_control_state_2) ==
+                    ${rectifier_state_online};
+
+            then:
+              - script.execute:
+                  id: set_rectifier_control_state
+                  unit: 2
+                  state: ${rectifier_state_offline}
 
         - lambda: |-
             if (id(power_state_2).state != "UNKNOWN") {
@@ -6112,40 +6169,55 @@ binary_sensor:
     # current_scaling_factor remains based on Unit 1.
     on_press:
       then:
-        - script.execute:
-            id: set_rectifier_control_state
-            unit: 3
-            state: ${rectifier_state_discovering}
-
-        - logger.log:
-            level: INFO
-            format: "Unit 3 CAN communication available - waiting for bus stabilization before automatic discovery."
-
-        - delay: ${discovery_startup_delay}
-
         - if:
             condition:
-              binary_sensor.is_on: can_com_ok_3
+              lambda: |-
+                return
+                  id(rectifier_control_state_3) ==
+                    ${rectifier_state_offline};
+
             then:
+              - script.execute:
+                  id: set_rectifier_control_state
+                  unit: 3
+                  state: ${rectifier_state_discovering}
+
               - logger.log:
                   level: INFO
-                  format: "Unit 3 CAN communication stable - starting full automatic discovery."
+                  format: "Unit 3 CAN communication detected - entering discovery stabilization."
 
-              - script.execute:
-                  id: discovery_queue
-                  unit: 3
+              - delay: ${discovery_startup_delay}
 
-            else:
-              - logger.log:
-                  level: WARN
-                  format: "Unit 3 CAN communication was lost during discovery startup delay - automatic discovery cancelled."
+              - if:
+                  condition:
+                    lambda: |-
+                      return
+                        id(rectifier_control_state_3) ==
+                          ${rectifier_state_discovering};
+
+                  then:
+                    - logger.log:
+                        level: INFO
+                        format: "Unit 3 discovery stabilization complete - starting automatic discovery."
+
+                    - script.execute:
+                        id: discovery_queue
+                        unit: 3
 
     on_release:
       then:
-        - script.execute:
-            id: set_rectifier_control_state
-            unit: 3
-            state: ${rectifier_state_offline}
+        - if:
+            condition:
+              lambda: |-
+                return
+                  id(rectifier_control_state_3) ==
+                    ${rectifier_state_online};
+
+            then:
+              - script.execute:
+                  id: set_rectifier_control_state
+                  unit: 3
+                  state: ${rectifier_state_offline}
 
         - lambda: |-
             if (id(power_state_3).state != "UNKNOWN") {
@@ -6318,7 +6390,7 @@ interval:
                     return
                       id(offline_probe_next_unit) == 1 &&
                       id(rectifier_control_state_1) ==
-                        ${rectifier_state_offline};
+                        ${rectifier_state_online};
 
                 then:
                   - canbus.send:
@@ -6343,7 +6415,7 @@ interval:
                     return
                       id(offline_probe_next_unit) == 2 &&
                       id(rectifier_control_state_2) ==
-                        ${rectifier_state_offline};
+                        ${rectifier_state_online};
 
                 then:
                   - canbus.send:
@@ -6368,7 +6440,7 @@ interval:
                     return
                       id(offline_probe_next_unit) == 3 &&
                       id(rectifier_control_state_3) ==
-                        ${rectifier_state_offline};
+                        ${rectifier_state_online};
 
                 then:
                   - canbus.send:
