@@ -1965,6 +1965,7 @@ The repository intentionally uses a small and flat structure:
 ├── .gitignore
 ├── LICENSE
 ├── README.md
+├── R4875G1_CONTROL_FLOWS.md
 └── r4875g1-3phase-charger.yaml
 ```
 
