@@ -912,32 +912,18 @@ globals:
   # --------------------------------------------------------------------------
   # Per-rectifier control states
   # --------------------------------------------------------------------------
-  # These states are intentionally separate from can_com_ok_x.
-  #
-  # can_com_ok_x answers:
-  #   "Have valid CAN frames been received recently?"
-  #
-  # rectifier_control_state_x answers:
-  #   "Where is this rectifier in the controller lifecycle?"
-  #
-  # State values:
-  #   0 = OFFLINE
-  #   1 = DISCOVERING
-  #   2 = ONLINE
-  #
-  # The states now participate in CAN polling decisions:
+  # The states participate in CAN polling and reconnect handling:
   #
   # OFFLINE:
-  #   excluded from normal fast telemetry/fan polling
+  #   excluded from normal fast telemetry/fan polling and checked only by the
+  #   slow reconnect probe scheduler
   #
   # DISCOVERING:
-  #   receives cyclic telemetry heartbeat only
+  #   excluded from normal telemetry/fan polling while the serialized discovery
+  #   process validates the unit
   #
   # ONLINE:
   #   receives normal cyclic telemetry and fan polling
-  #
-  # Other control and setpoint paths are intentionally migrated in later
-  # implementation steps.
   - id: rectifier_control_state_1
     type: uint8_t
     restore_value: false
@@ -6786,11 +6772,12 @@ interval:
   #   cyclic telemetry + fan telemetry
   #
   # DISCOVERING:
-  #   cyclic telemetry only
+  #   excluded from normal polling; discovery traffic itself confirms
+  #   communication
   #
   # OFFLINE:
-  #   excluded completely; reconnect detection is handled by the slow probe
-  #   scheduler above.
+  #   excluded from fast polling; reconnect detection is handled by the
+  #   slow probe scheduler above
   #
   # During property discovery the complete fast-polling cycle is suspended so
   # the multi-frame property response has exclusive access to the CAN bus.
@@ -6807,17 +6794,12 @@ interval:
           then:
             # --------------------------------------------------------------
             # Unit 1 cyclic telemetry
-            #
-            # ONLINE and DISCOVERING both receive this request.
-            # DISCOVERING still needs the cyclic heartbeat during the current
-            # 5-second stabilization delay because the CAN watchdog expires
-            # after 3 seconds.
             # --------------------------------------------------------------
             - if:
                 condition:
                   lambda: |-
                     return
-                      id(rectifier_control_state_1) !=
+                      id(rectifier_control_state_1) ==
                         ${rectifier_state_online};
 
                 then:
@@ -6868,7 +6850,7 @@ interval:
                 condition:
                   lambda: |-
                     return
-                      id(rectifier_control_state_2) !=
+                      id(rectifier_control_state_2) ==
                         ${rectifier_state_online};
 
                 then:
@@ -6917,7 +6899,7 @@ interval:
                 condition:
                   lambda: |-
                     return
-                      id(rectifier_control_state_3) !=
+                      id(rectifier_control_state_3) ==
                         ${rectifier_state_online};
 
                 then:
