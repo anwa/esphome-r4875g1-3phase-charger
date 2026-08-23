@@ -98,7 +98,7 @@ substitutions:
   # CAN communication buffering
   # --------------------------------------------------------------------------
   can_rx_queue_len: "64"
-  
+
   # --------------------------------------------------------------------------
   # CAN communication timing
   # --------------------------------------------------------------------------
@@ -109,6 +109,8 @@ substitutions:
   fan_query_delay: "27ms"
   unit_2_poll_gap: "156ms"
   unit_3_poll_gap: "166ms"
+
+  can_recovery_check_interval: "2s"
 
   setpoint_refresh_interval: "30s"
 
@@ -849,7 +851,7 @@ globals:
     restore_value: false
     initial_value: "0"
 
-  # Timestamp (millis) of the most recent valid CAN activity from Unit 12.
+  # Timestamp (millis) of the most recent valid CAN activity from Unit 2.
   # Normally refreshed by cyclic telemetry and additionally by valid property
   # frames during discovery.
   - id: last_can_rx_2
@@ -5577,6 +5579,107 @@ binary_sensor:
 # current setpoints so units that restart can recover the requested settings.
 interval:
   # --------------------------------------------------------------------------
+  # Periodic task: TWAI controller recovery
+  #
+  # If every physical CAN peer disappears, transmitted frames are no longer
+  # acknowledged. Repeated transmission errors can eventually place the
+  # ESP32 TWAI controller into BUS_OFF state.
+  #
+  # ESP-IDF requires bus recovery to be initiated explicitly. The legacy TWAI
+  # driver enters STOPPED state when recovery completes and must then be
+  # started again before normal CAN communication can resume.
+  #
+  # Once the controller is running again, the normal telemetry polling below
+  # automatically detects returning rectifiers. The existing can_com_ok_x
+  # OFF->ON transition then launches automatic unit discovery.
+  - interval: ${can_recovery_check_interval}
+    then:
+      - lambda: |-
+          twai_status_info_t status_info{};
+
+          const esp_err_t status_result =
+              twai_get_status_info(&status_info);
+
+          if (status_result != ESP_OK) {
+            ESP_LOGW(
+              "can_recovery",
+              "Unable to read TWAI controller status: %s",
+              esp_err_to_name(status_result)
+            );
+
+            return;
+          }
+
+          // --------------------------------------------------------------
+          // BUS_OFF
+          // --------------------------------------------------------------
+          //
+          // The controller has disabled itself after excessive CAN errors.
+          // Start the ESP-IDF bus-recovery sequence.
+          if (status_info.state == TWAI_STATE_BUS_OFF) {
+
+            ESP_LOGW(
+              "can_recovery",
+              "TWAI controller BUS_OFF "
+              "(TX errors: %u, bus errors: %u). "
+              "Starting recovery.",
+              status_info.tx_error_counter,
+              status_info.bus_error_count
+            );
+
+            const esp_err_t recovery_result =
+                twai_initiate_recovery();
+
+            if (recovery_result == ESP_OK) {
+
+              ESP_LOGI(
+                "can_recovery",
+                "TWAI bus recovery initiated."
+              );
+
+            } else {
+
+              ESP_LOGW(
+                "can_recovery",
+                "Failed to initiate TWAI recovery: %s",
+                esp_err_to_name(recovery_result)
+              );
+            }
+
+            return;
+          }
+
+          // --------------------------------------------------------------
+          // STOPPED
+          // --------------------------------------------------------------
+          //
+          // The legacy ESP-IDF TWAI driver returns to STOPPED state after
+          // successful bus recovery. Restart it so normal RX/TX can resume.
+          if (status_info.state == TWAI_STATE_STOPPED) {
+
+            const esp_err_t start_result =
+                twai_start();
+
+            if (start_result == ESP_OK) {
+
+              ESP_LOGI(
+                "can_recovery",
+                "TWAI controller restarted after recovery."
+              );
+
+            } else {
+
+              ESP_LOGW(
+                "can_recovery",
+                "Failed to restart TWAI controller: %s",
+                esp_err_to_name(start_result)
+              );
+            }
+
+            return;
+          }
+
+  # --------------------------------------------------------------------------
   # Periodic task: 577 ms
   # Fast cyclic telemetry polling. Unit 1 is requested first; Units 2 and 3 are
   # staggered by 183 ms and 193 ms to distribute CAN traffic.
@@ -5633,7 +5736,7 @@ interval:
                 use_extended_id: true
                 can_id: 0x108382FE
                 data: [0x01, 0x87, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
-  
+
   # --------------------------------------------------------------------------
   # Periodic task: 30 s
   # Reasserts the broadcast DC voltage setpoint every 30 seconds so restarted
