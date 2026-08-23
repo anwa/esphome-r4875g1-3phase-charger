@@ -992,6 +992,19 @@ The top of the display contains:
 - CAN-aware AC input overview,
 - combined DC output power.
 
+The AC and DC overview values include only rectifiers that currently provide the required valid telemetry.
+
+The headers also show how many of the three rectifiers currently contribute valid data.
+
+For example:
+
+```text
+AC Input: 8.437 kW  (3/3)
+DC Output: 8.102 kW  (3/3)
+```
+
+If no valid rectifier data is available, the corresponding overview displays a communication fault instead of formatting an unavailable value as `nan`.
+
 ### Per-unit lines
 
 Each rectifier receives its own line containing:
@@ -1010,13 +1023,27 @@ Example:
 L1: 53.20 V - 37.7 A - 2005 W - 31.5 °C / 45.2 °C
 ```
 
-If CAN communication fails for that unit, stale or NaN values are not shown. Instead:
+A per-unit line is rendered with numeric values only when all five required live telemetry values are available.
+
+CAN communication state and telemetry freshness are evaluated separately.
+
+If CAN communication with a unit is unavailable, the display shows:
 
 ```text
 L1: CAN bus communication fault!
 ```
 
-The fault is displayed in bold red text.
+If the unit is still reachable over CAN but one or more of the required live telemetry values are unavailable, the display instead shows:
+
+```text
+L1: Telemetry incomplete!
+```
+
+Both conditions are displayed in bold red text.
+
+This distinction is important because valid non-telemetry CAN traffic, such as property-discovery frames, can keep the unit's CAN watchdog active while normal cyclic telemetry is temporarily suspended or individual live sensor values have reached their freshness timeout.
+
+The TFT therefore never formats unavailable floating-point sensor states directly and does not display `nan` in the per-unit telemetry lines.
 
 ### Local setpoints
 
@@ -1042,15 +1069,15 @@ All persistent user-adjustable setpoints have explicit first-boot defaults.
 
 These values are used only when no previously stored value is available:
 
-| Setpoint | First-boot default |
-|---|---:|
-| Fan minimum speed | 0 % |
-| DC voltage limit | 53.0 V |
-| DC current limit | 1 A |
-| DC fallback voltage | 53.0 V |
-| DC fallback current | 1 A |
-| AC current limit | 0 A / disabled |
-| Nominal three-unit DC power target | 1.0 kW |
+| Setpoint                           | First-boot default |
+| ---------------------------------- | -----------------: |
+| Fan minimum speed                  |                0 % |
+| DC voltage limit                   |             53.0 V |
+| DC current limit                   |                1 A |
+| DC fallback voltage                |             53.0 V |
+| DC fallback current                |                1 A |
+| AC current limit                   |     0 A / disabled |
+| Nominal three-unit DC power target |             1.0 kW |
 
 After a value has been changed and stored, `restore_value` restores the previous setting on subsequent boots instead of using the first-boot default.
 
@@ -1067,13 +1094,15 @@ OFF
 3/3 ON
 ```
 
+Only units with currently valid CAN communication can contribute to the displayed active-unit count.
+
 ### Footer
 
 The footer shows:
 
-- IP address,
-- ESP32 internal CPU temperature,
-- Wi-Fi RSSI.
+* IP address,
+* ESP32 internal CPU temperature,
+* Wi-Fi RSSI.
 
 These network-related values are informational only and are not required for blackstart operation.
 

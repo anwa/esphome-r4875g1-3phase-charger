@@ -585,7 +585,56 @@ display:
           "DC Output: CAN bus communication fault!"
         );
       }
-      if (id(can_com_ok_1).state) {
+      // -----------------------------------------------------------------
+      // Per-unit DC telemetry
+      // -----------------------------------------------------------------
+      //
+      // CAN communication and live telemetry freshness are evaluated
+      // separately. Property/discovery frames can keep a unit CAN-online
+      // while individual live telemetry sensors have already timed out.
+      //
+      // Never format non-numeric sensor states because printf() would render
+      // them as "nan" on the TFT.
+
+      const bool unit_1_telemetry_ok =
+          !isnan(id(dc_voltage_1).state) &&
+          !isnan(id(dc_current_1).state) &&
+          !isnan(id(dc_power_1).state) &&
+          !isnan(id(input_temperature_1).state) &&
+          !isnan(id(output_temperature_1).state);
+
+      const bool unit_2_telemetry_ok =
+          !isnan(id(dc_voltage_2).state) &&
+          !isnan(id(dc_current_2).state) &&
+          !isnan(id(dc_power_2).state) &&
+          !isnan(id(input_temperature_2).state) &&
+          !isnan(id(output_temperature_2).state);
+
+      const bool unit_3_telemetry_ok =
+          !isnan(id(dc_voltage_3).state) &&
+          !isnan(id(dc_current_3).state) &&
+          !isnan(id(dc_power_3).state) &&
+          !isnan(id(input_temperature_3).state) &&
+          !isnan(id(output_temperature_3).state);
+
+      // Unit 1
+      if (!id(can_com_ok_1).state) {
+        it.print(
+          10, 150,
+          id(font_small_bold),
+          id(color_red),
+          "L1: CAN bus communication fault!"
+        );
+
+      } else if (!unit_1_telemetry_ok) {
+        it.print(
+          10, 150,
+          id(font_small_bold),
+          id(color_red),
+          "L1: Telemetry incomplete!"
+        );
+
+      } else {
         it.printf(
           10, 150,
           id(font_small),
@@ -597,16 +646,26 @@ display:
           id(input_temperature_1).state,
           id(output_temperature_1).state
         );
-      } else {
-        it.print(
-          10, 150,
-          id(font_small_bold),
-          id(color_red),
-          "L1: CAN bus communication fault!"
-        );
       }
 
-      if (id(can_com_ok_2).state) {
+      // Unit 2
+      if (!id(can_com_ok_2).state) {
+        it.print(
+          10, 170,
+          id(font_small_bold),
+          id(color_red),
+          "L2: CAN bus communication fault!"
+        );
+
+      } else if (!unit_2_telemetry_ok) {
+        it.print(
+          10, 170,
+          id(font_small_bold),
+          id(color_red),
+          "L2: Telemetry incomplete!"
+        );
+
+      } else {
         it.printf(
           10, 170,
           id(font_small),
@@ -618,16 +677,26 @@ display:
           id(input_temperature_2).state,
           id(output_temperature_2).state
         );
-      } else {
-        it.print(
-          10, 170,
-          id(font_small_bold),
-          id(color_red),
-          "L2: CAN bus communication fault!"
-        );
       }
 
-      if (id(can_com_ok_3).state) {
+      // Unit 3
+      if (!id(can_com_ok_3).state) {
+        it.print(
+          10, 190,
+          id(font_small_bold),
+          id(color_red),
+          "L3: CAN bus communication fault!"
+        );
+
+      } else if (!unit_3_telemetry_ok) {
+        it.print(
+          10, 190,
+          id(font_small_bold),
+          id(color_red),
+          "L3: Telemetry incomplete!"
+        );
+
+      } else {
         it.printf(
           10, 190,
           id(font_small),
@@ -639,15 +708,7 @@ display:
           id(input_temperature_3).state,
           id(output_temperature_3).state
         );
-      } else {
-        it.print(
-          10, 190,
-          id(font_small_bold),
-          id(color_red),
-          "L3: CAN bus communication fault!"
-        );
       }
-
       // -----------------------------------------------------------------
       // Local / Blackstart setpoints
       // -----------------------------------------------------------------
