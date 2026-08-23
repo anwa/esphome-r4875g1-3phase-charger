@@ -124,6 +124,10 @@ substitutions:
   # Normal runtime CAN watchdog.
   can_watchdog_timeout_ms: "3000"
 
+  # Stop high-rate polling before repeated missing-ACK errors can drive TWAI
+  # into Error Warning / BUS_OFF. Normal CAN Error Warning starts at TEC 96.
+  fast_poll_tx_error_quiet_threshold: "64"
+
   # Grace period after property discovery so normal cyclic polling has enough
   # time to resume before lifecycle connectivity is evaluated again.
   property_poll_resume_grace_ms: "2000"
@@ -1449,61 +1453,44 @@ script:
                 );
 
   # --------------------------------------------------------------------------
-  # send_single_shot_offline_probe
+  # send_single_shot_request
   # --------------------------------------------------------------------------
-  # Sends exactly one cyclic telemetry request to an OFFLINE rectifier.
+  # Sends one extended 8-byte CAN request without automatic retransmission.
   #
-  # ESPHome's normal canbus.send path uses the standard TWAI transmission mode.
-  # When no CAN peer is present, the hardware automatically retries an
-  # unacknowledged frame and can quickly drive the controller into BUS_OFF.
+  # This helper is used only for read/query traffic:
+  # - offline reachability probes
+  # - cyclic telemetry requests
+  # - fan telemetry requests
+  # - property discovery requests
+  # - capability/address discovery requests
   #
-  # Offline reachability probes therefore bypass canbus.send and use the
-  # ESP-IDF TWAI_MSG_FLAG_SS flag:
+  # Control commands such as voltage/current setpoints and ON/OFF deliberately
+  # continue to use ESPHome's normal canbus.send path.
   #
-  #   SS = Single Shot
-  #
-  # The frame is attempted exactly once. A missing ACK does not cause automatic
-  # retransmission of that same frame.
-  #
-  # This project uses exactly one ESP32 CAN controller. ESPHome installs it as
-  # TWAI controller 0, therefore the legacy twai_transmit() wrapper addresses
-  # the same driver instance used by ESPHome's internal twai_transmit_v2().
-  - id: send_single_shot_offline_probe
+  # TWAI_MSG_FLAG_SS enables Single Shot transmission. If the frame cannot be
+  # acknowledged, that specific frame is not automatically retransmitted.
+  - id: send_single_shot_request
     mode: queued
-    max_runs: 4
+    max_runs: 32
 
     parameters:
-      unit: int
+      can_id: int
+      data_0: int
+      data_1: int
 
     then:
       - lambda: |-
-          uint32_t can_id = 0;
+          if (can_id < 0 ||
+              data_0 < 0 || data_0 > 255 ||
+              data_1 < 0 || data_1 > 255) {
 
-          switch (unit) {
-            case 1:
-              can_id = 0x108140FE;
-              break;
-
-            case 2:
-              can_id = 0x108240FE;
-              break;
-
-            case 3:
-              can_id = 0x108340FE;
-              break;
-
-            default:
-              ESP_LOGW(
-                "offline_probe",
-                "Invalid rectifier unit for single-shot probe: %d",
-                unit
-              );
-              return;
+            ESP_LOGW(
+              "single_shot",
+              "Invalid single-shot request parameters."
+            );
+            return;
           }
 
-          // Do not enqueue application traffic while the TWAI controller is
-          // BUS_OFF, recovering or stopped. The dedicated recovery task owns
-          // those controller states.
           twai_status_info_t status_info{};
 
           const esp_err_t status_result =
@@ -1511,9 +1498,8 @@ script:
 
           if (status_result != ESP_OK) {
             ESP_LOGW(
-              "offline_probe",
-              "Unable to read TWAI status before Unit %d probe: %s",
-              unit,
+              "single_shot",
+              "Unable to read TWAI status before request: %s",
               esp_err_to_name(status_result)
             );
             return;
@@ -1521,9 +1507,9 @@ script:
 
           if (status_info.state != TWAI_STATE_RUNNING) {
             ESP_LOGD(
-              "offline_probe",
-              "Unit %d probe skipped because TWAI is not RUNNING.",
-              unit
+              "single_shot",
+              "Request 0x%08lX skipped because TWAI is not RUNNING.",
+              static_cast<unsigned long>(can_id)
             );
             return;
           }
@@ -1535,10 +1521,9 @@ script:
               TWAI_MSG_FLAG_SS;
 
           message.identifier =
-              can_id;
+              static_cast<uint32_t>(can_id);
 
-          message.data_length_code =
-              8;
+          message.data_length_code = 8;
 
           memset(
             message.data,
@@ -1546,10 +1531,12 @@ script:
             sizeof(message.data)
           );
 
-          // Non-blocking queue operation.
-          //
-          // ESP_OK means the frame was accepted for transmission; it does not
-          // imply that another CAN node acknowledged it.
+          message.data[0] =
+              static_cast<uint8_t>(data_0);
+
+          message.data[1] =
+              static_cast<uint8_t>(data_1);
+
           const esp_err_t transmit_result =
               twai_transmit(
                 &message,
@@ -1558,21 +1545,12 @@ script:
 
           if (transmit_result != ESP_OK) {
             ESP_LOGD(
-              "offline_probe",
-              "Single-shot probe for Unit %d could not be queued: %s",
-              unit,
+              "single_shot",
+              "Single-shot request 0x%08lX could not be queued: %s",
+              static_cast<unsigned long>(can_id),
               esp_err_to_name(transmit_result)
             );
-            return;
           }
-
-          ESP_LOGD(
-            "offline_probe",
-            "Single-shot reconnect probe queued for Unit %d "
-            "(CAN ID 0x%08lX).",
-            unit,
-            static_cast<unsigned long>(can_id)
-          );
 
   # --------------------------------------------------------------------------
   # detect_unit_1_properties
@@ -1597,10 +1575,11 @@ script:
               return !id(unit_properties_complete_1) &&
                      id(frame_counter_bp_1) < ${property_discovery_attempts};
           then:
-            - canbus.send:
+            - script.execute:
+                id: send_single_shot_request
                 can_id: 0x1081D2FE
-                use_extended_id: true
-                data: [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+                data_0: 0x00
+                data_1: 0x00
 
             - delay: ${discovery_retry_delay}
 
@@ -1650,10 +1629,11 @@ script:
               return !id(unit_properties_complete_2) &&
                      id(frame_counter_bp_2) < ${property_discovery_attempts};
           then:
-            - canbus.send:
+            - script.execute:
+                id: send_single_shot_request
                 can_id: 0x1082D2FE
-                use_extended_id: true
-                data: [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+                data_0: 0x00
+                data_1: 0x00
 
             - delay: ${discovery_retry_delay}
 
@@ -1703,10 +1683,11 @@ script:
               return !id(unit_properties_complete_3) &&
                      id(frame_counter_bp_3) < ${property_discovery_attempts};
           then:
-            - canbus.send:
+            - script.execute:
+                id: send_single_shot_request
                 can_id: 0x1083D2FE
-                use_extended_id: true
-                data: [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+                data_0: 0x00
+                data_1: 0x00
 
             - delay: ${discovery_retry_delay}
 
@@ -1748,19 +1729,25 @@ script:
           id(max_current_found_1) = false; // Reset the flag before starting
           id(data_found_1) = false; // Reset the flag before starting
           id(search_counter_1) = 0; // Initialize a fail-safe counter
+
       - binary_sensor.invalidate_state: rectifier_capability_mismatch
+
       - while:
           condition:
             lambda: |-
               return !(id(max_current_found_1) && id(data_found_1)) && id(search_counter_1) < ${capability_discovery_attempts};
           then:
-            - canbus.send:
+            - script.execute:
+                id: send_single_shot_request
                 can_id: 0x108150FE
-                use_extended_id: true
-                data: [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+                data_0: 0x00
+                data_1: 0x00
+
             - delay: ${discovery_retry_delay}
+
             - lambda: |-
                 id(search_counter_1) += 1; // Increment the fail-safe counter
+
       - lambda: |-
           if (id(max_current_found_1) && id(data_found_1)) {
             ESP_LOGI(
@@ -1789,19 +1776,25 @@ script:
           id(max_current_found_2) = false; // Reset the flag before starting
           id(data_found_2) = false; // Reset the flag before starting
           id(search_counter_2) = 0; // Initialize a fail-safe counter
+
       - binary_sensor.invalidate_state: rectifier_capability_mismatch
+
       - while:
           condition:
             lambda: |-
               return !(id(max_current_found_2) && id(data_found_2)) && id(search_counter_2) < ${capability_discovery_attempts};
           then:
-            - canbus.send:
+            - script.execute:
+                id: send_single_shot_request
                 can_id: 0x108250FE
-                use_extended_id: true
-                data: [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+                data_0: 0x00
+                data_1: 0x00
+
             - delay: ${discovery_retry_delay}
+
             - lambda: |-
                 id(search_counter_2) += 1; // Increment the fail-safe counter
+
       - lambda: |-
           if (id(max_current_found_2) && id(data_found_2)) {
             ESP_LOGI(
@@ -1830,19 +1823,25 @@ script:
           id(max_current_found_3) = false; // Reset the flag before starting
           id(data_found_3) = false; // Reset the flag before starting
           id(search_counter_3) = 0; // Initialize a fail-safe counter
+
       - binary_sensor.invalidate_state: rectifier_capability_mismatch
+
       - while:
           condition:
             lambda: |-
               return !(id(max_current_found_3) && id(data_found_3)) && id(search_counter_3) < ${capability_discovery_attempts};
           then:
-            - canbus.send:
+            - script.execute:
+                id: send_single_shot_request
                 can_id: 0x108350FE
-                use_extended_id: true
-                data: [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+                data_0: 0x00
+                data_1: 0x00
+
             - delay: ${discovery_retry_delay}
+
             - lambda: |-
                 id(search_counter_3) += 1; // Increment the fail-safe counter
+
       - lambda: |-
           if (id(max_current_found_3) && id(data_found_3)) {
             ESP_LOGI(
@@ -7010,8 +7009,10 @@ interval:
 
                 then:
                   - script.execute:
-                      id: send_single_shot_offline_probe
-                      unit: 1
+                      id: send_single_shot_request
+                      can_id: 0x108140FE
+                      data_0: 0x00
+                      data_1: 0x00
 
             # --------------------------------------------------------------
             # Unit 2 probe slot
@@ -7026,8 +7027,10 @@ interval:
 
                 then:
                   - script.execute:
-                      id: send_single_shot_offline_probe
-                      unit: 2
+                      id: send_single_shot_request
+                      can_id: 0x108240FE
+                      data_0: 0x00
+                      data_1: 0x00
 
             # --------------------------------------------------------------
             # Unit 3 probe slot
@@ -7042,8 +7045,10 @@ interval:
 
                 then:
                   - script.execute:
-                      id: send_single_shot_offline_probe
-                      unit: 3
+                      id: send_single_shot_request
+                      can_id: 0x108340FE
+                      data_0: 0x00
+                      data_1: 0x00
 
             # Advance to the next unit for the following probe slot.
             - lambda: |-
@@ -7074,12 +7079,26 @@ interval:
   - interval: ${telemetry_poll_interval}
     then:
       - if:
-          condition:
-            lambda: |-
-              return
-                !id(detect_unit_1_properties).is_running() &&
-                !id(detect_unit_2_properties).is_running() &&
-                !id(detect_unit_3_properties).is_running();
+        condition:
+          lambda: |-
+            if (
+              id(detect_unit_1_properties).is_running() ||
+              id(detect_unit_2_properties).is_running() ||
+              id(detect_unit_3_properties).is_running()
+            ) {
+              return false;
+            }
+
+            twai_status_info_t status_info{};
+
+            if (twai_get_status_info(&status_info) != ESP_OK) {
+              return false;
+            }
+
+            return
+              status_info.state == TWAI_STATE_RUNNING &&
+              status_info.tx_error_counter <
+                ${fast_poll_tx_error_quiet_threshold}U;
 
           then:
             # --------------------------------------------------------------
@@ -7093,18 +7112,11 @@ interval:
                         ${rectifier_state_online};
 
                 then:
-                  - canbus.send:
-                      use_extended_id: true
+                  - script.execute:
+                      id: send_single_shot_request
                       can_id: 0x108140FE
-                      data:
-                        - 0x00
-                        - 0x00
-                        - 0x00
-                        - 0x00
-                        - 0x00
-                        - 0x00
-                        - 0x00
-                        - 0x00
+                      data_0: 0x00
+                      data_1: 0x00
 
             - delay: ${fan_query_delay}
 
@@ -7118,18 +7130,11 @@ interval:
                         ${rectifier_state_online};
 
                 then:
-                  - canbus.send:
-                      use_extended_id: true
+                  - script.execute:
+                      id: send_single_shot_request
                       can_id: 0x108182FE
-                      data:
-                        - 0x01
-                        - 0x87
-                        - 0x00
-                        - 0x00
-                        - 0x00
-                        - 0x00
-                        - 0x00
-                        - 0x00
+                      data_0: 0x01
+                      data_1: 0x87
 
             - delay: ${unit_2_poll_gap}
 
@@ -7144,18 +7149,11 @@ interval:
                         ${rectifier_state_online};
 
                 then:
-                  - canbus.send:
-                      use_extended_id: true
+                  - script.execute:
+                      id: send_single_shot_request
                       can_id: 0x108240FE
-                      data:
-                        - 0x00
-                        - 0x00
-                        - 0x00
-                        - 0x00
-                        - 0x00
-                        - 0x00
-                        - 0x00
-                        - 0x00
+                      data_0: 0x00
+                      data_1: 0x00
 
             - delay: ${fan_query_delay}
 
@@ -7167,18 +7165,11 @@ interval:
                         ${rectifier_state_online};
 
                 then:
-                  - canbus.send:
-                      use_extended_id: true
+                  - script.execute:
+                      id: send_single_shot_request
                       can_id: 0x108282FE
-                      data:
-                        - 0x01
-                        - 0x87
-                        - 0x00
-                        - 0x00
-                        - 0x00
-                        - 0x00
-                        - 0x00
-                        - 0x00
+                      data_0: 0x01
+                      data_1: 0x87
 
             - delay: ${unit_3_poll_gap}
 
@@ -7193,18 +7184,11 @@ interval:
                         ${rectifier_state_online};
 
                 then:
-                  - canbus.send:
-                      use_extended_id: true
+                  - script.execute:
+                      id: send_single_shot_request
                       can_id: 0x108340FE
-                      data:
-                        - 0x00
-                        - 0x00
-                        - 0x00
-                        - 0x00
-                        - 0x00
-                        - 0x00
-                        - 0x00
-                        - 0x00
+                      data_0: 0x00
+                      data_1: 0x00
 
             - delay: ${fan_query_delay}
 
@@ -7216,18 +7200,11 @@ interval:
                         ${rectifier_state_online};
 
                 then:
-                  - canbus.send:
-                      use_extended_id: true
+                  - script.execute:
+                      id: send_single_shot_request
                       can_id: 0x108382FE
-                      data:
-                        - 0x01
-                        - 0x87
-                        - 0x00
-                        - 0x00
-                        - 0x00
-                        - 0x00
-                        - 0x00
-                        - 0x00
+                      data_0: 0x01
+                      data_1: 0x87
 
   # --------------------------------------------------------------------------
   # Periodic task: active setpoint refresh
