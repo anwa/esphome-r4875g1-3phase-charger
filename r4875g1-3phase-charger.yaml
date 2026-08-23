@@ -128,6 +128,14 @@ substitutions:
   # into Error Warning / BUS_OFF. Normal CAN Error Warning starts at TEC 96.
   fast_poll_tx_error_quiet_threshold: "64"
 
+  # A recent valid response from an ONLINE rectifier proves that the physical
+  # CAN bus is currently usable even if the TWAI TX error counter is still
+  # elevated from an earlier outage.
+  #
+  # Keep this window short so a newly disconnected bus cannot continue fast
+  # polling for long merely because its last valid response is still recent.
+  fast_poll_recent_rx_ms: "1000"
+
   # Grace period after property discovery so normal cyclic polling has enough
   # time to resume before lifecycle connectivity is evaluated again.
   property_poll_resume_grace_ms: "2000"
@@ -7081,6 +7089,7 @@ interval:
       - if:
           condition:
             lambda: |-
+              // Property discovery deliberately owns the CAN bus exclusively.
               if (
                 id(detect_unit_1_properties).is_running() ||
                 id(detect_unit_2_properties).is_running() ||
@@ -7095,10 +7104,70 @@ interval:
                 return false;
               }
 
+              if (status_info.state != TWAI_STATE_RUNNING) {
+                return false;
+              }
+
+              const uint32_t now = millis();
+
+              // ------------------------------------------------------------
+              // Recent valid CAN RX
+              // ------------------------------------------------------------
+              // If an ONLINE unit has answered very recently, the physical
+              // CAN bus is demonstrably healthy. In that case fast polling
+              // may continue even while the TX error counter is still
+              // recovering from an earlier outage.
+              const auto has_recent_rx =
+                  [now](uint32_t last_rx) -> bool {
+
+                return
+                  last_rx != 0 &&
+                  static_cast<uint32_t>(
+                    now - last_rx
+                  ) < ${fast_poll_recent_rx_ms}U;
+              };
+
+              const bool recent_online_rx =
+                  (
+                    id(rectifier_control_state_1) ==
+                      ${rectifier_state_online} &&
+                    has_recent_rx(id(last_can_rx_1))
+                  ) ||
+                  (
+                    id(rectifier_control_state_2) ==
+                      ${rectifier_state_online} &&
+                    has_recent_rx(id(last_can_rx_2))
+                  ) ||
+                  (
+                    id(rectifier_control_state_3) ==
+                      ${rectifier_state_online} &&
+                    has_recent_rx(id(last_can_rx_3))
+                  );
+
+              // ------------------------------------------------------------
+              // Post-property-discovery resume grace
+              // ------------------------------------------------------------
+              // Discovery may complete while the TX error counter is still
+              // elevated from the previous outage. Give normal polling one
+              // opportunity to resume. Successful responses then keep
+              // recent_online_rx true and allow the TEC to recover naturally.
+              const bool property_resume_grace =
+                  id(last_property_discovery_end) != 0 &&
+                  static_cast<uint32_t>(
+                    now - id(last_property_discovery_end)
+                  ) < ${property_poll_resume_grace_ms}U;
+
+              // Normal case:
+              //   low TEC -> polling permitted
+              //
+              // Recovery case:
+              //   recent valid RX or just-completed discovery proves that the
+              //   bus is usable despite an elevated historical TEC.
               return
-                status_info.state == TWAI_STATE_RUNNING &&
                 status_info.tx_error_counter <
-                  ${fast_poll_tx_error_quiet_threshold}U;
+                  ${fast_poll_tx_error_quiet_threshold}U ||
+                recent_online_rx ||
+                property_resume_grace;
 
           then:
             # --------------------------------------------------------------
