@@ -33,7 +33,7 @@
 #          |
 #          +--> choose DC voltage or nominal three-unit DC power target
 #          +--> calculate the common per-unit current setpoint from that target
-#          +--> broadcast voltage/current setpoints over CAN
+#          +--> apply active voltage/current setpoints only to verified ONLINE units
 #          +--> long press starts/stops all units
 #
 # OFFLINE OPERATION
@@ -2885,202 +2885,284 @@ script:
   # --------------------------------------------------------------------------
   # blackstart_start
   # --------------------------------------------------------------------------
-  # Offline START sequence. Recalculates current, explicitly sends voltage and
-  # current setpoints, then evaluates each rectifier independently.
-  # A unit is eligible for START only when:
-  # - fresh cyclic CAN communication is available,
-  # - the CAN-reported power state is explicitly OFF,
-  # - a valid output temperature has been received,
-  # - the output temperature is not above the configured trip threshold,
+  # Local START sequence.
+  #
+  # The configured nominal three-unit power target is first converted into the
+  # common per-unit current command using the fixed divisor of three.
+  #
+  # Before any ON command is sent, active voltage/current setpoints are
+  # explicitly refreshed only to rectifiers that are fully ONLINE.
+  #
+  # A rectifier is eligible for START only when:
+  # - its lifecycle state is ONLINE,
+  # - fresh raw CAN communication is available,
+  # - its CAN-reported power state is explicitly OFF,
+  # - valid output-temperature telemetry is available,
+  # - output temperature is not above the configured trip threshold,
   # - no overtemperature lockout is active.
+  #
+  # OFFLINE and DISCOVERING rectifiers never receive an ON command.
   - id: blackstart_start
     mode: single
     then:
-      # Calculate per-unit current from voltage and the nominal three-unit power target.
+      # Recalculate the common per-unit current from the configured nominal
+      # three-unit DC power target. The divisor intentionally remains fixed at 3.
       - script.execute: apply_dc_sum_power
       - script.wait: apply_dc_sum_power
 
-      # Send voltage explicitly
-      - canbus.send:
-          use_extended_id: true
-          can_id: 0x108080FE
-          data: !lambda |-
-            std::vector<uint8_t> can_data(8, 0x00);
+      # Allow the optimistic number update/on_value path to settle before the
+      # explicit final setpoint refresh.
+      - delay: 25ms
 
-            can_data[0] = 0x01;
+      # Explicitly refresh active voltage/current only to fully ONLINE units.
+      - script.execute: refresh_active_setpoints_online
+      - script.wait: refresh_active_setpoints_online
 
-            int scaled_value =
-                (int)(id(set_dc_voltage_limit).state *
-                      id(voltage_scaling_factor));
+      - delay: 100ms
 
-            can_data[6] = (scaled_value >> 8) & 0xFF;
-            can_data[7] = scaled_value & 0xFF;
-
-            return can_data;
-
-      - delay: 50ms
-
-      # Send calculated current explicitly
-      - canbus.send:
-          use_extended_id: true
-          can_id: 0x108080FE
-          data: !lambda |-
-            std::vector<uint8_t> can_data(8, 0x00);
-
-            can_data[0] = 0x01;
-            can_data[1] = 0x03;
-
-            int scaled_value =
-                (int)(id(set_dc_current_limit).state *
-                      id(current_scaling_factor));
-
-            can_data[6] = (scaled_value >> 8) & 0xFF;
-            can_data[7] = scaled_value & 0xFF;
-
-            return can_data;
-
-      - delay: 250ms
-
-      # Start each rectifier individually.
-      #
-      # A unit is eligible for START only when:
-      # - fresh cyclic CAN communication is available,
-      # - a valid output temperature has been received,
-      # - the output temperature is not above the 90 °C trip threshold,
-      # - no overtemperature lockout is active.
-      #
-      # This also makes startup fail-safe after an ESP32 reboot: a unit cannot
-      # be started before its first valid temperature telemetry has arrived.
-
+      # ----------------------------------------------------------------------
       # Unit 1
+      # ----------------------------------------------------------------------
       - if:
           condition:
             lambda: |-
-              return id(can_com_ok_1).state &&
-                     id(power_state_1).state == "OFF" &&
-                     !isnan(id(output_temperature_1).state) &&
-                     id(output_temperature_1).state <= ${overtemp_trip_c}f &&
-                     !id(overtemp_lockout_1);
+              return
+                id(rectifier_control_state_1) ==
+                  ${rectifier_state_online} &&
+                id(can_com_ok_1).state &&
+                id(power_state_1).state == "OFF" &&
+                !isnan(id(output_temperature_1).state) &&
+                id(output_temperature_1).state <= ${overtemp_trip_c}f &&
+                !id(overtemp_lockout_1);
+
           then:
             - canbus.send:
                 use_extended_id: true
                 can_id: 0x108180FE
-                data: [0x01, 0x32, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+                data:
+                  - 0x01
+                  - 0x32
+                  - 0x00
+                  - 0x00
+                  - 0x00
+                  - 0x00
+                  - 0x00
+                  - 0x00
+
+            - logger.log:
+                level: INFO
+                format: "BLACKSTART: Unit 1 commanded ON."
+
           else:
             - lambda: |-
-                if (!id(can_com_ok_1).state) {
+                if (id(rectifier_control_state_1) !=
+                    ${rectifier_state_online}) {
+
+                  ESP_LOGW(
+                    "blackstart",
+                    "Unit 1 skipped - lifecycle state is not ONLINE."
+                  );
+
+                } else if (!id(can_com_ok_1).state) {
+
                   ESP_LOGW(
                     "blackstart",
                     "Unit 1 skipped - CAN communication unavailable."
                   );
+
                 } else if (id(power_state_1).state != "OFF") {
+
                   ESP_LOGW(
                     "blackstart",
                     "Unit 1 skipped - power state is %s, expected OFF.",
                     id(power_state_1).state.c_str()
                   );
+
                 } else if (isnan(id(output_temperature_1).state)) {
+
                   ESP_LOGW(
                     "blackstart",
                     "Unit 1 skipped - output temperature unavailable."
                   );
-                } else if (id(output_temperature_1).state > ${overtemp_trip_c}f) {
+
+                } else if (
+                    id(output_temperature_1).state >
+                      ${overtemp_trip_c}f) {
+
                   ESP_LOGW(
                     "blackstart",
                     "Unit 1 skipped - output temperature too high (%.1f°C).",
                     id(output_temperature_1).state
                   );
+
                 } else if (id(overtemp_lockout_1)) {
+
                   ESP_LOGW(
                     "blackstart",
                     "Unit 1 skipped - overtemperature lockout active."
                   );
                 }
 
+      # ----------------------------------------------------------------------
       # Unit 2
+      # ----------------------------------------------------------------------
       - if:
           condition:
             lambda: |-
-              return id(can_com_ok_2).state &&
-                     id(power_state_2).state == "OFF" &&
-                     !isnan(id(output_temperature_2).state) &&
-                     id(output_temperature_2).state <= ${overtemp_trip_c}f &&
-                     !id(overtemp_lockout_2);
+              return
+                id(rectifier_control_state_2) ==
+                  ${rectifier_state_online} &&
+                id(can_com_ok_2).state &&
+                id(power_state_2).state == "OFF" &&
+                !isnan(id(output_temperature_2).state) &&
+                id(output_temperature_2).state <= ${overtemp_trip_c}f &&
+                !id(overtemp_lockout_2);
+
           then:
             - canbus.send:
                 use_extended_id: true
                 can_id: 0x108280FE
-                data: [0x01, 0x32, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+                data:
+                  - 0x01
+                  - 0x32
+                  - 0x00
+                  - 0x00
+                  - 0x00
+                  - 0x00
+                  - 0x00
+                  - 0x00
+
+            - logger.log:
+                level: INFO
+                format: "BLACKSTART: Unit 2 commanded ON."
+
           else:
             - lambda: |-
-                if (!id(can_com_ok_2).state) {
+                if (id(rectifier_control_state_2) !=
+                    ${rectifier_state_online}) {
+
+                  ESP_LOGW(
+                    "blackstart",
+                    "Unit 2 skipped - lifecycle state is not ONLINE."
+                  );
+
+                } else if (!id(can_com_ok_2).state) {
+
                   ESP_LOGW(
                     "blackstart",
                     "Unit 2 skipped - CAN communication unavailable."
                   );
+
                 } else if (id(power_state_2).state != "OFF") {
+
                   ESP_LOGW(
                     "blackstart",
                     "Unit 2 skipped - power state is %s, expected OFF.",
                     id(power_state_2).state.c_str()
                   );
+
                 } else if (isnan(id(output_temperature_2).state)) {
+
                   ESP_LOGW(
                     "blackstart",
                     "Unit 2 skipped - output temperature unavailable."
                   );
-                } else if (id(output_temperature_2).state > ${overtemp_trip_c}f) {
+
+                } else if (
+                    id(output_temperature_2).state >
+                      ${overtemp_trip_c}f) {
+
                   ESP_LOGW(
                     "blackstart",
                     "Unit 2 skipped - output temperature too high (%.1f°C).",
                     id(output_temperature_2).state
                   );
+
                 } else if (id(overtemp_lockout_2)) {
+
                   ESP_LOGW(
                     "blackstart",
                     "Unit 2 skipped - overtemperature lockout active."
                   );
                 }
 
+      # ----------------------------------------------------------------------
       # Unit 3
+      # ----------------------------------------------------------------------
       - if:
           condition:
             lambda: |-
-              return id(can_com_ok_3).state &&
-                     id(power_state_3).state == "OFF" &&
-                     !isnan(id(output_temperature_3).state) &&
-                     id(output_temperature_3).state <= ${overtemp_trip_c}f &&
-                     !id(overtemp_lockout_3);
+              return
+                id(rectifier_control_state_3) ==
+                  ${rectifier_state_online} &&
+                id(can_com_ok_3).state &&
+                id(power_state_3).state == "OFF" &&
+                !isnan(id(output_temperature_3).state) &&
+                id(output_temperature_3).state <= ${overtemp_trip_c}f &&
+                !id(overtemp_lockout_3);
+
           then:
             - canbus.send:
                 use_extended_id: true
                 can_id: 0x108380FE
-                data: [0x01, 0x32, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+                data:
+                  - 0x01
+                  - 0x32
+                  - 0x00
+                  - 0x00
+                  - 0x00
+                  - 0x00
+                  - 0x00
+                  - 0x00
+
+            - logger.log:
+                level: INFO
+                format: "BLACKSTART: Unit 3 commanded ON."
+
           else:
             - lambda: |-
-                if (!id(can_com_ok_3).state) {
+                if (id(rectifier_control_state_3) !=
+                    ${rectifier_state_online}) {
+
+                  ESP_LOGW(
+                    "blackstart",
+                    "Unit 3 skipped - lifecycle state is not ONLINE."
+                  );
+
+                } else if (!id(can_com_ok_3).state) {
+
                   ESP_LOGW(
                     "blackstart",
                     "Unit 3 skipped - CAN communication unavailable."
                   );
+
                 } else if (id(power_state_3).state != "OFF") {
+
                   ESP_LOGW(
                     "blackstart",
                     "Unit 3 skipped - power state is %s, expected OFF.",
                     id(power_state_3).state.c_str()
                   );
+
                 } else if (isnan(id(output_temperature_3).state)) {
+
                   ESP_LOGW(
                     "blackstart",
                     "Unit 3 skipped - output temperature unavailable."
                   );
-                } else if (id(output_temperature_3).state > ${overtemp_trip_c}f) {
+
+                } else if (
+                    id(output_temperature_3).state >
+                      ${overtemp_trip_c}f) {
+
                   ESP_LOGW(
                     "blackstart",
                     "Unit 3 skipped - output temperature too high (%.1f°C).",
                     id(output_temperature_3).state
                   );
+
                 } else if (id(overtemp_lockout_3)) {
+
                   ESP_LOGW(
                     "blackstart",
                     "Unit 3 skipped - overtemperature lockout active."
@@ -3089,7 +3171,7 @@ script:
 
       - logger.log:
           level: INFO
-          format: "BLACKSTART: Start sequence completed; only units passing CAN, power-state, temperature and lockout checks were commanded ON."
+          format: "BLACKSTART: Start sequence completed; only fully ONLINE units passing CAN, explicit OFF-state, temperature and lockout checks were commanded ON."
 
   # --------------------------------------------------------------------------
   # blackstart_stop
@@ -6395,45 +6477,61 @@ binary_sensor:
                   : "DC Sum Power"
               );
           - component.update: tft
+
       # Long press:
       # Toggle rectifier units ON/OFF for local blackstart control.
       #
-      # Safety rules:
-      # - If at least one reachable unit reports ON, send STOP.
-      # - If CAN communication exists and no reachable unit reports ON, START.
-      # - If no unit is reachable at all, do nothing because the actual charger
-      #   state cannot be determined safely.
+      # STOP remains unrestricted and therefore takes precedence whenever any
+      # rectifier currently reports ON.
+      #
+      # START is allowed only when at least one rectifier is fully ONLINE and
+      # also has fresh raw CAN communication. blackstart_start performs the
+      # remaining per-unit OFF-state, temperature and lockout checks.
       - timing:
           - ON for at least 3000ms
         then:
+          # STOP always has priority. Sending OFF is intentionally unrestricted.
           - if:
               condition:
                 lambda: |-
                   return
-                    (id(can_com_ok_1).state &&
-                     id(power_state_1).state == "ON") ||
-                    (id(can_com_ok_2).state &&
-                     id(power_state_2).state == "ON") ||
-                    (id(can_com_ok_3).state &&
-                     id(power_state_3).state == "ON");
+                    id(power_state_1).state == "ON" ||
+                    id(power_state_2).state == "ON" ||
+                    id(power_state_3).state == "ON";
+
               then:
                 - script.execute: blackstart_stop
 
               else:
+                # START requires at least one fully ONLINE rectifier with fresh
+                # raw CAN communication.
                 - if:
                     condition:
                       lambda: |-
                         return
-                          id(can_com_ok_1).state ||
-                          id(can_com_ok_2).state ||
-                          id(can_com_ok_3).state;
+                          (
+                            id(rectifier_control_state_1) ==
+                              ${rectifier_state_online} &&
+                            id(can_com_ok_1).state
+                          ) ||
+                          (
+                            id(rectifier_control_state_2) ==
+                              ${rectifier_state_online} &&
+                            id(can_com_ok_2).state
+                          ) ||
+                          (
+                            id(rectifier_control_state_3) ==
+                              ${rectifier_state_online} &&
+                            id(can_com_ok_3).state
+                          );
+
                     then:
                       - script.execute: blackstart_start
 
                     else:
                       - logger.log:
                           level: WARN
-                          format: "BLACKSTART: Start/stop ignored - no rectifier CAN communication available."
+                          format: "BLACKSTART: START ignored - no fully ONLINE rectifier with fresh CAN communication is available."
 
   # CAN communication watchdogs
   #
@@ -7052,13 +7150,14 @@ interval:
 # fan overrides and manual unit discovery.
 button:
   # Broadcast ON command to all three rectifiers.
-  # Because this command cannot exclude individual units, all three rectifiers
-  # must have valid CAN communication, valid safe temperature telemetry and no
-  # active overtemperature lockout.
+  #
+  # Because a broadcast ON command cannot exclude an individual unit, every
+  # rectifier must be fully ONLINE and satisfy all START safety requirements.
   - platform: template
     name: "Turn On All Units"
     id: on_button_all
     icon: "mdi:power"
+
     on_press:
       then:
         - lambda: |-
@@ -7066,10 +7165,18 @@ button:
               "custom",
               "All Unit ON button pressed."
             );
+
         - if:
             condition:
               lambda: |-
                 return
+                  id(rectifier_control_state_1) ==
+                    ${rectifier_state_online} &&
+                  id(rectifier_control_state_2) ==
+                    ${rectifier_state_online} &&
+                  id(rectifier_control_state_3) ==
+                    ${rectifier_state_online} &&
+
                   id(can_com_ok_1).state &&
                   id(can_com_ok_2).state &&
                   id(can_com_ok_3).state &&
@@ -7082,31 +7189,53 @@ button:
                   !isnan(id(output_temperature_2).state) &&
                   !isnan(id(output_temperature_3).state) &&
 
-                  id(output_temperature_1).state <= ${overtemp_trip_c}f &&
-                  id(output_temperature_2).state <= ${overtemp_trip_c}f &&
-                  id(output_temperature_3).state <= ${overtemp_trip_c}f &&
+                  id(output_temperature_1).state <=
+                    ${overtemp_trip_c}f &&
+                  id(output_temperature_2).state <=
+                    ${overtemp_trip_c}f &&
+                  id(output_temperature_3).state <=
+                    ${overtemp_trip_c}f &&
 
                   !id(overtemp_lockout_1) &&
                   !id(overtemp_lockout_2) &&
                   !id(overtemp_lockout_3);
 
             then:
+              # Ensure all three verified ONLINE units have the latest active
+              # voltage/current values immediately before ON.
+              - script.execute: refresh_active_setpoints_online
+              - script.wait: refresh_active_setpoints_online
+
+              - delay: 100ms
+
               - canbus.send:
                   use_extended_id: true
                   can_id: 0x108080FE
-                  data: [0x01, 0x32, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+                  data:
+                    - 0x01
+                    - 0x32
+                    - 0x00
+                    - 0x00
+                    - 0x00
+                    - 0x00
+                    - 0x00
+                    - 0x00
+
+              - logger.log:
+                  level: INFO
+                  format: "All three verified ONLINE rectifiers commanded ON."
 
             else:
               - logger.log:
                   level: WARN
-                  format: "All ON blocked - all three units require valid CAN communication, explicit OFF state, valid safe temperature and no overtemperature lockout."
+                  format: "All ON blocked - all three units must be ONLINE with fresh CAN communication, explicit OFF state, valid safe temperature and no overtemperature lockout."
 
-  # Individual ON command for one rectifier; useful for diagnostics and service.
-  # Blocked while Unit 1 is in overtemperature lockout (see output_temperature_1).
+  # Individual ON command for Unit 1.
   - platform: template
     name: "Turn On Unit 1"
-    icon: "mdi:power"
     id: on_button_1
+    icon: "mdi:power"
+
     on_press:
       then:
         - lambda: |-
@@ -7114,30 +7243,61 @@ button:
               "custom",
               "Unit 1 ON Button pressed."
             );
+
         - if:
             condition:
               lambda: |-
-                return id(can_com_ok_1).state &&
-                       id(power_state_1).state == "OFF" &&
-                       !isnan(id(output_temperature_1).state) &&
-                       id(output_temperature_1).state <= ${overtemp_trip_c}f &&
-                       !id(overtemp_lockout_1);
+                return
+                  id(rectifier_control_state_1) ==
+                    ${rectifier_state_online} &&
+                  id(can_com_ok_1).state &&
+                  id(power_state_1).state == "OFF" &&
+                  !isnan(id(output_temperature_1).state) &&
+                  id(output_temperature_1).state <=
+                    ${overtemp_trip_c}f &&
+                  !id(overtemp_lockout_1);
+
             then:
+              # Reassert the latest active voltage/current specifically to
+              # Unit 1 before sending ON.
+              - lambda: |-
+                  id(send_active_voltage_to_unit)->execute(1);
+
+              - script.wait: send_active_voltage_to_unit
+
+              - delay: 50ms
+
+              - lambda: |-
+                  id(send_active_current_to_unit)->execute(1);
+
+              - script.wait: send_active_current_to_unit
+
+              - delay: 100ms
+
               - canbus.send:
                   use_extended_id: true
                   can_id: 0x108180FE
-                  data: [0x01, 0x32, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+                  data:
+                    - 0x01
+                    - 0x32
+                    - 0x00
+                    - 0x00
+                    - 0x00
+                    - 0x00
+                    - 0x00
+                    - 0x00
+
             else:
               - logger.log:
                   level: WARN
-                  format: "Unit 1 ON blocked - CAN communication, explicit OFF state, valid safe temperature and cleared overtemperature lockout are required."
+                  format: "Unit 1 ON blocked - ONLINE lifecycle state, fresh CAN communication, explicit OFF state, valid safe temperature and cleared overtemperature lockout are required."
 
-  # Individual ON command for one rectifier; useful for diagnostics and service.
-  # Blocked while Unit 2 is in overtemperature lockout (see output_temperature_2).
+  # Individual ON command for Unit 2.
   - platform: template
     name: "Turn On Unit 2"
-    icon: "mdi:power"
     id: on_button_2
+    icon: "mdi:power"
+
     on_press:
       then:
         - lambda: |-
@@ -7145,30 +7305,59 @@ button:
               "custom",
               "Unit 2 ON Button pressed."
             );
+
         - if:
             condition:
               lambda: |-
-                return id(can_com_ok_2).state &&
-                       id(power_state_2).state == "OFF" &&
-                       !isnan(id(output_temperature_2).state) &&
-                       id(output_temperature_2).state <= ${overtemp_trip_c}f &&
-                       !id(overtemp_lockout_2);
+                return
+                  id(rectifier_control_state_2) ==
+                    ${rectifier_state_online} &&
+                  id(can_com_ok_2).state &&
+                  id(power_state_2).state == "OFF" &&
+                  !isnan(id(output_temperature_2).state) &&
+                  id(output_temperature_2).state <=
+                    ${overtemp_trip_c}f &&
+                  !id(overtemp_lockout_2);
+
             then:
+              - lambda: |-
+                  id(send_active_voltage_to_unit)->execute(2);
+
+              - script.wait: send_active_voltage_to_unit
+
+              - delay: 50ms
+
+              - lambda: |-
+                  id(send_active_current_to_unit)->execute(2);
+
+              - script.wait: send_active_current_to_unit
+
+              - delay: 100ms
+
               - canbus.send:
                   use_extended_id: true
                   can_id: 0x108280FE
-                  data: [0x01, 0x32, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+                  data:
+                    - 0x01
+                    - 0x32
+                    - 0x00
+                    - 0x00
+                    - 0x00
+                    - 0x00
+                    - 0x00
+                    - 0x00
+
             else:
               - logger.log:
                   level: WARN
-                  format: "Unit 2 ON blocked - CAN communication, explicit OFF state, valid safe temperature and cleared overtemperature lockout are required."
+                  format: "Unit 2 ON blocked - ONLINE lifecycle state, fresh CAN communication, explicit OFF state, valid safe temperature and cleared overtemperature lockout are required."
 
-  # Individual ON command for one rectifier; useful for diagnostics and service.
-  # Blocked while Unit 3 is in overtemperature lockout (see output_temperature_3).
+  # Individual ON command for Unit 3.
   - platform: template
     name: "Turn On Unit 3"
-    icon: "mdi:power"
     id: on_button_3
+    icon: "mdi:power"
+
     on_press:
       then:
         - lambda: |-
@@ -7176,23 +7365,52 @@ button:
               "custom",
               "Unit 3 ON Button pressed."
             );
+
         - if:
             condition:
               lambda: |-
-                return id(can_com_ok_3).state &&
-                       id(power_state_3).state == "OFF" &&
-                       !isnan(id(output_temperature_3).state) &&
-                       id(output_temperature_3).state <= ${overtemp_trip_c}f &&
-                       !id(overtemp_lockout_3);
+                return
+                  id(rectifier_control_state_3) ==
+                    ${rectifier_state_online} &&
+                  id(can_com_ok_3).state &&
+                  id(power_state_3).state == "OFF" &&
+                  !isnan(id(output_temperature_3).state) &&
+                  id(output_temperature_3).state <=
+                    ${overtemp_trip_c}f &&
+                  !id(overtemp_lockout_3);
+
             then:
+              - lambda: |-
+                  id(send_active_voltage_to_unit)->execute(3);
+
+              - script.wait: send_active_voltage_to_unit
+
+              - delay: 50ms
+
+              - lambda: |-
+                  id(send_active_current_to_unit)->execute(3);
+
+              - script.wait: send_active_current_to_unit
+
+              - delay: 100ms
+
               - canbus.send:
                   use_extended_id: true
                   can_id: 0x108380FE
-                  data: [0x01, 0x32, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+                  data:
+                    - 0x01
+                    - 0x32
+                    - 0x00
+                    - 0x00
+                    - 0x00
+                    - 0x00
+                    - 0x00
+                    - 0x00
+
             else:
               - logger.log:
                   level: WARN
-                  format: "Unit 3 ON blocked - CAN communication, explicit OFF state, valid safe temperature and cleared overtemperature lockout are required."
+                  format: "Unit 3 ON blocked - ONLINE lifecycle state, fresh CAN communication, explicit OFF state, valid safe temperature and cleared overtemperature lockout are required."
 
   # Broadcast OFF command to all three rectifiers.
   - platform: template
