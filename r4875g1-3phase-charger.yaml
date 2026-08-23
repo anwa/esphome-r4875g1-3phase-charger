@@ -7079,26 +7079,26 @@ interval:
   - interval: ${telemetry_poll_interval}
     then:
       - if:
-        condition:
-          lambda: |-
-            if (
-              id(detect_unit_1_properties).is_running() ||
-              id(detect_unit_2_properties).is_running() ||
-              id(detect_unit_3_properties).is_running()
-            ) {
-              return false;
-            }
+          condition:
+            lambda: |-
+              if (
+                id(detect_unit_1_properties).is_running() ||
+                id(detect_unit_2_properties).is_running() ||
+                id(detect_unit_3_properties).is_running()
+              ) {
+                return false;
+              }
 
-            twai_status_info_t status_info{};
+              twai_status_info_t status_info{};
 
-            if (twai_get_status_info(&status_info) != ESP_OK) {
-              return false;
-            }
+              if (twai_get_status_info(&status_info) != ESP_OK) {
+                return false;
+              }
 
-            return
-              status_info.state == TWAI_STATE_RUNNING &&
-              status_info.tx_error_counter <
-                ${fast_poll_tx_error_quiet_threshold}U;
+              return
+                status_info.state == TWAI_STATE_RUNNING &&
+                status_info.tx_error_counter <
+                  ${fast_poll_tx_error_quiet_threshold}U;
 
           then:
             # --------------------------------------------------------------
