@@ -37,8 +37,10 @@ The project combines CAN-bus control, live telemetry, Home Assistant integration
     - [Offline-oriented behaviour](#offline-oriented-behaviour)
   - [CAN Communication](#can-communication)
   - [Telemetry Decoding](#telemetry-decoding)
+    - [Fan telemetry](#fan-telemetry)
     - [Voltage/value scaling](#voltagevalue-scaling)
     - [Current scaling](#current-scaling)
+    - [Rectifier capability consistency](#rectifier-capability-consistency)
   - [CAN Communication Watchdog](#can-communication-watchdog)
   - [Combined AC and DC Values](#combined-ac-and-dc-values)
     - [Combined AC power](#combined-ac-power)
@@ -54,6 +56,7 @@ The project combines CAN-bus control, live telemetry, Home Assistant integration
     - [Header](#header)
     - [Per-unit lines](#per-unit-lines)
     - [Local setpoints](#local-setpoints)
+    - [First-boot setpoint defaults](#first-boot-setpoint-defaults)
     - [Charger state](#charger-state)
     - [Footer](#footer)
   - [Display Power Management](#display-power-management)
@@ -72,7 +75,7 @@ The project combines CAN-bus control, live telemetry, Home Assistant integration
   - [4. Compile](#4-compile)
   - [5. First flash](#5-first-flash)
   - [6. Verify CAN wiring](#6-verify-can-wiring)
-  - [7. Run Unit Discovery](#7-run-unit-discovery)
+  - [7. Verify Unit Discovery](#7-verify-unit-discovery)
 - [secrets.yaml](#secretsyaml)
 - [Local Operation](#local-operation)
   - [Rotate while DC Voltage is selected](#rotate-while-dc-voltage-is-selected)
@@ -89,6 +92,7 @@ The project combines CAN-bus control, live telemetry, Home Assistant integration
   - [Setpoint refresh](#setpoint-refresh)
 - [Troubleshooting](#troubleshooting)
   - [Display shows `CAN bus communication fault!`](#display-shows-can-bus-communication-fault)
+  - [Display shows `Telemetry incomplete!`](#display-shows-telemetry-incomplete)
   - [Only one or two units appear in AC Input](#only-one-or-two-units-appear-in-ac-input)
   - [Encoder values react slowly or continue changing after rotation](#encoder-values-react-slowly-or-continue-changing-after-rotation)
   - [Encoder button behaves incorrectly](#encoder-button-behaves-incorrectly)
@@ -210,8 +214,10 @@ The ESP32 does not carry the CAN physical layer directly. This build uses an **S
 - Individual unit ON/OFF commands.
 - Broadcast ON/OFF commands.
 - Fan full-speed and automatic fan commands.
+- Configurable minimum fan duty.
 - Fallback voltage and current settings.
 - Periodic retransmission of voltage/current setpoints.
+- Runtime effective DC-current limit derived from detected rectifier capabilities.
 
 ## Local blackstart operation
 
@@ -225,10 +231,13 @@ The ESP32 does not carry the CAN physical layer directly. This build uses an **S
   - nominal three-unit DC charging power target.
 - Controller calculates the required current per rectifier automatically.
 - Local START requires valid CAN communication with at least one rectifier.
+- Each rectifier must report an explicit `OFF` state before it can be started.
+- Units reporting `ERROR` or `UNKNOWN` are never started.
+- Valid and safe output-temperature telemetry is required before START.
 
 ## Telemetry
 
-Per unit, the controller decodes values including:
+Per rectifier, the controller decodes values including:
 
 - AC input power,
 - DC output power,
@@ -240,33 +249,49 @@ Per unit, the controller decodes values including:
 - configured maximum output current,
 - input temperature,
 - output temperature,
-- fan speed,
-- actual fan duty,
-- requested fan duty,
+- fan RPM,
+- minimum fan duty,
+- fan duty target,
 - power state,
+- operating hours,
+- maximum-current capability,
+- hardware address / shelf information,
+- static unit identification information.
+
+Controller-side environmental telemetry is provided separately by the AHT10 sensor:
+
 - ambient temperature,
-- ambient relative humidity,
-- unit capability and identification information.
+- ambient relative humidity.
+
+The AHT10 values describe the controller environment and are not per-rectifier measurements.
 
 ## Reliability and fault handling
 
 - Independent CAN communication watchdog for each rectifier.
-- A unit is considered offline when valid cyclic telemetry has not been received for 3 seconds.
-- Live per-unit telemetry sensors use a 5-second freshness timeout and become unavailable when no new CAN value is received.
-- The telemetry timeout applies to live voltage, current, power, frequency, temperature, current-setpoint and fan-speed measurements.
+- Valid cyclic telemetry normally provides the per-unit CAN heartbeat.
+- Valid property START/DATA and END frames also refresh the corresponding CAN watchdog during discovery.
+- A unit is considered offline when no valid per-unit CAN activity has been received within the configured 3-second watchdog period.
+- Live per-unit telemetry sensors use a 5-second freshness timeout and become unavailable when no new value is received.
+- The telemetry timeout applies to live voltage, current, power, frequency, temperature, current-setpoint and fan measurements.
 - Static discovery information, hardware capabilities and lifetime operating-hour counters retain their last valid values across temporary CAN communication loss.
 - The reported power state is changed to `UNKNOWN` when a unit loses CAN communication.
-- Stale `ON`/`OFF` states are never used for local charger start/stop decisions.
+- Stale `ON`/`OFF` states are never used for local charger start decisions.
 - Local START is inhibited when no rectifier has valid CAN communication.
+- Rectifiers with unavailable or unsafe temperature telemetry cannot be started.
 - Failed units are excluded from combined AC/DC power calculations.
 - Stale unit values are not included in combined power.
-- Display replaces unavailable unit values with a clear CAN communication fault message.
-- AC and DC overviews continue operating with one or two units if other units lose communication.
+- CAN communication loss and incomplete live telemetry are displayed as separate fault conditions.
+- AC and DC overviews continue operating with one or two units if other units lose communication or valid telemetry.
 - AC and DC overview headers show how many of the three rectifier units currently contribute valid telemetry.
-- The DC overview displays a CAN communication fault instead of an invalid `nan` value when no rectifier telemetry is available.
+- The DC overview displays a communication fault instead of an invalid `nan` value when no valid rectifier power telemetry is available.
+- Per-unit TFT lines validate all required numeric values before formatting them.
 - Maximum-current capabilities of all three rectifiers are compared automatically.
 - A diagnostic problem entity reports a mismatch between rectifier hardware capabilities.
 - Capability consistency remains `unknown` until all three rectifiers have supplied valid capability data.
+- Automatic unit discovery waits for rectifier startup stabilization.
+- Large property responses use an enlarged 64-frame TWAI receive queue.
+- Normal telemetry/fan polling is temporarily suspended during property-response reception.
+- Automatic and manual discovery requests share one serialized discovery queue so large responses from different rectifiers cannot overlap.
 
 ## Display
 
@@ -275,7 +300,9 @@ Per unit, the controller decodes values including:
 - Live AC and DC information.
 - Per-unit DC values and temperatures.
 - Per-unit CAN fault indication.
-- Local voltage and total-power setpoints.
+- Separate indication for reachable units with incomplete live telemetry.
+- No direct formatting of unavailable `NaN` per-unit telemetry values.
+- Local voltage and nominal three-unit power setpoints.
 - Selected encoder field highlighted.
 - Charger state display (`OFF`, `1/3 ON`, `2/3 ON`, `3/3 ON`).
 - IP address, CPU temperature, and Wi-Fi RSSI footer.
@@ -1339,17 +1366,19 @@ Four stable custom command topics are assigned directly to the corresponding
 ESPHome number entities:
 
 ```text
-home/canbus/set_dc_voltage
-home/canbus/set_dc_current
-home/canbus/set_dc_voltage_fallback
-home/canbus/set_dc_current_fallback
+HG/DG/Technik/Charger/set_dc_voltage
+HG/DG/Technik/Charger/set_dc_current
+HG/DG/Technik/Charger/set_dc_voltage_fallback
+HG/DG/Technik/Charger/set_dc_current_fallback
 ```
 
 The common command namespace is defined once in the YAML as:
 
 ```yaml
-mqtt_command_prefix: "home/canbus"
+mqtt_command_prefix: "HG/DG/Technik/Charger"
 ```
+
+The individual command topics are constructed from this shared prefix.
 
 MQTT commands use ESPHome's native number command handling. Payloads must be
 valid numeric values and must remain within the configured range of the
@@ -1357,8 +1386,8 @@ corresponding number entity.
 
 No intermediate MQTT subscribe text sensors are required.
 
-MQTT failure does not restart the ESP32 and does not affect local CAN or
-blackstart operation.
+MQTT failure does not restart the ESP32 and does not affect local CAN,
+display, encoder or blackstart operation.
 
 ## Energy Counters
 
@@ -1385,19 +1414,20 @@ daily energy values.
 - **[CAN Bus Module SN65HVD230 Transceiver](https://www.ebay.de/itm/187121483571?mkevt=1&mkpid=0&emsid=e11412.m144671.l197929&mkcid=7&ch=osgood&euid=a3c94179b4b74512bcd68a2bfb44fee2&bu=43162872420&exe=0&ext=0&osub=-1%7E1&crd=20260816180453&segname=11412)** or another suitable 3.3 V CAN transceiver
 - ILI9488 display if local display functionality is required
 - rotary encoder with push button if local blackstart control is required
+- AHT10 sensor if ambient controller temperature/humidity monitoring is required
 - one to three compatible rectifier units; this project is specifically developed for three R4875G1 units
 
 ## 1. Copy the YAML
 
-Place the project YAML in your ESPHome configuration directory, for example:
+Place the project YAML in your ESPHome configuration directory:
 
 ```text
-/config/esphome/3PhaseCharger.yaml
+/config/esphome/r4875g1-3phase-charger.yaml
 ```
 
 ## 2. Configure secrets
 
-Create or update `secrets.yaml` with the required network and API credentials.
+Create or update `secrets.yaml` with the required network, API, MQTT and web-server credentials.
 
 See the example below.
 
@@ -1406,7 +1436,7 @@ See the example below.
 From an ESPHome CLI installation:
 
 ```bash
-esphome config 3PhaseCharger.yaml
+esphome config r4875g1-3phase-charger.yaml
 ```
 
 or validate it from the ESPHome dashboard.
@@ -1414,7 +1444,7 @@ or validate it from the ESPHome dashboard.
 ## 4. Compile
 
 ```bash
-esphome compile 3PhaseCharger.yaml
+esphome compile r4875g1-3phase-charger.yaml
 ```
 
 ## 5. First flash
@@ -1424,7 +1454,7 @@ For the first installation, connect the ESP32-S3 by USB and use ESPHome's normal
 For example:
 
 ```bash
-esphome run 3PhaseCharger.yaml
+esphome run r4875g1-3phase-charger.yaml
 ```
 
 After the first successful installation, OTA updates can normally be used.
@@ -1433,12 +1463,12 @@ After the first successful installation, OTA updates can normally be used.
 
 Before enabling high-power charging, verify:
 
-- correct CAN-H/CAN-L polarity,
-- correct CAN bus termination,
-- common reference/ground requirements of your chosen CAN transceiver,
-- 125 kbit/s operation,
-- correct unit addresses/physical configuration,
-- valid telemetry from each unit.
+* correct CAN-H/CAN-L polarity,
+* correct CAN bus termination,
+* common reference/ground requirements of your chosen CAN transceiver,
+* 125 kbit/s operation,
+* correct unit addresses/physical configuration,
+* valid telemetry from each unit.
 
 The Home Assistant diagnostic entities:
 
@@ -1448,15 +1478,29 @@ CAN Communication Unit 2
 CAN Communication Unit 3
 ```
 
-should become connected/ON when valid cyclic telemetry is being received.
+should become connected/ON when valid per-unit CAN communication is received.
+
+During normal operation cyclic telemetry provides the communication heartbeat. During property discovery, valid property frames also refresh the corresponding CAN watchdog.
 
 ## 7. Verify Unit Discovery
 
-Unit discovery starts automatically when valid CAN communication becomes available.
+Unit discovery starts automatically when valid CAN communication with a rectifier becomes available.
 
-Check that the expected unit identification and maximum-current values are populated.
+Automatic discovery waits for the configured startup-stabilization period before the request is submitted to the shared serialized discovery queue.
+
+Check that the expected values are populated, including:
+
+* board type,
+* barcode,
+* item number,
+* description,
+* manufacturing date,
+* maximum-current capability,
+* hardware address / shelf information.
 
 The `Discover Rectifier Units` button can be used to manually repeat the full discovery sequence for diagnostics or after hardware changes.
+
+Manual discovery uses the same serialized discovery queue as automatic discovery.
 
 ---
 
@@ -1608,22 +1652,31 @@ The following table documents the main CAN IDs used by this project. It is inten
 | `0x108180FE` | ESP → Unit 1 | Individual control |
 | `0x108280FE` | ESP → Unit 2 | Individual control |
 | `0x108380FE` | ESP → Unit 3 | Individual control |
-| `0x1081827E` | Unit 1 → ESP | Fan duty, duty setpoint and RPM |
-| `0x1082827E` | Unit 2 → ESP | Fan duty, duty setpoint and RPM |
-| `0x1083827E` | Unit 3 → ESP | Fan duty, duty setpoint and RPM |
+| `0x1081827E` | Unit 1 → ESP | Fan minimum duty, duty target and RPM |
+| `0x1082827E` | Unit 2 → ESP | Fan minimum duty, duty target and RPM |
+| `0x1083827E` | Unit 3 → ESP | Fan minimum duty, duty target and RPM |
+
+The `0x01 / 0x87` fan telemetry response uses three 16-bit big-endian values:
+
+```text
+bytes 2..3 = minimum fan duty
+bytes 4..5 = fan duty target
+bytes 6..7 = fan RPM
+```
 
 Broadcast command payloads in the current project include functions for:
 
-- output voltage,
-- output current,
-- fallback voltage,
-- fallback current,
-- ON/OFF,
-- fan control.
+* output voltage,
+* output current,
+* fallback voltage,
+* fallback current,
+* ON/OFF,
+* minimum fan duty,
+* fan automatic/full-speed control.
 
 For deeper protocol information, see the upstream project and its protocol resources:
 
-https://github.com/mjpalmowski/CAN-BUS-control-R4875G1-with-ESPHome-and-MQTT
+[https://github.com/mjpalmowski/CAN-BUS-control-R4875G1-with-ESPHome-and-MQTT](https://github.com/mjpalmowski/CAN-BUS-control-R4875G1-with-ESPHome-and-MQTT)
 
 ---
 
@@ -1718,13 +1771,41 @@ Check:
 - common reference where required,
 - cable quality and topology.
 
-The CAN watchdog needs a valid cyclic telemetry frame within 3 seconds.
+The per-unit CAN watchdog requires valid CAN activity within its configured 3-second timeout.
+
+During normal operation cyclic telemetry provides the heartbeat. Valid property START/DATA and END frames can also refresh the watchdog while discovery is active.
+
+If no valid per-unit CAN activity is received before the timeout expires, the corresponding unit is marked offline and its reported power state is changed to `UNKNOWN`.
+
+## Display shows `Telemetry incomplete!`
+
+This message means the rectifier is still considered reachable over CAN, but one or more values required for its TFT line are currently unavailable.
+
+Each per-unit display line requires valid:
+
+- DC voltage,
+- DC current,
+- DC power,
+- input temperature,
+- output temperature.
+
+Possible causes include:
+
+- cyclic telemetry has only just started after rectifier power-up,
+- one telemetry selector has not yet been received,
+- live telemetry polling is temporarily suspended during property discovery,
+- one or more sensor values have exceeded their 5-second freshness timeout,
+- temporary CAN frame loss without complete loss of communication.
+
+This condition is intentionally different from `CAN bus communication fault!`.
+
+The TFT never formats unavailable per-unit values directly as `nan`.
 
 ## Only one or two units appear in AC Input
 
 This is intentional fault-tolerant behaviour.
 
-The `(x/3)` indicator shows how many units currently have valid CAN communication and valid telemetry.
+The `(x/3)` indicator shows how many units currently have both valid CAN communication and all telemetry values required for the AC overview.
 
 Example:
 
@@ -1733,6 +1814,8 @@ AC Input: 5.4 kW (2/3)
 ```
 
 means only two units are currently contributing to the displayed AC values.
+
+A unit may temporarily be excluded even while its CAN watchdog remains online if one of the required live AC telemetry values is unavailable.
 
 ## Encoder values react slowly or continue changing after rotation
 
@@ -1744,12 +1827,12 @@ The current design changes the internal setpoint immediately and lets the displa
 
 Check:
 
-- KEY connected to GPIO2,
-- 3.3 V logic,
-- ground connection,
-- internal pull-up enabled,
-- active-low/inverted input,
-- mechanical switch quality.
+* KEY connected to GPIO2,
+* 3.3 V logic,
+* ground connection,
+* internal pull-up enabled,
+* active-low/inverted input,
+* mechanical switch quality.
 
 The configuration uses a 30 ms `delayed_on_off` debounce filter.
 
@@ -1757,9 +1840,9 @@ The configuration uses a 30 ms `delayed_on_off` debounce filter.
 
 The inactivity timer is reset by:
 
-- clockwise encoder movement,
-- anticlockwise encoder movement,
-- encoder-button press.
+* clockwise encoder movement,
+* anticlockwise encoder movement,
+* encoder-button press.
 
 After the last input, it waits 5 minutes and then fades the backlight out over 10 seconds.
 
@@ -1769,45 +1852,64 @@ Check in this order:
 
 1. ESP32/controller has independent power.
 2. CAN communication is valid.
-3. External AC source is available to the rectifiers.
-4. Voltage setpoint is appropriate.
-5. Total power/current is appropriate.
-6. Long press is held for at least 3 seconds.
-7. Unit power-state sensors change to ON.
-8. BMS or external DC protection is not blocking current.
+3. Rectifier power state is explicitly `OFF`.
+4. Output-temperature telemetry is available and current.
+5. Output temperature is below the configured trip threshold.
+6. No overtemperature lockout is active.
+7. External AC source is available to the rectifiers.
+8. Voltage setpoint is appropriate.
+9. Total power/current is appropriate.
+10. Long press is held for at least 3 seconds.
+11. Unit power-state sensors change to `ON`.
+12. BMS or external DC protection is not blocking current.
+
+Units reporting `ERROR` or `UNKNOWN` are intentionally prevented from receiving an ON command.
 
 ---
 
 # Known Limitations
 
 - The firmware is optimized for **three identical R4875G1 units**.
-- The current calculation always divides total requested power by three, even if one unit has lost CAN communication. The local setpoint model therefore assumes the intended three-unit system is available for charging.
-- Current scaling is global and derived from Unit 1.
-- If all units are offline, the combined DC power sensor becomes unavailable. The current DC header on the TFT formats the combined sensor directly, so depending on ESPHome display formatting it may show an unavailable/NaN representation until a dedicated DC-header communication-fault branch is added.
+- The nominal total-power calculation always divides the requested power by three, even if one or more rectifiers are unavailable. This is intentional: the controller does not automatically increase current on the remaining visible units to compensate for a missing rectifier.
+- Actual combined output power therefore falls to approximately two-thirds or one-third of the configured nominal three-unit target when only two or one rectifiers are operating.
+- Current-command scaling is shared globally and is derived from Unit 1. Mixed rectifier models or units with different current-scaling behaviour are not fully supported.
+- Capability mismatch detection is diagnostic and does not currently inhibit charger operation automatically.
 - SNTP-based time requires network access to synchronize after a cold start.
+- Network-independent blackstart still requires the ESP32 controller and CAN interface themselves to have a suitable independent power source.
 - This project does not replace correctly engineered hardware safety mechanisms such as fuses, breakers, contactors, BMS protection, thermal protection, earthing or isolation.
 
 ---
 
 # Repository Structure
 
-A minimal repository can look like:
+The current repository contains:
 
 ```text
 .
-├── 3PhaseCharger.yaml      # Main ESPHome configuration
-├── README.md               # Project documentation
-├── secrets.yaml            # Local credentials - DO NOT COMMIT
-└── .gitignore
+├── LICENSE
+├── README.md
+└── r4875g1-3phase-charger.yaml
 ```
 
-Recommended `.gitignore` entry:
+The main ESPHome configuration is:
+
+```text
+r4875g1-3phase-charger.yaml
+```
+
+A local ESPHome installation additionally requires a `secrets.yaml` file containing credentials referenced by the configuration.
+
+`secrets.yaml` must not be committed to a public repository.
+
+A recommended local `.gitignore` entry is therefore:
 
 ```gitignore
 secrets.yaml
 ```
 
-If screenshots, wiring diagrams, enclosure CAD or PCB files are later added, a structure such as the following can keep the repository organized:
+The repository does not currently require a larger directory hierarchy.
+
+If screenshots, wiring diagrams, enclosure CAD, PCB files or additional protocol documentation are added later, a structure such as the following can keep the repository organized:
 
 ```text
 .
@@ -1816,8 +1918,10 @@ If screenshots, wiring diagrams, enclosure CAD or PCB files are later added, a s
 │   ├── wiring/
 │   └── can-notes/
 ├── hardware/
-├── 3PhaseCharger.yaml
-└── README.md
+├── CODE_REVIEW.md
+├── LICENSE
+├── README.md
+└── r4875g1-3phase-charger.yaml
 ```
 
 ---
