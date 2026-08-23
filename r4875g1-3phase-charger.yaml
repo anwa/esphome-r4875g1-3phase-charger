@@ -1449,6 +1449,132 @@ script:
                 );
 
   # --------------------------------------------------------------------------
+  # send_single_shot_offline_probe
+  # --------------------------------------------------------------------------
+  # Sends exactly one cyclic telemetry request to an OFFLINE rectifier.
+  #
+  # ESPHome's normal canbus.send path uses the standard TWAI transmission mode.
+  # When no CAN peer is present, the hardware automatically retries an
+  # unacknowledged frame and can quickly drive the controller into BUS_OFF.
+  #
+  # Offline reachability probes therefore bypass canbus.send and use the
+  # ESP-IDF TWAI_MSG_FLAG_SS flag:
+  #
+  #   SS = Single Shot
+  #
+  # The frame is attempted exactly once. A missing ACK does not cause automatic
+  # retransmission of that same frame.
+  #
+  # This project uses exactly one ESP32 CAN controller. ESPHome installs it as
+  # TWAI controller 0, therefore the legacy twai_transmit() wrapper addresses
+  # the same driver instance used by ESPHome's internal twai_transmit_v2().
+  - id: send_single_shot_offline_probe
+    mode: queued
+    max_runs: 4
+
+    parameters:
+      unit: int
+
+    then:
+      - lambda: |-
+          uint32_t can_id = 0;
+
+          switch (unit) {
+            case 1:
+              can_id = 0x108140FE;
+              break;
+
+            case 2:
+              can_id = 0x108240FE;
+              break;
+
+            case 3:
+              can_id = 0x108340FE;
+              break;
+
+            default:
+              ESP_LOGW(
+                "offline_probe",
+                "Invalid rectifier unit for single-shot probe: %d",
+                unit
+              );
+              return;
+          }
+
+          // Do not enqueue application traffic while the TWAI controller is
+          // BUS_OFF, recovering or stopped. The dedicated recovery task owns
+          // those controller states.
+          twai_status_info_t status_info{};
+
+          const esp_err_t status_result =
+              twai_get_status_info(&status_info);
+
+          if (status_result != ESP_OK) {
+            ESP_LOGW(
+              "offline_probe",
+              "Unable to read TWAI status before Unit %d probe: %s",
+              unit,
+              esp_err_to_name(status_result)
+            );
+            return;
+          }
+
+          if (status_info.state != TWAI_STATE_RUNNING) {
+            ESP_LOGD(
+              "offline_probe",
+              "Unit %d probe skipped because TWAI is not RUNNING.",
+              unit
+            );
+            return;
+          }
+
+          twai_message_t message{};
+
+          message.flags =
+              TWAI_MSG_FLAG_EXTD |
+              TWAI_MSG_FLAG_SS;
+
+          message.identifier =
+              can_id;
+
+          message.data_length_code =
+              8;
+
+          memset(
+            message.data,
+            0x00,
+            sizeof(message.data)
+          );
+
+          // Non-blocking queue operation.
+          //
+          // ESP_OK means the frame was accepted for transmission; it does not
+          // imply that another CAN node acknowledged it.
+          const esp_err_t transmit_result =
+              twai_transmit(
+                &message,
+                0
+              );
+
+          if (transmit_result != ESP_OK) {
+            ESP_LOGD(
+              "offline_probe",
+              "Single-shot probe for Unit %d could not be queued: %s",
+              unit,
+              esp_err_to_name(transmit_result)
+            );
+            return;
+          }
+
+          ESP_LOGD(
+            "offline_probe",
+            "Single-shot reconnect probe queued for Unit %d "
+            "(CAN ID 0x%08lX).",
+            unit,
+            static_cast<unsigned long>(can_id)
+          );
+
+  # --------------------------------------------------------------------------
   # detect_unit_1_properties
   # --------------------------------------------------------------------------
   # Requests Unit 1's static multi-frame property block.
@@ -6883,18 +7009,9 @@ interval:
                         ${rectifier_state_offline};
 
                 then:
-                  - canbus.send:
-                      use_extended_id: true
-                      can_id: 0x108140FE
-                      data:
-                        - 0x00
-                        - 0x00
-                        - 0x00
-                        - 0x00
-                        - 0x00
-                        - 0x00
-                        - 0x00
-                        - 0x00
+                  - script.execute:
+                      id: send_single_shot_offline_probe
+                      unit: 1
 
             # --------------------------------------------------------------
             # Unit 2 probe slot
@@ -6908,18 +7025,9 @@ interval:
                         ${rectifier_state_offline};
 
                 then:
-                  - canbus.send:
-                      use_extended_id: true
-                      can_id: 0x108240FE
-                      data:
-                        - 0x00
-                        - 0x00
-                        - 0x00
-                        - 0x00
-                        - 0x00
-                        - 0x00
-                        - 0x00
-                        - 0x00
+                  - script.execute:
+                      id: send_single_shot_offline_probe
+                      unit: 2
 
             # --------------------------------------------------------------
             # Unit 3 probe slot
@@ -6933,18 +7041,9 @@ interval:
                         ${rectifier_state_offline};
 
                 then:
-                  - canbus.send:
-                      use_extended_id: true
-                      can_id: 0x108340FE
-                      data:
-                        - 0x00
-                        - 0x00
-                        - 0x00
-                        - 0x00
-                        - 0x00
-                        - 0x00
-                        - 0x00
-                        - 0x00
+                  - script.execute:
+                      id: send_single_shot_offline_probe
+                      unit: 3
 
             # Advance to the next unit for the following probe slot.
             - lambda: |-
