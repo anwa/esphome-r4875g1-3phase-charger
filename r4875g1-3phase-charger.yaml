@@ -2290,10 +2290,8 @@ script:
   # sequence are routed through this queue so only one discovery operation can
   # use the CAN bus at a time.
   #
-  # After a fully successful discovery, the currently configured active DC
-  # voltage and current setpoints are immediately reapplied. This restores
-  # normal operation after a rectifier has temporarily operated from its
-  # internal fallback settings during a CAN outage.
+  # A successfully discovered unit receives its configured active DC voltage
+  # and current before transitioning from DISCOVERING to ONLINE.
   #
   # unit:
   #   0 = full manual discovery sequence
@@ -2303,85 +2301,50 @@ script:
   - id: discovery_queue
     mode: queued
     max_runs: 8
+
     parameters:
       unit: int
+
     then:
-      # Full three-unit discovery sequence.
+      # ----------------------------------------------------------------------
+      # Full three-unit discovery
+      # ----------------------------------------------------------------------
       - if:
           condition:
-            lambda: |-
-              return unit == 0;
+            lambda: 'return unit == 0;'
+
           then:
             - logger.log:
                 level: INFO
-                format: "Discovery queue: Unit 1 verified after full discovery - restoring active DC setpoints."
-            - lambda: 'id(reapply_active_setpoints)->execute(1);'
-            - script.wait: reapply_active_setpoints
+                format: "Discovery queue: starting full three-unit discovery."
+
+            # Prevent normal fast polling and duplicate automatic discovery
+            # triggers while the manual discovery is running.
             - script.execute:
                 id: set_rectifier_control_state
                 unit: 1
-                state: ${rectifier_state_online}
+                state: ${rectifier_state_discovering}
 
-            - lambda: 'id(reapply_active_setpoints)->execute(2);'
-            - script.wait: reapply_active_setpoints
             - script.execute:
                 id: set_rectifier_control_state
                 unit: 2
-                state: ${rectifier_state_online}
+                state: ${rectifier_state_discovering}
 
-            - lambda: 'id(reapply_active_setpoints)->execute(3);'
-            - script.wait: reapply_active_setpoints
             - script.execute:
                 id: set_rectifier_control_state
                 unit: 3
-                state: ${rectifier_state_online}
+                state: ${rectifier_state_discovering}
 
-            - script.execute: setup_sequence
-            - script.wait: setup_sequence
+            # --------------------------------------------------------------
+            # Unit 1
+            # --------------------------------------------------------------
+            - logger.log:
+                level: INFO
+                format: "Discovery queue: starting Unit 1 discovery."
 
-            # A manual full discovery may be performed while fewer than three
-            # units are available. Reapply the shared active setpoints when at
-            # least one currently reachable unit completed a fully verified
-            # discovery.
-            - if:
-                condition:
-                  lambda: |-
-                    const bool unit_1_ok =
-                        id(can_com_ok_1).state &&
-                        id(unit_properties_complete_1) &&
-                        id(max_current_found_1) &&
-                        id(data_found_1);
+            - script.execute: discover_unit_1
+            - script.wait: discover_unit_1
 
-                    const bool unit_2_ok =
-                        id(can_com_ok_2).state &&
-                        id(unit_properties_complete_2) &&
-                        id(max_current_found_2) &&
-                        id(data_found_2);
-
-                    const bool unit_3_ok =
-                        id(can_com_ok_3).state &&
-                        id(unit_properties_complete_3) &&
-                        id(max_current_found_3) &&
-                        id(data_found_3);
-
-                    return unit_1_ok ||
-                           unit_2_ok ||
-                           unit_3_ok;
-
-                then:
-                  - logger.log:
-                      level: INFO
-                      format: "Discovery queue: verified discovery available - restoring active DC setpoints."
-
-                  - script.execute: reapply_active_setpoints
-                  - script.wait: reapply_active_setpoints
-
-                else:
-                  - logger.log:
-                      level: WARN
-                      format: "Discovery queue: no fully verified reachable unit after full discovery - immediate setpoint restore skipped."
-
-            # Publish the resulting control state independently for every unit.
             - if:
                 condition:
                   lambda: |-
@@ -2392,16 +2355,37 @@ script:
                       id(data_found_1);
 
                 then:
+                  - logger.log:
+                      level: INFO
+                      format: "Discovery queue: Unit 1 discovery verified - restoring active DC setpoints."
+
+                  - lambda: 'id(reapply_active_setpoints)->execute(1);'
+                  - script.wait: reapply_active_setpoints
+
                   - script.execute:
                       id: set_rectifier_control_state
                       unit: 1
                       state: ${rectifier_state_online}
 
                 else:
+                  - logger.log:
+                      level: WARN
+                      format: "Discovery queue: Unit 1 discovery incomplete - returning unit to OFFLINE."
+
                   - script.execute:
                       id: set_rectifier_control_state
                       unit: 1
                       state: ${rectifier_state_offline}
+
+            # --------------------------------------------------------------
+            # Unit 2
+            # --------------------------------------------------------------
+            - logger.log:
+                level: INFO
+                format: "Discovery queue: starting Unit 2 discovery."
+
+            - script.execute: discover_unit_2
+            - script.wait: discover_unit_2
 
             - if:
                 condition:
@@ -2413,16 +2397,37 @@ script:
                       id(data_found_2);
 
                 then:
+                  - logger.log:
+                      level: INFO
+                      format: "Discovery queue: Unit 2 discovery verified - restoring active DC setpoints."
+
+                  - lambda: 'id(reapply_active_setpoints)->execute(2);'
+                  - script.wait: reapply_active_setpoints
+
                   - script.execute:
                       id: set_rectifier_control_state
                       unit: 2
                       state: ${rectifier_state_online}
 
                 else:
+                  - logger.log:
+                      level: WARN
+                      format: "Discovery queue: Unit 2 discovery incomplete - returning unit to OFFLINE."
+
                   - script.execute:
                       id: set_rectifier_control_state
                       unit: 2
                       state: ${rectifier_state_offline}
+
+            # --------------------------------------------------------------
+            # Unit 3
+            # --------------------------------------------------------------
+            - logger.log:
+                level: INFO
+                format: "Discovery queue: starting Unit 3 discovery."
+
+            - script.execute: discover_unit_3
+            - script.wait: discover_unit_3
 
             - if:
                 condition:
@@ -2434,12 +2439,23 @@ script:
                       id(data_found_3);
 
                 then:
+                  - logger.log:
+                      level: INFO
+                      format: "Discovery queue: Unit 3 discovery verified - restoring active DC setpoints."
+
+                  - lambda: 'id(reapply_active_setpoints)->execute(3);'
+                  - script.wait: reapply_active_setpoints
+
                   - script.execute:
                       id: set_rectifier_control_state
                       unit: 3
                       state: ${rectifier_state_online}
 
                 else:
+                  - logger.log:
+                      level: WARN
+                      format: "Discovery queue: Unit 3 discovery incomplete - returning unit to OFFLINE."
+
                   - script.execute:
                       id: set_rectifier_control_state
                       unit: 3
@@ -2449,163 +2465,174 @@ script:
                 level: INFO
                 format: "Discovery queue: full three-unit discovery completed."
 
-          else:
-            # Unit 1
+      # ----------------------------------------------------------------------
+      # Unit 1 automatic / individual discovery
+      # ----------------------------------------------------------------------
+      - if:
+          condition:
+            lambda: 'return unit == 1;'
+
+          then:
+            - logger.log:
+                level: INFO
+                format: "Discovery queue: starting Unit 1 discovery."
+
+            - script.execute: discover_unit_1
+            - script.wait: discover_unit_1
+
             - if:
                 condition:
                   lambda: |-
-                    return unit == 1;
+                    return
+                      id(can_com_ok_1).state &&
+                      id(unit_properties_complete_1) &&
+                      id(max_current_found_1) &&
+                      id(data_found_1);
+
                 then:
                   - logger.log:
                       level: INFO
-                      format: "Discovery queue: starting Unit 1 discovery."
+                      format: "Discovery queue: Unit 1 discovery verified - restoring active DC setpoints."
 
-                  - script.execute: discover_unit_1
-                  - script.wait: discover_unit_1
+                  - lambda: 'id(reapply_active_setpoints)->execute(1);'
+                  - script.wait: reapply_active_setpoints
 
-                  - if:
-                      condition:
-                        lambda: |-
-                          return
-                            id(can_com_ok_1).state &&
-                            id(unit_properties_complete_1) &&
-                            id(max_current_found_1) &&
-                            id(data_found_1);
-
-                      then:
-                        - logger.log:
-                            level: INFO
-                            format: "Discovery queue: Unit 1 discovery verified - restoring active DC setpoints."
-
-                        - lambda: 'id(reapply_active_setpoints)->execute(1);'
-                        - script.wait: reapply_active_setpoints
-
-                        - script.execute:
-                            id: set_rectifier_control_state
-                            unit: 1
-                            state: ${rectifier_state_online}
-
-                      else:
-                        - logger.log:
-                            level: WARN
-                            format: "Discovery queue: Unit 1 discovery incomplete - immediate setpoint restore skipped."
-
-                        - script.execute:
-                            id: set_rectifier_control_state
-                            unit: 1
-                            state: ${rectifier_state_offline}
-
-                  - logger.log:
-                      level: INFO
-                      format: "Discovery queue: Unit 1 discovery completed."
+                  - script.execute:
+                      id: set_rectifier_control_state
+                      unit: 1
+                      state: ${rectifier_state_online}
 
                 else:
-                  # Unit 2
-                  - if:
-                      condition:
-                        lambda: |-
-                          return unit == 2;
-                      then:
-                        - logger.log:
-                            level: INFO
-                            format: "Discovery queue: starting Unit 2 discovery."
+                  - logger.log:
+                      level: WARN
+                      format: "Discovery queue: Unit 1 discovery incomplete - returning unit to OFFLINE."
 
-                        - script.execute: discover_unit_2
-                        - script.wait: discover_unit_2
+                  - script.execute:
+                      id: set_rectifier_control_state
+                      unit: 1
+                      state: ${rectifier_state_offline}
 
-                        - if:
-                            condition:
-                              lambda: |-
-                                return
-                                  id(can_com_ok_2).state &&
-                                  id(unit_properties_complete_2) &&
-                                  id(max_current_found_2) &&
-                                  id(data_found_2);
+            - logger.log:
+                level: INFO
+                format: "Discovery queue: Unit 1 discovery completed."
 
-                            then:
-                              - logger.log:
-                                  level: INFO
-                                  format: "Discovery queue: Unit 2 discovery verified - restoring active DC setpoints."
+      # ----------------------------------------------------------------------
+      # Unit 2 automatic / individual discovery
+      # ----------------------------------------------------------------------
+      - if:
+          condition:
+            lambda: 'return unit == 2;'
 
-                              - lambda: 'id(reapply_active_setpoints)->execute(2);'
-                              - script.wait: reapply_active_setpoints
+          then:
+            - logger.log:
+                level: INFO
+                format: "Discovery queue: starting Unit 2 discovery."
 
-                              - script.execute:
-                                  id: set_rectifier_control_state
-                                  unit: 2
-                                  state: ${rectifier_state_online}
+            - script.execute: discover_unit_2
+            - script.wait: discover_unit_2
 
-                            else:
-                              - logger.log:
-                                  level: WARN
-                                  format: "Discovery queue: Unit 2 discovery incomplete - immediate setpoint restore skipped."
+            - if:
+                condition:
+                  lambda: |-
+                    return
+                      id(can_com_ok_2).state &&
+                      id(unit_properties_complete_2) &&
+                      id(max_current_found_2) &&
+                      id(data_found_2);
 
-                              - script.execute:
-                                  id: set_rectifier_control_state
-                                  unit: 2
-                                  state: ${rectifier_state_offline}
+                then:
+                  - logger.log:
+                      level: INFO
+                      format: "Discovery queue: Unit 2 discovery verified - restoring active DC setpoints."
 
-                        - logger.log:
-                            level: INFO
-                            format: "Discovery queue: Unit 2 discovery completed."
+                  - lambda: 'id(reapply_active_setpoints)->execute(2);'
+                  - script.wait: reapply_active_setpoints
 
-                      else:
-                        # Unit 3
-                        - if:
-                            condition:
-                              lambda: |-
-                                return unit == 3;
-                            then:
-                              - logger.log:
-                                  level: INFO
-                                  format: "Discovery queue: starting Unit 3 discovery."
+                  - script.execute:
+                      id: set_rectifier_control_state
+                      unit: 2
+                      state: ${rectifier_state_online}
 
-                              - script.execute: discover_unit_3
-                              - script.wait: discover_unit_3
+                else:
+                  - logger.log:
+                      level: WARN
+                      format: "Discovery queue: Unit 2 discovery incomplete - returning unit to OFFLINE."
 
-                              - if:
-                                  condition:
-                                    lambda: |-
-                                      return
-                                        id(can_com_ok_3).state &&
-                                        id(unit_properties_complete_3) &&
-                                        id(max_current_found_3) &&
-                                        id(data_found_3);
+                  - script.execute:
+                      id: set_rectifier_control_state
+                      unit: 2
+                      state: ${rectifier_state_offline}
 
-                                  then:
-                                    - logger.log:
-                                        level: INFO
-                                        format: "Discovery queue: Unit 3 discovery verified - restoring active DC setpoints."
+            - logger.log:
+                level: INFO
+                format: "Discovery queue: Unit 2 discovery completed."
 
-                                    - lambda: 'id(reapply_active_setpoints)->execute(3);'
-                                    - script.wait: reapply_active_setpoints
+      # ----------------------------------------------------------------------
+      # Unit 3 automatic / individual discovery
+      # ----------------------------------------------------------------------
+      - if:
+          condition:
+            lambda: 'return unit == 3;'
 
-                                    - script.execute:
-                                        id: set_rectifier_control_state
-                                        unit: 3
-                                        state: ${rectifier_state_online}
+          then:
+            - logger.log:
+                level: INFO
+                format: "Discovery queue: starting Unit 3 discovery."
 
-                                  else:
-                                    - logger.log:
-                                        level: WARN
-                                        format: "Discovery queue: Unit 3 discovery incomplete - immediate setpoint restore skipped."
+            - script.execute: discover_unit_3
+            - script.wait: discover_unit_3
 
-                                    - script.execute:
-                                        id: set_rectifier_control_state
-                                        unit: 3
-                                        state: ${rectifier_state_offline}
+            - if:
+                condition:
+                  lambda: |-
+                    return
+                      id(can_com_ok_3).state &&
+                      id(unit_properties_complete_3) &&
+                      id(max_current_found_3) &&
+                      id(data_found_3);
 
-                              - logger.log:
-                                  level: INFO
-                                  format: "Discovery queue: Unit 3 discovery completed."
+                then:
+                  - logger.log:
+                      level: INFO
+                      format: "Discovery queue: Unit 3 discovery verified - restoring active DC setpoints."
 
-                            else:
-                              - lambda: |-
-                                  ESP_LOGW(
-                                    "discovery",
-                                    "Discovery queue received invalid unit number: %d",
-                                    unit
-                                  );
+                  - lambda: 'id(reapply_active_setpoints)->execute(3);'
+                  - script.wait: reapply_active_setpoints
+
+                  - script.execute:
+                      id: set_rectifier_control_state
+                      unit: 3
+                      state: ${rectifier_state_online}
+
+                else:
+                  - logger.log:
+                      level: WARN
+                      format: "Discovery queue: Unit 3 discovery incomplete - returning unit to OFFLINE."
+
+                  - script.execute:
+                      id: set_rectifier_control_state
+                      unit: 3
+                      state: ${rectifier_state_offline}
+
+            - logger.log:
+                level: INFO
+                format: "Discovery queue: Unit 3 discovery completed."
+
+      # ----------------------------------------------------------------------
+      # Invalid parameter
+      # ----------------------------------------------------------------------
+      - if:
+          condition:
+            lambda: |-
+              return unit < 0 || unit > 3;
+
+          then:
+            - lambda: |-
+                ESP_LOGW(
+                  "discovery",
+                  "Discovery queue received invalid unit number: %d",
+                  unit
+                );
 
   # --------------------------------------------------------------------------
   # apply_dc_sum_power
@@ -3611,9 +3638,6 @@ canbus:
                 return;
               }
 
-              // A valid address response confirms active communication during discovery.
-              id(last_can_rx_1) = millis();
-
               const uint8_t packet_number =
                   static_cast<uint8_t>(x[1]);
 
@@ -3686,9 +3710,6 @@ canbus:
                 return;
               }
 
-              // A valid address response confirms active communication during discovery.
-              id(last_can_rx_2) = millis();
-
               const uint8_t packet_number =
                   static_cast<uint8_t>(x[1]);
 
@@ -3759,9 +3780,6 @@ canbus:
                 );
                 return;
               }
-
-              // A valid address response confirms active communication during discovery.
-              id(last_can_rx_3) = millis();
 
               const uint8_t packet_number =
                   static_cast<uint8_t>(x[1]);
@@ -3977,6 +3995,9 @@ canbus:
                 return;
               }
 
+              // A valid address response confirms active communication during discovery.
+              id(last_can_rx_1) = millis();
+
               ESP_LOGI(
                 "canbus",
                 "Unit 1: Received CAN message 0x1081507E (Packet 6)"
@@ -4030,6 +4051,9 @@ canbus:
                 return;
               }
 
+              // A valid address response confirms active communication during discovery.
+              id(last_can_rx_2) = millis();
+
               ESP_LOGI(
                 "canbus",
                 "Unit 2: Received CAN message 0x1082507E (Packet 6)"
@@ -4082,6 +4106,9 @@ canbus:
                 );
                 return;
               }
+
+              // A valid address response confirms active communication during discovery.
+              id(last_can_rx_3) = millis();
 
               ESP_LOGI(
                 "canbus",
@@ -6676,7 +6703,7 @@ interval:
                     return
                       id(offline_probe_next_unit) == 1 &&
                       id(rectifier_control_state_1) ==
-                        ${rectifier_state_online};
+                        ${rectifier_state_offline};
 
                 then:
                   - canbus.send:
@@ -6701,7 +6728,7 @@ interval:
                     return
                       id(offline_probe_next_unit) == 2 &&
                       id(rectifier_control_state_2) ==
-                        ${rectifier_state_online};
+                        ${rectifier_state_offline};
 
                 then:
                   - canbus.send:
@@ -6726,7 +6753,7 @@ interval:
                     return
                       id(offline_probe_next_unit) == 3 &&
                       id(rectifier_control_state_3) ==
-                        ${rectifier_state_online};
+                        ${rectifier_state_offline};
 
                 then:
                   - canbus.send:
@@ -6791,7 +6818,7 @@ interval:
                   lambda: |-
                     return
                       id(rectifier_control_state_1) !=
-                        ${rectifier_state_offline};
+                        ${rectifier_state_online};
 
                 then:
                   - canbus.send:
@@ -6842,7 +6869,7 @@ interval:
                   lambda: |-
                     return
                       id(rectifier_control_state_2) !=
-                        ${rectifier_state_offline};
+                        ${rectifier_state_online};
 
                 then:
                   - canbus.send:
@@ -6891,7 +6918,7 @@ interval:
                   lambda: |-
                     return
                       id(rectifier_control_state_3) !=
-                        ${rectifier_state_offline};
+                        ${rectifier_state_online};
 
                 then:
                   - canbus.send:
