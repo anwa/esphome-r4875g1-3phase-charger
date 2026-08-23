@@ -1928,28 +1928,93 @@ If screenshots, wiring diagrams, enclosure CAD, PCB files or additional protocol
 
 # Credits and Licensing Notes
 
-This project is a derivative/evolution of work originally published by **mjpalmowski** in:
+This project is a derivative and substantial evolution of work originally published by **mjpalmowski** in:
 
 **CAN-BUS-control-R4875G1-with-ESPHome-and-MQTT**  
 https://github.com/mjpalmowski/CAN-BUS-control-R4875G1-with-ESPHome-and-MQTT
 
-The upstream project is licensed under the MIT License:
+The upstream project provided important groundwork for:
+
+- Huawei R48xx CAN protocol research,
+- rectifier telemetry decoding,
+- CAN control commands,
+- property and capability discovery,
+- ESPHome integration,
+- MQTT/Home Assistant integration,
+- multi-unit rectifier control.
+
+The upstream project is licensed under the **MIT License** and carries the following copyright notice:
 
 ```text
-MIT License
 Copyright (c) 2024 mjpalmowski
 ```
 
-The MIT license requires the upstream copyright notice and permission notice to be included in copies or substantial portions of the upstream software.
+This repository is also distributed under the **MIT License**.
 
-This README does **not** automatically assign a license to the additional work in this repository. Add an appropriate `LICENSE` file for this project according to how you want your own additions to be licensed, while preserving any notices required for upstream-derived portions.
+The current project's additional development carries:
 
-Special thanks to the upstream author and contributors for documenting the Huawei R48xx CAN protocol and making the original ESPHome implementation publicly available.
+```text
+Copyright (c) 2026 Andreas Wansner
+```
+
+The repository's `LICENSE` file retains both copyright notices and the complete MIT permission and warranty disclaimer.
+
+The upstream copyright remains applicable to code and substantial portions derived from the original project. The additional copyright notice applies to the later modifications, extensions and original work developed in this repository.
+
+Major additions and changes in this project include, among other things:
+
+* dedicated three-phase R4875G1 charger operation,
+* ESP32-S3 hardware support,
+* local 480×320 TFT user interface,
+* rotary-encoder control,
+* network-independent blackstart operation,
+* per-unit CAN communication watchdogs,
+* fail-safe rectifier start validation,
+* temperature protection and lockout handling,
+* CAN-aware aggregate telemetry,
+* runtime rectifier capability validation,
+* reliable hot-start discovery,
+* serialized multi-unit discovery,
+* enlarged CAN receive buffering for multi-frame property responses,
+* live telemetry freshness handling,
+* local display fault handling,
+* fan telemetry decoding,
+* centralized operating limits and timing configuration,
+* expanded project documentation.
+
+The MIT License permits use, copying, modification, distribution, sublicensing and sale of the software, subject to preservation of the applicable copyright and permission notices.
+
+Special thanks to **mjpalmowski** and the upstream contributors for publishing their Huawei R48xx CAN research and ESPHome implementation and making further development of this project possible.
 
 ---
 
 ## Disclaimer
 
-This software and documentation are provided for experimental and educational DIY use. No guarantee is made regarding correctness, electrical safety, battery compatibility, regulatory compliance, or suitability for any particular installation.
+This software and documentation are provided for experimental and educational DIY use.
 
-Before connecting high-power rectifiers to a battery or inverter system, verify all limits independently and design the installation so that software failure cannot defeat essential electrical protection.
+The project controls equipment connected to mains voltage, high-current DC power systems and batteries. Software operation must never be relied upon as the sole safety mechanism.
+
+No guarantee is made regarding:
+
+* correctness,
+* electrical safety,
+* battery compatibility,
+* inverter compatibility,
+* regulatory compliance,
+* protection coordination,
+* electromagnetic compatibility,
+* suitability for any particular installation.
+
+Before connecting high-power rectifiers to a battery, inverter or DC distribution system, independently verify all electrical limits and protection requirements.
+
+The installation must be designed so that software failure, controller failure, CAN communication failure or incorrect configuration cannot defeat essential hardware protection such as:
+
+* fuses,
+* circuit breakers,
+* contactors or disconnects,
+* battery-management-system protection,
+* overcurrent protection,
+* overtemperature protection,
+* earthing,
+* isolation,
+* appropriately rated conductors and busbars.
