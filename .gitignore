@@ -1,0 +1,23 @@
+# ESPHome secrets
+secrets.yaml
+
+# ESPHome generated files and build cache
+.esphome/
+
+# Compiled firmware / build artifacts
+*.bin
+*.elf
+*.map
+
+# Python cache files
+__pycache__/
+*.py[cod]
+
+# Operating system files
+.DS_Store
+Thumbs.db
+
+# Editor backup files
+*~
+*.swp
+*.swo

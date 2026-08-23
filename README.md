@@ -1882,10 +1882,11 @@ Units reporting `ERROR` or `UNKNOWN` are intentionally prevented from receiving 
 
 # Repository Structure
 
-The current repository contains:
+The repository intentionally uses a small and flat structure:
 
 ```text
 .
+├── .gitignore
 ├── LICENSE
 ├── README.md
 └── r4875g1-3phase-charger.yaml
@@ -1897,19 +1898,17 @@ The main ESPHome configuration is:
 r4875g1-3phase-charger.yaml
 ```
 
+The `.gitignore` prevents local credentials, ESPHome build data and common temporary files from being committed accidentally.
+
 A local ESPHome installation additionally requires a `secrets.yaml` file containing credentials referenced by the configuration.
 
-`secrets.yaml` must not be committed to a public repository.
+`secrets.yaml` must never be committed to a public repository.
 
-A recommended local `.gitignore` entry is therefore:
+The project currently does not require a larger directory hierarchy. Keeping the firmware configuration, documentation and license at repository root makes the project easy to clone, inspect and use.
 
-```gitignore
-secrets.yaml
-```
+If screenshots, wiring diagrams, enclosure CAD, PCB files or additional protocol documentation are added later, the repository can be expanded without changing the location of the main ESPHome configuration.
 
-The repository does not currently require a larger directory hierarchy.
-
-If screenshots, wiring diagrams, enclosure CAD, PCB files or additional protocol documentation are added later, a structure such as the following can keep the repository organized:
+For example:
 
 ```text
 .
@@ -1918,11 +1917,13 @@ If screenshots, wiring diagrams, enclosure CAD, PCB files or additional protocol
 │   ├── wiring/
 │   └── can-notes/
 ├── hardware/
-├── CODE_REVIEW.md
+├── .gitignore
 ├── LICENSE
 ├── README.md
 └── r4875g1-3phase-charger.yaml
 ```
+
+Generated ESPHome build artifacts and local credentials should remain outside version control regardless of future repository structure.
 
 ---
 
