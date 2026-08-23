@@ -5839,10 +5839,10 @@ interval:
             ESP_LOGW(
               "can_recovery",
               "TWAI controller BUS_OFF "
-              "(TX errors: %u, bus errors: %u). "
+              "(TX errors: %lu, bus errors: %lu). "
               "Starting recovery.",
-              status_info.tx_error_counter,
-              status_info.bus_error_count
+              static_cast<unsigned long>(status_info.tx_error_counter),
+              static_cast<unsigned long>(status_info.bus_error_count)
             );
 
             const esp_err_t recovery_result =
