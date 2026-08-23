@@ -56,10 +56,13 @@
 #
 # COMMUNICATION HEALTH
 # --------------------
-# Each valid cyclic telemetry frame refreshes last_can_rx_1..3. If no telemetry
-# is seen from a unit for 3 seconds, its can_com_ok_x binary sensor becomes
-# false. Display and combined-power logic then ignore stale values from that
-# unit instead of presenting them as live data.
+# Valid per-unit CAN activity refreshes last_can_rx_1..3. During normal
+# operation cyclic telemetry provides the heartbeat; valid property frames also
+# refresh it while discovery temporarily suspends cyclic polling.
+#
+# If no valid CAN activity is received within can_watchdog_timeout_ms,
+# can_com_ok_x becomes false. Display and aggregate logic then ignore stale
+# values from that unit.
 # ==============================================================================
 # ==============================================================================
 # ESPHOME DEVICE IDENTITY AND BOOT ACTIONS
@@ -75,6 +78,10 @@ substitutions:
   # --------------------------------------------------------------------------
   project_max_dc_current_a: "75.0"
   minimum_dc_current_a: "1.0"
+
+  dc_voltage_min_v: "49.0"
+  dc_voltage_max_v: "58.0"
+  dc_voltage_default_v: "53.0"
 
   overtemp_trip_c: "90.0"
   overtemp_reset_c: "80.0"
@@ -834,20 +841,25 @@ globals:
     restore_value: false
     initial_value: "0"
 
-  # Timestamp (millis) of the last valid cyclic telemetry frame from Unit 1.
-  # Used by the communication watchdog to detect stale/lost communication.
+  # Timestamp (millis) of the most recent valid CAN activity from Unit 1.
+  # Normally refreshed by cyclic telemetry and additionally by valid property
+  # frames during discovery.
   - id: last_can_rx_1
     type: uint32_t
     restore_value: false
     initial_value: "0"
 
-  # Same watchdog timestamp for Unit 2.
+  # Timestamp (millis) of the most recent valid CAN activity from Unit 12.
+  # Normally refreshed by cyclic telemetry and additionally by valid property
+  # frames during discovery.
   - id: last_can_rx_2
     type: uint32_t
     restore_value: false
     initial_value: "0"
 
-  # Same watchdog timestamp for Unit 3.
+  # Timestamp (millis) of the most recent valid CAN activity from Unit 3.
+  # Normally refreshed by cyclic telemetry and additionally by valid property
+  # frames during discovery.
   - id: last_can_rx_3
     type: uint32_t
     restore_value: false
@@ -884,12 +896,13 @@ globals:
     initial_value: "${project_max_dc_current_a}f"
     restore_value: false
 
-  # Fixed-point protocol scale used by voltage and most
-  # telemetry fields. 1024 means one engineering unit equals 1024 raw counts.
+  # Fixed-point protocol scale used by voltage and most telemetry fields.
+  # This is a protocol constant and must always start from protocol_value_scale;
+  # it is therefore never restored from persistent storage.
   - id: voltage_scaling_factor
     type: int
     initial_value: "${protocol_value_scale}"
-    restore_value: true
+    restore_value: false
 
   # Discovery flag: maximum-current capability for Unit 1
   # has been received during the current search.
@@ -4087,9 +4100,6 @@ sensor:
         # --------------------------------------------------------------
         # Overtemperature trip
         # --------------------------------------------------------------
-        # Trigger only once when the temperature first exceeds 90 °C.
-        # Setting the lockout before sending OFF prevents subsequent
-        # telemetry updates above 90 °C from sending repeated OFF frames.
         - if:
             condition:
               lambda: |-
@@ -4102,8 +4112,10 @@ sensor:
 
                   ESP_LOGW(
                     "overtemp",
-                    "Unit 1 exceeded 90°C (%.1f°C). "
+                    "Unit 1 exceeded configured trip threshold %.1f°C "
+                    "(actual %.1f°C). "
                     "Sending CAN OFF and engaging overtemperature lockout.",
+                    ${overtemp_trip_c}f,
                     x
                   );
 
@@ -4115,8 +4127,6 @@ sensor:
         # --------------------------------------------------------------
         # Overtemperature recovery
         # --------------------------------------------------------------
-        # Keep the lockout active throughout the 80..90 °C hysteresis
-        # range. Only temperatures below 80 °C release the unit again.
         - if:
             condition:
               lambda: |-
@@ -4129,8 +4139,10 @@ sensor:
 
                   ESP_LOGI(
                     "overtemp",
-                    "Unit 1 cooled below 80°C (%.1f°C). "
+                    "Unit 1 cooled below configured reset threshold %.1f°C "
+                    "(actual %.1f°C). "
                     "Overtemperature lockout cleared.",
+                    ${overtemp_reset_c}f,
                     x
                   );
 
@@ -4171,8 +4183,10 @@ sensor:
 
                   ESP_LOGW(
                     "overtemp",
-                    "Unit 2 exceeded 90°C (%.1f°C). "
+                    "Unit 2 exceeded configured trip threshold %.1f°C "
+                    "(actual %.1f°C). "
                     "Sending CAN OFF and engaging overtemperature lockout.",
+                    ${overtemp_trip_c}f,
                     x
                   );
 
@@ -4196,8 +4210,10 @@ sensor:
 
                   ESP_LOGI(
                     "overtemp",
-                    "Unit 2 cooled below 80°C (%.1f°C). "
+                    "Unit 2 cooled below configured reset threshold %.1f°C "
+                    "(actual %.1f°C). "
                     "Overtemperature lockout cleared.",
+                    ${overtemp_reset_c}f,
                     x
                   );
 
@@ -4238,8 +4254,10 @@ sensor:
 
                   ESP_LOGW(
                     "overtemp",
-                    "Unit 3 exceeded 90°C (%.1f°C). "
+                    "Unit 3 exceeded configured trip threshold %.1f°C "
+                    "(actual %.1f°C). "
                     "Sending CAN OFF and engaging overtemperature lockout.",
+                    ${overtemp_trip_c}f,
                     x
                   );
 
@@ -4263,8 +4281,10 @@ sensor:
 
                   ESP_LOGI(
                     "overtemp",
-                    "Unit 3 cooled below 80°C (%.1f°C). "
+                    "Unit 3 cooled below configured reset threshold %.1f°C "
+                    "(actual %.1f°C). "
                     "Overtemperature lockout cleared.",
+                    ${overtemp_reset_c}f,
                     x
                   );
 
@@ -4960,20 +4980,21 @@ number:
   # DC Voltage Setting
   # --------------------------------------------------------------------------
   # Set DC Voltage Limit
-  # Primary broadcast DC voltage setpoint (49..58 V, 0.1 V steps).
+  # Primary broadcast DC voltage setpoint using the centralized project
+  # voltage range and 0.1 V steps.
   # The value is encoded as V * voltage_scaling_factor and sent in bytes 6..7 of
   # broadcast CAN ID 0x108080FE.
   - platform: template
     name: "Set DC Voltage Limit"
     id: set_dc_voltage_limit
-    min_value: 49
-    max_value: 58
+    min_value: ${dc_voltage_min_v}
+    max_value: ${dc_voltage_max_v}
     step: 0.1
     unit_of_measurement: "V"
     optimistic: true
     mode: BOX
     restore_value: true
-    initial_value: 53.0
+    initial_value: ${dc_voltage_default_v}
     command_topic: "${mqtt_command_prefix}/set_dc_voltage"
     on_value:
       then:
@@ -5137,19 +5158,19 @@ number:
   # DC Voltage Fallback Setting
   # --------------------------------------------------------------------------
   # Set DC Voltage Limit Fallback
-  # Fallback voltage parameter. Encoded with the same
-  # V * 1024 fixed-point representation and command selector 0x01.
+  # Fallback voltage parameter using the same centralized project voltage
+  # range as the active DC voltage setting.
   - platform: template
     name: "Set DC Voltage Limit Fallback"
     id: set_dc_voltage_limit_fallback
-    min_value: 49
-    max_value: 58  # Adjust as needed for your voltage range
-    step: 0.1  # 0.1V steps
+    min_value: ${dc_voltage_min_v}
+    max_value: ${dc_voltage_max_v}
+    step: 0.1
     unit_of_measurement: "V"
     optimistic: true
     mode: BOX
     restore_value: true
-    initial_value: 53.0
+    initial_value: ${dc_voltage_default_v}
     command_topic: "${mqtt_command_prefix}/set_dc_voltage_fallback"
     on_value:
       then:
@@ -5361,12 +5382,12 @@ binary_sensor:
   # CAN communication watchdogs
   #
   # The charger units are queried several times per second. A unit is
-  # considered online when a valid cyclic telemetry frame was received within
-  # the last 3 seconds. Unsigned subtraction keeps this safe across millis()
-  # wrap-around.
+  # considered online while valid per-unit CAN activity has been received
+  # within the configured can_watchdog_timeout_ms period.
+  # Unsigned subtraction keeps the calculation safe across millis() wrap-around.
   # --------------------------------------------------------------------------
   # CAN Communication Unit 1
-  # CAN connectivity watchdog for Unit 1. True only when a valid cyclic telemetry frame was received within the last 3000 ms. Unsigned millis() subtraction remains correct across wrap-around.
+  # Per-unit connectivity watchdog using the centralized CAN timeout.
   - platform: template
     id: can_com_ok_1
     name: "CAN Communication Unit 1"
@@ -5421,7 +5442,7 @@ binary_sensor:
 
   # --------------------------------------------------------------------------
   # CAN Communication Unit 2
-  # CAN connectivity watchdog for Unit 2. True only when a valid cyclic telemetry frame was received within the last 3000 ms. Unsigned millis() subtraction remains correct across wrap-around.
+  # Per-unit connectivity watchdog using the centralized CAN timeout.
   - platform: template
     id: can_com_ok_2
     name: "CAN Communication Unit 2"
@@ -5474,7 +5495,7 @@ binary_sensor:
 
   # --------------------------------------------------------------------------
   # CAN Communication Unit 3
-  # CAN connectivity watchdog for Unit 3. True only when a valid cyclic telemetry frame was received within the last 3000 ms. Unsigned millis() subtraction remains correct across wrap-around.
+  # Per-unit connectivity watchdog using the centralized CAN timeout.
   - platform: template
     id: can_com_ok_3
     name: "CAN Communication Unit 3"
