@@ -95,6 +95,25 @@ substitutions:
   fan_duty_counts_per_percent: "256.0"
 
   # --------------------------------------------------------------------------
+  # Rectifier control-state codes
+  # --------------------------------------------------------------------------
+  # Internal lifecycle state used independently for each rectifier.
+  #
+  # OFFLINE:
+  #   No usable communication / unit not operationally released.
+  #
+  # DISCOVERING:
+  #   CAN communication has been detected, but discovery and validation have
+  #   not yet completed.
+  #
+  # ONLINE:
+  #   Discovery completed successfully and the unit is ready for normal
+  #   operational handling.
+  rectifier_state_offline: "0"
+  rectifier_state_discovering: "1"
+  rectifier_state_online: "2"
+
+  # --------------------------------------------------------------------------
   # CAN communication buffering
   # --------------------------------------------------------------------------
   can_rx_queue_len: "64"
@@ -142,6 +161,24 @@ esphome:
           id(effective_dc_current_limit_sensor).publish_state(
             id(effective_dc_current_limit)
           );
+
+      # Every rectifier starts in OFFLINE control state after an ESP reboot.
+      # A unit must be detected and successfully discovered before it can later
+      # transition to ONLINE.
+      - script.execute:
+          id: set_rectifier_control_state
+          unit: 1
+          state: ${rectifier_state_offline}
+
+      - script.execute:
+          id: set_rectifier_control_state
+          unit: 2
+          state: ${rectifier_state_offline}
+
+      - script.execute:
+          id: set_rectifier_control_state
+          unit: 3
+          state: ${rectifier_state_offline}
 
       - script.execute: display_inactivity_timer
 
@@ -867,6 +904,40 @@ globals:
     restore_value: false
     initial_value: "0"
 
+  # --------------------------------------------------------------------------
+  # Per-rectifier control states
+  # --------------------------------------------------------------------------
+  # These states are intentionally separate from can_com_ok_x.
+  #
+  # can_com_ok_x answers:
+  #   "Have valid CAN frames been received recently?"
+  #
+  # rectifier_control_state_x answers:
+  #   "Where is this rectifier in the controller lifecycle?"
+  #
+  # State values:
+  #   0 = OFFLINE
+  #   1 = DISCOVERING
+  #   2 = ONLINE
+  #
+  # In this first implementation step the states are diagnostic only.
+  # Existing polling, discovery and control decisions still use the current
+  # logic and are not yet gated by these values.
+  - id: rectifier_control_state_1
+    type: uint8_t
+    restore_value: false
+    initial_value: "${rectifier_state_offline}"
+
+  - id: rectifier_control_state_2
+    type: uint8_t
+    restore_value: false
+    initial_value: "${rectifier_state_offline}"
+
+  - id: rectifier_control_state_3
+    type: uint8_t
+    restore_value: false
+    initial_value: "${rectifier_state_offline}"
+
   # Current-command scaling factor.
   #
   # The R4875G1 reports a maximum output current of 75 A, therefore the
@@ -1063,6 +1134,151 @@ globals:
 # Multi-step operations for discovery, power-to-current conversion, blackstart
 # sequencing and backlight timeout handling.
 script:
+  # --------------------------------------------------------------------------
+  # set_rectifier_control_state
+  # --------------------------------------------------------------------------
+  # Centralized lifecycle-state handler for all three rectifiers.
+  #
+  # States:
+  #   0 = OFFLINE
+  #   1 = DISCOVERING
+  #   2 = ONLINE
+  #
+  # This first implementation is observational only. The state is published
+  # for diagnostics and logged, but does not yet control polling or commands.
+  - id: set_rectifier_control_state
+    mode: queued
+    max_runs: 12
+
+    parameters:
+      unit: int
+      state: int
+
+    then:
+      - lambda: |-
+          const uint8_t offline =
+              ${rectifier_state_offline};
+
+          const uint8_t discovering =
+              ${rectifier_state_discovering};
+
+          const uint8_t online =
+              ${rectifier_state_online};
+
+
+          if (state != offline &&
+              state != discovering &&
+              state != online) {
+
+            ESP_LOGW(
+              "rectifier_state",
+              "Ignoring invalid rectifier control state %d for Unit %d.",
+              state,
+              unit
+            );
+
+            return;
+          }
+
+          const auto state_name =
+              [offline, discovering, online](uint8_t value) -> const char * {
+
+            if (value == offline) {
+              return "OFFLINE";
+            }
+
+            if (value == discovering) {
+              return "DISCOVERING";
+            }
+
+            if (value == online) {
+              return "ONLINE";
+            }
+
+            return "UNKNOWN";
+          };
+
+          if (unit == 1) {
+
+            const uint8_t previous =
+                id(rectifier_control_state_1);
+
+            id(rectifier_control_state_1) =
+                static_cast<uint8_t>(state);
+
+            id(rectifier_control_state_text_1).publish_state(
+              state_name(static_cast<uint8_t>(state))
+            );
+
+            if (previous != state) {
+
+              ESP_LOGI(
+                "rectifier_state",
+                "Unit 1 control state: %s -> %s",
+                state_name(previous),
+                state_name(static_cast<uint8_t>(state))
+              );
+            }
+
+            return;
+          }
+
+          if (unit == 2) {
+
+            const uint8_t previous =
+                id(rectifier_control_state_2);
+
+            id(rectifier_control_state_2) =
+                static_cast<uint8_t>(state);
+
+            id(rectifier_control_state_text_2).publish_state(
+              state_name(static_cast<uint8_t>(state))
+            );
+
+            if (previous != state) {
+
+              ESP_LOGI(
+                "rectifier_state",
+                "Unit 2 control state: %s -> %s",
+                state_name(previous),
+                state_name(static_cast<uint8_t>(state))
+              );
+            }
+
+            return;
+          }
+
+          if (unit == 3) {
+
+            const uint8_t previous =
+                id(rectifier_control_state_3);
+
+            id(rectifier_control_state_3) =
+                static_cast<uint8_t>(state);
+
+            id(rectifier_control_state_text_3).publish_state(
+              state_name(static_cast<uint8_t>(state))
+            );
+
+            if (previous != state) {
+
+              ESP_LOGI(
+                "rectifier_state",
+                "Unit 3 control state: %s -> %s",
+                state_name(previous),
+                state_name(static_cast<uint8_t>(state))
+              );
+            }
+
+            return;
+          }
+
+          ESP_LOGW(
+            "rectifier_state",
+            "Ignoring control-state update for invalid Unit %d.",
+            unit
+          );
+
   # --------------------------------------------------------------------------
   # detect_unit_1_properties
   # --------------------------------------------------------------------------
@@ -1769,6 +1985,21 @@ script:
                 level: INFO
                 format: "Discovery queue: starting full three-unit discovery."
 
+            - script.execute:
+                id: set_rectifier_control_state
+                unit: 1
+                state: ${rectifier_state_discovering}
+
+            - script.execute:
+                id: set_rectifier_control_state
+                unit: 2
+                state: ${rectifier_state_discovering}
+
+            - script.execute:
+                id: set_rectifier_control_state
+                unit: 3
+                state: ${rectifier_state_discovering}
+
             - script.execute: setup_sequence
             - script.wait: setup_sequence
 
@@ -1814,6 +2045,70 @@ script:
                       level: WARN
                       format: "Discovery queue: no fully verified reachable unit after full discovery - immediate setpoint restore skipped."
 
+            # Publish the resulting control state independently for every unit.
+            - if:
+                condition:
+                  lambda: |-
+                    return
+                      id(can_com_ok_1).state &&
+                      id(unit_properties_complete_1) &&
+                      id(max_current_found_1) &&
+                      id(data_found_1);
+
+                then:
+                  - script.execute:
+                      id: set_rectifier_control_state
+                      unit: 1
+                      state: ${rectifier_state_online}
+
+                else:
+                  - script.execute:
+                      id: set_rectifier_control_state
+                      unit: 1
+                      state: ${rectifier_state_offline}
+
+            - if:
+                condition:
+                  lambda: |-
+                    return
+                      id(can_com_ok_2).state &&
+                      id(unit_properties_complete_2) &&
+                      id(max_current_found_2) &&
+                      id(data_found_2);
+
+                then:
+                  - script.execute:
+                      id: set_rectifier_control_state
+                      unit: 2
+                      state: ${rectifier_state_online}
+
+                else:
+                  - script.execute:
+                      id: set_rectifier_control_state
+                      unit: 2
+                      state: ${rectifier_state_offline}
+
+            - if:
+                condition:
+                  lambda: |-
+                    return
+                      id(can_com_ok_3).state &&
+                      id(unit_properties_complete_3) &&
+                      id(max_current_found_3) &&
+                      id(data_found_3);
+
+                then:
+                  - script.execute:
+                      id: set_rectifier_control_state
+                      unit: 3
+                      state: ${rectifier_state_online}
+
+                else:
+                  - script.execute:
+                      id: set_rectifier_control_state
+                      unit: 3
+                      state: ${rectifier_state_offline}
+
             - logger.log:
                 level: INFO
                 format: "Discovery queue: full three-unit discovery completed."
@@ -1849,10 +2144,20 @@ script:
                         - script.execute: reapply_active_setpoints
                         - script.wait: reapply_active_setpoints
 
+                        - script.execute:
+                            id: set_rectifier_control_state
+                            unit: 1
+                            state: ${rectifier_state_online}
+
                       else:
                         - logger.log:
                             level: WARN
                             format: "Discovery queue: Unit 1 discovery incomplete - immediate setpoint restore skipped."
+
+                        - script.execute:
+                            id: set_rectifier_control_state
+                            unit: 1
+                            state: ${rectifier_state_offline}
 
                   - logger.log:
                       level: INFO
@@ -1889,10 +2194,20 @@ script:
                               - script.execute: reapply_active_setpoints
                               - script.wait: reapply_active_setpoints
 
+                              - script.execute:
+                                  id: set_rectifier_control_state
+                                  unit: 2
+                                  state: ${rectifier_state_online}
+
                             else:
                               - logger.log:
                                   level: WARN
                                   format: "Discovery queue: Unit 2 discovery incomplete - immediate setpoint restore skipped."
+
+                              - script.execute:
+                                  id: set_rectifier_control_state
+                                  unit: 2
+                                  state: ${rectifier_state_offline}
 
                         - logger.log:
                             level: INFO
@@ -1929,10 +2244,20 @@ script:
                                     - script.execute: reapply_active_setpoints
                                     - script.wait: reapply_active_setpoints
 
+                                    - script.execute:
+                                        id: set_rectifier_control_state
+                                        unit: 3
+                                        state: ${rectifier_state_online}
+
                                   else:
                                     - logger.log:
                                         level: WARN
                                         format: "Discovery queue: Unit 3 discovery incomplete - immediate setpoint restore skipped."
+
+                                    - script.execute:
+                                        id: set_rectifier_control_state
+                                        unit: 3
+                                        state: ${rectifier_state_offline}
 
                               - logger.log:
                                   level: INFO
@@ -5628,6 +5953,11 @@ binary_sensor:
     # verifies or corrects the model-specific fallback automatically.
     on_press:
       then:
+        - script.execute:
+            id: set_rectifier_control_state
+            unit: 1
+            state: ${rectifier_state_discovering}
+
         - logger.log:
             level: INFO
             format: "Unit 1 CAN communication available - waiting for bus stabilization before automatic discovery."
@@ -5653,6 +5983,11 @@ binary_sensor:
 
     on_release:
       then:
+        - script.execute:
+            id: set_rectifier_control_state
+            unit: 1
+            state: ${rectifier_state_offline}
+
         - lambda: |-
             // The last reported power state is no longer trustworthy once
             // communication with the rectifier has timed out.
@@ -5683,6 +6018,11 @@ binary_sensor:
     # current_scaling_factor remains based on Unit 1.
     on_press:
       then:
+        - script.execute:
+            id: set_rectifier_control_state
+            unit: 2
+            state: ${rectifier_state_discovering}
+
         - logger.log:
             level: INFO
             format: "Unit 2 CAN communication available - waiting for bus stabilization before automatic discovery."
@@ -5708,6 +6048,11 @@ binary_sensor:
 
     on_release:
       then:
+        - script.execute:
+            id: set_rectifier_control_state
+            unit: 2
+            state: ${rectifier_state_offline}
+
         - lambda: |-
             if (id(power_state_2).state != "UNKNOWN") {
               id(power_state_2).publish_state("UNKNOWN");
@@ -5736,6 +6081,11 @@ binary_sensor:
     # current_scaling_factor remains based on Unit 1.
     on_press:
       then:
+        - script.execute:
+            id: set_rectifier_control_state
+            unit: 3
+            state: ${rectifier_state_discovering}
+
         - logger.log:
             level: INFO
             format: "Unit 3 CAN communication available - waiting for bus stabilization before automatic discovery."
@@ -5761,6 +6111,11 @@ binary_sensor:
 
     on_release:
       then:
+        - script.execute:
+            id: set_rectifier_control_state
+            unit: 3
+            state: ${rectifier_state_offline}
+
         - lambda: |-
             if (id(power_state_3).state != "UNKNOWN") {
               id(power_state_3).publish_state("UNKNOWN");
@@ -6336,6 +6691,38 @@ text_sensor:
     reset_reason:
       name: "Reset Reason"
       entity_category: diagnostic
+
+  # --------------------------------------------------------------------------
+  # Rectifier Control State Unit 1
+  # Controller lifecycle state:
+  # OFFLINE -> DISCOVERING -> ONLINE.
+  #
+  # This state is independent of the raw CAN-connectivity watchdog and will
+  # later control fast polling, slow probing and operational release.
+  - platform: template
+    id: rectifier_control_state_text_1
+    name: "Control State Unit 1"
+    entity_category: diagnostic
+    update_interval: never
+    icon: "mdi:state-machine"
+
+  # --------------------------------------------------------------------------
+  # Rectifier Control State Unit 2
+  - platform: template
+    id: rectifier_control_state_text_2
+    name: "Control State Unit 2"
+    entity_category: diagnostic
+    update_interval: never
+    icon: "mdi:state-machine"
+
+  # --------------------------------------------------------------------------
+  # Rectifier Control State Unit 3
+  - platform: template
+    id: rectifier_control_state_text_3
+    name: "Control State Unit 3"
+    entity_category: diagnostic
+    update_interval: never
+    icon: "mdi:state-machine"
 
   # Human-readable ON/OFF/ERROR state decoded from the unit's 0x100x117E frame.
   - platform: template
