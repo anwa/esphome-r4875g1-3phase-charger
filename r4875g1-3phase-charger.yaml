@@ -1604,6 +1604,111 @@ script:
             - binary_sensor.invalidate_state: rectifier_capability_mismatch
 
   # --------------------------------------------------------------------------
+  # reapply_active_setpoints
+  # --------------------------------------------------------------------------
+  # Immediately reasserts the currently configured active DC voltage and
+  # current setpoints after a successful rectifier discovery.
+  #
+  # This is particularly important after CAN reconnection: a rectifier may
+  # have switched to its internally stored fallback voltage while CAN was
+  # unavailable. Once communication and discovery have recovered, the active
+  # controller setpoints should be restored immediately instead of waiting for
+  # the next periodic 30-second setpoint refresh.
+  #
+  # Voltage is sent first, followed by current after a short gap.
+  - id: reapply_active_setpoints
+    mode: single
+    then:
+      - if:
+          condition:
+            lambda: |-
+              const float voltage =
+                  id(set_dc_voltage_limit).state;
+
+              const float current =
+                  id(set_dc_current_limit).state;
+
+              return
+                !isnan(voltage) &&
+                voltage >= ${dc_voltage_min_v}f &&
+                voltage <= ${dc_voltage_max_v}f &&
+
+                !isnan(current) &&
+                current >= ${minimum_dc_current_a}f &&
+
+                !isnan(id(current_scaling_factor)) &&
+                id(current_scaling_factor) > 0.0f;
+
+          then:
+            - lambda: |-
+                ESP_LOGI(
+                  "setpoint_restore",
+                  "Reapplying active DC setpoints after discovery: "
+                  "%.1f V, %.1f A/unit.",
+                  id(set_dc_voltage_limit).state,
+                  id(set_dc_current_limit).state
+                );
+
+            # Reapply active DC voltage.
+            - canbus.send:
+                use_extended_id: true
+                can_id: 0x108080FE
+                data: !lambda |-
+                  std::vector<uint8_t> can_data(8, 0x00);
+
+                  can_data[0] = 0x01;
+
+                  const int scaled_value =
+                      static_cast<int>(
+                        id(set_dc_voltage_limit).state *
+                        id(voltage_scaling_factor)
+                      );
+
+                  can_data[6] = (scaled_value >> 8) & 0xFF;
+                  can_data[7] = scaled_value & 0xFF;
+
+                  return can_data;
+
+            - delay: 50ms
+
+            # Reapply active DC current.
+            - canbus.send:
+                use_extended_id: true
+                can_id: 0x108080FE
+                data: !lambda |-
+                  std::vector<uint8_t> can_data(8, 0x00);
+
+                  can_data[0] = 0x01;
+                  can_data[1] = 0x03;
+
+                  const int scaled_value =
+                      static_cast<int>(
+                        id(set_dc_current_limit).state *
+                        id(current_scaling_factor)
+                      );
+
+                  can_data[6] = (scaled_value >> 8) & 0xFF;
+                  can_data[7] = scaled_value & 0xFF;
+
+                  return can_data;
+
+            - logger.log:
+                level: INFO
+                format: "Active DC setpoints reapplied successfully after discovery."
+
+          else:
+            - lambda: |-
+                ESP_LOGW(
+                  "setpoint_restore",
+                  "Active DC setpoints were not reapplied because the "
+                  "stored voltage/current/scaling state is invalid. "
+                  "Voltage=%.2f V, current=%.2f A, scaling=%.6f.",
+                  id(set_dc_voltage_limit).state,
+                  id(set_dc_current_limit).state,
+                  id(current_scaling_factor)
+                );
+
+  # --------------------------------------------------------------------------
   # setup_sequence
   # --------------------------------------------------------------------------
   # Manually runs complete discovery for all three rectifiers.
@@ -1638,6 +1743,11 @@ script:
   # sequence are routed through this queue so only one discovery operation can
   # use the CAN bus at a time.
   #
+  # After a fully successful discovery, the currently configured active DC
+  # voltage and current setpoints are immediately reapplied. This restores
+  # normal operation after a rectifier has temporarily operated from its
+  # internal fallback settings during a CAN outage.
+  #
   # unit:
   #   0 = full manual discovery sequence
   #   1 = Unit 1 only
@@ -1662,6 +1772,48 @@ script:
             - script.execute: setup_sequence
             - script.wait: setup_sequence
 
+            # A manual full discovery may be performed while fewer than three
+            # units are available. Reapply the shared active setpoints when at
+            # least one currently reachable unit completed a fully verified
+            # discovery.
+            - if:
+                condition:
+                  lambda: |-
+                    const bool unit_1_ok =
+                        id(can_com_ok_1).state &&
+                        id(unit_properties_complete_1) &&
+                        id(max_current_found_1) &&
+                        id(data_found_1);
+
+                    const bool unit_2_ok =
+                        id(can_com_ok_2).state &&
+                        id(unit_properties_complete_2) &&
+                        id(max_current_found_2) &&
+                        id(data_found_2);
+
+                    const bool unit_3_ok =
+                        id(can_com_ok_3).state &&
+                        id(unit_properties_complete_3) &&
+                        id(max_current_found_3) &&
+                        id(data_found_3);
+
+                    return unit_1_ok ||
+                           unit_2_ok ||
+                           unit_3_ok;
+
+                then:
+                  - logger.log:
+                      level: INFO
+                      format: "Discovery queue: verified discovery available - restoring active DC setpoints."
+
+                  - script.execute: reapply_active_setpoints
+                  - script.wait: reapply_active_setpoints
+
+                else:
+                  - logger.log:
+                      level: WARN
+                      format: "Discovery queue: no fully verified reachable unit after full discovery - immediate setpoint restore skipped."
+
             - logger.log:
                 level: INFO
                 format: "Discovery queue: full three-unit discovery completed."
@@ -1679,6 +1831,28 @@ script:
 
                   - script.execute: discover_unit_1
                   - script.wait: discover_unit_1
+
+                  - if:
+                      condition:
+                        lambda: |-
+                          return
+                            id(can_com_ok_1).state &&
+                            id(unit_properties_complete_1) &&
+                            id(max_current_found_1) &&
+                            id(data_found_1);
+
+                      then:
+                        - logger.log:
+                            level: INFO
+                            format: "Discovery queue: Unit 1 discovery verified - restoring active DC setpoints."
+
+                        - script.execute: reapply_active_setpoints
+                        - script.wait: reapply_active_setpoints
+
+                      else:
+                        - logger.log:
+                            level: WARN
+                            format: "Discovery queue: Unit 1 discovery incomplete - immediate setpoint restore skipped."
 
                   - logger.log:
                       level: INFO
@@ -1698,6 +1872,28 @@ script:
                         - script.execute: discover_unit_2
                         - script.wait: discover_unit_2
 
+                        - if:
+                            condition:
+                              lambda: |-
+                                return
+                                  id(can_com_ok_2).state &&
+                                  id(unit_properties_complete_2) &&
+                                  id(max_current_found_2) &&
+                                  id(data_found_2);
+
+                            then:
+                              - logger.log:
+                                  level: INFO
+                                  format: "Discovery queue: Unit 2 discovery verified - restoring active DC setpoints."
+
+                              - script.execute: reapply_active_setpoints
+                              - script.wait: reapply_active_setpoints
+
+                            else:
+                              - logger.log:
+                                  level: WARN
+                                  format: "Discovery queue: Unit 2 discovery incomplete - immediate setpoint restore skipped."
+
                         - logger.log:
                             level: INFO
                             format: "Discovery queue: Unit 2 discovery completed."
@@ -1715,6 +1911,28 @@ script:
 
                               - script.execute: discover_unit_3
                               - script.wait: discover_unit_3
+
+                              - if:
+                                  condition:
+                                    lambda: |-
+                                      return
+                                        id(can_com_ok_3).state &&
+                                        id(unit_properties_complete_3) &&
+                                        id(max_current_found_3) &&
+                                        id(data_found_3);
+
+                                  then:
+                                    - logger.log:
+                                        level: INFO
+                                        format: "Discovery queue: Unit 3 discovery verified - restoring active DC setpoints."
+
+                                    - script.execute: reapply_active_setpoints
+                                    - script.wait: reapply_active_setpoints
+
+                                  else:
+                                    - logger.log:
+                                        level: WARN
+                                        format: "Discovery queue: Unit 3 discovery incomplete - immediate setpoint restore skipped."
 
                               - logger.log:
                                   level: INFO

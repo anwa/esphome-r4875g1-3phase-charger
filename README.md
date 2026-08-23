@@ -1746,18 +1746,44 @@ Do not assume correct behaviour with mixed rectifier models or different current
 
 ## Communication loss
 
-If one unit loses CAN:
+If one unit loses CAN communication:
 
 - its individual display line shows a CAN communication fault,
+- its live telemetry becomes unavailable after the configured freshness timeout,
+- its reported power state is changed to `UNKNOWN`,
 - its stale power value is excluded from combined AC/DC power,
-- AC average values are calculated from the remaining valid units.
-- The nominal three-unit power target is not redistributed across remaining units.
-- Losing one rectifier therefore reduces actual charger power instead of increasing the current command of the remaining units.
+- AC average values are calculated from the remaining valid units,
+- the nominal three-unit power target is not redistributed across remaining units.
 
-If all units lose CAN:
+Losing one rectifier therefore reduces actual charger power instead of increasing the current command of the remaining units.
 
-- AC display shows a communication fault,
-- combined AC/DC power sensors become unavailable rather than 0.
+If all units lose CAN communication:
+
+- the AC display shows a communication fault,
+- combined AC/DC power sensors become unavailable rather than reporting zero,
+- the ESP32 continues running and periodically attempts normal CAN communication.
+
+If the physical CAN connection is absent while the ESP32 continues transmitting, the CAN controller can accumulate transmission errors because no other node acknowledges the frames.
+
+After sufficient transmission errors, the ESP32 TWAI controller can enter the `BUS_OFF` state.
+
+The firmware periodically checks the TWAI controller state. If `BUS_OFF` is detected, it initiates the ESP-IDF bus-recovery procedure automatically.
+
+After recovery completes and the TWAI controller reaches the stopped state, the firmware restarts the controller so normal CAN transmission and reception can resume.
+
+When the physical CAN connection becomes available again:
+
+1. normal telemetry polling resumes,
+2. the first valid rectifier response refreshes its CAN watchdog,
+3. the corresponding `CAN Communication Unit x` sensor changes from offline to online,
+4. the configured startup-stabilization delay is applied,
+5. automatic unit discovery is submitted to the serialized discovery queue,
+6. property and capability/address discovery are performed,
+7. after a fully verified discovery, the active DC voltage and current setpoints are immediately retransmitted.
+
+A rectifier that switched to its internally stored fallback settings during the CAN outage therefore returns to the controller's active setpoints immediately after successful reconnection and discovery.
+
+The normal periodic setpoint refresh remains active as an additional fallback mechanism.
 
 ## Offline networking
 
@@ -1773,9 +1799,35 @@ None of these values are required for CAN control or local blackstart.
 
 ## Setpoint refresh
 
-Voltage and current setpoints are periodically retransmitted over CAN every 30 seconds in addition to immediate updates when the values change.
+Active DC voltage and current setpoints are transmitted immediately whenever the corresponding configured values change.
 
-This helps keep the units synchronized with the controller's intended settings.
+They are also periodically retransmitted over CAN every **30 seconds**.
+
+This periodic refresh helps keep all rectifiers synchronized with the controller's intended settings and provides a fallback if a previous CAN command was missed.
+
+In addition, successful rectifier discovery now triggers an immediate reapplication of the active DC voltage and current setpoints.
+
+This is particularly important after CAN reconnection. During a prolonged communication outage, a rectifier may return to its internally configured fallback voltage or current settings.
+
+The reconnect sequence therefore behaves as follows:
+
+```text
+CAN communication restored
+        ↓
+automatic discovery
+        ↓
+property data verified
+        ↓
+capability/address data verified
+        ↓
+active DC voltage retransmitted
+        ↓
+active DC current retransmitted
+```
+
+The current setpoint is retransmitted only after discovery has completed so that Unit 1 has had the opportunity to verify or update the shared current-scaling factor before the command is encoded.
+
+If discovery does not complete successfully, the immediate restore is skipped. The normal 30-second periodic setpoint refresh remains available as the fallback mechanism.
 
 ---
 
