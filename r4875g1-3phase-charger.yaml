@@ -1851,20 +1851,343 @@ script:
             - binary_sensor.invalidate_state: rectifier_capability_mismatch
 
   # --------------------------------------------------------------------------
+  # send_active_voltage_to_unit
+  # --------------------------------------------------------------------------
+  # Sends the configured active DC voltage to exactly one rectifier.
+  #
+  # Unit-specific addressing prevents OFFLINE or DISCOVERING rectifiers from
+  # receiving normal operating setpoints intended for already ONLINE units.
+  - id: send_active_voltage_to_unit
+    mode: queued
+    max_runs: 12
+    parameters:
+      unit: int
+
+    then:
+      - if:
+          condition:
+            lambda: |-
+              const float voltage =
+                  id(set_dc_voltage_limit).state;
+
+              return
+                unit >= 1 &&
+                unit <= 3 &&
+                !isnan(voltage) &&
+                voltage >= ${dc_voltage_min_v}f &&
+                voltage <= ${dc_voltage_max_v}f;
+
+          then:
+            # Unit 1
+            - if:
+                condition:
+                  lambda: 'return unit == 1;'
+                then:
+                  - canbus.send:
+                      use_extended_id: true
+                      can_id: 0x108180FE
+                      data: !lambda |-
+                        std::vector<uint8_t> can_data(8, 0x00);
+
+                        can_data[0] = 0x01;
+
+                        const int scaled_value =
+                            static_cast<int>(
+                              id(set_dc_voltage_limit).state *
+                              id(voltage_scaling_factor)
+                            );
+
+                        can_data[6] = (scaled_value >> 8) & 0xFF;
+                        can_data[7] = scaled_value & 0xFF;
+
+                        return can_data;
+
+            # Unit 2
+            - if:
+                condition:
+                  lambda: 'return unit == 2;'
+                then:
+                  - canbus.send:
+                      use_extended_id: true
+                      can_id: 0x108280FE
+                      data: !lambda |-
+                        std::vector<uint8_t> can_data(8, 0x00);
+
+                        can_data[0] = 0x01;
+
+                        const int scaled_value =
+                            static_cast<int>(
+                              id(set_dc_voltage_limit).state *
+                              id(voltage_scaling_factor)
+                            );
+
+                        can_data[6] = (scaled_value >> 8) & 0xFF;
+                        can_data[7] = scaled_value & 0xFF;
+
+                        return can_data;
+
+            # Unit 3
+            - if:
+                condition:
+                  lambda: 'return unit == 3;'
+                then:
+                  - canbus.send:
+                      use_extended_id: true
+                      can_id: 0x108380FE
+                      data: !lambda |-
+                        std::vector<uint8_t> can_data(8, 0x00);
+
+                        can_data[0] = 0x01;
+
+                        const int scaled_value =
+                            static_cast<int>(
+                              id(set_dc_voltage_limit).state *
+                              id(voltage_scaling_factor)
+                            );
+
+                        can_data[6] = (scaled_value >> 8) & 0xFF;
+                        can_data[7] = scaled_value & 0xFF;
+
+                        return can_data;
+
+          else:
+            - lambda: |-
+                ESP_LOGW(
+                  "setpoint",
+                  "Active DC voltage not sent: invalid Unit %d "
+                  "or voltage %.2f V.",
+                  unit,
+                  id(set_dc_voltage_limit).state
+                );
+
+
+  # --------------------------------------------------------------------------
+  # send_active_current_to_unit
+  # --------------------------------------------------------------------------
+  # Sends the configured active DC current limit to exactly one rectifier.
+  - id: send_active_current_to_unit
+    mode: queued
+    max_runs: 12
+    parameters:
+      unit: int
+
+    then:
+      - if:
+          condition:
+            lambda: |-
+              const float current =
+                  id(set_dc_current_limit).state;
+
+              const float effective_limit =
+                  id(effective_dc_current_limit);
+
+              return
+                unit >= 1 &&
+                unit <= 3 &&
+                !isnan(current) &&
+                current >= ${minimum_dc_current_a}f &&
+                !isnan(effective_limit) &&
+                current <= effective_limit + 0.01f &&
+                !isnan(id(current_scaling_factor)) &&
+                id(current_scaling_factor) > 0.0f;
+
+          then:
+            # Unit 1
+            - if:
+                condition:
+                  lambda: 'return unit == 1;'
+                then:
+                  - canbus.send:
+                      use_extended_id: true
+                      can_id: 0x108180FE
+                      data: !lambda |-
+                        std::vector<uint8_t> can_data(8, 0x00);
+
+                        can_data[0] = 0x01;
+                        can_data[1] = 0x03;
+
+                        const int scaled_value =
+                            static_cast<int>(
+                              id(set_dc_current_limit).state *
+                              id(current_scaling_factor)
+                            );
+
+                        can_data[6] = (scaled_value >> 8) & 0xFF;
+                        can_data[7] = scaled_value & 0xFF;
+
+                        return can_data;
+
+            # Unit 2
+            - if:
+                condition:
+                  lambda: 'return unit == 2;'
+                then:
+                  - canbus.send:
+                      use_extended_id: true
+                      can_id: 0x108280FE
+                      data: !lambda |-
+                        std::vector<uint8_t> can_data(8, 0x00);
+
+                        can_data[0] = 0x01;
+                        can_data[1] = 0x03;
+
+                        const int scaled_value =
+                            static_cast<int>(
+                              id(set_dc_current_limit).state *
+                              id(current_scaling_factor)
+                            );
+
+                        can_data[6] = (scaled_value >> 8) & 0xFF;
+                        can_data[7] = scaled_value & 0xFF;
+
+                        return can_data;
+
+            # Unit 3
+            - if:
+                condition:
+                  lambda: 'return unit == 3;'
+                then:
+                  - canbus.send:
+                      use_extended_id: true
+                      can_id: 0x108380FE
+                      data: !lambda |-
+                        std::vector<uint8_t> can_data(8, 0x00);
+
+                        can_data[0] = 0x01;
+                        can_data[1] = 0x03;
+
+                        const int scaled_value =
+                            static_cast<int>(
+                              id(set_dc_current_limit).state *
+                              id(current_scaling_factor)
+                            );
+
+                        can_data[6] = (scaled_value >> 8) & 0xFF;
+                        can_data[7] = scaled_value & 0xFF;
+
+                        return can_data;
+
+          else:
+            - lambda: |-
+                ESP_LOGW(
+                  "setpoint",
+                  "Active DC current not sent to Unit %d because the "
+                  "current/scaling state is invalid. Current=%.2f A.",
+                  unit,
+                  id(set_dc_current_limit).state
+                );
+
+
+  # --------------------------------------------------------------------------
+  # send_active_voltage_to_online_units
+  # --------------------------------------------------------------------------
+  - id: send_active_voltage_to_online_units
+    mode: restart
+    then:
+      - if:
+          condition:
+            lambda: |-
+              return
+                id(rectifier_control_state_1) ==
+                  ${rectifier_state_online} &&
+                id(can_com_ok_1).state;
+          then:
+            - lambda: 'id(send_active_voltage_to_unit)->execute(1);'
+            - script.wait: send_active_voltage_to_unit
+
+      - if:
+          condition:
+            lambda: |-
+              return
+                id(rectifier_control_state_2) ==
+                  ${rectifier_state_online} &&
+                id(can_com_ok_2).state;
+          then:
+            - lambda: 'id(send_active_voltage_to_unit)->execute(2);'
+            - script.wait: send_active_voltage_to_unit
+
+      - if:
+          condition:
+            lambda: |-
+              return
+                id(rectifier_control_state_3) ==
+                  ${rectifier_state_online} &&
+                id(can_com_ok_3).state;
+          then:
+            - lambda: 'id(send_active_voltage_to_unit)->execute(3);'
+            - script.wait: send_active_voltage_to_unit
+
+
+  # --------------------------------------------------------------------------
+  # send_active_current_to_online_units
+  # --------------------------------------------------------------------------
+  - id: send_active_current_to_online_units
+    mode: restart
+    then:
+      - if:
+          condition:
+            lambda: |-
+              return
+                id(rectifier_control_state_1) ==
+                  ${rectifier_state_online} &&
+                id(can_com_ok_1).state;
+          then:
+            - lambda: 'id(send_active_current_to_unit)->execute(1);'
+            - script.wait: send_active_current_to_unit
+
+      - if:
+          condition:
+            lambda: |-
+              return
+                id(rectifier_control_state_2) ==
+                  ${rectifier_state_online} &&
+                id(can_com_ok_2).state;
+          then:
+            - lambda: 'id(send_active_current_to_unit)->execute(2);'
+            - script.wait: send_active_current_to_unit
+
+      - if:
+          condition:
+            lambda: |-
+              return
+                id(rectifier_control_state_3) ==
+                  ${rectifier_state_online} &&
+                id(can_com_ok_3).state;
+          then:
+            - lambda: 'id(send_active_current_to_unit)->execute(3);'
+            - script.wait: send_active_current_to_unit
+
+
+  # --------------------------------------------------------------------------
+  # refresh_active_setpoints_online
+  # --------------------------------------------------------------------------
+  # Periodically reasserts active voltage/current only to fully ONLINE units.
+  - id: refresh_active_setpoints_online
+    mode: restart
+    then:
+      - script.execute: send_active_voltage_to_online_units
+      - script.wait: send_active_voltage_to_online_units
+
+      - delay: 50ms
+
+      - script.execute: send_active_current_to_online_units
+      - script.wait: send_active_current_to_online_units
+
+  # --------------------------------------------------------------------------
   # reapply_active_setpoints
   # --------------------------------------------------------------------------
-  # Immediately reasserts the currently configured active DC voltage and
-  # current setpoints after a successful rectifier discovery.
+  # Restores the currently configured active voltage and current to one
+  # specifically verified rectifier after discovery.
   #
-  # This is particularly important after CAN reconnection: a rectifier may
-  # have switched to its internally stored fallback voltage while CAN was
-  # unavailable. Once communication and discovery have recovered, the active
-  # controller setpoints should be restored immediately instead of waiting for
-  # the next periodic 30-second setpoint refresh.
-  #
-  # Voltage is sent first, followed by current after a short gap.
+  # The unit is still DISCOVERING while these commands are sent. It is marked
+  # ONLINE by the discovery queue only after this script has completed.
   - id: reapply_active_setpoints
-    mode: single
+    mode: queued
+    max_runs: 8
+
+    parameters:
+      unit: int
+
     then:
       - if:
           condition:
@@ -1876,12 +2199,16 @@ script:
                   id(set_dc_current_limit).state;
 
               return
+                unit >= 1 &&
+                unit <= 3 &&
+
                 !isnan(voltage) &&
                 voltage >= ${dc_voltage_min_v}f &&
                 voltage <= ${dc_voltage_max_v}f &&
 
                 !isnan(current) &&
                 current >= ${minimum_dc_current_a}f &&
+                current <= id(effective_dc_current_limit) + 0.01f &&
 
                 !isnan(id(current_scaling_factor)) &&
                 id(current_scaling_factor) > 0.0f;
@@ -1890,66 +2217,39 @@ script:
             - lambda: |-
                 ESP_LOGI(
                   "setpoint_restore",
-                  "Reapplying active DC setpoints after discovery: "
+                  "Reapplying active DC setpoints to Unit %d after discovery: "
                   "%.1f V, %.1f A/unit.",
+                  unit,
                   id(set_dc_voltage_limit).state,
                   id(set_dc_current_limit).state
                 );
 
-            # Reapply active DC voltage.
-            - canbus.send:
-                use_extended_id: true
-                can_id: 0x108080FE
-                data: !lambda |-
-                  std::vector<uint8_t> can_data(8, 0x00);
+                id(send_active_voltage_to_unit)->execute(unit);
 
-                  can_data[0] = 0x01;
-
-                  const int scaled_value =
-                      static_cast<int>(
-                        id(set_dc_voltage_limit).state *
-                        id(voltage_scaling_factor)
-                      );
-
-                  can_data[6] = (scaled_value >> 8) & 0xFF;
-                  can_data[7] = scaled_value & 0xFF;
-
-                  return can_data;
+            - script.wait: send_active_voltage_to_unit
 
             - delay: 50ms
 
-            # Reapply active DC current.
-            - canbus.send:
-                use_extended_id: true
-                can_id: 0x108080FE
-                data: !lambda |-
-                  std::vector<uint8_t> can_data(8, 0x00);
+            - lambda: |-
+                id(send_active_current_to_unit)->execute(unit);
 
-                  can_data[0] = 0x01;
-                  can_data[1] = 0x03;
+            - script.wait: send_active_current_to_unit
 
-                  const int scaled_value =
-                      static_cast<int>(
-                        id(set_dc_current_limit).state *
-                        id(current_scaling_factor)
-                      );
-
-                  can_data[6] = (scaled_value >> 8) & 0xFF;
-                  can_data[7] = scaled_value & 0xFF;
-
-                  return can_data;
-
-            - logger.log:
-                level: INFO
-                format: "Active DC setpoints reapplied successfully after discovery."
+            - lambda: |-
+                ESP_LOGI(
+                  "setpoint_restore",
+                  "Active DC setpoints reapplied successfully to Unit %d.",
+                  unit
+                );
 
           else:
             - lambda: |-
                 ESP_LOGW(
                   "setpoint_restore",
-                  "Active DC setpoints were not reapplied because the "
-                  "stored voltage/current/scaling state is invalid. "
+                  "Active DC setpoints were not reapplied to Unit %d because "
+                  "the stored voltage/current/scaling state is invalid. "
                   "Voltage=%.2f V, current=%.2f A, scaling=%.6f.",
+                  unit,
                   id(set_dc_voltage_limit).state,
                   id(set_dc_current_limit).state,
                   id(current_scaling_factor)
@@ -2014,22 +2314,27 @@ script:
           then:
             - logger.log:
                 level: INFO
-                format: "Discovery queue: starting full three-unit discovery."
-
+                format: "Discovery queue: Unit 1 verified after full discovery - restoring active DC setpoints."
+            - lambda: 'id(reapply_active_setpoints)->execute(1);'
+            - script.wait: reapply_active_setpoints
             - script.execute:
                 id: set_rectifier_control_state
                 unit: 1
-                state: ${rectifier_state_discovering}
+                state: ${rectifier_state_online}
 
+            - lambda: 'id(reapply_active_setpoints)->execute(2);'
+            - script.wait: reapply_active_setpoints
             - script.execute:
                 id: set_rectifier_control_state
                 unit: 2
-                state: ${rectifier_state_discovering}
+                state: ${rectifier_state_online}
 
+            - lambda: 'id(reapply_active_setpoints)->execute(3);'
+            - script.wait: reapply_active_setpoints
             - script.execute:
                 id: set_rectifier_control_state
                 unit: 3
-                state: ${rectifier_state_discovering}
+                state: ${rectifier_state_online}
 
             - script.execute: setup_sequence
             - script.wait: setup_sequence
@@ -2172,7 +2477,7 @@ script:
                             level: INFO
                             format: "Discovery queue: Unit 1 discovery verified - restoring active DC setpoints."
 
-                        - script.execute: reapply_active_setpoints
+                        - lambda: 'id(reapply_active_setpoints)->execute(1);'
                         - script.wait: reapply_active_setpoints
 
                         - script.execute:
@@ -2222,7 +2527,7 @@ script:
                                   level: INFO
                                   format: "Discovery queue: Unit 2 discovery verified - restoring active DC setpoints."
 
-                              - script.execute: reapply_active_setpoints
+                              - lambda: 'id(reapply_active_setpoints)->execute(2);'
                               - script.wait: reapply_active_setpoints
 
                               - script.execute:
@@ -2272,7 +2577,7 @@ script:
                                         level: INFO
                                         format: "Discovery queue: Unit 3 discovery verified - restoring active DC setpoints."
 
-                                    - script.execute: reapply_active_setpoints
+                                    - lambda: 'id(reapply_active_setpoints)->execute(3);'
                                     - script.wait: reapply_active_setpoints
 
                                     - script.execute:
@@ -5606,16 +5911,7 @@ number:
               voltage_value
             );
 
-        - canbus.send:
-            use_extended_id: true
-            can_id: 0x108080FE
-            data: !lambda |-
-              std::vector<uint8_t> can_data(8, 0x00);
-              can_data[0] = 0x01;
-              int scaled_value = (int)(id(set_dc_voltage_limit).state * id(voltage_scaling_factor));
-              can_data[6] = (scaled_value >> 8) & 0xFF;
-              can_data[7] = scaled_value & 0xFF;
-              return can_data;
+        - script.execute: send_active_voltage_to_online_units
 
   # DC Current Setting
   # --------------------------------------------------------------------------
@@ -5674,17 +5970,7 @@ number:
               max_current
             );
 
-        - canbus.send:
-            use_extended_id: true
-            can_id: 0x108080FE
-            data: !lambda |-
-              std::vector<uint8_t> can_data(8, 0x00);
-              can_data[0] = 0x01;
-              can_data[1] = 0x03;
-              int scaled_value = (int)(id(set_dc_current_limit).state * id(current_scaling_factor));
-              can_data[6] = (scaled_value >> 8) & 0xFF;
-              can_data[7] = scaled_value & 0xFF;
-              return can_data;
+        - script.execute: send_active_current_to_online_units
 
   # DC Current Fallback Setting
   # --------------------------------------------------------------------------
@@ -6645,39 +6931,17 @@ interval:
                         - 0x00
 
   # --------------------------------------------------------------------------
-  # Periodic task: 30 s
-  # Reasserts the broadcast DC voltage setpoint every 30 seconds so restarted
-  # or late-joining units recover the requested setting.
+  # Periodic task: active setpoint refresh
+  #
+  # Active voltage/current are periodically reasserted only to rectifiers that
+  # completed discovery and are currently ONLINE.
+  #
+  # OFFLINE and DISCOVERING units deliberately receive no normal active
+  # setpoints. A successfully rediscovered unit receives its configured active
+  # values through reapply_active_setpoints before transitioning to ONLINE.
   - interval: ${setpoint_refresh_interval}
     then:
-      - canbus.send:
-          use_extended_id: true
-          can_id: 0x108080FE
-          data: !lambda |-
-            std::vector<uint8_t> can_data(8, 0x00);  // Initialize with 8 zeros
-            can_data[0] = 0x01;  // First byte is always 0x01
-            int scaled_value = (int)(id(set_dc_voltage_limit).state * id(voltage_scaling_factor));  // Scale the voltage value
-            can_data[6] = (scaled_value >> 8) & 0xFF;  // Encode the high byte in the 7th byte
-            can_data[7] = scaled_value & 0xFF;         // Encode the low byte in the 8th byte
-            return can_data;
-
-  # --------------------------------------------------------------------------
-  # Periodic task: 30 s
-  # Reasserts the broadcast DC current setpoint every 30 seconds so restarted
-  # or late-joining units recover the requested setting.
-  - interval: ${setpoint_refresh_interval}
-    then:
-      - canbus.send:
-          use_extended_id: true
-          can_id: 0x108080FE
-          data: !lambda |-
-            std::vector<uint8_t> can_data(8, 0x00);  // Initialize with 8 zeros
-            can_data[0] = 0x01;  // First byte is always 0x01
-            can_data[1] = 0x03;  // Second byte is 0x03
-            int scaled_value = (int)(id(set_dc_current_limit).state * id(current_scaling_factor));  // Scale the Current value
-            can_data[6] = (scaled_value >> 8) & 0xFF;  // Encode the high byte in the 7th byte
-            can_data[7] = scaled_value & 0xFF;         // Encode the low byte in the 8th byte
-            return can_data;
+      - script.execute: refresh_active_setpoints_online
 
 # ==============================================================================
 # MANUAL CONTROL BUTTON ENTITIES
