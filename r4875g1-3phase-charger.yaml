@@ -128,13 +128,6 @@ substitutions:
   # time to resume before lifecycle connectivity is evaluated again.
   property_poll_resume_grace_ms: "2000"
 
-  # During static property discovery all normal cyclic polling is deliberately
-  # suspended to keep the CAN bus quiet for the multi-frame property response.
-  # Three property attempts plus the initial quiet period can exceed the normal
-  # 3-second watchdog, so already-ONLINE units receive a temporary watchdog
-  # grace period while any property discovery is active.
-  can_watchdog_property_pause_timeout_ms: "6000"
-
   live_telemetry_timeout: "5s"
 
   telemetry_poll_interval: "577ms"
@@ -1319,6 +1312,141 @@ script:
             "Ignoring control-state update for invalid Unit %d.",
             unit
           );
+
+  # --------------------------------------------------------------------------
+  # reconcile_rectifier_connectivity
+  # --------------------------------------------------------------------------
+  # Converts raw CAN connectivity loss into an operational lifecycle transition.
+  #
+  # Raw can_com_ok_x may temporarily become false while static property
+  # discovery intentionally suspends cyclic polling. Such expected gaps must
+  # not demote a healthy ONLINE rectifier.
+  #
+  # Lifecycle demotion is therefore suppressed:
+  #   - while any property discovery is active
+  #   - for a short grace period after property discovery ends
+  #
+  # If CAN communication is still unavailable after that grace period, the
+  # affected ONLINE rectifier is returned to OFFLINE.
+  - id: reconcile_rectifier_connectivity
+    mode: restart
+    then:
+      # Unit 1
+      - if:
+          condition:
+            lambda: |-
+              const bool property_discovery_active =
+                  id(detect_unit_1_properties).is_running() ||
+                  id(detect_unit_2_properties).is_running() ||
+                  id(detect_unit_3_properties).is_running();
+
+              const bool property_resume_grace =
+                  id(last_property_discovery_end) != 0 &&
+                  static_cast<uint32_t>(
+                    millis() - id(last_property_discovery_end)
+                  ) < ${property_poll_resume_grace_ms}U;
+
+              return
+                id(rectifier_control_state_1) ==
+                  ${rectifier_state_online} &&
+                !id(can_com_ok_1).state &&
+                !property_discovery_active &&
+                !property_resume_grace;
+
+          then:
+            - script.execute:
+                id: set_rectifier_control_state
+                unit: 1
+                state: ${rectifier_state_offline}
+
+            - lambda: |-
+                if (id(power_state_1).state != "UNKNOWN") {
+                  id(power_state_1).publish_state("UNKNOWN");
+                }
+
+                ESP_LOGW(
+                  "canbus",
+                  "Unit 1: CAN communication lost - "
+                  "returning lifecycle state to OFFLINE."
+                );
+
+      # Unit 2
+      - if:
+          condition:
+            lambda: |-
+              const bool property_discovery_active =
+                  id(detect_unit_1_properties).is_running() ||
+                  id(detect_unit_2_properties).is_running() ||
+                  id(detect_unit_3_properties).is_running();
+
+              const bool property_resume_grace =
+                  id(last_property_discovery_end) != 0 &&
+                  static_cast<uint32_t>(
+                    millis() - id(last_property_discovery_end)
+                  ) < ${property_poll_resume_grace_ms}U;
+
+              return
+                id(rectifier_control_state_2) ==
+                  ${rectifier_state_online} &&
+                !id(can_com_ok_2).state &&
+                !property_discovery_active &&
+                !property_resume_grace;
+
+          then:
+            - script.execute:
+                id: set_rectifier_control_state
+                unit: 2
+                state: ${rectifier_state_offline}
+
+            - lambda: |-
+                if (id(power_state_2).state != "UNKNOWN") {
+                  id(power_state_2).publish_state("UNKNOWN");
+                }
+
+                ESP_LOGW(
+                  "canbus",
+                  "Unit 2: CAN communication lost - "
+                  "returning lifecycle state to OFFLINE."
+                );
+
+      # Unit 3
+      - if:
+          condition:
+            lambda: |-
+              const bool property_discovery_active =
+                  id(detect_unit_1_properties).is_running() ||
+                  id(detect_unit_2_properties).is_running() ||
+                  id(detect_unit_3_properties).is_running();
+
+              const bool property_resume_grace =
+                  id(last_property_discovery_end) != 0 &&
+                  static_cast<uint32_t>(
+                    millis() - id(last_property_discovery_end)
+                  ) < ${property_poll_resume_grace_ms}U;
+
+              return
+                id(rectifier_control_state_3) ==
+                  ${rectifier_state_online} &&
+                !id(can_com_ok_3).state &&
+                !property_discovery_active &&
+                !property_resume_grace;
+
+          then:
+            - script.execute:
+                id: set_rectifier_control_state
+                unit: 3
+                state: ${rectifier_state_offline}
+
+            - lambda: |-
+                if (id(power_state_3).state != "UNKNOWN") {
+                  id(power_state_3).publish_state("UNKNOWN");
+                }
+
+                ESP_LOGW(
+                  "canbus",
+                  "Unit 3: CAN communication lost - "
+                  "returning lifecycle state to OFFLINE."
+                );
 
   # --------------------------------------------------------------------------
   # detect_unit_1_properties
@@ -6374,37 +6502,6 @@ binary_sensor:
                         id: discovery_queue
                         unit: 1
 
-    on_release:
-      then:
-        # Only a fully ONLINE unit is demoted immediately when the normal CAN
-        # watchdog expires.
-        #
-        # During DISCOVERING the raw watchdog is allowed to expire because
-        # normal cyclic polling is intentionally suspended. The discovery
-        # process itself decides whether the unit returns ONLINE or OFFLINE.
-        - if:
-            condition:
-              lambda: |-
-                return
-                  id(rectifier_control_state_1) ==
-                    ${rectifier_state_online};
-
-            then:
-              - script.execute:
-                  id: set_rectifier_control_state
-                  unit: 1
-                  state: ${rectifier_state_offline}
-
-        - lambda: |-
-            if (id(power_state_1).state != "UNKNOWN") {
-              id(power_state_1).publish_state("UNKNOWN");
-
-              ESP_LOGW(
-                "canbus",
-                "Unit 1: CAN communication lost - power state set to UNKNOWN."
-              );
-            }
-
   # --------------------------------------------------------------------------
   # CAN Communication Unit 2
   # Per-unit connectivity watchdog using the centralized CAN timeout.
@@ -6460,31 +6557,6 @@ binary_sensor:
                     - script.execute:
                         id: discovery_queue
                         unit: 2
-
-    on_release:
-      then:
-        - if:
-            condition:
-              lambda: |-
-                return
-                  id(rectifier_control_state_2) ==
-                    ${rectifier_state_online};
-
-            then:
-              - script.execute:
-                  id: set_rectifier_control_state
-                  unit: 2
-                  state: ${rectifier_state_offline}
-
-        - lambda: |-
-            if (id(power_state_2).state != "UNKNOWN") {
-              id(power_state_2).publish_state("UNKNOWN");
-
-              ESP_LOGW(
-                "canbus",
-                "Unit 2: CAN communication lost - power state set to UNKNOWN."
-              );
-            }
 
   # --------------------------------------------------------------------------
   # CAN Communication Unit 3
@@ -6542,31 +6614,6 @@ binary_sensor:
                         id: discovery_queue
                         unit: 3
 
-    on_release:
-      then:
-        - if:
-            condition:
-              lambda: |-
-                return
-                  id(rectifier_control_state_3) ==
-                    ${rectifier_state_online};
-
-            then:
-              - script.execute:
-                  id: set_rectifier_control_state
-                  unit: 3
-                  state: ${rectifier_state_offline}
-
-        - lambda: |-
-            if (id(power_state_3).state != "UNKNOWN") {
-              id(power_state_3).publish_state("UNKNOWN");
-
-              ESP_LOGW(
-                "canbus",
-                "Unit 3: CAN communication lost - power state set to UNKNOWN."
-              );
-            }
-
   # --------------------------------------------------------------------------
   # Rectifier Capability Mismatch
   # Diagnostic problem indicator comparing the maximum-current capability
@@ -6592,6 +6639,13 @@ binary_sensor:
 # Polls live telemetry frequently and periodically reasserts active voltage and
 # current setpoints so units that restart can recover the requested settings.
 interval:
+  # --------------------------------------------------------------------------
+  # Periodic task: reconcile raw CAN connectivity with lifecycle state
+  # --------------------------------------------------------------------------
+  - interval: 1s
+    then:
+      - script.execute: reconcile_rectifier_connectivity
+
   # --------------------------------------------------------------------------
   # Periodic task: TWAI controller recovery
   #
