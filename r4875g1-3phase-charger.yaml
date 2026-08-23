@@ -129,6 +129,11 @@ substitutions:
   unit_2_poll_gap: "156ms"
   unit_3_poll_gap: "166ms"
 
+  # Offline rectifiers are probed round-robin. One unit is considered every
+  # five seconds, resulting in a maximum probe interval of approximately
+  # 15 seconds per offline rectifier.
+  offline_probe_slot_interval: "5s"
+
   can_recovery_check_interval: "2s"
 
   setpoint_refresh_interval: "30s"
@@ -920,9 +925,19 @@ globals:
   #   1 = DISCOVERING
   #   2 = ONLINE
   #
-  # In this first implementation step the states are diagnostic only.
-  # Existing polling, discovery and control decisions still use the current
-  # logic and are not yet gated by these values.
+  # The states now participate in CAN polling decisions:
+  #
+  # OFFLINE:
+  #   excluded from normal fast telemetry/fan polling
+  #
+  # DISCOVERING:
+  #   receives cyclic telemetry heartbeat only
+  #
+  # ONLINE:
+  #   receives normal cyclic telemetry and fan polling
+  #
+  # Other control and setpoint paths are intentionally migrated in later
+  # implementation steps.
   - id: rectifier_control_state_1
     type: uint8_t
     restore_value: false
@@ -937,6 +952,22 @@ globals:
     type: uint8_t
     restore_value: false
     initial_value: "${rectifier_state_offline}"
+
+  # --------------------------------------------------------------------------
+  # Offline probe round-robin selector
+  # --------------------------------------------------------------------------
+  # Selects which rectifier is considered by the next slow offline-probe slot.
+  #
+  # The selector rotates continuously:
+  #
+  #   Unit 1 -> Unit 2 -> Unit 3 -> Unit 1 ...
+  #
+  # A probe frame is transmitted only when the selected unit is currently
+  # OFFLINE. ONLINE and DISCOVERING units are skipped.
+  - id: offline_probe_next_unit
+    type: uint8_t
+    restore_value: false
+    initial_value: "1"
 
   # Current-command scaling factor.
   #
@@ -1144,8 +1175,8 @@ script:
   #   1 = DISCOVERING
   #   2 = ONLINE
   #
-  # This first implementation is observational only. The state is published
-  # for diagnostics and logged, but does not yet control polling or commands.
+  # The state is published for diagnostics and is also used by the CAN polling
+  # scheduler. Other operational control paths are migrated separately.
   - id: set_rectifier_control_state
     mode: queued
     max_runs: 12
@@ -6253,9 +6284,131 @@ interval:
           }
 
   # --------------------------------------------------------------------------
+  # Periodic task: slow offline rectifier probing
+  #
+  # Offline rectifiers are not included in the normal high-rate polling cycle.
+  #
+  # Instead, one unit is considered every five seconds in round-robin order:
+  #
+  #   Unit 1 -> Unit 2 -> Unit 3 -> Unit 1 ...
+  #
+  # A telemetry request is transmitted only when the selected unit is OFFLINE.
+  # Therefore each continuously offline unit is probed approximately every
+  # 15 seconds.
+  #
+  # Only the normal cyclic telemetry request is used as the probe. Fan
+  # telemetry is deliberately not requested from an offline unit.
+  #
+  # Offline probing is suspended while the serialized discovery worker is
+  # active so reconnect probes cannot interfere with discovery traffic.
+  - interval: ${offline_probe_slot_interval}
+    then:
+      - if:
+          condition:
+            lambda: |-
+              return !id(discovery_queue).is_running();
+
+          then:
+            # --------------------------------------------------------------
+            # Unit 1 probe slot
+            # --------------------------------------------------------------
+            - if:
+                condition:
+                  lambda: |-
+                    return
+                      id(offline_probe_next_unit) == 1 &&
+                      id(rectifier_control_state_1) ==
+                        ${rectifier_state_offline};
+
+                then:
+                  - canbus.send:
+                      use_extended_id: true
+                      can_id: 0x108140FE
+                      data:
+                        - 0x00
+                        - 0x00
+                        - 0x00
+                        - 0x00
+                        - 0x00
+                        - 0x00
+                        - 0x00
+                        - 0x00
+
+            # --------------------------------------------------------------
+            # Unit 2 probe slot
+            # --------------------------------------------------------------
+            - if:
+                condition:
+                  lambda: |-
+                    return
+                      id(offline_probe_next_unit) == 2 &&
+                      id(rectifier_control_state_2) ==
+                        ${rectifier_state_offline};
+
+                then:
+                  - canbus.send:
+                      use_extended_id: true
+                      can_id: 0x108240FE
+                      data:
+                        - 0x00
+                        - 0x00
+                        - 0x00
+                        - 0x00
+                        - 0x00
+                        - 0x00
+                        - 0x00
+                        - 0x00
+
+            # --------------------------------------------------------------
+            # Unit 3 probe slot
+            # --------------------------------------------------------------
+            - if:
+                condition:
+                  lambda: |-
+                    return
+                      id(offline_probe_next_unit) == 3 &&
+                      id(rectifier_control_state_3) ==
+                        ${rectifier_state_offline};
+
+                then:
+                  - canbus.send:
+                      use_extended_id: true
+                      can_id: 0x108340FE
+                      data:
+                        - 0x00
+                        - 0x00
+                        - 0x00
+                        - 0x00
+                        - 0x00
+                        - 0x00
+                        - 0x00
+                        - 0x00
+
+            # Advance to the next unit for the following probe slot.
+            - lambda: |-
+                id(offline_probe_next_unit)++;
+
+                if (id(offline_probe_next_unit) > 3) {
+                  id(offline_probe_next_unit) = 1;
+                }
+
+  # --------------------------------------------------------------------------
   # Periodic task: 577 ms
-  # Fast cyclic telemetry polling. Unit 1 is requested first; Units 2 and 3 are
-  # staggered by 183 ms and 193 ms to distribute CAN traffic.
+  #
+  # State-aware fast CAN polling.
+  #
+  # ONLINE:
+  #   cyclic telemetry + fan telemetry
+  #
+  # DISCOVERING:
+  #   cyclic telemetry only
+  #
+  # OFFLINE:
+  #   excluded completely; reconnect detection is handled by the slow probe
+  #   scheduler above.
+  #
+  # During property discovery the complete fast-polling cycle is suspended so
+  # the multi-frame property response has exclusive access to the CAN bus.
   - interval: ${telemetry_poll_interval}
     then:
       - if:
@@ -6267,48 +6420,157 @@ interval:
                 !id(detect_unit_3_properties).is_running();
 
           then:
+            # --------------------------------------------------------------
             # Unit 1 cyclic telemetry
-            - canbus.send:
-                use_extended_id: true
-                can_id: 0x108140FE
-                data: [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+            #
+            # ONLINE and DISCOVERING both receive this request.
+            # DISCOVERING still needs the cyclic heartbeat during the current
+            # 5-second stabilization delay because the CAN watchdog expires
+            # after 3 seconds.
+            # --------------------------------------------------------------
+            - if:
+                condition:
+                  lambda: |-
+                    return
+                      id(rectifier_control_state_1) !=
+                        ${rectifier_state_offline};
 
-            # Unit 1 fan telemetry
+                then:
+                  - canbus.send:
+                      use_extended_id: true
+                      can_id: 0x108140FE
+                      data:
+                        - 0x00
+                        - 0x00
+                        - 0x00
+                        - 0x00
+                        - 0x00
+                        - 0x00
+                        - 0x00
+                        - 0x00
+
             - delay: ${fan_query_delay}
-            - canbus.send:
-                use_extended_id: true
-                can_id: 0x108182FE
-                data: [0x01, 0x87, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+
+            # Fan telemetry is normal operational polling and therefore runs
+            # only when Unit 1 is fully ONLINE.
+            - if:
+                condition:
+                  lambda: |-
+                    return
+                      id(rectifier_control_state_1) ==
+                        ${rectifier_state_online};
+
+                then:
+                  - canbus.send:
+                      use_extended_id: true
+                      can_id: 0x108182FE
+                      data:
+                        - 0x01
+                        - 0x87
+                        - 0x00
+                        - 0x00
+                        - 0x00
+                        - 0x00
+                        - 0x00
+                        - 0x00
 
             - delay: ${unit_2_poll_gap}
 
+            # --------------------------------------------------------------
             # Unit 2 cyclic telemetry
-            - canbus.send:
-                use_extended_id: true
-                can_id: 0x108240FE
-                data: [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+            # --------------------------------------------------------------
+            - if:
+                condition:
+                  lambda: |-
+                    return
+                      id(rectifier_control_state_2) !=
+                        ${rectifier_state_offline};
 
-            # Unit 2 fan telemetry
+                then:
+                  - canbus.send:
+                      use_extended_id: true
+                      can_id: 0x108240FE
+                      data:
+                        - 0x00
+                        - 0x00
+                        - 0x00
+                        - 0x00
+                        - 0x00
+                        - 0x00
+                        - 0x00
+                        - 0x00
+
             - delay: ${fan_query_delay}
-            - canbus.send:
-                use_extended_id: true
-                can_id: 0x108282FE
-                data: [0x01, 0x87, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+
+            - if:
+                condition:
+                  lambda: |-
+                    return
+                      id(rectifier_control_state_2) ==
+                        ${rectifier_state_online};
+
+                then:
+                  - canbus.send:
+                      use_extended_id: true
+                      can_id: 0x108282FE
+                      data:
+                        - 0x01
+                        - 0x87
+                        - 0x00
+                        - 0x00
+                        - 0x00
+                        - 0x00
+                        - 0x00
+                        - 0x00
 
             - delay: ${unit_3_poll_gap}
 
+            # --------------------------------------------------------------
             # Unit 3 cyclic telemetry
-            - canbus.send:
-                use_extended_id: true
-                can_id: 0x108340FE
-                data: [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+            # --------------------------------------------------------------
+            - if:
+                condition:
+                  lambda: |-
+                    return
+                      id(rectifier_control_state_3) !=
+                        ${rectifier_state_offline};
 
-            # Unit 3 fan telemetry
+                then:
+                  - canbus.send:
+                      use_extended_id: true
+                      can_id: 0x108340FE
+                      data:
+                        - 0x00
+                        - 0x00
+                        - 0x00
+                        - 0x00
+                        - 0x00
+                        - 0x00
+                        - 0x00
+                        - 0x00
+
             - delay: ${fan_query_delay}
-            - canbus.send:
-                use_extended_id: true
-                can_id: 0x108382FE
-                data: [0x01, 0x87, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+
+            - if:
+                condition:
+                  lambda: |-
+                    return
+                      id(rectifier_control_state_3) ==
+                        ${rectifier_state_online};
+
+                then:
+                  - canbus.send:
+                      use_extended_id: true
+                      can_id: 0x108382FE
+                      data:
+                        - 0x01
+                        - 0x87
+                        - 0x00
+                        - 0x00
+                        - 0x00
+                        - 0x00
+                        - 0x00
+                        - 0x00
 
   # --------------------------------------------------------------------------
   # Periodic task: 30 s
