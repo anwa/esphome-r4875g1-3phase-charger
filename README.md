@@ -100,11 +100,13 @@ CAN uses **125 kbit/s** and **29-bit extended identifiers**.
 - Explicit per-unit lifecycle: `OFFLINE`, `DISCOVERING`, `ONLINE`.
 - High-rate telemetry/fan polling only for `ONLINE` rectifiers.
 - `OFFLINE` units are probed sparsely in round-robin order.
-- Read/query traffic uses TWAI **Single-Shot** transmission to avoid uncontrolled retransmissions when a peer is missing.
+- **Single-Shot CAN is intentionally limited to slow OFFLINE reconnect probes.**
+- Normal online telemetry/fan polling uses the regular ESPHome CAN path.
+- Static property and capability/address discovery use the regular ESPHome CAN path.
 - Static property discovery temporarily owns the bus and uses an enlarged 64-frame TWAI RX queue.
 - Automatic and manual discoveries use one serialized queue.
 - A rediscovered unit receives its active voltage/current before it is returned to `ONLINE`.
-- Reconnect setpoint restore itself uses targeted Single-Shot CAN.
+- Reconnect setpoint restore uses the normal unit-specific active-setpoint path.
 - TWAI `BUS_OFF` recovery remains available as a final controller-level recovery mechanism.
 
 ---
@@ -231,22 +233,14 @@ The firmware deliberately does not increase current on the remaining visible rec
 
 # Rectifier lifecycle
 
-Raw CAN reachability and operational readiness are separate concepts.
-
-Every unit has one of three lifecycle states:
-
-```text
-OFFLINE
-DISCOVERING
-ONLINE
-```
+Each rectifier has an independent operational lifecycle:
 
 ```mermaid
 stateDiagram-v2
     [*] --> OFFLINE: ESP boot
-    OFFLINE --> DISCOVERING: valid CAN heartbeat detected
-    DISCOVERING --> ONLINE: discovery verified + active setpoints restored
-    DISCOVERING --> OFFLINE: verification fails
+    OFFLINE --> DISCOVERING: valid CAN communication detected
+    DISCOVERING --> ONLINE: discovery verified + restore step completed
+    DISCOVERING --> OFFLINE: discovery verification fails
     ONLINE --> OFFLINE: CAN communication lost
 ```
 
@@ -322,7 +316,7 @@ Per online unit the controller requests:
 - cyclic telemetry,
 - fan telemetry.
 
-Both request classes use TWAI Single-Shot frames.
+These normal online requests use ESPHome `canbus.send`.
 
 Fast polling is suspended while a static property response is being received so that the large multi-frame property burst has exclusive bus access.
 
@@ -336,7 +330,7 @@ A round-robin slot occurs every **5 seconds**:
 Unit 1 -> Unit 2 -> Unit 3 -> Unit 1 -> ...
 ```
 
-Only if the selected unit is currently `OFFLINE` does the controller send one Single-Shot cyclic-telemetry probe.
+Only if the selected unit is currently `OFFLINE` does the controller send one **Single-Shot** cyclic-telemetry probe.
 
 With three continuously offline units this means each particular unit is probed approximately every **15 seconds**.
 
@@ -346,19 +340,21 @@ The probe scheduler is suspended while the serialized discovery worker is active
 
 # Single-Shot CAN strategy
 
-The firmware uses TWAI Single-Shot (`TWAI_MSG_FLAG_SS`) for read/query traffic:
+The stable CAN baseline deliberately restricts TWAI Single-Shot (`TWAI_MSG_FLAG_SS`) to **slow OFFLINE reconnect probes only**.
 
-- cyclic telemetry queries,
-- fan queries,
-- offline probes,
-- static-property requests,
-- capability/address requests.
+That path exists to prevent one missing rectifier from causing automatic hardware retransmission of the same unacknowledged probe frame.
 
-A missing CAN peer therefore does not cause the hardware to endlessly retransmit each query.
+The following traffic uses normal ESPHome CAN transmission:
 
-Normal operational controls still use the regular ESPHome CAN path where appropriate.
+- online cyclic telemetry polling,
+- online fan polling,
+- static property discovery,
+- capability/address discovery,
+- active voltage/current setpoints,
+- reconnect setpoint restore,
+- ON/OFF control.
 
-Reconnect setpoint restore is a deliberate exception: active voltage/current are sent specifically to the rediscovered unit using Single-Shot CAN so a peer disappearing again during recovery cannot immediately create another unlimited retransmission sequence.
+`BUS_OFF` recovery remains implemented because normal CAN traffic can still encounter physical bus faults or acknowledgement problems.
 
 ---
 
@@ -393,6 +389,8 @@ Capability/address discovery then verifies the hardware data. A unit is accepted
 If verification fails, the lifecycle returns to `OFFLINE`.
 
 If verification succeeds, the controller restores active setpoints to that specific unit and only then changes the lifecycle to `ONLINE`.
+
+Property and capability/address requests use normal ESPHome `canbus.send` in the current stable baseline.
 
 ---
 
@@ -517,10 +515,11 @@ A rediscovered unit receives active settings before normal operation resumes.
 ```mermaid
 flowchart TD
     A[Discovery verified] --> B[Validate active V/I and scaling]
-    B --> C[Single-Shot active voltage to this unit]
+    B --> C[Send active voltage to this unit]
     C --> D[Wait 50 ms]
-    D --> E[Single-Shot active current to this unit]
-    E --> F[Lifecycle DISCOVERING -> ONLINE]
+    D --> E[Send active current to this unit]
+    E --> F[Restore script completes]
+    F --> G[Lifecycle DISCOVERING -> ONLINE]
 ```
 
 This restore:
@@ -528,14 +527,16 @@ This restore:
 - is targeted to exactly one unit,
 - uses the currently active voltage/current,
 - uses the current scaling already refreshed by discovery,
-- uses Single-Shot transmission,
+- uses the normal unit-specific active-setpoint transmission path,
 - does **not** send an ON command.
+
+The discovery queue waits for the restore script to complete, but it does not separately verify a CAN acknowledgement for those setpoint frames before promoting the lifecycle to `ONLINE`.
 
 ---
 
 # Physical CAN disconnect/reconnect behavior
 
-The final lifecycle behavior was verified by physically unplugging and reconnecting the CAN connector while the R4875G1 itself remained powered.
+The lifecycle behavior was verified by physically unplugging and reconnecting the CAN connector while the R4875G1 itself remained powered.
 
 Observed sequence:
 
@@ -564,7 +565,7 @@ capability/address discovery
   ↓
 52.0 A effective capability detected in tested configuration
   ↓
-targeted Single-Shot active voltage/current restore
+targeted active voltage/current restore
   ↓
 ONLINE
   ↓
@@ -572,6 +573,8 @@ normal fast polling resumes
 ```
 
 The reconnect completed without an ESP reboot and did not require `BUS_OFF` as a prerequisite.
+
+The physical trace verifies the lifecycle and protocol sequence. It does not imply Single-Shot transport for normal polling, discovery or restore; in the current stable baseline only the slow OFFLINE probe itself is Single-Shot.
 
 ---
 
@@ -597,7 +600,7 @@ twai_start()
 
 restarts the controller.
 
-Because normal read/query traffic is Single-Shot and offline rectifiers are removed from high-rate polling, a normal missing peer now creates much less transmit pressure than the earlier retransmitting design. `BUS_OFF` is therefore a final recovery path, not the expected mechanism for every ordinary disconnect/reconnect event.
+State-aware polling and Single-Shot offline probes reduce unnecessary transmit pressure when rectifiers are absent. `BUS_OFF` remains a final recovery path for more severe CAN faults.
 
 ---
 
@@ -764,139 +767,48 @@ bytes 4..5 = fan duty target
 bytes 6..7 = fan RPM
 ```
 
-Duty conversion:
+Duty values use:
 
 ```text
-duty [%] = raw / 256
+fan duty % = raw / 256
 ```
 
-RPM is used as the raw 16-bit value.
+RPM is a direct 16-bit value.
 
 ---
 
-# CAN-aware aggregate sensors
+# Aggregate telemetry and TFT behavior
 
-Disconnected units and stale values are excluded instead of being added as if they were current measurements.
+Aggregate values include only rectifiers with fresh CAN communication and valid required telemetry.
 
-Aggregate entities include:
+Examples:
 
-- `Available Units`,
-- `Combined AC Power`,
-- `Combined DC Power`,
-- `Combined DC Current All Units`,
-- `Average DC Voltage All Units`,
-- `Highest Output Temperature All Units`,
-- `Conversion Efficiency All Units`.
+- Combined AC Power -> sum
+- Combined DC Power -> sum
+- Combined DC Current -> sum
+- Average DC Voltage -> average
+- Highest Output Temperature -> maximum
+- Available Units -> count
 
-`Available Units` intentionally reports `0` when no units are reachable. Other aggregate values can become unavailable when no valid source data exists.
+If no valid unit contributes, most aggregates become unavailable rather than falsely reporting zero. `Available Units` intentionally returns `0`.
 
-Conversion efficiency requires paired valid AC/DC power and at least 100 W aggregate AC input to avoid meaningless low-load values.
-
----
-
-# TFT user interface
-
-The TFT refreshes every **500 ms**.
-
-It shows:
-
-- date/time,
-- AC input overview,
-- combined DC output,
-- per-unit DC voltage/current/power,
-- per-unit input/output temperature,
-- selected local setpoints,
-- charger state,
-- IP address, CPU temperature and Wi-Fi RSSI.
-
-CAN reachability and telemetry freshness are presented separately.
-
-If a unit is not reachable:
+The TFT distinguishes:
 
 ```text
 CAN bus communication fault!
 ```
 
-If the unit is reachable but required live values are unavailable:
+from:
 
 ```text
 Telemetry incomplete!
 ```
 
-The charger-state summary is derived from reachable units whose power-state sensor reports `ON`:
-
-```text
-OFF
-1/3 ON
-2/3 ON
-3/3 ON
-```
-
-The display backlight wakes on local input, waits five minutes after the last input and then fades out over ten seconds.
+A unit can therefore be reachable while a particular live value is temporarily stale or missing.
 
 ---
 
-# Networking, Home Assistant, web UI and MQTT
-
-The firmware supports:
-
-- Wi-Fi,
-- encrypted Home Assistant native API,
-- ESPHome Web Server v3,
-- MQTT,
-- OTA,
-- fallback AP,
-- captive portal,
-- SNTP.
-
-For local reliability:
-
-```yaml
-api:
-  reboot_timeout: 0s
-
-wifi:
-  reboot_timeout: 0s
-
-mqtt:
-  reboot_timeout: 0s
-```
-
-Therefore a dead Wi-Fi/AP, unavailable Home Assistant instance or unavailable MQTT broker does not reboot the charger controller.
-
-MQTT discovery is disabled because Home Assistant uses the native API as the canonical entity integration. MQTT remains available for external state/command transport.
-
-Current custom command namespace:
-
-```text
-HG/DG/Technik/Charger
-```
-
-Important command topics:
-
-```text
-HG/DG/Technik/Charger/set_dc_voltage
-HG/DG/Technik/Charger/set_dc_current
-HG/DG/Technik/Charger/set_dc_voltage_fallback
-HG/DG/Technik/Charger/set_dc_current_fallback
-```
-
----
-
-# Energy counters
-
-Daily CAN-aware energy counters are provided for:
-
-- `AC Energy Today`,
-- `DC Energy Today`.
-
-They integrate the combined AC/DC power sensors and use SNTP Europe/Berlin time for daily rollover.
-
-Because disconnected rectifiers are excluded from combined power, stale power does not continue accumulating into the daily values.
-
----
-
-# Main CAN protocol map
+# CAN protocol map
 
 This is a project-oriented map, not a complete Huawei protocol specification.
 
@@ -1141,4 +1053,4 @@ See `LICENSE` for the complete license text and retained notices.
 
 ## Documentation synchronization
 
-This README and `R4875G1_CONTROL_FLOWS.md` describe the current `main` implementation of `r4875g1-3phase-charger.yaml` and were synchronized on **2026-08-27**, including the physically verified CAN disconnect/reconnect behavior and 52 A current-scaling trace.
+This README and `R4875G1_CONTROL_FLOWS.md` describe the current stable `main` implementation of `r4875g1-3phase-charger.yaml` and were resynchronized on **2026-08-27**, including the physically verified CAN disconnect/reconnect behavior and 52 A current-scaling trace.
