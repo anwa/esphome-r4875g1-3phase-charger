@@ -83,8 +83,23 @@ substitutions:
   dc_voltage_max_v: "58.0"
   dc_voltage_default_v: "53.0"
 
+  # Thermal derating thresholds and hysteresis.
+  thermal_warn1_c: "70.0"
+  thermal_warn1_reset_c: "65.0"
+  thermal_warn1_limit_a: "50.0"
+
+  thermal_warn2_c: "80.0"
+  thermal_warn2_reset_c: "75.0"
+  thermal_warn2_limit_a: "30.0"
+
   overtemp_trip_c: "90.0"
   overtemp_reset_c: "80.0"
+
+  # Internal thermal-state codes.
+  thermal_state_normal: "0"
+  thermal_state_warn1: "1"
+  thermal_state_warn2: "2"
+  thermal_state_lockout: "3"
 
   efficiency_min_ac_power_w: "100.0"
 
@@ -166,6 +181,10 @@ esphome:
           id(power_state_1).publish_state("UNKNOWN");
           id(power_state_2).publish_state("UNKNOWN");
           id(power_state_3).publish_state("UNKNOWN");
+
+          id(thermal_state_text_1).publish_state("NORMAL");
+          id(thermal_state_text_2).publish_state("NORMAL");
+          id(thermal_state_text_3).publish_state("NORMAL");
 
           // Publish the model-specific fallback until actual rectifier
           // capabilities become available.
@@ -971,6 +990,32 @@ globals:
     type: uint8_t
     restore_value: false
     initial_value: "1"
+
+  # --------------------------------------------------------------------------
+  # Thermal derating state
+  # --------------------------------------------------------------------------
+  # Updated only from valid output-temperature telemetry. A stale/NAN value
+  # never relaxes an existing warning or lockout.
+  - id: thermal_state_1
+    type: uint8_t
+    restore_value: false
+    initial_value: "${thermal_state_normal}"
+
+  - id: thermal_state_2
+    type: uint8_t
+    restore_value: false
+    initial_value: "${thermal_state_normal}"
+
+  - id: thermal_state_3
+    type: uint8_t
+    restore_value: false
+    initial_value: "${thermal_state_normal}"
+
+  # Shared thermal ceiling. The most severe unit state wins.
+  - id: thermal_dc_current_limit
+    type: float
+    restore_value: false
+    initial_value: "${project_max_dc_current_a}f"
 
   # Current-command scaling factor.
   #
@@ -2008,24 +2053,19 @@ script:
           }
 
 
-          // If a newly detected capability lowered the safe limit, immediately
-          // reduce the active DC-current command.
+          // Preserve the user-requested current. Hardware capability is now one
+          // input to the applied-current calculation instead of overwriting the
+          // requested value.
           if (!isnan(id(set_dc_current_limit).state) &&
               id(set_dc_current_limit).state > effective_limit) {
 
             ESP_LOGW(
               "current_limit",
-              "Active DC current %.1f A exceeds new effective limit %.1f A. "
-              "Reducing setpoint.",
+              "Requested active DC current %.1f A exceeds hardware limit %.1f A. "
+              "Keeping requested value; applied current is limited.",
               id(set_dc_current_limit).state,
               effective_limit
             );
-
-            auto current_call =
-                id(set_dc_current_limit).make_call();
-
-            current_call.set_value(effective_limit);
-            current_call.perform();
           }
 
 
@@ -2046,6 +2086,169 @@ script:
 
             fallback_call.set_value(effective_limit);
             fallback_call.perform();
+          }
+
+      - script.execute: send_active_current_to_online_units
+
+  # --------------------------------------------------------------------------
+  # update_thermal_current_limit
+  # --------------------------------------------------------------------------
+  # Shared thermal ceiling based on the most severe latched per-unit state.
+  # NORMAL=75 A, WARNING_1=50 A, WARNING_2/LOCKOUT=30 A.
+  - id: update_thermal_current_limit
+    mode: restart
+    then:
+      - lambda: |-
+          float limit = ${project_max_dc_current_a}f;
+
+          const auto apply_state = [&limit](uint8_t state) {
+            if (state == ${thermal_state_warn1}) {
+              limit = std::min(limit, ${thermal_warn1_limit_a}f);
+            } else if (state == ${thermal_state_warn2} ||
+                       state == ${thermal_state_lockout}) {
+              limit = std::min(limit, ${thermal_warn2_limit_a}f);
+            }
+          };
+
+          apply_state(id(thermal_state_1));
+          apply_state(id(thermal_state_2));
+          apply_state(id(thermal_state_3));
+
+          const float previous = id(thermal_dc_current_limit);
+          id(thermal_dc_current_limit) = limit;
+
+          if (fabsf(previous - limit) > 0.01f) {
+            ESP_LOGW(
+              "thermal",
+              "Thermal DC current limit changed from %.1f A to %.1f A.",
+              previous,
+              limit
+            );
+          }
+
+      # Apply a new thermal ceiling immediately. The normal 30-second refresh
+      # remains the periodic fallback.
+      - script.execute: send_active_current_to_online_units
+
+  # --------------------------------------------------------------------------
+  # update_rectifier_thermal_state
+  # --------------------------------------------------------------------------
+  # Hysteretic per-unit state machine. It runs only for valid numeric
+  # output-temperature samples. Missing/stale data therefore never clears a
+  # warning or lockout.
+  - id: update_rectifier_thermal_state
+    mode: queued
+    max_runs: 12
+    parameters:
+      unit: int
+      temperature: float
+    then:
+      # Hard trip sends OFF once on entry.
+      - if:
+          condition:
+            lambda: 'return unit == 1 && temperature >= ${overtemp_trip_c}f && !id(overtemp_lockout_1);'
+          then:
+            - lambda: 'id(overtemp_lockout_1) = true;'
+            - canbus.send:
+                use_extended_id: true
+                can_id: 0x108180FE
+                data: [0x01, 0x32, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00]
+      - if:
+          condition:
+            lambda: 'return unit == 2 && temperature >= ${overtemp_trip_c}f && !id(overtemp_lockout_2);'
+          then:
+            - lambda: 'id(overtemp_lockout_2) = true;'
+            - canbus.send:
+                use_extended_id: true
+                can_id: 0x108280FE
+                data: [0x01, 0x32, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00]
+      - if:
+          condition:
+            lambda: 'return unit == 3 && temperature >= ${overtemp_trip_c}f && !id(overtemp_lockout_3);'
+          then:
+            - lambda: 'id(overtemp_lockout_3) = true;'
+            - canbus.send:
+                use_extended_id: true
+                can_id: 0x108380FE
+                data: [0x01, 0x32, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00]
+
+      - lambda: |-
+          uint8_t *state = nullptr;
+          bool *lockout = nullptr;
+          esphome::template_::TemplateTextSensor *text = nullptr;
+
+          if (unit == 1) {
+            state = &id(thermal_state_1);
+            lockout = &id(overtemp_lockout_1);
+            text = id(thermal_state_text_1);
+          } else if (unit == 2) {
+            state = &id(thermal_state_2);
+            lockout = &id(overtemp_lockout_2);
+            text = id(thermal_state_text_2);
+          } else if (unit == 3) {
+            state = &id(thermal_state_3);
+            lockout = &id(overtemp_lockout_3);
+            text = id(thermal_state_text_3);
+          } else {
+            ESP_LOGW("thermal", "Invalid thermal-state unit: %d", unit);
+            return;
+          }
+
+          const uint8_t previous = *state;
+          uint8_t next = previous;
+
+          if (previous == ${thermal_state_lockout}) {
+            if (temperature < ${overtemp_reset_c}f) {
+              next = ${thermal_state_warn1};
+            }
+          } else if (previous == ${thermal_state_warn2}) {
+            if (temperature >= ${overtemp_trip_c}f) {
+              next = ${thermal_state_lockout};
+            } else if (temperature < ${thermal_warn2_reset_c}f) {
+              next = ${thermal_state_warn1};
+            }
+          } else if (previous == ${thermal_state_warn1}) {
+            if (temperature >= ${overtemp_trip_c}f) {
+              next = ${thermal_state_lockout};
+            } else if (temperature >= ${thermal_warn2_c}f) {
+              next = ${thermal_state_warn2};
+            } else if (temperature < ${thermal_warn1_reset_c}f) {
+              next = ${thermal_state_normal};
+            }
+          } else {
+            if (temperature >= ${overtemp_trip_c}f) {
+              next = ${thermal_state_lockout};
+            } else if (temperature >= ${thermal_warn2_c}f) {
+              next = ${thermal_state_warn2};
+            } else if (temperature >= ${thermal_warn1_c}f) {
+              next = ${thermal_state_warn1};
+            } else {
+              next = ${thermal_state_normal};
+            }
+          }
+
+          *lockout = (next == ${thermal_state_lockout});
+
+          if (next != previous) {
+            *state = next;
+
+            const char *name =
+              next == ${thermal_state_lockout} ? "LOCKOUT" :
+              next == ${thermal_state_warn2} ? "WARNING_2" :
+              next == ${thermal_state_warn1} ? "WARNING_1" :
+              "NORMAL";
+
+            text->publish_state(name);
+
+            ESP_LOGW(
+              "thermal",
+              "Unit %d thermal state changed to %s at %.1f C.",
+              unit,
+              name,
+              temperature
+            );
+
+            id(update_thermal_current_limit)->execute();
           }
 
   # --------------------------------------------------------------------------
@@ -2234,7 +2437,8 @@ script:
   # --------------------------------------------------------------------------
   # send_active_current_to_unit
   # --------------------------------------------------------------------------
-  # Sends the configured active DC current limit to exactly one rectifier.
+  # Sends the requested active DC current, limited by hardware capability and
+  # the shared thermal derating ceiling, to exactly one rectifier.
   - id: send_active_current_to_unit
     mode: queued
     max_runs: 12
@@ -2245,24 +2449,38 @@ script:
       - if:
           condition:
             lambda: |-
-              const float current =
-                  id(set_dc_current_limit).state;
-
-              const float effective_limit =
-                  id(effective_dc_current_limit);
-
+              const float requested = id(set_dc_current_limit).state;
               return
-                unit >= 1 &&
-                unit <= 3 &&
-                !isnan(current) &&
-                current >= ${minimum_dc_current_a}f &&
-                !isnan(effective_limit) &&
-                current <= effective_limit + 0.01f &&
+                unit >= 1 && unit <= 3 &&
+                !isnan(requested) &&
+                requested >= ${minimum_dc_current_a}f &&
+                requested <= ${project_max_dc_current_a}f + 0.01f &&
+                !isnan(id(effective_dc_current_limit)) &&
+                id(effective_dc_current_limit) > 0.0f &&
+                !isnan(id(thermal_dc_current_limit)) &&
+                id(thermal_dc_current_limit) > 0.0f &&
                 !isnan(id(current_scaling_factor)) &&
                 id(current_scaling_factor) > 0.0f;
 
           then:
-            # Unit 1
+            - lambda: |-
+                float applied = id(set_dc_current_limit).state;
+                applied = std::min(applied, id(effective_dc_current_limit));
+                applied = std::min(applied, id(thermal_dc_current_limit));
+
+                id(applied_dc_current_limit_sensor).publish_state(applied);
+
+                ESP_LOGD(
+                  "setpoint",
+                  "Unit %d current request %.1f A -> applied %.1f A "
+                  "(hardware %.1f A, thermal %.1f A).",
+                  unit,
+                  id(set_dc_current_limit).state,
+                  applied,
+                  id(effective_dc_current_limit),
+                  id(thermal_dc_current_limit)
+                );
+
             - if:
                 condition:
                   lambda: 'return unit == 1;'
@@ -2272,22 +2490,15 @@ script:
                       can_id: 0x108180FE
                       data: !lambda |-
                         std::vector<uint8_t> can_data(8, 0x00);
-
                         can_data[0] = 0x01;
                         can_data[1] = 0x03;
-
-                        const int scaled_value =
-                            static_cast<int>(
-                              id(set_dc_current_limit).state *
-                              id(current_scaling_factor)
-                            );
-
+                        float applied = std::min(id(set_dc_current_limit).state, id(effective_dc_current_limit));
+                        applied = std::min(applied, id(thermal_dc_current_limit));
+                        const int scaled_value = static_cast<int>(applied * id(current_scaling_factor));
                         can_data[6] = (scaled_value >> 8) & 0xFF;
                         can_data[7] = scaled_value & 0xFF;
-
                         return can_data;
 
-            # Unit 2
             - if:
                 condition:
                   lambda: 'return unit == 2;'
@@ -2297,22 +2508,15 @@ script:
                       can_id: 0x108280FE
                       data: !lambda |-
                         std::vector<uint8_t> can_data(8, 0x00);
-
                         can_data[0] = 0x01;
                         can_data[1] = 0x03;
-
-                        const int scaled_value =
-                            static_cast<int>(
-                              id(set_dc_current_limit).state *
-                              id(current_scaling_factor)
-                            );
-
+                        float applied = std::min(id(set_dc_current_limit).state, id(effective_dc_current_limit));
+                        applied = std::min(applied, id(thermal_dc_current_limit));
+                        const int scaled_value = static_cast<int>(applied * id(current_scaling_factor));
                         can_data[6] = (scaled_value >> 8) & 0xFF;
                         can_data[7] = scaled_value & 0xFF;
-
                         return can_data;
 
-            # Unit 3
             - if:
                 condition:
                   lambda: 'return unit == 3;'
@@ -2322,31 +2526,23 @@ script:
                       can_id: 0x108380FE
                       data: !lambda |-
                         std::vector<uint8_t> can_data(8, 0x00);
-
                         can_data[0] = 0x01;
                         can_data[1] = 0x03;
-
-                        const int scaled_value =
-                            static_cast<int>(
-                              id(set_dc_current_limit).state *
-                              id(current_scaling_factor)
-                            );
-
+                        float applied = std::min(id(set_dc_current_limit).state, id(effective_dc_current_limit));
+                        applied = std::min(applied, id(thermal_dc_current_limit));
+                        const int scaled_value = static_cast<int>(applied * id(current_scaling_factor));
                         can_data[6] = (scaled_value >> 8) & 0xFF;
                         can_data[7] = scaled_value & 0xFF;
-
                         return can_data;
 
           else:
             - lambda: |-
                 ESP_LOGW(
                   "setpoint",
-                  "Active DC current not sent to Unit %d because the "
-                  "current/scaling state is invalid. Current=%.2f A.",
-                  unit,
-                  id(set_dc_current_limit).state
+                  "Active DC current not sent to Unit %d: invalid "
+                  "requested/hardware/thermal/scaling state.",
+                  unit
                 );
-
 
   # --------------------------------------------------------------------------
   # send_active_voltage_to_online_units
@@ -2478,7 +2674,12 @@ script:
 
                 !isnan(current) &&
                 current >= ${minimum_dc_current_a}f &&
-                current <= id(effective_dc_current_limit) + 0.01f &&
+                current <= ${project_max_dc_current_a}f + 0.01f &&
+
+                !isnan(id(effective_dc_current_limit)) &&
+                id(effective_dc_current_limit) > 0.0f &&
+                !isnan(id(thermal_dc_current_limit)) &&
+                id(thermal_dc_current_limit) > 0.0f &&
 
                 !isnan(id(current_scaling_factor)) &&
                 id(current_scaling_factor) > 0.0f;
@@ -2508,7 +2709,7 @@ script:
             - lambda: |-
                 ESP_LOGI(
                   "setpoint_restore",
-                  "Active DC setpoints reapplied successfully to Unit %d.",
+                  "Active DC setpoint restore commands sent to Unit %d.",
                   unit
                 );
 
@@ -2907,105 +3108,39 @@ script:
   # --------------------------------------------------------------------------
   # apply_dc_sum_power
   # --------------------------------------------------------------------------
-  # Converts the configured nominal three-unit DC power target into one common
-  # current command for all rectifiers:
-  #
-  #     I_each = P_target / (3 * V_DC)
-  #
-  # The divisor intentionally remains fixed at three. The controller does not
-  # increase the current of remaining units when another rectifier is offline,
-  # unavailable or excluded by an overtemperature lockout.
-  #
-  # Therefore partial operation produces proportionally less total power:
-  #   3 active units -> approximately 100% of the configured target
-  #   2 active units -> approximately  67% of the configured target
-  #   1 active unit  -> approximately  33% of the configured target
-  #
-  # This conservative behavior avoids automatically increasing current when a
-  # rectifier's actual physical state cannot be determined reliably.
-  #
-  # The calculated per-unit current is limited to at least 1 A and at most the
-  # current effective_dc_current_limit derived from detected capabilities.
+  # Converts the nominal three-unit power target into the requested per-unit
+  # current. Hardware and thermal limits are applied later when CAN is sent.
   - id: apply_dc_sum_power
     mode: restart
     then:
       - lambda: |-
-          const float voltage =
-              id(set_dc_voltage_limit).state;
+          const float voltage = id(set_dc_voltage_limit).state;
+          const float power_kw = id(set_dc_sum_power).state;
 
-          const float power_kw =
-              id(set_dc_sum_power).state;
-
-          const float max_current =
-              id(effective_dc_current_limit);
-
-
-          if (isnan(voltage) || voltage < 49.0f) {
-
-            ESP_LOGW(
-              "encoder",
-              "Invalid DC voltage - cannot calculate current."
-            );
-
+          if (isnan(voltage) || voltage < ${dc_voltage_min_v}f) {
+            ESP_LOGW("encoder", "Invalid DC voltage - cannot calculate current.");
             return;
           }
 
-          if (isnan(max_current) ||
-              max_current <= 0.0f) {
+          float requested = (power_kw * 1000.0f) / (voltage * 3.0f);
+          requested = std::min(requested, ${project_max_dc_current_a}f);
+          requested = std::max(requested, ${minimum_dc_current_a}f);
 
-            ESP_LOGE(
-              "current_limit",
-              "Invalid effective DC current limit - "
-              "cannot calculate current."
-            );
-
-            return;
-          }
-
-          const float requested_current_per_rectifier =
-              (power_kw * 1000.0f) /
-              (voltage * 3.0f);
-
-          float current_per_rectifier =
-              requested_current_per_rectifier;
-
-          if (current_per_rectifier > max_current) {
-
-          ESP_LOGW(
-            "encoder",
-            "Nominal 3-unit target %.2f kW requires %.1f A/unit, "
-            "but effective current limit is %.1f A. Clamping.",
-            power_kw,
-            requested_current_per_rectifier,
-            max_current
-          );
-
-            current_per_rectifier =
-                max_current;
-          }
-
-          if (current_per_rectifier < ${minimum_dc_current_a}f) {
-            current_per_rectifier = ${minimum_dc_current_a}f;
-          }
+          float applied = std::min(requested, id(effective_dc_current_limit));
+          applied = std::min(applied, id(thermal_dc_current_limit));
 
           ESP_LOGI(
             "encoder",
             "Nominal 3-unit DC target %.2f kW @ %.2f V -> "
-            "%.1f A per rectifier "
-            "(effective maximum %.1f A)",
-            power_kw,
-            voltage,
-            current_per_rectifier,
-            max_current
+            "requested %.1f A/unit, applied %.1f A/unit "
+            "(hardware %.1f A, thermal %.1f A)",
+            power_kw, voltage, requested, applied,
+            id(effective_dc_current_limit),
+            id(thermal_dc_current_limit)
           );
 
-          auto call =
-              id(set_dc_current_limit).make_call();
-
-          call.set_value(
-            current_per_rectifier
-          );
-
+          auto call = id(set_dc_current_limit).make_call();
+          call.set_value(requested);
           call.perform();
 
   # --------------------------------------------------------------------------
@@ -3058,7 +3193,7 @@ script:
                 id(can_com_ok_1).state &&
                 id(power_state_1).state == "OFF" &&
                 !isnan(id(output_temperature_1).state) &&
-                id(output_temperature_1).state <= ${overtemp_trip_c}f &&
+                id(output_temperature_1).state < ${overtemp_trip_c}f &&
                 !id(overtemp_lockout_1);
 
           then:
@@ -3141,7 +3276,7 @@ script:
                 id(can_com_ok_2).state &&
                 id(power_state_2).state == "OFF" &&
                 !isnan(id(output_temperature_2).state) &&
-                id(output_temperature_2).state <= ${overtemp_trip_c}f &&
+                id(output_temperature_2).state < ${overtemp_trip_c}f &&
                 !id(overtemp_lockout_2);
 
           then:
@@ -3224,7 +3359,7 @@ script:
                 id(can_com_ok_3).state &&
                 id(power_state_3).state == "OFF" &&
                 !isnan(id(output_temperature_3).state) &&
-                id(output_temperature_3).state <= ${overtemp_trip_c}f &&
+                id(output_temperature_3).state < ${overtemp_trip_c}f &&
                 !id(overtemp_lockout_3);
 
           then:
@@ -4960,6 +5095,36 @@ sensor:
     icon: "mdi:current-dc"
 
   # --------------------------------------------------------------------------
+  # Thermal / applied current diagnostics
+  # --------------------------------------------------------------------------
+  - platform: template
+    name: "Thermal DC Current Limit"
+    id: thermal_dc_current_limit_sensor
+    unit_of_measurement: "A"
+    device_class: current
+    accuracy_decimals: 1
+    entity_category: diagnostic
+    update_interval: 1s
+    lambda: 'return id(thermal_dc_current_limit);'
+    icon: "mdi:thermometer-alert"
+
+  - platform: template
+    name: "Applied DC Current Limit"
+    id: applied_dc_current_limit_sensor
+    unit_of_measurement: "A"
+    device_class: current
+    accuracy_decimals: 1
+    state_class: measurement
+    update_interval: 1s
+    lambda: |-
+      const float requested = id(set_dc_current_limit).state;
+      if (isnan(requested)) return NAN;
+      float applied = std::min(requested, id(effective_dc_current_limit));
+      applied = std::min(applied, id(thermal_dc_current_limit));
+      return applied;
+    icon: "mdi:current-dc"
+
+  # --------------------------------------------------------------------------
   # Output Current alt Unit 1
   # Alternate DC current reading from the 0x100x117E frame, scaled with current_scaling_factor.
   - platform: template
@@ -5360,9 +5525,7 @@ sensor:
 
   # --------------------------------------------------------------------------
   # Output Temperature Unit 1
-  # Rectifier output temperature from telemetry selector 0x7F.
-  # The safety automation trips when the configured overtemperature threshold
-  # is exceeded and clears only below the configured reset threshold.
+  # Thermal warnings use this same fresh CAN telemetry.
   - platform: template
     name: "Output Temperature Unit 1"
     id: output_temperature_1
@@ -5370,8 +5533,6 @@ sensor:
     device_class: temperature
     state_class: measurement
     accuracy_decimals: 1
-    # Updated exclusively by CAN publish_state() calls.
-    # Disable the template sensor's own polling loop.
     update_interval: never
     filters:
       - lambda: |-
@@ -5380,60 +5541,18 @@ sensor:
     icon: "mdi:thermometer"
     on_value:
       then:
-        # --------------------------------------------------------------
-        # Overtemperature trip
-        # --------------------------------------------------------------
         - if:
             condition:
-              lambda: |-
-                return !isnan(x) &&
-                       !id(overtemp_lockout_1) &&
-                       x > ${overtemp_trip_c}f;
+              lambda: 'return !isnan(x);'
             then:
-              - lambda: |-
-                  id(overtemp_lockout_1) = true;
-
-                  ESP_LOGW(
-                    "overtemp",
-                    "Unit 1 exceeded configured trip threshold %.1f°C "
-                    "(actual %.1f°C). "
-                    "Sending CAN OFF and engaging overtemperature lockout.",
-                    ${overtemp_trip_c}f,
-                    x
-                  );
-
-              - canbus.send:
-                  use_extended_id: true
-                  can_id: 0x108180FE
-                  data: [0x01, 0x32, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00]
-
-        # --------------------------------------------------------------
-        # Overtemperature recovery
-        # --------------------------------------------------------------
-        - if:
-            condition:
-              lambda: |-
-                return !isnan(x) &&
-                       id(overtemp_lockout_1) &&
-                       x < ${overtemp_reset_c}f;
-            then:
-              - lambda: |-
-                  id(overtemp_lockout_1) = false;
-
-                  ESP_LOGI(
-                    "overtemp",
-                    "Unit 1 cooled below configured reset threshold %.1f°C "
-                    "(actual %.1f°C). "
-                    "Overtemperature lockout cleared.",
-                    ${overtemp_reset_c}f,
-                    x
-                  );
+              - script.execute:
+                  id: update_rectifier_thermal_state
+                  unit: 1
+                  temperature: !lambda 'return x;'
 
   # --------------------------------------------------------------------------
   # Output Temperature Unit 2
-  # Rectifier output temperature from telemetry selector 0x7F.
-  # The safety automation trips when the configured overtemperature threshold
-  # is exceeded and clears only below the configured reset threshold.
+  # Thermal warnings use this same fresh CAN telemetry.
   - platform: template
     name: "Output Temperature Unit 2"
     id: output_temperature_2
@@ -5441,8 +5560,6 @@ sensor:
     device_class: temperature
     state_class: measurement
     accuracy_decimals: 1
-    # Updated exclusively by CAN publish_state() calls.
-    # Disable the template sensor's own polling loop.
     update_interval: never
     filters:
       - lambda: |-
@@ -5451,60 +5568,18 @@ sensor:
     icon: "mdi:thermometer"
     on_value:
       then:
-        # --------------------------------------------------------------
-        # Overtemperature trip
-        # --------------------------------------------------------------
         - if:
             condition:
-              lambda: |-
-                return !isnan(x) &&
-                       !id(overtemp_lockout_2) &&
-                       x > ${overtemp_trip_c}f;
+              lambda: 'return !isnan(x);'
             then:
-              - lambda: |-
-                  id(overtemp_lockout_2) = true;
-
-                  ESP_LOGW(
-                    "overtemp",
-                    "Unit 2 exceeded configured trip threshold %.1f°C "
-                    "(actual %.1f°C). "
-                    "Sending CAN OFF and engaging overtemperature lockout.",
-                    ${overtemp_trip_c}f,
-                    x
-                  );
-
-              - canbus.send:
-                  use_extended_id: true
-                  can_id: 0x108280FE
-                  data: [0x01, 0x32, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00]
-
-        # --------------------------------------------------------------
-        # Overtemperature recovery
-        # --------------------------------------------------------------
-        - if:
-            condition:
-              lambda: |-
-                return !isnan(x) &&
-                       id(overtemp_lockout_2) &&
-                       x < ${overtemp_reset_c}f;
-            then:
-              - lambda: |-
-                  id(overtemp_lockout_2) = false;
-
-                  ESP_LOGI(
-                    "overtemp",
-                    "Unit 2 cooled below configured reset threshold %.1f°C "
-                    "(actual %.1f°C). "
-                    "Overtemperature lockout cleared.",
-                    ${overtemp_reset_c}f,
-                    x
-                  );
+              - script.execute:
+                  id: update_rectifier_thermal_state
+                  unit: 2
+                  temperature: !lambda 'return x;'
 
   # --------------------------------------------------------------------------
   # Output Temperature Unit 3
-  # Rectifier output temperature from telemetry selector 0x7F.
-  # The safety automation trips when the configured overtemperature threshold
-  # is exceeded and clears only below the configured reset threshold.
+  # Thermal warnings use this same fresh CAN telemetry.
   - platform: template
     name: "Output Temperature Unit 3"
     id: output_temperature_3
@@ -5512,8 +5587,6 @@ sensor:
     device_class: temperature
     state_class: measurement
     accuracy_decimals: 1
-    # Updated exclusively by CAN publish_state() calls.
-    # Disable the template sensor's own polling loop.
     update_interval: never
     filters:
       - lambda: |-
@@ -5522,54 +5595,14 @@ sensor:
     icon: "mdi:thermometer"
     on_value:
       then:
-        # --------------------------------------------------------------
-        # Overtemperature trip
-        # --------------------------------------------------------------
         - if:
             condition:
-              lambda: |-
-                return !isnan(x) &&
-                       !id(overtemp_lockout_3) &&
-                       x > ${overtemp_trip_c}f;
+              lambda: 'return !isnan(x);'
             then:
-              - lambda: |-
-                  id(overtemp_lockout_3) = true;
-
-                  ESP_LOGW(
-                    "overtemp",
-                    "Unit 3 exceeded configured trip threshold %.1f°C "
-                    "(actual %.1f°C). "
-                    "Sending CAN OFF and engaging overtemperature lockout.",
-                    ${overtemp_trip_c}f,
-                    x
-                  );
-
-              - canbus.send:
-                  use_extended_id: true
-                  can_id: 0x108380FE
-                  data: [0x01, 0x32, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00]
-
-        # --------------------------------------------------------------
-        # Overtemperature recovery
-        # --------------------------------------------------------------
-        - if:
-            condition:
-              lambda: |-
-                return !isnan(x) &&
-                       id(overtemp_lockout_3) &&
-                       x < ${overtemp_reset_c}f;
-            then:
-              - lambda: |-
-                  id(overtemp_lockout_3) = false;
-
-                  ESP_LOGI(
-                    "overtemp",
-                    "Unit 3 cooled below configured reset threshold %.1f°C "
-                    "(actual %.1f°C). "
-                    "Overtemperature lockout cleared.",
-                    ${overtemp_reset_c}f,
-                    x
-                  );
+              - script.execute:
+                  id: update_rectifier_thermal_state
+                  unit: 3
+                  temperature: !lambda 'return x;'
 
   # --------------------------------------------------------------------------
   # DC Current Unit 1
@@ -6323,30 +6356,21 @@ number:
                 id(effective_dc_current_limit);
 
 
-            if (current_value > max_current) {
-
-              ESP_LOGW(
-                "current_limit",
-                "Requested DC current %.1f A exceeds effective limit %.1f A. "
-                "Clamping setpoint.",
-                current_value,
-                max_current
-              );
-
-              id(set_dc_current_limit).publish_state(
-                max_current
-              );
-
-              current_value = max_current;
-            }
-
+            float applied_current = current_value;
+            applied_current = std::min(applied_current, max_current);
+            applied_current = std::min(
+              applied_current,
+              id(thermal_dc_current_limit)
+            );
 
             ESP_LOGI(
               "custom",
-              "DC Current Limit set to %.1f A "
-              "(effective maximum %.1f A).",
+              "DC Current request %.1f A -> applied %.1f A "
+              "(hardware %.1f A, thermal %.1f A).",
               current_value,
-              max_current
+              applied_current,
+              max_current,
+              id(thermal_dc_current_limit)
             );
 
         - script.execute: send_active_current_to_online_units
@@ -7740,6 +7764,28 @@ text_sensor:
     entity_category: diagnostic
     update_interval: never
     icon: "mdi:state-machine"
+
+  # Thermal derating states are diagnostic and independent of the lifecycle.
+  - platform: template
+    id: thermal_state_text_1
+    name: "Thermal State Unit 1"
+    entity_category: diagnostic
+    update_interval: never
+    icon: "mdi:thermometer-alert"
+
+  - platform: template
+    id: thermal_state_text_2
+    name: "Thermal State Unit 2"
+    entity_category: diagnostic
+    update_interval: never
+    icon: "mdi:thermometer-alert"
+
+  - platform: template
+    id: thermal_state_text_3
+    name: "Thermal State Unit 3"
+    entity_category: diagnostic
+    update_interval: never
+    icon: "mdi:thermometer-alert"
 
   # Human-readable ON/OFF/ERROR state decoded from the unit's 0x100x117E frame.
   - platform: template

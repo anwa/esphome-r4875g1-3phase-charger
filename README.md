@@ -633,7 +633,7 @@ Current is recalculated as:
 I_each = P_target / (3 × V_DC)
 ```
 
-and clamped to the current effective limit.
+The requested current is preserved; the applied current is limited by hardware capability and the current thermal state.
 
 ## Button operation
 
@@ -672,7 +672,7 @@ A unit is eligible only when:
 - raw CAN communication is fresh,
 - CAN-reported power state is explicitly `OFF`,
 - output temperature is valid,
-- output temperature is at or below 90 °C,
+- output temperature is below 90 °C,
 - no overtemperature lockout is active.
 
 `OFFLINE`, `DISCOVERING`, `UNKNOWN` and `ERROR` never satisfy START readiness.
@@ -683,12 +683,42 @@ STOP sends OFF without START-style safety preconditions.
 
 ---
 
+
+# Staged thermal derating
+
+Output temperature now controls a shared thermal current ceiling while preserving the user's requested current. The actual active current sent to `ONLINE` rectifiers is:
+
+```text
+applied current = min(requested current, hardware capability limit, thermal limit)
+```
+
+The most severe thermal state among the three rectifiers determines the common thermal limit:
+
+| State | Enter | Leave / hysteresis | Shared thermal limit |
+|---|---:|---:|---:|
+| `NORMAL` | below 70 °C | — | 75 A project ceiling |
+| `WARNING_1` | >= 70 °C | back to `NORMAL` below 65 °C | 50 A |
+| `WARNING_2` | >= 80 °C | back to `WARNING_1` below 75 °C | 30 A |
+| `LOCKOUT` | >= 90 °C | lockout clears below 80 °C | 30 A + individual OFF |
+
+The warning stages do not switch a rectifier off; they reduce the common applied current. At `>= 90 °C` the affected rectifier receives an individual OFF command and its overtemperature lockout is set. Cooling below 80 °C clears the lockout but never sends an automatic ON command.
+
+The requested active-current value is not overwritten by thermal or hardware derating. When the thermal state recovers, the previously requested value becomes effective again automatically, subject to the hardware capability limit.
+
+Thermal states are only relaxed by fresh numeric output-temperature telemetry. A stale/unavailable temperature never clears an existing warning or lockout.
+
+Diagnostic entities include:
+
+- `Thermal State Unit 1..3`
+- `Thermal DC Current Limit`
+- `Applied DC Current Limit`
+
 # Temperature protection
 
 Each rectifier has an independent output-temperature lockout.
 
 ```text
-Trip:     > 90 °C
+Hard trip: >= 90 °C
 Recovery: < 80 °C
 ```
 

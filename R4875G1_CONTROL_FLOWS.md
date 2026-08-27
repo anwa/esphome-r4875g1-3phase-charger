@@ -305,13 +305,9 @@ effective_dc_current_limit
   = min(75 A project ceiling, every valid detected capability)
 ```
 
-This ceiling constrains:
+This is the hardware/capability ceiling. It constrains the **applied** active current and the rectifier fallback-current configuration. The active requested-current number is preserved even when it is temporarily above this ceiling.
 
-- active DC current,
-- fallback DC current,
-- nominal three-unit power → current conversion.
-
-If capability discovery lowers the effective ceiling below an existing active or fallback current number, that number is reduced immediately.
+Nominal three-unit power conversion calculates a requested per-unit current; hardware and thermal limits are applied only when the active CAN current command is encoded.
 
 ---
 
@@ -455,7 +451,7 @@ The divisor stays fixed at three:
 1 active unit  ≈  33% target
 ```
 
-The calculated value is clamped to at least 1 A and at most the effective DC-current limit.
+The requested value is clamped only to the 1–75 A project/UI range. The transmitted applied current is then `min(requested, hardware limit, thermal limit)`.
 
 ---
 
@@ -470,7 +466,7 @@ flowchart TD
     E --> U1[Evaluate Unit 1]
     E --> U2[Evaluate Unit 2]
     E --> U3[Evaluate Unit 3]
-    U1 --> C1{ONLINE?<br/>CAN fresh?<br/>Power state OFF?<br/>Temp valid and <=90 C?<br/>No lockout?}
+    U1 --> C1{ONLINE?<br/>CAN fresh?<br/>Power state OFF?<br/>Temp valid and <90 C?<br/>No lockout?}
     U2 --> C2{Same checks}
     U3 --> C3{Same checks}
     C1 -- Yes --> ON1[Individual ON U1]
@@ -565,16 +561,9 @@ Fan queries run only for lifecycle-`ONLINE` units and use normal ESPHome `canbus
 
 # 25. Overtemperature protection
 
-```mermaid
-stateDiagram-v2
-    [*] --> NORMAL
-    NORMAL --> LOCKOUT: valid output temperature > 90 C
-    LOCKOUT --> LOCKOUT: 80..90 C
-    LOCKOUT --> LOCKOUT: temperature unavailable
-    LOCKOUT --> NORMAL: valid output temperature < 80 C
-```
+The hard trip is integrated into the staged thermal state machine documented in section 32. At `>= 90 °C` the affected rectifier enters `LOCKOUT` and receives an individual OFF command. The lockout clears only after a fresh output-temperature value below 80 °C; clearing never sends an automatic ON command.
 
-Entering lockout sends individual OFF. Missing or stale temperature never clears lockout and never qualifies START.
+Missing or stale temperature never clears a warning or lockout and never qualifies START.
 
 ---
 
@@ -710,6 +699,46 @@ flowchart TD
     Q[TWAI BUS_OFF if it occurs] --> R[Automatic TWAI recovery]
     R --> C
 ```
+
+---
+
+
+# 32. Staged thermal derating
+
+```mermaid
+stateDiagram-v2
+    [*] --> NORMAL
+    NORMAL --> WARNING_1: temperature >= 70 C
+    WARNING_1 --> NORMAL: temperature < 65 C
+    WARNING_1 --> WARNING_2: temperature >= 80 C
+    WARNING_2 --> WARNING_1: temperature < 75 C
+    WARNING_2 --> LOCKOUT: temperature >= 90 C
+    LOCKOUT --> WARNING_1: fresh temperature < 80 C
+```
+
+The states are per rectifier, but the current limit is shared. The most severe state wins:
+
+```text
+NORMAL     -> 75 A project thermal ceiling
+WARNING_1  -> 50 A
+WARNING_2  -> 30 A
+LOCKOUT    -> 30 A + individual OFF
+```
+
+The active-current layers are:
+
+```mermaid
+flowchart TD
+    A[Requested DC current] --> D[Minimum selector]
+    B[Effective hardware capability limit] --> D
+    C[Shared thermal current limit] --> D
+    D --> E[Applied DC Current Limit]
+    E --> F[Unit-specific current CAN command to ONLINE units]
+```
+
+Thermal or hardware derating never overwrites the requested active-current number. A lower applied current is therefore temporary and automatically rises again when limits recover.
+
+Only fresh numeric output-temperature samples can reduce a thermal state. A stale/NAN temperature leaves the previous state latched. `LOCKOUT` clearing never sends an automatic ON command.
 
 ---
 
