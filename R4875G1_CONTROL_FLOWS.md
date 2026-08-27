@@ -2,7 +2,7 @@
 
 This document describes the control flows, lifecycle state transitions, CAN recovery paths, discovery sequence, current-capability handling, setpoint routing, safety checks, telemetry processing, and local user-interface behavior implemented in `r4875g1-3phase-charger.yaml`.
 
-It is synchronized with the `main` branch implementation as of **2026-08-27** and includes behavior verified with physical R4875G1 CAN disconnect/reconnect traces.
+It is synchronized with the stable `main` implementation as of **2026-08-27** and includes behavior verified with physical R4875G1 CAN disconnect/reconnect traces.
 
 > **Scope:** This is behavioral firmware documentation, not an electrical safety specification. Fuses, breakers, contactors, BMS protection, earthing, isolation, conductor sizing and other hardware protection remain independent of the firmware.
 
@@ -88,7 +88,7 @@ Meaning:
 - **DISCOVERING** — communication has been detected, but property/capability/address validation and the post-discovery restore step have not yet completed.
 - **ONLINE** — discovery verification succeeded and the post-discovery restore script has completed, so the unit is released for normal polling, active setpoint traffic and START decisions.
 
-The discovery queue does not separately inspect a CAN acknowledgement/result from `reapply_active_setpoints` before changing the lifecycle to `ONLINE`; it waits for the restore script to complete. The restore script itself validates its stored voltage/current/scaling state and logs if it cannot queue the Single-Shot restore frames.
+The discovery queue waits for `reapply_active_setpoints` to complete before changing the lifecycle to `ONLINE`. It does not separately inspect a CAN acknowledgement/result for those restore commands.
 
 ---
 
@@ -115,55 +115,54 @@ Unit 1 capability discovery can replace this fallback at runtime.
 
 ---
 
-# 4. CAN traffic classes
+# 4. CAN transport strategy
 
-## Single-Shot query traffic
+The stable baseline intentionally uses **Single-Shot only for slow OFFLINE reconnect probes**.
 
-`send_single_shot_request` uses:
+## OFFLINE probe transport
+
+`send_single_shot_offline_probe` bypasses normal ESPHome CAN transmission and uses:
 
 ```text
 TWAI_MSG_FLAG_EXTD | TWAI_MSG_FLAG_SS
 ```
 
-for:
+This prevents automatic hardware retransmission of an unacknowledged reconnect probe when a rectifier or the complete CAN bus is absent.
 
-- cyclic telemetry requests,
-- fan telemetry requests,
-- offline reachability probes,
-- static property requests,
-- capability/address requests.
+## Normal ESPHome CAN transport
 
-A missing peer therefore does not cause automatic hardware retransmission of that query frame.
+The following traffic uses normal ESPHome `canbus.send`:
 
-## Normal operational commands
+- online cyclic telemetry polling,
+- online fan telemetry polling,
+- static property discovery,
+- capability/address discovery,
+- normal active voltage/current setpoints,
+- reconnect active-setpoint restore,
+- ON/OFF commands,
+- fallback and other broadcast configuration commands.
 
-Regular setpoint and ON/OFF control paths use ESPHome `canbus.send` where configured.
-
-## Reconnect setpoint restore
-
-`send_single_shot_active_setpoint` is used specifically by the reconnect/discovery restore path. It sends one active voltage/current setpoint to one rectifier using Single-Shot CAN so a disappearing peer cannot immediately create another unlimited retransmission sequence.
+`BUS_OFF` recovery therefore remains relevant as a final controller-level recovery mechanism.
 
 ---
 
 # 5. Normal fast polling
 
-Fast polling runs every 577 ms only while TWAI is `RUNNING` and no static property discovery owns the bus.
+Fast polling runs every 577 ms while no static property-discovery script is active.
 
 Only lifecycle-`ONLINE` units participate.
 
 ```mermaid
 flowchart TD
-    A[577 ms interval] --> B{Property discovery active?}
+    A[577 ms interval] --> B{Any property discovery active?}
     B -- Yes --> X[Skip complete cycle]
-    B -- No --> C{TWAI RUNNING?}
-    C -- No --> X
-    C -- Yes --> U1{Unit 1 ONLINE?}
-    U1 -- Yes --> Q1[Single-Shot telemetry U1]
+    B -- No --> U1{Unit 1 ONLINE?}
+    U1 -- Yes --> Q1[ESPHome cyclic telemetry request U1]
     U1 -- No --> S1[Skip U1 telemetry]
     Q1 --> W1[27 ms]
     S1 --> W1
     W1 --> F1{Unit 1 ONLINE?}
-    F1 -- Yes --> FAN1[Single-Shot fan query U1]
+    F1 -- Yes --> FAN1[ESPHome fan query U1]
     F1 -- No --> SF1[Skip fan]
     FAN1 --> G2[156 ms then Unit 2]
     SF1 --> G2
@@ -172,7 +171,7 @@ flowchart TD
     G3 --> U3[Repeat Unit 3]
 ```
 
-There is no longer a fast-poll TX-error-counter threshold. Single-Shot queries allow successful traffic after reconnect to continue and naturally recover historical TWAI error counters.
+There is no separate TWAI-state or TX-error-counter gate in the current 577-ms polling condition. Controller-level `BUS_OFF`/`STOPPED` handling is performed by the independent TWAI recovery task.
 
 ---
 
@@ -186,7 +185,7 @@ flowchart TD
     C -- No --> E[CAN Communication Unit x = OFF]
 ```
 
-Normal cyclic telemetry is the regular heartbeat. Valid property START/DATA and END frames also refresh it while property discovery temporarily suspends cyclic polling.
+Normal cyclic telemetry is the regular heartbeat. Valid property START/DATA and END frames also refresh it while property discovery temporarily suspends cyclic polling. Valid capability/address responses refresh the corresponding unit timestamp as well.
 
 A separate 1-second reconciliation task demotes lifecycle `ONLINE -> OFFLINE` only when raw CAN is false, no static property discovery is active and the 2-second post-property grace has expired. The CAN-reported power state is then set to `UNKNOWN`.
 
@@ -255,7 +254,7 @@ flowchart TD
     D -- Yes --> OK[Success]
     D -- No --> E{Attempts < 3?}
     E -- No --> FAIL[End with warning]
-    E -- Yes --> F[Single-Shot 0x108xD2FE]
+    E -- Yes --> F[ESPHome canbus.send 0x108xD2FE]
     F --> G[Wait 1 s]
     G --> H[Increment attempt]
     H --> D
@@ -283,7 +282,7 @@ flowchart TD
     D -- Yes --> OK[Stage complete]
     D -- No --> E{Attempts < 10?}
     E -- No --> FAIL[End with warning]
-    E -- Yes --> F[Single-Shot 0x108x50FE]
+    E -- Yes --> F[ESPHome canbus.send 0x108x50FE]
     F --> G[Wait 1 s]
     G --> H[Increment attempt]
     H --> D
@@ -383,28 +382,28 @@ flowchart TD
 
 For manual full discovery, all three lifecycle states are first set to `DISCOVERING`, then Unit 1, Unit 2 and Unit 3 are processed sequentially.
 
-Important implementation detail: lifecycle promotion depends on successful discovery verification and completion of the restore script. The discovery queue does **not** perform an additional CAN acknowledgement check for the restore frames before setting `ONLINE`.
+Important implementation detail: lifecycle promotion depends on discovery verification and completion of the restore script. The discovery queue does **not** perform an additional CAN acknowledgement check for the restore frames before setting `ONLINE`.
 
 ---
 
 # 15. Post-discovery active-setpoint restore
 
-`reapply_active_setpoints(unit)` validates stored active voltage/current/scaling, then attempts the targeted Single-Shot restore.
+`reapply_active_setpoints(unit)` validates stored active voltage/current/scaling, then invokes the normal unit-specific setpoint scripts.
 
 ```mermaid
 flowchart TD
     A[Discovery verified] --> B[Read active voltage/current/scaling]
     B --> C{Stored values valid?}
-    C -- No --> D[Log warning; no restore frames queued]
-    C -- Yes --> E[Single-Shot active voltage to Unit x]
+    C -- No --> D[Log warning; no restore commands sent]
+    C -- Yes --> E[send_active_voltage_to_unit]
     E --> F[Wait 50 ms]
-    F --> G[Single-Shot active current to Unit x]
+    F --> G[send_active_current_to_unit]
     D --> H[Restore script completes]
     G --> H
     H --> I[Discovery queue sets lifecycle ONLINE]
 ```
 
-The restore does not send an ON command.
+The restore uses normal ESPHome CAN transmission via the existing unit-specific active-setpoint helpers. It does not send an ON command.
 
 ---
 
@@ -560,7 +559,7 @@ duty % = raw / 256
 RPM    = 16-bit raw value
 ```
 
-Fan queries run only for lifecycle-`ONLINE` units and use Single-Shot transmission.
+Fan queries run only for lifecycle-`ONLINE` units and use normal ESPHome `canbus.send` in the stable baseline.
 
 ---
 
@@ -616,7 +615,7 @@ flowchart TD
     C -- STOPPED --> F[twai_start]
 ```
 
-Single-Shot query traffic and state-aware polling greatly reduce transmit pressure when peers disappear. Normal control traffic still uses regular CAN paths where configured, so BUS_OFF recovery remains valuable as a final layer.
+State-aware polling and Single-Shot OFFLINE probes reduce unnecessary transmit pressure when rectifiers disappear. Normal polling, discovery and control traffic still use regular ESPHome CAN transmission, so BUS_OFF recovery remains valuable as a final layer.
 
 ---
 
@@ -632,7 +631,7 @@ sequenceDiagram
     participant DISC as Discovery
 
     LIFE-->>ESP: ONLINE
-    ESP->>R: Fast Single-Shot polling
+    ESP->>R: Normal fast polling
     R-->>ESP: Valid telemetry
 
     Note over ESP,R: CAN connector unplugged
@@ -650,15 +649,15 @@ sequenceDiagram
     LIFE-->>LIFE: OFFLINE → DISCOVERING
 
     ESP-->>ESP: 5 s stabilization
-    DISC->>R: Static property request
+    DISC->>R: Static property request via normal CAN path
     R-->>DISC: 56 property frames observed
-    DISC->>R: Capability/address request
+    DISC->>R: Capability/address request via normal CAN path
     R-->>DISC: Capability/address response
     ESP-->>ESP: Effective limit = 52 A in tested setup
-    ESP->>R: Single-Shot active voltage restore attempt
-    ESP->>R: Single-Shot active current restore attempt
+    ESP->>R: Active voltage restore via unit-specific normal CAN path
+    ESP->>R: Active current restore via unit-specific normal CAN path
     LIFE-->>LIFE: DISCOVERING → ONLINE
-    ESP->>R: Fast polling resumes
+    ESP->>R: Normal fast polling resumes
 ```
 
 The test showed successful reconnect without an ESP reboot and without BUS_OFF being required for the recovery sequence.
@@ -681,7 +680,8 @@ The test showed successful reconnect without an ESP reboot and without BUS_OFF b
 12. The effective current ceiling is the lowest valid detected capability, capped at 75 A.
 13. Shared current scaling remains based on Unit 1 capability.
 14. Property discovery is serialized and temporarily owns the bus.
-15. BUS_OFF recovery is a final protection/recovery path, not the normal reconnect mechanism.
+15. Single-Shot is restricted to the slow OFFLINE reconnect probe in the stable baseline.
+16. BUS_OFF recovery is a final protection/recovery path, not the normal reconnect mechanism.
 
 ---
 
@@ -690,16 +690,16 @@ The test showed successful reconnect without an ESP reboot and without BUS_OFF b
 ```mermaid
 flowchart TD
     A[ESP boot] --> B[Lifecycle OFFLINE]
-    B --> C[Slow probes]
+    B --> C[Slow Single-Shot probes]
     C --> D[Valid heartbeat]
     D --> E[DISCOVERING]
     E --> F[5 s stabilization]
-    F --> G[Serialized properties + capability/address]
+    F --> G[Serialized properties + capability/address via normal CAN]
     G --> H{Discovery verified?}
     H -- No --> C
-    H -- Yes --> I[Run targeted Single-Shot restore step]
+    H -- Yes --> I[Run targeted normal-CAN restore step]
     I --> J[ONLINE]
-    J --> K[Fast telemetry + fan polling]
+    J --> K[Normal fast telemetry + fan polling]
     J --> L[Normal active setpoint routing]
     J --> M[START eligible after safety checks]
     K --> N{CAN lost?}
@@ -715,10 +715,10 @@ flowchart TD
 
 ## Source
 
-Behavior documented from the current `main` implementation in:
+Behavior documented from the current stable `main` implementation in:
 
 ```text
 r4875g1-3phase-charger.yaml
 ```
 
-Last synchronized: **2026-08-27**.
+Last resynchronized: **2026-08-27**.
