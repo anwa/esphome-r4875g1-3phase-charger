@@ -205,6 +205,10 @@ esphome:
   friendly_name: HG|DG|Technik|Charger-3Ph
   min_version: 2026.7.4
 
+  project:
+    name: "anwa.3phase-charger"
+    version: "2.2.2"
+
   on_boot:
     then:
       # Until valid rectifier status frames have been received, the actual
@@ -479,6 +483,7 @@ light:
     output: backlight_pwm
     name: "Display Backlight"
     id: back_light
+    icon: "mdi:brightness-6"
     restore_mode: ALWAYS_ON
 
 # ==============================================================================
@@ -4838,22 +4843,27 @@ sensor:
     free:
       name: "Heap Free"
       entity_category: diagnostic
+      icon: "mdi:memory"
 
     block:
       name: "Heap Max Block"
       entity_category: diagnostic
+      icon: "mdi:memory"
 
     loop_time:
       name: "Loop Time"
       entity_category: diagnostic
+      icon: "mdi:timer-outline"
 
     psram:
       name: "Free PSRAM"
       entity_category: diagnostic
+      icon: "mdi:memory"
 
     cpu_frequency:
       name: "CPU Frequency"
       entity_category: diagnostic
+      icon: "mdi:speedometer"
 
   # --------------------------------------------------------------------------
   # ESP32 Internal Temperature Sensor
@@ -4876,6 +4886,7 @@ sensor:
 
   # --------------------------------------------------------------------------
   # WiFi RSSI
+    icon: "mdi:timer-outline"
   - platform: wifi_signal
     name: "WiFi RSSI"
     id: wifi_sig
@@ -5068,6 +5079,7 @@ sensor:
   # --------------------------------------------------------------------------
   # Pin 11 Unit 2
   # Shelf/address diagnostic extracted from the unit capability/address response.
+    icon: "mdi:dip-switch"
   - platform: template
     name: "Pin 11 Unit 2"
     id: pin11_2
@@ -5077,6 +5089,7 @@ sensor:
   # --------------------------------------------------------------------------
   # Pin 11 Unit 3
   # Shelf/address diagnostic extracted from the unit capability/address response.
+    icon: "mdi:dip-switch"
   - platform: template
     name: "Pin 11 Unit 3"
     id: pin11_3
@@ -5086,6 +5099,7 @@ sensor:
   # --------------------------------------------------------------------------
   # Pin 12 Unit 1
   # Slot/address diagnostic extracted from the unit capability/address response.
+    icon: "mdi:dip-switch"
   - platform: template
     name: "Pin 12 Unit 1"
     id: pin12_1
@@ -5095,6 +5109,7 @@ sensor:
   # --------------------------------------------------------------------------
   # Pin 12 Unit 2
   # Slot/address diagnostic extracted from the unit capability/address response.
+    icon: "mdi:dip-switch"
   - platform: template
     name: "Pin 12 Unit 2"
     id: pin12_2
@@ -5103,6 +5118,7 @@ sensor:
   # --------------------------------------------------------------------------
   # Pin 12 Unit 3
   # Slot/address diagnostic extracted from the unit capability/address response.
+    icon: "mdi:dip-switch"
   - platform: template
     name: "Pin 12 Unit 3"
     id: pin12_3
@@ -5112,6 +5128,7 @@ sensor:
   # --------------------------------------------------------------------------
   # Max Current Capability Unit 1
   # Maximum output-current capability reported by this rectifier during discovery.
+    icon: "mdi:dip-switch"
   - platform: template
     name: "Max Current Capability Unit 1"
     id: max_dc_current_1
@@ -6416,6 +6433,7 @@ number:
     max_value: ${dc_voltage_max_v}
     step: 0.1
     unit_of_measurement: "V"
+    icon: "mdi:flash"
     optimistic: true
     mode: BOX
     restore_value: true
@@ -6564,6 +6582,7 @@ number:
     max_value: ${dc_voltage_max_v}
     step: 0.1
     unit_of_measurement: "V"
+    icon: "mdi:flash-outline"
     optimistic: true
     mode: BOX
     restore_value: true
@@ -6676,6 +6695,7 @@ number:
     name: "Set DC Sum Power"
     id: set_dc_sum_power
     unit_of_measurement: "kW"
+    icon: "mdi:flash"
     min_value: 0.25
     max_value: 12.0
     step: 0.25
@@ -7836,6 +7856,7 @@ button:
   - platform: template
     name: "Discover Rectifier Units"
     id: setup_button
+    icon: "mdi:database-search"
     on_press:
       then:
         - script.execute:
@@ -7860,14 +7881,17 @@ text_sensor:
     entity_category: diagnostic
 
   # ESPHome device information and last reset reason.
+    icon: "mdi:code-tags"
   - platform: debug
     device:
       name: "Device Info"
       entity_category: diagnostic
+      icon: "mdi:information-outline"
 
     reset_reason:
       name: "Reset Reason"
       entity_category: diagnostic
+      icon: "mdi:restart-alert"
 
   # --------------------------------------------------------------------------
   # Rectifier Control State Unit 1

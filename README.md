@@ -111,6 +111,27 @@ CAN uses **125 kbit/s** and **29-bit extended identifiers**.
 
 ---
 
+# Versioning
+
+The ESPHome firmware publishes project metadata using:
+
+```yaml
+esphome:
+  project:
+    name: "anwa.3phase-charger"
+    version: "2.2.2"
+```
+
+The project uses `MAJOR.MINOR.PATCH` firmware versions:
+
+- **MAJOR/MINOR** changes define tagged project milestones, for example `v2.2.0`.
+- **PATCH** is incremented for every subsequent firmware commit: `2.2.1`, `2.2.2`, ...
+- When MAJOR or MINOR changes, PATCH resets to `0` and that milestone is tagged.
+
+The value in `esphome.project.version` is the authoritative firmware version exposed by ESPHome/Home Assistant.
+
+---
+
 # Hardware
 
 ## Main controller
