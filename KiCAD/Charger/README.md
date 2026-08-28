@@ -6,19 +6,22 @@ This directory contains the KiCad schematic and PCB design for the hardware used
 
 The current controller board is an **Espressif ESP32-S3-DevKitC-1** fitted with an **ESP32-S3-WROOM-1-N16R8** module (16 MB Quad-SPI flash, 8 MB Octal-SPI PSRAM).
 
-The KiCad schematic already uses the `PCM_Espressif:ESP32-S3-DevKitC` symbol/footprint. The firmware GPIO allocation is compatible with the DevKitC-1 headers and does not require reassignment.
+The KiCad schematic uses the `PCM_Espressif:ESP32-S3-DevKitC` symbol/footprint. The firmware now uses the centralized DevKitC-1 GPIO map shown below. The schematic/PCB fan-interface wiring should follow these same net assignments.
 
 Current GPIO map:
 
 | Function | GPIOs |
 |---|---|
-| CAN / TWAI | 15, 16 |
-| Rotary encoder | 17, 18 |
 | Encoder push button | 2 |
-| I2C / AHT10 | 9, 10 |
-| TFT SPI | 11, 12, 13 |
-| TFT CS / RESET / DC | 5, 6, 7 |
 | TFT backlight PWM | 4 |
+| TFT CS / RESET / DC | 5, 6, 7 |
+| I2C SDA / SCL | 8, 9 |
+| TFT SPI MOSI / MISO / CLK | 11, 12, 13 |
+| CAN / TWAI TX / RX | 15, 16 |
+| Rotary encoder A / B | 17, 18 |
+| FAN_ENABLE | 21 |
+| FAN3_TACH / FAN2_TACH / FAN1_TACH | 39, 40, 41 |
+| FAN_PWM | 42 |
 
 ## External Libraries
 

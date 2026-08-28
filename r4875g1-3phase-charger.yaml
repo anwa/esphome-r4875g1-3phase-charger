@@ -74,6 +74,38 @@ substitutions:
   mqtt_command_prefix: "HG/DG/Technik/Charger"
 
   # --------------------------------------------------------------------------
+  # ESP32-S3-DevKitC-1 GPIO map
+  # --------------------------------------------------------------------------
+  # Keep every hardware pin assignment centralized here so firmware, docs and
+  # KiCad can be compared against one authoritative map.
+  pin_encoder_button: "GPIO2"
+  pin_tft_backlight: "GPIO4"
+  pin_tft_cs: "GPIO5"
+  pin_tft_reset: "GPIO6"
+  pin_tft_dc: "GPIO7"
+  pin_i2c_sda: "GPIO8"
+  pin_i2c_scl: "GPIO9"
+  pin_spi_mosi: "GPIO11"
+  pin_spi_miso: "GPIO12"
+  pin_spi_clk: "GPIO13"
+  pin_can_tx: "GPIO15"
+  pin_can_rx: "GPIO16"
+  pin_encoder_a: "GPIO17"
+  pin_encoder_b: "GPIO18"
+  pin_fan_enable: "GPIO21"
+  pin_fan3_tach: "GPIO39"
+  pin_fan2_tach: "GPIO40"
+  pin_fan1_tach: "GPIO41"
+  pin_fan_pwm: "GPIO42"
+
+  # --------------------------------------------------------------------------
+  # External cooling-fan defaults
+  # --------------------------------------------------------------------------
+  cooling_fan_pwm_frequency: "25000Hz"
+  cooling_fan_default_pwm_percent: "100.0"
+  cooling_fan_tach_pulses_per_revolution: "2.0"
+
+  # --------------------------------------------------------------------------
   # Project-wide operating limits
   # --------------------------------------------------------------------------
   project_max_dc_current_a: "75.0"
@@ -212,13 +244,23 @@ esphome:
 
       - script.execute: display_inactivity_timer
 
+      # Safe external cooling-fan startup: command full speed first, then
+      # enable the common fan supply. A restored user PWM value is applied
+      # afterwards by the number component.
+      - lambda: |-
+          id(cooling_fan_pwm_output).set_level(
+            ${cooling_fan_default_pwm_percent}f / 100.0f
+          );
+
+      - switch.turn_on: cooling_fan_enable
+
 # ==============================================================================
 # ESP32-S3 HARDWARE, FLASH AND FRAMEWORK
 # ==============================================================================
 # Hardware settings for the Espressif ESP32-S3-DevKitC-1 fitted with an
 # ESP32-S3-WROOM-1-N16R8 module: 16 MB Quad-SPI flash, 8 MB Octal-SPI PSRAM
-# and 240 MHz CPU. The existing GPIO allocation was revalidated for DevKitC-1;
-# no firmware pin changes are required. ESP-IDF is used as the framework.
+# and 240 MHz CPU. GPIO assignments are centralized in substitutions and use
+# the DevKitC-1-oriented map documented below. ESP-IDF is used as the framework.
 esp32:
   variant: esp32s3
 
@@ -248,12 +290,12 @@ psram:
 # ==============================================================================
 # LOGGING
 # ==============================================================================
-# Runtime logs are sent over UART0 through the board's USB/UART interface.
-# INFO provides useful diagnostics without the volume of full DEBUG logging.
+# Keep ESPHome logging available through the API/network, but disable the
+# hardware UART logger. GPIO43/GPIO44 therefore remain electrically unused and
+# available as service/reserve pins rather than carrying continuous debug data.
 logger:
   level: INFO
-  baud_rate: 115200
-  hardware_uart: UART0
+  baud_rate: 0
   logs:
     canbus: WARN
 
@@ -390,14 +432,12 @@ mqtt:
 # ==============================================================================
 # I2C BUS
 # ==============================================================================
-# I2C uses GPIO10/GPIO9 with scanning enabled. GPIO8 is available on the
-# ESP32-S3-DevKitC-1 and is currently left unused. The onboard addressable RGB
-# LED is not used by this firmware (GPIO38 on DevKitC-1 v1.1, GPIO48 on the
-# initial board revision).
+# I2C uses the centralized DevKitC-1 pin map. The AHT10 remains on the same
+# logical bus; only SDA moves from the previous GPIO10 assignment to GPIO8.
 i2c:
   - id: i2c_bus
-    sda: GPIO10
-    scl: GPIO9
+    sda: ${pin_i2c_sda}
+    scl: ${pin_i2c_scl}
     scan: true
 
 # ==============================================================================
@@ -406,18 +446,28 @@ i2c:
 # Hardware SPI bus used by the ILI9488 TFT display.
 spi:
   id: spi_bus
-  clk_pin: GPIO13  # SCK
-  mosi_pin: GPIO11 # SDI(MOSI)
-  miso_pin: GPIO12 # SDO(MISI)
+  clk_pin: ${pin_spi_clk}
+  mosi_pin: ${pin_spi_mosi}
+  miso_pin: ${pin_spi_miso}
 
 # ==============================================================================
-# DISPLAY BACKLIGHT PWM
+# PWM OUTPUTS
 # ==============================================================================
-# LEDC hardware PWM on GPIO4 drives the TFT backlight brightness.
 output:
+  # TFT backlight PWM.
   - platform: ledc
-    pin: GPIO4  # LED
+    pin: ${pin_tft_backlight}
     id: backlight_pwm
+
+  # Common 4-pin cooling-fan PWM. Intel-style PC fan control uses about 25 kHz.
+  # The planned fan PCB uses an inverting open-collector transistor stage.
+  # inverted=true keeps the exposed percentage intuitive: 100% = full speed.
+  - platform: ledc
+    id: cooling_fan_pwm_output
+    frequency: ${cooling_fan_pwm_frequency}
+    pin:
+      number: ${pin_fan_pwm}
+      inverted: true
 
 # ==============================================================================
 # DISPLAY BACKLIGHT LIGHT ENTITY
@@ -443,9 +493,9 @@ display:
     model: ILI9488
     id: tft
 
-    cs_pin: GPIO5
-    dc_pin: GPIO7
-    reset_pin: GPIO6
+    cs_pin: ${pin_tft_cs}
+    dc_pin: ${pin_tft_dc}
+    reset_pin: ${pin_tft_reset}
 
     # Keep the same effective memory usage as the previous
     # ili9xxx "color_palette: 8BIT" configuration.
@@ -3484,16 +3534,16 @@ script:
 # protocol uses extended 29-bit CAN IDs. Unit number is encoded in the ID.
 # Typical SN65HVD230 wiring:
 #
-# ESP32 GPIO15  -> CAN module CTX
-# ESP32 GPIO16  -> CAN module CRX
+# ${pin_can_tx} -> CAN module CTX
+# ${pin_can_rx} -> CAN module CRX
 # ESP32 3.3 V   -> 3V3
 # ESP32 GND     -> GND
 # CAN-H         -> CAN-H bus
 # CAN-L         -> CAN-L bus
 canbus:
   - platform: esp32_can
-    tx_pin: GPIO15
-    rx_pin: GPIO16
+    tx_pin: ${pin_can_tx}
+    rx_pin: ${pin_can_rx}
     can_id: 0xE5F32E5
     bit_rate: 125kbps
     use_extended_id: true
@@ -4750,6 +4800,65 @@ canbus:
 # rectifier telemetry, CAN-aware aggregate power and daily energy counters.
 sensor:
   # --------------------------------------------------------------------------
+  # External cooling-fan tachometers
+  # --------------------------------------------------------------------------
+  # Tach outputs are open-collector signals and use the ESP32 internal pull-up.
+  # The default conversion assumes two pulses per revolution.
+  - platform: pulse_counter
+    name: "Cooling Fan 1 RPM"
+    id: cooling_fan_1_rpm
+    pin:
+      number: ${pin_fan1_tach}
+      mode:
+        input: true
+        pullup: true
+    count_mode:
+      rising_edge: INCREMENT
+      falling_edge: DISABLE
+    update_interval: 5s
+    unit_of_measurement: "RPM"
+    accuracy_decimals: 0
+    icon: "mdi:fan"
+    filters:
+      - lambda: 'return x / ${cooling_fan_tach_pulses_per_revolution}f;'
+
+  - platform: pulse_counter
+    name: "Cooling Fan 2 RPM"
+    id: cooling_fan_2_rpm
+    pin:
+      number: ${pin_fan2_tach}
+      mode:
+        input: true
+        pullup: true
+    count_mode:
+      rising_edge: INCREMENT
+      falling_edge: DISABLE
+    update_interval: 5s
+    unit_of_measurement: "RPM"
+    accuracy_decimals: 0
+    icon: "mdi:fan"
+    filters:
+      - lambda: 'return x / ${cooling_fan_tach_pulses_per_revolution}f;'
+
+  - platform: pulse_counter
+    name: "Cooling Fan 3 RPM"
+    id: cooling_fan_3_rpm
+    pin:
+      number: ${pin_fan3_tach}
+      mode:
+        input: true
+        pullup: true
+    count_mode:
+      rising_edge: INCREMENT
+      falling_edge: DISABLE
+    update_interval: 5s
+    unit_of_measurement: "RPM"
+    accuracy_decimals: 0
+    icon: "mdi:fan"
+    filters:
+      - lambda: 'return x / ${cooling_fan_tach_pulses_per_revolution}f;'
+
+  # --------------------------------------------------------------------------
   # ESPHome internal diagnostics
   - platform: debug
     free:
@@ -4831,18 +4940,18 @@ sensor:
 
   # --------------------------------------------------------------------------
   # local_encoder
-  # Physical local rotary encoder on GPIO17/GPIO18. In voltage mode it changes set_dc_voltage_limit and recalculates current to preserve total power; in power mode it changes set_dc_sum_power. Every movement wakes/restarts the backlight timer.
+  # Physical local rotary encoder; pins are defined in substitutions. In voltage mode it changes set_dc_voltage_limit and recalculates current to preserve total power; in power mode it changes set_dc_sum_power. Every movement wakes/restarts the backlight timer.
   - platform: rotary_encoder
     id: local_encoder
 
     pin_a:
-      number: GPIO17
+      number: ${pin_encoder_a}
       mode:
         input: true
         pullup: true
 
     pin_b:
-      number: GPIO18
+      number: ${pin_encoder_b}
       mode:
         input: true
         pullup: true
@@ -6228,6 +6337,29 @@ sensor:
 # centralized in one place.
 number:
   # --------------------------------------------------------------------------
+  # External cooling-fan PWM
+  # --------------------------------------------------------------------------
+  # Common speed command for 4-pin chassis/cooling fans. Three-pin fans ignore
+  # this signal and remain ON/OFF-only through Cooling Fan Power.
+  - platform: template
+    name: "Cooling Fan PWM"
+    id: cooling_fan_pwm_percent
+    min_value: 0
+    max_value: 100
+    step: 1
+    unit_of_measurement: "%"
+    optimistic: true
+    restore_value: true
+    initial_value: ${cooling_fan_default_pwm_percent}
+    mode: SLIDER
+    icon: "mdi:fan-speed-3"
+    on_value:
+      then:
+        - lambda: |-
+            const float duty = std::max(0.0f, std::min(100.0f, x));
+            id(cooling_fan_pwm_output).set_level(duty / 100.0f);
+
+  # --------------------------------------------------------------------------
   # Set Fan Minimum Speed
   # Configures the minimum fan duty cycle for all rectifier units.
   # The requested percentage value is converted to the rectifier's fixed-point
@@ -6583,6 +6715,21 @@ number:
         - script.execute: apply_dc_sum_power
 
 # ==============================================================================
+# EXTERNAL COOLING-FAN POWER
+# ==============================================================================
+# Common 12 V fan-supply enable. Three-pin fans are ON/OFF-only through this
+# signal; four-pin fans additionally follow the common PWM command.
+switch:
+  - platform: gpio
+    name: "Cooling Fan Power"
+    id: cooling_fan_enable
+    icon: "mdi:fan"
+    restore_mode: ALWAYS_OFF
+    pin:
+      number: ${pin_fan_enable}
+      inverted: false
+
+# ==============================================================================
 # LOCAL BUTTON AND CAN CONNECTIVITY
 # ==============================================================================
 # Includes the rotary encoder push button and three connectivity watchdogs that
@@ -6590,13 +6737,13 @@ number:
 binary_sensor:
   # --------------------------------------------------------------------------
   # local_encoder_button
-  # Physical encoder push button on GPIO2. The internal pull-up makes the input active-low. A 30 ms delayed_on_off filter debounces the switch. on_press wakes the display; short press changes encoder mode; >=3 s long press starts/stops the rectifiers.
+  # Physical encoder push button; pin is defined in substitutions. The internal pull-up makes the input active-low. A 30 ms delayed_on_off filter debounces the switch. on_press wakes the display; short press changes encoder mode; >=3 s long press starts/stops the rectifiers.
   - platform: gpio
     id: local_encoder_button
     internal: true
 
     pin:
-      number: GPIO2
+      number: ${pin_encoder_button}
       mode:
         input: true
         pullup: true

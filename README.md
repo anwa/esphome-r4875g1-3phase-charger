@@ -201,7 +201,7 @@ An AHT10 measures temperature and relative humidity in the common rear connectio
 | Function | GPIO |
 |---|---:|
 | I2C SCL | 9 |
-| I2C SDA | 10 |
+| I2C SDA | 8 |
 
 I2C address: `0x38`.
 
@@ -213,19 +213,38 @@ The existing GPIO allocation was checked against the official ESP32-S3-DevKitC-1
 
 | Function | GPIOs | Result |
 |---|---|---|
-| CAN / TWAI | 15, 16 | Compatible |
-| Rotary encoder | 17, 18 | Compatible |
 | Encoder push button | 2 | Compatible |
-| I2C / AHT10 | 9, 10 | Compatible |
-| TFT SPI | 11, 12, 13 | Compatible |
-| TFT control | 5, 6, 7 | Compatible |
 | TFT backlight PWM | 4 | Compatible |
+| TFT CS / RESET / DC | 5, 6, 7 | Compatible |
+| I2C SDA / SCL | 8, 9 | Compatible |
+| TFT SPI MOSI / MISO / CLK | 11, 12, 13 | Compatible |
+| CAN / TWAI TX / RX | 15, 16 | Compatible |
+| Rotary encoder A / B | 17, 18 | Compatible |
+| Cooling FAN_ENABLE | 21 | Compatible |
+| Cooling FAN3_TACH / FAN2_TACH / FAN1_TACH | 39, 40, 41 | Compatible |
+| Cooling FAN_PWM | 42 | Compatible |
 
-None of the currently used pins are ESP32-S3 strapping pins (`GPIO0`, `GPIO3`, `GPIO45`, `GPIO46`). The firmware also avoids the native USB/JTAG pins `GPIO19`/`GPIO20` and the GPIOs associated with the module's Octal-memory interface (`GPIO33`–`GPIO37`).
+None of the currently used pins are ESP32-S3 strapping pins (`GPIO0`, `GPIO3`, `GPIO45`, `GPIO46`). The firmware also avoids the native USB/JTAG pins `GPIO19`/`GPIO20` and the GPIOs associated with the module's Octal-memory interface (`GPIO33`–`GPIO37`). GPIO43/44 remain unused because UART0 hardware logging is disabled; ESPHome logs remain available over the network/API.
 
 The onboard addressable RGB LED is outside the project GPIO map: ESP32-S3-DevKitC-1 v1.1 uses `GPIO38`, while the initial board revision uses `GPIO48`.
 
 Official hardware reference: https://docs.espressif.com/projects/esp-dev-kits/en/latest/esp32s3/esp32-s3-devkitc-1/
+
+## External cooling fans
+
+The controller includes a basic external/chassis fan interface in addition to the R4875G1 internal fan telemetry/control.
+
+- `FAN_ENABLE` on GPIO21 switches the common fan supply.
+- `FAN_PWM` on GPIO42 provides one shared **25 kHz** PWM command for 4-pin fans.
+- `FAN1_TACH`, `FAN2_TACH`, `FAN3_TACH` use GPIO41, GPIO40 and GPIO39.
+- Tachometer conversion currently assumes **2 pulses per revolution**.
+- `Cooling Fan Power` is the common ON/OFF control and is enabled during ESP boot.
+- `Cooling Fan PWM` is a persistent 0–100% manual command and defaults to **100%**.
+- Three-pin fans ignore PWM and therefore operate as ON/OFF-only fans.
+
+The current implementation is intentionally rudimentary: no automatic temperature curve, minimum-RPM supervision or fan-failure alarm is implemented yet.
+
+The PWM output assumes the planned inverting open-collector transistor interface on the fan PCB; ESPHome therefore configures the GPIO output as inverted so the user-facing percentage keeps the intuitive 0–100% meaning.
 
 ---
 

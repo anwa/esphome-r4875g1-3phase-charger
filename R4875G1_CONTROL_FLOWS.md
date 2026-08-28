@@ -66,7 +66,24 @@ flowchart LR
 
 Core charger control remains local. Wi-Fi, Home Assistant and MQTT are optional for operation.
 
-Controller hardware target: **Espressif ESP32-S3-DevKitC-1** with **ESP32-S3-WROOM-1-N16R8**, 16 MB Quad-SPI flash and 8 MB Octal-SPI PSRAM. The current GPIO map was checked against the official DevKitC-1 pinout and requires no changes: CAN 15/16, encoder 17/18 + button 2, I2C 9/10, TFT SPI 11/12/13, TFT control 5/6/7 and backlight PWM 4. The project does not use ESP32-S3 strapping pins 0/3/45/46, native USB/JTAG pins 19/20, or the Octal-memory-related GPIO33–37.
+Controller hardware target: **Espressif ESP32-S3-DevKitC-1** with **ESP32-S3-WROOM-1-N16R8**, 16 MB Quad-SPI flash and 8 MB Octal-SPI PSRAM. GPIO assignments are centralized in YAML substitutions. Current map: encoder button 2; TFT backlight 4; TFT control 5/6/7; I2C 8/9; TFT SPI 11/12/13; CAN 15/16; encoder 17/18; cooling fan enable 21; cooling fan tach 39/40/41; cooling fan PWM 42. Strapping pins 0/3/45/46, native USB/JTAG 19/20 and Octal-memory GPIO33–37 remain unused.
+
+---
+
+# External cooling-fan baseline
+
+The external/chassis fan control is independent of the R4875G1 internal fan commands.
+
+```mermaid
+flowchart TD
+    A[Cooling Fan Power] --> B[FAN_ENABLE GPIO21]
+    C[Cooling Fan PWM 0..100%] --> D[25 kHz LEDC / GPIO42]
+    E[FAN1_TACH GPIO41] --> R1[Cooling Fan 1 RPM]
+    F[FAN2_TACH GPIO40] --> R2[Cooling Fan 2 RPM]
+    G[FAN3_TACH GPIO39] --> R3[Cooling Fan 3 RPM]
+```
+
+On boot a 100% PWM command is applied first and the common fan supply is then enabled. The persistent PWM number may subsequently restore another configured value. Tach conversion assumes two pulses per revolution. No automatic temperature curve or fan-failure alarm is implemented yet.
 
 ---
 
