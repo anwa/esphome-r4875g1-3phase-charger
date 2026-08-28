@@ -4,6 +4,10 @@
 	(generator_version "10.0")
 	(uuid "7a93e01a-90df-4a46-8b10-5e4e0c5ef05c")
 	(paper "A4")
+	(title_block
+		(title "3 Phase Charge controller")
+		(company "Andreas Wansner")
+	)
 	(lib_symbols
 		(symbol "Connector:Conn_01x04_Pin"
 			(pin_names
@@ -3873,6 +3877,52 @@
 				(path "/7a93e01a-90df-4a46-8b10-5e4e0c5ef05c"
 					(reference "J4")
 					(unit 1)
+				)
+			)
+		)
+	)
+	(sheet
+		(at 15.24 171.45)
+		(size 41.91 22.86)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(stroke
+			(width 0.1524)
+			(type solid)
+		)
+		(fill
+			(color 0 0 0 0)
+		)
+		(uuid "78eac1aa-46f9-4060-8575-5b33fd376c77")
+		(property "Sheetname" "Fan-Control"
+			(at 15.24 170.7384 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left bottom)
+			)
+		)
+		(property "Sheetfile" "fan-control.kicad_sch"
+			(at 15.24 194.8946 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left top)
+			)
+		)
+		(instances
+			(project "Charger"
+				(path "/7a93e01a-90df-4a46-8b10-5e4e0c5ef05c"
+					(page "2")
 				)
 			)
 		)
