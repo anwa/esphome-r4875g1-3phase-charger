@@ -2780,32 +2780,6 @@ script:
                 );
 
   # --------------------------------------------------------------------------
-  # setup_sequence
-  # --------------------------------------------------------------------------
-  # Manually runs complete discovery for all three rectifiers.
-  # Each unit is processed sequentially and the next unit starts immediately
-  # after the previous unit has completed or exhausted its retry limit.
-  - id: setup_sequence
-    mode: single
-    then:
-      - logger.log:
-          level: INFO
-          format: "Starting full rectifier discovery sequence."
-
-      - script.execute: discover_unit_1
-      - script.wait: discover_unit_1
-
-      - script.execute: discover_unit_2
-      - script.wait: discover_unit_2
-
-      - script.execute: discover_unit_3
-      - script.wait: discover_unit_3
-
-      - logger.log:
-          level: INFO
-          format: "Full rectifier discovery sequence completed."
-
-  # --------------------------------------------------------------------------
   # discovery_queue
   # --------------------------------------------------------------------------
   # Global serialized discovery worker.
@@ -7560,6 +7534,10 @@ button:
                     - 0x00
                     - 0x00
 
+              - logger.log:
+                  level: INFO
+                  format: "Unit 1 commanded ON."
+
             else:
               - logger.log:
                   level: WARN
@@ -7620,6 +7598,10 @@ button:
                     - 0x00
                     - 0x00
 
+              - logger.log:
+                  level: INFO
+                  format: "Unit 2 commanded ON."
+
             else:
               - logger.log:
                   level: WARN
@@ -7679,6 +7661,10 @@ button:
                     - 0x00
                     - 0x00
                     - 0x00
+
+              - logger.log:
+                  level: INFO
+                  format: "Unit 3 commanded ON."
 
             else:
               - logger.log:
