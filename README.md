@@ -55,7 +55,7 @@ flowchart TD
     U2 <--> CAN
     U3 <--> CAN
     CAN <--> PHY[SN65HVD230 CAN transceiver]
-    PHY <--> ESP[ESP32-S3]
+    PHY <--> ESP[ESP32-S3-DevKitC-1 N16R8]
 
     ESP --> TFT[ILI9488 480x320 TFT]
     ENC[Rotary encoder + button] --> ESP
@@ -74,7 +74,7 @@ CAN uses **125 kbit/s** and **29-bit extended identifiers**.
 
 ## Charger control
 
-- Three Huawei R4875G1 rectifiers controlled from one ESP32-S3.
+- Three Huawei R4875G1 rectifiers controlled from one ESP32-S3-DevKitC-1.
 - Common active DC voltage and current setpoints.
 - Normal active setpoints routed only to verified `ONLINE` rectifiers with fresh CAN communication.
 - Individual and broadcast ON/OFF controls.
@@ -117,12 +117,14 @@ CAN uses **125 kbit/s** and **29-bit extended identifiers**.
 
 Current target:
 
-- **Androegg ESP32-S3 UNO**
-- ESP32-S3-WROOM-1-N16R8
+- **Espressif ESP32-S3-DevKitC-1**
+- **ESP32-S3-WROOM-1-N16R8** module
 - 16 MB Quad-SPI flash
 - 8 MB Octal-SPI PSRAM
 - 240 MHz CPU
 - ESP-IDF framework
+
+The N16R8 memory configuration matches the firmware settings: 16 MB Quad-SPI flash (`qio`, 80 MHz) and 8 MB Octal-SPI PSRAM at 80 MHz.
 
 ESPHome minimum version configured by the firmware:
 
@@ -204,6 +206,26 @@ An AHT10 measures temperature and relative humidity in the common rear connectio
 I2C address: `0x38`.
 
 The resulting measurements are shared compartment-air values, not the internal temperature of one particular rectifier.
+
+## ESP32-S3-DevKitC-1 GPIO compatibility
+
+The existing GPIO allocation was checked against the official ESP32-S3-DevKitC-1 pinout and remains compatible with the N16R8 board. No firmware pin changes are required.
+
+| Function | GPIOs | Result |
+|---|---|---|
+| CAN / TWAI | 15, 16 | Compatible |
+| Rotary encoder | 17, 18 | Compatible |
+| Encoder push button | 2 | Compatible |
+| I2C / AHT10 | 9, 10 | Compatible |
+| TFT SPI | 11, 12, 13 | Compatible |
+| TFT control | 5, 6, 7 | Compatible |
+| TFT backlight PWM | 4 | Compatible |
+
+None of the currently used pins are ESP32-S3 strapping pins (`GPIO0`, `GPIO3`, `GPIO45`, `GPIO46`). The firmware also avoids the native USB/JTAG pins `GPIO19`/`GPIO20` and the GPIOs associated with the module's Octal-memory interface (`GPIO33`–`GPIO37`).
+
+The onboard addressable RGB LED is outside the project GPIO map: ESP32-S3-DevKitC-1 v1.1 uses `GPIO38`, while the initial board revision uses `GPIO48`.
+
+Official hardware reference: https://docs.espressif.com/projects/esp-dev-kits/en/latest/esp32s3/esp32-s3-devkitc-1/
 
 ---
 
@@ -883,7 +905,7 @@ This is a project-oriented map, not a complete Huawei protocol specification.
 ## Requirements
 
 - ESPHome 2026.7.4 or newer
-- ESP32-S3-WROOM-1-N16R8 controller
+- Espressif ESP32-S3-DevKitC-1 with ESP32-S3-WROOM-1-N16R8 module
 - suitable 3.3 V CAN transceiver such as SN65HVD230
 - one to three compatible Huawei rectifiers; firmware is specifically developed for three R4875G1 units
 - optional ILI9488 TFT
@@ -1050,6 +1072,10 @@ A lower reported capability intentionally reduces the common current ceiling. Th
 
 ```text
 .
+├── FreeCAD/
+│   └── ... mechanical R4875G1 mounting design
+├── KiCAD/
+│   └── Charger/ ... charger controller schematic and PCB project
 ├── .gitignore
 ├── LICENSE
 ├── README.md

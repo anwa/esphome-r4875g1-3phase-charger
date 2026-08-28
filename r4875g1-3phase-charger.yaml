@@ -1,5 +1,5 @@
-# Board: Androegg ESP32-S3 UNO
-# Unit: ESP32-S3-WROOM-1-N16R8
+# Board: Espressif ESP32-S3-DevKitC-1
+# Module: ESP32-S3-WROOM-1-N16R8
 # Flash: 16 MB Quad SPI
 # PSRAM: 8 MB Octal SPI
 
@@ -215,9 +215,10 @@ esphome:
 # ==============================================================================
 # ESP32-S3 HARDWARE, FLASH AND FRAMEWORK
 # ==============================================================================
-# Hardware settings for the Androegg ESP32-S3 UNO / ESP32-S3-WROOM-1-N16R8:
-# 16 MB Quad-SPI flash, 8 MB Octal PSRAM and 240 MHz CPU. ESP-IDF is used as the
-# framework because it provides the native ESP32-S3 feature set used here.
+# Hardware settings for the Espressif ESP32-S3-DevKitC-1 fitted with an
+# ESP32-S3-WROOM-1-N16R8 module: 16 MB Quad-SPI flash, 8 MB Octal-SPI PSRAM
+# and 240 MHz CPU. The existing GPIO allocation was revalidated for DevKitC-1;
+# no firmware pin changes are required. ESP-IDF is used as the framework.
 esp32:
   variant: esp32s3
 
@@ -389,8 +390,10 @@ mqtt:
 # ==============================================================================
 # I2C BUS
 # ==============================================================================
-# I2C is reserved on GPIO10/GPIO9 with scanning enabled. GPIO8 is intentionally
-# not used because the Androegg board has an onboard WS2812 connected there.
+# I2C uses GPIO10/GPIO9 with scanning enabled. GPIO8 is available on the
+# ESP32-S3-DevKitC-1 and is currently left unused. The onboard addressable RGB
+# LED is not used by this firmware (GPIO38 on DevKitC-1 v1.1, GPIO48 on the
+# initial board revision).
 i2c:
   - id: i2c_bus
     sda: GPIO10

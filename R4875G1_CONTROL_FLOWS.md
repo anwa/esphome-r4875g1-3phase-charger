@@ -2,7 +2,7 @@
 
 This document describes the control flows, lifecycle state transitions, CAN recovery paths, discovery sequence, current-capability handling, setpoint routing, safety checks, telemetry processing, and local user-interface behavior implemented in `r4875g1-3phase-charger.yaml`.
 
-It is synchronized with the stable `main` implementation as of **2026-08-27** and includes behavior verified with physical R4875G1 CAN disconnect/reconnect traces.
+It is synchronized with the stable `main` implementation as of **2026-08-28** and includes behavior verified with physical R4875G1 CAN disconnect/reconnect traces.
 
 > **Scope:** This is behavioral firmware documentation, not an electrical safety specification. Fuses, breakers, contactors, BMS protection, earthing, isolation, conductor sizing and other hardware protection remain independent of the firmware.
 
@@ -50,7 +50,7 @@ flowchart LR
     U2 --> DCBUS
     U3 --> DCBUS
 
-    ENC[Rotary encoder + button] --> ESP[ESP32-S3]
+    ENC[Rotary encoder + button] --> ESP[ESP32-S3-DevKitC-1 N16R8]
     AHT[AHT10 compartment sensor] --> ESP
     ESP --> TFT[ILI9488 TFT]
 
@@ -65,6 +65,8 @@ flowchart LR
 ```
 
 Core charger control remains local. Wi-Fi, Home Assistant and MQTT are optional for operation.
+
+Controller hardware target: **Espressif ESP32-S3-DevKitC-1** with **ESP32-S3-WROOM-1-N16R8**, 16 MB Quad-SPI flash and 8 MB Octal-SPI PSRAM. The current GPIO map was checked against the official DevKitC-1 pinout and requires no changes: CAN 15/16, encoder 17/18 + button 2, I2C 9/10, TFT SPI 11/12/13, TFT control 5/6/7 and backlight PWM 4. The project does not use ESP32-S3 strapping pins 0/3/45/46, native USB/JTAG pins 19/20, or the Octal-memory-related GPIO33–37.
 
 ---
 
@@ -750,4 +752,4 @@ Behavior documented from the current stable `main` implementation in:
 r4875g1-3phase-charger.yaml
 ```
 
-Last resynchronized: **2026-08-27**.
+Last resynchronized: **2026-08-28**.
