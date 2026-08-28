@@ -4789,13 +4789,13 @@ sensor:
     count_mode:
       rising_edge: INCREMENT
       falling_edge: DISABLE
-    update_interval: 5s
     unit_of_measurement: "RPM"
     accuracy_decimals: 0
-    icon: "mdi:fan"
+    update_interval: 5s
     filters:
       - lambda: 'return x / ${cooling_fan_tach_pulses_per_revolution}f;'
 
+    icon: "mdi:fan"
   - platform: pulse_counter
     name: "Cooling Fan 2 RPM"
     id: cooling_fan_2_rpm
@@ -4807,13 +4807,13 @@ sensor:
     count_mode:
       rising_edge: INCREMENT
       falling_edge: DISABLE
-    update_interval: 5s
     unit_of_measurement: "RPM"
     accuracy_decimals: 0
-    icon: "mdi:fan"
+    update_interval: 5s
     filters:
       - lambda: 'return x / ${cooling_fan_tach_pulses_per_revolution}f;'
 
+    icon: "mdi:fan"
   - platform: pulse_counter
     name: "Cooling Fan 3 RPM"
     id: cooling_fan_3_rpm
@@ -4825,15 +4825,15 @@ sensor:
     count_mode:
       rising_edge: INCREMENT
       falling_edge: DISABLE
-    update_interval: 5s
     unit_of_measurement: "RPM"
     accuracy_decimals: 0
-    icon: "mdi:fan"
+    update_interval: 5s
     filters:
       - lambda: 'return x / ${cooling_fan_tach_pulses_per_revolution}f;'
 
   # --------------------------------------------------------------------------
   # ESPHome internal diagnostics
+    icon: "mdi:fan"
   - platform: debug
     free:
       name: "Heap Free"
@@ -4879,8 +4879,6 @@ sensor:
   - platform: wifi_signal
     name: "WiFi RSSI"
     id: wifi_sig
-    update_interval: 10s
-    icon: "mdi:wifi"
     unit_of_measurement: "dBm"
     device_class: signal_strength
     entity_category: diagnostic
@@ -4894,6 +4892,8 @@ sensor:
   # conditions inside the rectifier compartment rather than room temperature.
   #
   # The AHT10 uses I²C address 0x38.
+    update_interval: 10s
+    icon: "mdi:wifi"
   - platform: aht10
     variant: AHT10
     i2c_id: i2c_bus
@@ -5029,36 +5029,36 @@ sensor:
   - platform: template
     name: "Current Scaling Factor Unit 1"
     id: current_scaling_factor_unit_1
-    accuracy_decimals: 4
     entity_category: diagnostic
-    icon: "mdi:information-outline"
+    accuracy_decimals: 4
     update_interval: never
 
   # --------------------------------------------------------------------------
   # Current Scaling Factor Unit 2
   # Diagnostic publication of the dynamically detected current scaling factor.
+    icon: "mdi:information-outline"
   - platform: template
     name: "Current Scaling Factor Unit 2"
     id: current_scaling_factor_unit_2
-    accuracy_decimals: 4
     entity_category: diagnostic
-    icon: "mdi:information-outline"
+    accuracy_decimals: 4
     update_interval: never
 
   # --------------------------------------------------------------------------
   # Current Scaling Factor Unit 3
   # Diagnostic publication of the dynamically detected current scaling factor.
+    icon: "mdi:information-outline"
   - platform: template
     name: "Current Scaling Factor Unit 3"
     id: current_scaling_factor_unit_3
-    accuracy_decimals: 4
     entity_category: diagnostic
-    icon: "mdi:information-outline"
+    accuracy_decimals: 4
     update_interval: never
 
   # --------------------------------------------------------------------------
   # Pin 11 Unit 1
   # Shelf/address diagnostic extracted from the unit capability/address response.
+    icon: "mdi:information-outline"
   - platform: template
     name: "Pin 11 Unit 1"
     id: pin11_1
@@ -5118,10 +5118,10 @@ sensor:
     unit_of_measurement: "A"
     device_class: current
     state_class: measurement
-    accuracy_decimals: 3
     entity_category: diagnostic
-    icon: "mdi:information-outline"
+    accuracy_decimals: 3
     update_interval: never
+    icon: "mdi:information-outline"
 
     on_value:
       then:
@@ -5137,10 +5137,10 @@ sensor:
     unit_of_measurement: "A"
     device_class: current
     state_class: measurement
-    accuracy_decimals: 3
     entity_category: diagnostic
-    icon: "mdi:information-outline"
+    accuracy_decimals: 3
     update_interval: never
+    icon: "mdi:information-outline"
 
     on_value:
       then:
@@ -5156,10 +5156,10 @@ sensor:
     unit_of_measurement: "A"
     device_class: current
     state_class: measurement
-    accuracy_decimals: 3
     entity_category: diagnostic
-    icon: "mdi:information-outline"
+    accuracy_decimals: 3
     update_interval: never
+    icon: "mdi:information-outline"
 
     on_value:
       then:
@@ -5175,8 +5175,8 @@ sensor:
     id: effective_dc_current_limit_sensor
     unit_of_measurement: "A"
     device_class: current
-    accuracy_decimals: 1
     entity_category: diagnostic
+    accuracy_decimals: 1
     update_interval: never
     icon: "mdi:current-dc"
 
@@ -5188,8 +5188,8 @@ sensor:
     id: thermal_dc_current_limit_sensor
     unit_of_measurement: "A"
     device_class: current
-    accuracy_decimals: 1
     entity_category: diagnostic
+    accuracy_decimals: 1
     update_interval: 1s
     lambda: 'return id(thermal_dc_current_limit);'
     icon: "mdi:thermometer-alert"
@@ -5199,8 +5199,8 @@ sensor:
     id: applied_dc_current_limit_sensor
     unit_of_measurement: "A"
     device_class: current
-    accuracy_decimals: 1
     state_class: measurement
+    accuracy_decimals: 1
     update_interval: 1s
     lambda: |-
       const float requested = id(set_dc_current_limit).state;
@@ -5940,8 +5940,8 @@ sensor:
     unit_of_measurement: "h"
     device_class: duration
     state_class: total_increasing
-    accuracy_decimals: 0
     entity_category: diagnostic
+    accuracy_decimals: 0
     update_interval: never
     filters:
       - lambda: |-
@@ -5957,8 +5957,8 @@ sensor:
     unit_of_measurement: "h"
     device_class: duration
     state_class: total_increasing
-    accuracy_decimals: 0
     entity_category: diagnostic
+    accuracy_decimals: 0
     update_interval: never
     filters:
       - lambda: |-
@@ -5973,8 +5973,8 @@ sensor:
     unit_of_measurement: "h"
     device_class: duration
     state_class: total_increasing
-    accuracy_decimals: 0
     entity_category: diagnostic
+    accuracy_decimals: 0
     update_interval: never
     filters:
       - lambda: |-
@@ -5993,9 +5993,9 @@ sensor:
     device_class: power
     state_class: measurement
     accuracy_decimals: 3
+    update_interval: 1s
     filters:
       - multiply: 0.001
-    update_interval: 1s
     lambda: |-
       float power = 0.0f;
       int valid_units = 0;
@@ -6038,9 +6038,9 @@ sensor:
     device_class: power
     state_class: measurement
     accuracy_decimals: 3
+    update_interval: 1s
     filters:
       - multiply: 0.001
-    update_interval: 1s
     lambda: |-
       float power = 0.0f;
       int valid_units = 0;
@@ -6077,8 +6077,8 @@ sensor:
   - platform: template
     name: "Available Units"
     id: available_units
-    accuracy_decimals: 0
     state_class: measurement
+    accuracy_decimals: 0
     update_interval: 1s
     lambda: |-
       int count = 0;
