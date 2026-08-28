@@ -21,3 +21,6 @@ Thumbs.db
 *~
 *.swp
 *.swo
+*.FCBak
+*.lck
+KiCAD/Charger/.history

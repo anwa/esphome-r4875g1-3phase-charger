@@ -1396,16 +1396,6 @@
 	)
 	(wire
 		(pts
-			(xy 83.82 189.23) (xy 88.9 189.23)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "0e17ffd2-6ca7-4612-af78-1325e6030be9")
-	)
-	(wire
-		(pts
 			(xy 163.83 135.89) (xy 157.48 135.89)
 		)
 		(stroke
@@ -1536,16 +1526,6 @@
 	)
 	(wire
 		(pts
-			(xy 48.26 120.65) (xy 54.61 120.65)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "46dd4d2d-1811-411f-914b-cd11632c74b6")
-	)
-	(wire
-		(pts
 			(xy 101.6 173.99) (xy 101.6 163.83)
 		)
 		(stroke
@@ -1603,6 +1583,16 @@
 			(type default)
 		)
 		(uuid "70a15e4e-ca92-4eb5-a4e2-78479ec8b2ed")
+	)
+	(wire
+		(pts
+			(xy 80.01 85.09) (xy 96.52 85.09)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "77d330eb-f5f0-457b-902c-82bf0157159f")
 	)
 	(wire
 		(pts
@@ -1706,13 +1696,13 @@
 	)
 	(wire
 		(pts
-			(xy 88.9 85.09) (xy 96.52 85.09)
+			(xy 74.93 181.61) (xy 88.9 181.61)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "9f0d2c1f-c39c-4318-b1f2-91b4adb0533f")
+		(uuid "9e9e8b22-5de0-40ad-91c7-fa543e159ecb")
 	)
 	(wire
 		(pts
@@ -1776,16 +1766,6 @@
 	)
 	(wire
 		(pts
-			(xy 83.82 173.99) (xy 88.9 173.99)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "afdb4092-5ff0-45f0-bafe-f8315fbaba62")
-	)
-	(wire
-		(pts
 			(xy 101.6 152.4) (xy 101.6 158.75)
 		)
 		(stroke
@@ -1793,6 +1773,16 @@
 			(type default)
 		)
 		(uuid "afdfd986-7f96-4aa6-99b0-ce3c5202bcec")
+	)
+	(wire
+		(pts
+			(xy 74.93 173.99) (xy 88.9 173.99)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "b45ca7df-5ba2-4de7-81c0-b9c3df7646eb")
 	)
 	(wire
 		(pts
@@ -1836,6 +1826,16 @@
 	)
 	(wire
 		(pts
+			(xy 74.93 189.23) (xy 88.9 189.23)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "c42bd1db-34c5-48c1-b87e-298c5b172d80")
+	)
+	(wire
+		(pts
 			(xy 149.86 133.35) (xy 163.83 133.35)
 		)
 		(stroke
@@ -1856,16 +1856,6 @@
 	)
 	(wire
 		(pts
-			(xy 83.82 181.61) (xy 88.9 181.61)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "c968d54b-d3be-4f2b-8b66-5ca3c99cf539")
-	)
-	(wire
-		(pts
 			(xy 118.11 66.04) (xy 118.11 69.85)
 		)
 		(stroke
@@ -1873,6 +1863,16 @@
 			(type default)
 		)
 		(uuid "ca963bc3-75e1-4ee7-b57d-e938ef6d5696")
+	)
+	(wire
+		(pts
+			(xy 43.18 120.65) (xy 54.61 120.65)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "d8d8e9e2-bb31-49db-9690-ded2dac00d2a")
 	)
 	(wire
 		(pts
@@ -1974,6 +1974,16 @@
 		)
 		(uuid "21ac9dc6-2a5a-4381-9315-fc69f73d909c")
 	)
+	(label "FAN3_TACH"
+		(at 74.93 189.23 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "3235b761-9ff3-4816-b011-e78648881604")
+	)
 	(label "TACH2"
 		(at 132.08 181.61 180)
 		(effects
@@ -1993,6 +2003,46 @@
 			(justify right bottom)
 		)
 		(uuid "49851750-8493-433c-bbf9-bb6715d5f203")
+	)
+	(label "FAN1_TACH"
+		(at 74.93 173.99 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "64802b34-43ec-4644-96f4-52eec39ff98d")
+	)
+	(label "FAN2_TACH"
+		(at 74.93 181.61 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "8073f54b-8c41-4e02-be1c-6cbe3d3b844b")
+	)
+	(label "FAN_PWM"
+		(at 43.18 120.65 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "860702a1-8d28-4648-be45-f51d6657d2dd")
+	)
+	(label "FAN_ENABLE"
+		(at 80.01 85.09 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "925a3b0e-d9f2-4ec6-941e-745c3a1aa936")
 	)
 	(label "PWM"
 		(at 83.82 111.76 180)
@@ -2053,126 +2103,6 @@
 			(justify left bottom)
 		)
 		(uuid "ec070c08-4099-45d2-a988-b0655cda3121")
-	)
-	(global_label "FAN3_TACH"
-		(shape output)
-		(at 83.82 189.23 180)
-		(fields_autoplaced yes)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right)
-		)
-		(uuid "18ffea3d-b09a-49c3-9931-ee2811af2bef")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 70.4933 189.23 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify right)
-			)
-		)
-	)
-	(global_label "FAN_PWM"
-		(shape input)
-		(at 48.26 120.65 180)
-		(fields_autoplaced yes)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right)
-		)
-		(uuid "66ca6a4a-7f08-45e5-ac29-897e7ce2a54f")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 36.6267 120.65 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify right)
-			)
-		)
-	)
-	(global_label "FAN2_TACH"
-		(shape output)
-		(at 83.82 181.61 180)
-		(fields_autoplaced yes)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right)
-		)
-		(uuid "c80165c8-ad5d-41a0-b3fd-93a8517c290d")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 70.4933 181.61 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify right)
-			)
-		)
-	)
-	(global_label "FAN1_TACH"
-		(shape output)
-		(at 83.82 173.99 180)
-		(fields_autoplaced yes)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right)
-		)
-		(uuid "d8e9785f-c8ee-49a6-9186-71b4c2f99375")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 70.4933 173.99 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify right)
-			)
-		)
-	)
-	(global_label "FAN_ENABLE"
-		(shape input)
-		(at 88.9 85.09 180)
-		(fields_autoplaced yes)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right)
-		)
-		(uuid "dad82502-afed-4e88-89ea-90a29a0b1b56")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 74.4243 85.09 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify right)
-			)
-		)
 	)
 	(symbol
 		(lib_id "Device:R_Small")
