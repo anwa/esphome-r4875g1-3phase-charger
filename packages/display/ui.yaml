@@ -40,7 +40,7 @@ lvgl:
                   width: 145
                   text: "--.--.---- --:--"
                   text_font: ui_font_14
-                  text_color: 0xB9C6D6
+                  text_color: 0xFFFFFF
 
               - label:
                   id: ui_version
@@ -50,7 +50,7 @@ lvgl:
                   text_align: CENTER
                   text: "v${firmware_version}"
                   text_font: ui_font_14
-                  text_color: 0xB9C6D6
+                  text_color: 0xFFFFFF
 
               - label:
                   id: ui_run_state
@@ -60,7 +60,7 @@ lvgl:
                   text_align: RIGHT
                   text: "OFF"
                   text_font: ui_font_14
-                  text_color: 0xFF7B7B
+                  text_color: 0xFF7070
 
         # ------------------------------------------------------------------
         # AC / DC summary cards
@@ -288,7 +288,7 @@ interval:
             if (id(can_com_ok_1).state && id(power_state_1).state == "ON") on++;
             if (id(can_com_ok_2).state && id(power_state_2).state == "ON") on++;
             if (id(can_com_ok_3).state && id(power_state_3).state == "ON") on++;
-            return on == 3 ? lv_color_hex(0x55D68A) : (on > 0 ? lv_color_hex(0xF3B64A) : lv_color_hex(0xFF7B7B));
+            return on == 3 ? lv_color_hex(0x6CFF8F) : (on > 0 ? lv_color_hex(0xFFD35A) : lv_color_hex(0xFF7070));
 
       - lvgl.label.update:
           id: ui_set_voltage
