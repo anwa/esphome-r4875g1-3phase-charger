@@ -1,0 +1,95 @@
+name: Apply encoder page navigation
+
+on:
+  push:
+    branches:
+      - v4-lvgl-menu
+    paths:
+      - .github/workflows/apply-v4.0.10-navigation.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: v4-lvgl-menu
+
+      - name: Apply navigation and documentation updates
+        shell: python
+        run: |
+          from pathlib import Path
+
+          root = Path("r4875g1-3phase-charger.yaml")
+          text = root.read_text(encoding="utf-8")
+
+          old = '''    on_multi_click:\n\n      # Short press:\n      # Toggle encoder editing mode: DC Voltage <-> Total DC Power.\n      - timing:\n          - ON for 50ms to 2800ms\n          - OFF for at least 50ms\n        then:\n          - lambda: |-\n              id(encoder_mode) = !id(encoder_mode);\n\n              ESP_LOGI(\n                "encoder",\n                "Selected: %s",\n                id(encoder_mode) == 0\n                  ? "DC Voltage"\n                  : "DC Sum Power"\n              );\n          - component.update: tft\n\n      # Long press:\n'''
+
+          new = '''    on_multi_click:\n\n      # Double press:\n      # Advance to the next LVGL page. The second press must begin within\n      # 350 ms so the action remains distinct from a normal short press.\n      - timing:\n          - ON for 50ms to 700ms\n          - OFF for 50ms to 350ms\n          - ON for 50ms to 700ms\n          - OFF for at least 50ms\n        then:\n          - lvgl.page.next:\n              animation: OUT_LEFT\n              time: 180ms\n          - logger.log:\n              level: DEBUG\n              format: "Encoder double-click: switched to next LVGL page."\n\n      # Short press:\n      # Toggle encoder editing mode: DC Voltage <-> Total DC Power.\n      # Waiting at least 350 ms after release prevents the first click of a\n      # double-click from firing the single-click action prematurely.\n      - timing:\n          - ON for 50ms to 700ms\n          - OFF for at least 350ms\n        then:\n          - lambda: |-\n              id(encoder_mode) = !id(encoder_mode);\n\n              ESP_LOGI(\n                "encoder",\n                "Selected: %s",\n                id(encoder_mode) == 0\n                  ? "DC Voltage"\n                  : "DC Sum Power"\n              );\n          - component.update: tft\n\n      # Long press:\n'''
+
+          assert text.count(old) == 1, "Expected encoder multi-click block not found exactly once"
+          text = text.replace(old, new, 1)
+
+          old_comment = '# Physical encoder push button; pin is defined in substitutions. The internal pull-up makes the input active-low. A 30 ms delayed_on_off filter debounces the switch. on_press wakes the display; short press changes encoder mode; >=3 s long press starts/stops the rectifiers.'
+          new_comment = '# Physical encoder push button; pin is defined in substitutions. The internal pull-up makes the input active-low. A 30 ms delayed_on_off filter debounces the switch. on_press wakes the display; short press changes encoder mode; double press advances the LVGL page; >=3 s long press starts/stops the rectifiers.'
+          assert text.count(old_comment) == 1
+          text = text.replace(old_comment, new_comment, 1)
+          root.write_text(text, encoding="utf-8", newline="\n")
+
+          version = Path("packages/version.yaml")
+          v = version.read_text(encoding="utf-8")
+          assert v.count('firmware_version: "4.0.9"') == 1
+          version.write_text(v.replace('firmware_version: "4.0.9"', 'firmware_version: "4.0.10"', 1), encoding="utf-8", newline="\n")
+
+          readme = Path("README.md")
+          r = readme.read_text(encoding="utf-8")
+          r = r.replace('**Current development firmware: 4.0.8**', '**Current development firmware: 4.0.10**')
+          r = r.replace('  firmware_version: "4.0.8"', '  firmware_version: "4.0.10"')
+          r = r.replace('This README describes firmware **4.0.8**', 'This README describes firmware **4.0.10**')
+          old_local = '''Current implemented encoder behavior is:\n\n- rotate: edit the selected DC voltage or nominal three-unit DC-power target;\n- short press: select `Voltage` or `Power` editing;\n- long press (≥3 s): START/STOP;\n- STOP has priority and is unrestricted;\n- START is issued only to units that are `ONLINE`, CAN-fresh, explicitly `OFF`, below the temperature trip threshold and not locked out.\n\nThe four-page LVGL branch already contains page definitions and `page_wrap`, but **double-click page navigation has not yet been connected to the physical encoder button**. That is the next UI implementation step.\n'''
+          new_local = '''Current implemented encoder behavior is:\n\n- rotate: edit the selected DC voltage or nominal three-unit DC-power target;\n- short press: select `Voltage` or `Power` editing;\n- double press: advance to the next LVGL page (`Dashboard → Rectifiers → Cooling → System → Dashboard`);\n- long press (≥3 s): START/STOP;\n- STOP has priority and is unrestricted;\n- START is issued only to units that are `ONLINE`, CAN-fresh, explicitly `OFF`, below the temperature trip threshold and not locked out.\n\nSingle-click recognition deliberately waits 350 ms after release so the first click of a double-click cannot also toggle the Voltage/Power edit mode.\n'''
+          assert r.count(old_local) == 1
+          r = r.replace(old_local, new_local, 1)
+          r = r.replace('`display/ui.yaml` enables LVGL `page_wrap` and includes the four page files. Physical button navigation between them is still pending.', '`display/ui.yaml` enables LVGL `page_wrap` and includes the four page files. Encoder double-click uses `lvgl.page.next` with a short left transition and wraps from System back to Dashboard.')
+          r = r.replace('- Four-page LVGL page definitions exist, but encoder double-click page switching is not implemented yet.\n', '')
+          readme.write_text(r, encoding="utf-8", newline="\n")
+
+          preadme = Path("packages/README.md")
+          p = preadme.read_text(encoding="utf-8")
+          p = p.replace('firmware **v4.0.8**', 'firmware **v4.0.10**')
+          p = p.replace('Firmware **4.0.8**', 'Firmware **4.0.10**')
+          old_nav = '''The page definitions exist, but the physical encoder button still has its pre-menu behavior: short press selects Voltage/Power and ≥3 s performs START/STOP. **Double-click page navigation is the next implementation step.** Do not describe it as functional until the root button automation is changed and hardware-tested.\n'''
+          new_nav = '''The physical encoder button now distinguishes three gestures: short press selects Voltage/Power, double press advances to the next LVGL page, and ≥3 s performs START/STOP. The double-click pattern requires the second press within 350 ms; the single-click pattern waits at least 350 ms after release so both actions cannot fire for the same gesture. Page wrapping returns from System to Dashboard.\n'''
+          assert p.count(old_nav) == 1
+          p = p.replace(old_nav, new_nav, 1)
+          preadme.write_text(p, encoding="utf-8", newline="\n")
+
+          workflow = Path(".github/workflows/apply-v4.0.10-navigation.yml")
+          workflow.unlink()
+
+      - name: Validate exact changes
+        run: |
+          git diff --check
+          grep -q 'firmware_version: "4.0.10"' packages/version.yaml
+          grep -q 'lvgl.page.next' r4875g1-3phase-charger.yaml
+          grep -q 'OFF for at least 350ms' r4875g1-3phase-charger.yaml
+          test ! -e .github/workflows/apply-v4.0.10-navigation.yml
+
+      - name: Commit v4.0.10
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Enable encoder page navigation and bump v4.0.10" -m "- add a dedicated encoder double-click gesture for LVGL page navigation
+          - advance Dashboard → Rectifiers → Cooling → System with page wrapping enabled
+          - use a short OUT_LEFT transition for clear visual feedback
+          - delay single-click recognition by 350 ms so it cannot overlap with a double-click
+          - preserve the existing short-press Voltage/Power selection and >=3 s START/STOP behavior
+          - synchronize README.md and packages/README.md with the implemented navigation behavior
+          - remove this one-shot patch workflow after applying the change
+          - bump the centralized firmware version from v4.0.9 to v4.0.10"
+          git push origin HEAD:v4-lvgl-menu
