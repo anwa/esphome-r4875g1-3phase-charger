@@ -71,6 +71,7 @@
 # starts the display inactivity timer so the backlight will eventually switch off
 # even if the user never touches the encoder after power-up.
 substitutions:
+  # Firmware version is defined once in packages/version.yaml.
   mqtt_command_prefix: "HG/DG/Technik/Charger"
 
   # --------------------------------------------------------------------------
@@ -205,6 +206,7 @@ substitutions:
   property_bus_quiet_delay: "500ms"
 
 packages:
+  version: !include packages/version.yaml
   core: !include packages/core.yaml
   hardware: !include packages/hardware.yaml
   display: !include packages/display.yaml
@@ -234,7 +236,7 @@ esphome:
 
   project:
     name: "anwa.3phase-charger"
-    version: "4.0.1"
+    version: "${firmware_version}"
 
   on_boot:
     then:

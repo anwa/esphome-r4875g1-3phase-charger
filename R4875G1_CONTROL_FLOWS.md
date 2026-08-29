@@ -1,6 +1,6 @@
 # R4875G1 Three-Phase Charger — Control and Runtime Flows
 
-This document describes firmware **4.0.0** on `main` as of **2026-08-29**. Version 4 keeps the validated v3 charger/CAN/blackstart control model and replaces the local TFT renderer with an LVGL-based UI.
+This document describes firmware **4.0.4** on `main` as of **2026-08-29**. Version 4 keeps the validated v3 charger/CAN/blackstart control model and replaces the local TFT renderer with an LVGL-based UI.
 
 > **Scope:** behavioral firmware documentation, not an electrical safety specification.
 
@@ -13,7 +13,7 @@ This document describes firmware **4.0.0** on `main` as of **2026-08-29**. Versi
 | Minimum DC current command | 1 A |
 | DC voltage range / default | 49–58 V / 53 V |
 | Overtemperature trip / reset | 90 °C / 80 °C |
-| Raw CAN watchdog | 3 s |
+| Raw CAN watchdog | 3 s ONLINE/OFFLINE; 7 s while DISCOVERING |
 | Live telemetry freshness | 5 s |
 | Fast polling cycle | 577 ms |
 | Offline probe slot / per-unit maximum | 5 s / ≈15 s |
@@ -109,7 +109,7 @@ Every 577 ms, while property discovery is not owning the bus, each lifecycle-`ON
 
 # 7. Raw CAN watchdog
 
-Valid per-unit traffic refreshes `last_can_rx_x`. Communication is fresh for 3 seconds. Loss changes `CAN Communication Unit x` to false, invalidates that unit's capability contribution and eventually demotes lifecycle `ONLINE → OFFLINE`; its published power state becomes `UNKNOWN`.
+Valid per-unit traffic refreshes `last_can_rx_x`. Communication is fresh for 3 seconds during normal operation and for 7 seconds while the unit is DISCOVERING, so the intentional 5-second stabilization window cannot expire the watchdog. Loss changes `CAN Communication Unit x` to false, invalidates that unit's capability contribution and eventually demotes lifecycle `ONLINE → OFFLINE`; its published power state becomes `UNKNOWN`.
 
 # 8. Slow OFFLINE probing and reconnect
 
@@ -227,7 +227,7 @@ The ESP32-S3 N16R8 has 8 MB PSRAM, and LVGL is configured with a **100% 16-bit R
 
 The dashboard contains:
 
-- header: `R4875G1 Charger`, date/time, `v4.0.0`, overall ON/OFF state;
+- header: `R4875G1 Charger`, date/time, `v4.0.4`, overall ON/OFF state;
 - AC INPUT and DC OUTPUT cards;
 - three rectifier status lines;
 - local voltage/power/current setpoints;
@@ -267,7 +267,7 @@ The tested reduced-current connector configuration reported a 52 A capability. T
 
 ## Source status
 
-Behavior documented from firmware **4.0.0** on branch `main`:
+Behavior documented from firmware **4.0.4** on branch `main`:
 
 ```text
 r4875g1-3phase-charger.yaml

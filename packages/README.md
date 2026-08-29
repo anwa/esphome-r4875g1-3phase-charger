@@ -1,11 +1,12 @@
 # Firmware package architecture
 
-This directory is the modular source of truth for firmware **v4.0.0**, assembled by `../r4875g1-3phase-charger.yaml`.
+This directory is the modular source of truth for firmware **v4.0.4**, assembled by `../r4875g1-3phase-charger.yaml`.
 
 ## Ownership rules
 
 | File | Responsibility |
 |---|---|
+| `version.yaml` | single source of truth for firmware version; every commit increments PATCH |
 | `core.yaml` | ESP32 platform/framework, PSRAM, network, API, MQTT, web, OTA and time services |
 | `hardware.yaml` | shared I²C and SPI buses |
 | `display.yaml` | v4 display package aggregator and display substitutions |
@@ -24,7 +25,7 @@ Version 4 replaces the previous immediate-mode TFT renderer with **ESPHome LVGL*
 
 The ILI9488 is configured as a 480×320 RGB565 panel. LVGL rotates the logical canvas by 90° for the default **320×480 portrait dashboard**. Set `display_rotation` to `0` for landscape. The ESP32-S3 N16R8 has 8 MB PSRAM, so LVGL uses a **100% 16-bit RGB565 framebuffer**. All dashboard containers explicitly disable scrolling and scrollbars.
 
-The portrait dashboard contains a header with date/time, firmware version and charger state, AC/DC summary cards, per-rectifier status, local encoder setpoints, thermal/efficiency information, network diagnostics and the local START/STOP reminder. The firmware version displayed in the header is `4.0.0` and must remain synchronized with `esphome.project.version` in the root YAML.
+The portrait dashboard contains a header with date/time, firmware version and charger state, AC/DC summary cards, per-rectifier status, local encoder setpoints, thermal/efficiency information, network diagnostics and the local START/STOP reminder. The TFT header and `esphome.project.version` both consume `${firmware_version}` from `version.yaml`, so the version is maintained in exactly one place.
 
 ## Rectifier unit template
 
@@ -67,4 +68,4 @@ Two independent fan domains exist: external/chassis fans are GPIO-controlled thr
 
 ## Release status
 
-Firmware **4.0.0** is the current baseline on `main`. Version 4 introduces the LVGL display architecture; charger control, CAN recovery and blackstart behavior continue from the validated v3 baseline unless explicitly documented otherwise.
+Firmware **4.0.4** is the current baseline on `main`. Version 4 introduces the LVGL display architecture; charger control, CAN recovery and blackstart behavior continue from the validated v3 baseline unless explicitly documented otherwise.

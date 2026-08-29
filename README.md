@@ -2,7 +2,7 @@
 
 ESPHome controller for **three Huawei R4875G1 rectifiers** operated as a coordinated three-phase battery charger with a common parallel DC output.
 
-**Current firmware: 4.0.0**
+**Current firmware: 4.0.4**
 
 Version 4 keeps the validated charger, CAN-recovery, thermal-protection and local-blackstart model from v3 and introduces a new **LVGL-based local TFT interface**. The default UI is a 320×480 portrait dashboard rendered on the ILI9488 through a 16-bit RGB565 full framebuffer.
 
@@ -114,18 +114,14 @@ packages/
 
 # Versioning
 
-The authoritative ESPHome project metadata is:
+The firmware version has one source of truth in `packages/version.yaml`:
 
 ```yaml
-esphome:
-  project:
-    name: "anwa.3phase-charger"
-    version: "4.0.0"
+substitutions:
+  firmware_version: "4.0.4"
 ```
 
-The TFT header also displays `v4.0.0`; these values must remain synchronized.
-
-The project uses `MAJOR.MINOR.PATCH`. Major/minor milestones reset PATCH to zero; subsequent firmware commits increment PATCH as appropriate.
+`esphome.project.version` and the TFT header both consume `${firmware_version}`. The project uses `MAJOR.MINOR.PATCH`; every repository commit increments PATCH by one.
 
 # Hardware
 
@@ -286,4 +282,4 @@ Additional project development: Copyright (c) 2026 Andreas Wansner
 
 # Documentation status
 
-This README, `R4875G1_CONTROL_FLOWS.md` and `packages/README.md` describe firmware **4.0.0** on `main` and were resynchronized on **2026-08-29** after physical verification of the v4 LVGL TFT interface. Historical v2.2.2 CAN traces remain cited where they are the validated evidence for unchanged CAN behavior.
+This README, `R4875G1_CONTROL_FLOWS.md` and `packages/README.md` describe firmware **4.0.4** on `main` and were resynchronized on **2026-08-29** after physical verification of the v4 LVGL TFT interface. Historical v2.2.2 CAN traces remain cited where they are the validated evidence for unchanged CAN behavior.
