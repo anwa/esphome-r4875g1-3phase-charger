@@ -43,6 +43,14 @@ lvgl:
   default_font: ui_font_18
   log_level: WARN
 
+  # This installation has no touchscreen. Disable scrolling and scrollbars for
+  # all generic container objects globally so cards never show unusable bars,
+  # even when a child temporarily exceeds its content area.
+  theme:
+    obj:
+      scrollable: false
+      scrollbar_mode: "OFF"
+
   style_definitions:
     - id: style_card
       bg_color: 0xFFFFFF
