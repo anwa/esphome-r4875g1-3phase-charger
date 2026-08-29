@@ -10,13 +10,11 @@ lvgl:
       bg_color: 0xF3F5F8
       bg_opa: COVER
       scrollable: false
+      scrollbar_mode: "OFF"
       widgets:
         # ------------------------------------------------------------------
         # Header
         # ------------------------------------------------------------------
-        # Use explicit coordinates instead of BOTTOM_* alignment. This avoids
-        # ambiguous offsets after display rotation and guarantees that clock,
-        # version and run state stay inside the visible 320 px header width.
         - obj:
             x: 0
             y: 0
@@ -24,6 +22,8 @@ lvgl:
             height: 76
             styles: style_header
             pad_all: 0
+            scrollable: false
+            scrollbar_mode: "OFF"
             widgets:
               - label:
                   x: 10
@@ -32,7 +32,6 @@ lvgl:
                   text_align: CENTER
                   text: "R4875G1 Charger"
                   text_font: ui_font_26_bold
-
               - label:
                   id: ui_clock
                   x: 10
@@ -41,7 +40,6 @@ lvgl:
                   text: "--.--.---- --:--"
                   text_font: ui_font_14
                   text_color: 0xFFFFFF
-
               - label:
                   id: ui_version
                   x: 145
@@ -51,7 +49,6 @@ lvgl:
                   text: "v${firmware_version}"
                   text_font: ui_font_14
                   text_color: 0xFFFFFF
-
               - label:
                   id: ui_run_state
                   x: 215
@@ -71,6 +68,8 @@ lvgl:
             width: 148
             height: 72
             styles: style_card
+            scrollable: false
+            scrollbar_mode: "OFF"
             widgets:
               - label:
                   text: "AC INPUT"
@@ -96,6 +95,8 @@ lvgl:
             width: 148
             height: 72
             styles: style_card
+            scrollable: false
+            scrollbar_mode: "OFF"
             widgets:
               - label:
                   text: "DC OUTPUT"
@@ -124,6 +125,8 @@ lvgl:
             width: 304
             height: 104
             styles: style_card
+            scrollable: false
+            scrollbar_mode: "OFF"
             widgets:
               - label:
                   text: "RECTIFIERS"
@@ -157,6 +160,8 @@ lvgl:
             width: 304
             height: 100
             styles: style_card
+            scrollable: false
+            scrollbar_mode: "OFF"
             widgets:
               - label:
                   text: "LOCAL SETPOINTS"
@@ -192,6 +197,8 @@ lvgl:
             width: 304
             height: 88
             styles: style_card
+            scrollable: false
+            scrollbar_mode: "OFF"
             widgets:
               - label:
                   id: ui_thermal
@@ -208,7 +215,7 @@ lvgl:
                   id: ui_hint
                   x: 0
                   y: 52
-                  text: "Press: select  •  Hold 3 s: START/STOP"
+                  text: "Press: select | Hold 3 s: START/STOP"
                   text_font: ui_font_14
                   text_color: 0x657080
 
@@ -221,13 +228,11 @@ interval:
             auto now = id(sntp_time).now();
             if (!now.is_valid()) return std::string("--.--.---- --:--");
             return str_sprintf("%02d.%02d.%04d %02d:%02d", now.day_of_month, now.month, now.year, now.hour, now.minute);
-
       - lvgl.label.update:
           id: ui_ac_power
           text: !lambda |-
             if (isnan(id(combined_ac_power).state)) return std::string("--.-- kW");
             return str_sprintf("%.2f kW", id(combined_ac_power).state);
-
       - lvgl.label.update:
           id: ui_ac_detail
           text: !lambda |-
@@ -238,19 +243,16 @@ interval:
             if (id(can_com_ok_3).state && !isnan(id(ac_voltage_3).state) && !isnan(id(ac_current_3).state) && !isnan(id(ac_frequency_3).state)) { v += id(ac_voltage_3).state; a += id(ac_current_3).state; hz += id(ac_frequency_3).state; n++; }
             if (!n) return std::string("CAN offline");
             return str_sprintf("%.0f V  %.1f A  %.1f Hz", v/n, a/n, hz/n);
-
       - lvgl.label.update:
           id: ui_dc_power
           text: !lambda |-
             if (isnan(id(combined_dc_power).state)) return std::string("--.-- kW");
             return str_sprintf("%.2f kW", id(combined_dc_power).state);
-
       - lvgl.label.update:
           id: ui_dc_detail
           text: !lambda |-
             if (isnan(id(average_dc_voltage).state) || isnan(id(combined_dc_current).state)) return std::string("CAN offline");
             return str_sprintf("%.1f V  %.1f A", id(average_dc_voltage).state, id(combined_dc_current).state);
-
       - lvgl.label.update:
           id: ui_unit_1
           text: !lambda |-
@@ -258,7 +260,6 @@ interval:
             if (isnan(id(dc_voltage_1).state) || isnan(id(dc_current_1).state) || isnan(id(dc_power_1).state) || isnan(id(output_temperature_1).state)) return std::string("L1  telemetry incomplete");
             return str_sprintf("L1  %.1fV  %.1fA  %.0fW  %.0f°C  %s", id(dc_voltage_1).state, id(dc_current_1).state, id(dc_power_1).state, id(output_temperature_1).state, id(power_state_1).state.c_str());
           text_color: !lambda 'return id(can_com_ok_1).state ? lv_color_hex(0x182433) : lv_color_hex(0xC62828);'
-
       - lvgl.label.update:
           id: ui_unit_2
           text: !lambda |-
@@ -266,7 +267,6 @@ interval:
             if (isnan(id(dc_voltage_2).state) || isnan(id(dc_current_2).state) || isnan(id(dc_power_2).state) || isnan(id(output_temperature_2).state)) return std::string("L2  telemetry incomplete");
             return str_sprintf("L2  %.1fV  %.1fA  %.0fW  %.0f°C  %s", id(dc_voltage_2).state, id(dc_current_2).state, id(dc_power_2).state, id(output_temperature_2).state, id(power_state_2).state.c_str());
           text_color: !lambda 'return id(can_com_ok_2).state ? lv_color_hex(0x182433) : lv_color_hex(0xC62828);'
-
       - lvgl.label.update:
           id: ui_unit_3
           text: !lambda |-
@@ -274,7 +274,6 @@ interval:
             if (isnan(id(dc_voltage_3).state) || isnan(id(dc_current_3).state) || isnan(id(dc_power_3).state) || isnan(id(output_temperature_3).state)) return std::string("L3  telemetry incomplete");
             return str_sprintf("L3  %.1fV  %.1fA  %.0fW  %.0f°C  %s", id(dc_voltage_3).state, id(dc_current_3).state, id(dc_power_3).state, id(output_temperature_3).state, id(power_state_3).state.c_str());
           text_color: !lambda 'return id(can_com_ok_3).state ? lv_color_hex(0x182433) : lv_color_hex(0xC62828);'
-
       - lvgl.label.update:
           id: ui_run_state
           text: !lambda |-
@@ -289,21 +288,17 @@ interval:
             if (id(can_com_ok_2).state && id(power_state_2).state == "ON") on++;
             if (id(can_com_ok_3).state && id(power_state_3).state == "ON") on++;
             return on == 3 ? lv_color_hex(0x6CFF8F) : (on > 0 ? lv_color_hex(0xFFD35A) : lv_color_hex(0xFF7070));
-
       - lvgl.label.update:
           id: ui_set_voltage
           text: !lambda 'return str_sprintf("%s Voltage  %.1f V", id(encoder_mode) == 0 ? ">" : " ", id(set_dc_voltage_limit).state);'
           text_color: !lambda 'return id(encoder_mode) == 0 ? lv_color_hex(0x1769AA) : lv_color_hex(0x182433);'
-
       - lvgl.label.update:
           id: ui_set_power
           text: !lambda 'return str_sprintf("%s Power    %.2f kW", id(encoder_mode) == 1 ? ">" : " ", id(set_dc_sum_power).state);'
           text_color: !lambda 'return id(encoder_mode) == 1 ? lv_color_hex(0x1769AA) : lv_color_hex(0x182433);'
-
       - lvgl.label.update:
           id: ui_set_current
           text: !lambda 'return str_sprintf("%.1f A/unit", id(set_dc_current_limit).state);'
-
       - lvgl.label.update:
           id: ui_thermal
           text: !lambda |-
@@ -313,7 +308,6 @@ interval:
             if (isnan(e)) return str_sprintf("Temp %.1f °C   Efficiency --.- %%", t);
             if (isnan(t)) return str_sprintf("Temp --.- °C   Efficiency %.1f %%", e);
             return str_sprintf("Temp %.1f °C   Efficiency %.1f %%", t, e);
-
       - lvgl.label.update:
           id: ui_network
           text: !lambda |-
