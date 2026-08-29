@@ -73,13 +73,14 @@ lvgl:
               - label:
                   id: ui_cooling_control
                   x: 0
-                  y: 30
-                  text: "Power --   PWM -- %"
+                  y: 27
+                  text: "AUTO -- | Power -- | PWM -- %"
                   text_font: ui_font_18_bold
               - label:
+                  id: ui_cooling_curve
                   x: 0
                   y: 61
-                  text: "PWM applies to 4-pin fans"
+                  text: "Auto: <30 OFF ... >=50 100%"
                   text_font: ui_font_14
                   text_color: 0x657080
         - obj:
@@ -126,13 +127,25 @@ interval:
     then:
       - lvgl.label.update:
           id: ui_cooling_environment
-          text: !lambda 'return str_sprintf("Temperature %.1f C", id(rectifier_compartment_temperature).state);'
+          text: !lambda |-
+            if (isnan(id(rectifier_compartment_temperature).state)) return std::string("Temperature --.- C");
+            return str_sprintf("Temperature %.1f C", id(rectifier_compartment_temperature).state);
       - lvgl.label.update:
           id: ui_cooling_humidity
-          text: !lambda 'return str_sprintf("Humidity %.1f %%", id(rectifier_compartment_humidity).state);'
+          text: !lambda |-
+            if (isnan(id(rectifier_compartment_humidity).state)) return std::string("Humidity --.- %");
+            return str_sprintf("Humidity %.1f %%", id(rectifier_compartment_humidity).state);
       - lvgl.label.update:
           id: ui_cooling_control
-          text: !lambda 'return str_sprintf("Power %s   PWM %.0f %%", id(cooling_fan_enable).state ? "ON" : "OFF", id(cooling_fan_pwm_percent).state);'
+          text: !lambda |-
+            return str_sprintf("AUTO %s | Power %s | PWM %.0f %%", id(cooling_fan_auto).state ? "ON" : "OFF", id(cooling_fan_enable).state ? "ON" : "OFF", id(cooling_fan_pwm_percent).state);
+      - lvgl.label.update:
+          id: ui_cooling_curve
+          text: !lambda |-
+            if (!id(cooling_fan_auto).state) return std::string("Manual override active");
+            if (isnan(id(rectifier_compartment_temperature).state)) return std::string("Sensor fault: fail-safe 100%");
+            static const char *stage_text[] = {"<30 C: OFF", "30 C: 35%", "35 C: 45%", "40 C: 60%", "45 C: 80%", ">=50 C: 100%"};
+            return std::string(stage_text[std::max(0, std::min(5, id(cooling_fan_auto_stage)))]);
       - lvgl.label.update:
           id: ui_cooling_fan1
           text: !lambda 'return str_sprintf("Fan 1  %.0f RPM", id(cooling_fan_1_rpm).state);'

@@ -1,23 +1,28 @@
 # Firmware package architecture
 
-This directory documents development firmware **v4.1.5** on `v4-lvgl-menu`. Stable `main` remains at v4.1.0 until the display changes are hardware-tested and promoted.
+This directory documents development firmware **v4.1.6** on `v4-lvgl-menu`. Stable `main` remains at v4.1.0 until development changes are hardware-tested and promoted.
 
 ## Display architecture
 
-The ILI9488 uses ESPHome LVGL with separate hardware, theme, page aggregation and page files. The controller has no touchscreen, so scrolling and scrollbar rendering are disabled globally in `display/theme.yaml` and explicitly once on every page/header/card container. v4.1.5 fixes the duplicate `scrollbar_mode` YAML keys that the v4.1.4 automatic Dashboard patch accidentally inserted into cards that already had the setting.
+The ILI9488 uses ESPHome LVGL with separate hardware, theme, page aggregation and page files. The controller has no touchscreen, so scrolling and scrollbar rendering are disabled globally and explicitly on page/header/card containers.
 
-Current pages:
+Current pages are Dashboard, Rectifiers, Cooling and System. The Cooling page now reports automatic/manual state, fan power, commanded PWM, current automatic stage and all three external tachometer speeds.
 
-- **Dashboard** — operating overview and local setpoints.
-- **Rectifiers** — L1/L2/L3 cards with compact color-coded `PWR / CAN / lifecycle`, DC V/A/W, input/output temperature, internal fan RPM and maximum-current capability. Unreachable units use placeholders.
-- **Cooling** — compartment temperature/humidity, external fan power/PWM and three external tachometer speeds.
-- **System** — firmware, IP, Wi-Fi RSSI, uptime, CPU temperature, free internal heap, free PSRAM and L1/L2/L3 CAN state.
+Encoder behavior remains: rotate edits the selected charger setpoint, short press selects Voltage/Power, double press advances the page, and >=3 s performs START/STOP.
 
-Rectifier status is red for CAN fault, amber while `DISCOVERING`, green while `ONLINE`, and muted while `OFFLINE`. Encoder behavior remains: rotate edits the selected setpoint, short press selects Voltage/Power, double press advances the page, and >=3 s performs START/STOP.
+## External cooling package
+
+`cooling.yaml` owns external/chassis fans only; internal R4875G1 fans remain CAN-controlled/reported separately.
+
+`Cooling Fan Automatic` defaults ON. It evaluates the AHT10 compartment temperature every 5 seconds and applies six stages: OFF below 30 °C, then 35/45/60/80/100 % PWM at 30/35/40/45/50 °C. Downward transitions use 2 °C hysteresis (28/33/38/43/48 °C) to avoid rapid stage oscillation.
+
+If compartment temperature is invalid, automatic mode fails safe to fan power ON and 100 % PWM. Disabling automatic mode stops the controller from changing fan power/PWM and leaves `Cooling Fan Power` plus `Cooling Fan PWM` available for manual override. Three-pin fans use only common power; four-pin fans use common power plus the shared 25 kHz PWM signal.
+
+The current automatic stage is held in a non-persistent runtime global; the visible `Cooling Fan PWM` value is updated to the automatic command so Home Assistant and the TFT show the actual requested PWM.
 
 ## Package ownership
 
-`version.yaml` is the single firmware-version source. `display/theme.yaml` owns shared LVGL behavior/styles. `display/ui.yaml` aggregates the four page files. `rectifier-unit.yaml` is instantiated for each rectifier; `rectifier-shared.yaml` owns shared CAN/lifecycle/discovery behavior.
+`version.yaml` is the single firmware-version source. `display/theme.yaml` owns shared LVGL behavior/styles. `display/ui.yaml` aggregates the four page files. `rectifier-unit.yaml` is instantiated for each rectifier; `rectifier-shared.yaml` owns shared CAN/lifecycle/discovery behavior. `cooling.yaml` owns external fan hardware and automatic cooling logic.
 
 The normal CAN watchdog is 3 s and extends to 7 s while `DISCOVERING`. Discovery waits for TWAI `RUNNING`; recovery wait time does not consume discovery attempts.
 
@@ -29,12 +34,8 @@ The normal CAN watchdog is 3 s and extends to 7 s while `DISCOVERING`. Discovery
 
 Every normal commit increments PATCH exactly once; intentional release milestones may advance MAJOR/MINOR. README documentation is synchronized whenever documented behavior, architecture or tooling changes. Commit messages use a concise subject followed by explanatory bullet points.
 
-Validate meaningful changes with `git diff --check`, `esphome config r4875g1-3phase-charger.yaml` and `esphome compile r4875g1-3phase-charger.yaml`. Display changes must also be checked on the physical TFT.
-
-## Fan terminology
-
-External/chassis fans are GPIO-controlled through `cooling.yaml`. Internal R4875G1 fans shown on the Rectifiers page are CAN-reported by each rectifier.
+Validate meaningful changes with `git diff --check`, `esphome config r4875g1-3phase-charger.yaml` and `esphome compile r4875g1-3phase-charger.yaml`. Display and cooling-control changes must also be checked on the physical hardware.
 
 ## Release status
 
-Firmware **4.1.0** remains stable on `main`. Firmware **4.1.5** on `v4-lvgl-menu` repairs the duplicate Dashboard YAML keys introduced by v4.1.4 while retaining the explicit non-touch no-scrollbar configuration and unchanged charger/CAN/blackstart behavior.
+Firmware **4.1.0** remains stable on `main`. Firmware **4.1.6** on `v4-lvgl-menu` adds automatic external compartment cooling with hysteresis, manual override and sensor-failure full-speed fallback without changing rectifier CAN/discovery/blackstart behavior.

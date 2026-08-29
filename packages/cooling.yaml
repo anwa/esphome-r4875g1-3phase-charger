@@ -5,14 +5,19 @@
 # fans are separate from the Huawei R4875G1 internal fan CAN telemetry/control.
 
 output:
-  # Shared 25 kHz PWM for external 4-pin fans. The planned transistor stage
-  # is inverting, so inverted=true keeps 100% equal to a full-speed command.
   - platform: ledc
     id: cooling_fan_pwm_output
     frequency: ${cooling_fan_pwm_frequency}
     pin:
       number: ${pin_fan_pwm}
       inverted: true
+
+globals:
+  # 0=OFF, 1=35%, 2=45%, 3=60%, 4=80%, 5=100%.
+  - id: cooling_fan_auto_stage
+    type: int
+    restore_value: no
+    initial_value: '0'
 
 switch:
   # Common external fan-supply enable. Three-pin fans are controlled only by
@@ -26,9 +31,19 @@ switch:
       number: ${pin_fan_enable}
       inverted: false
 
+  # Automatic compartment-temperature control. Disable this switch to regain
+  # direct manual control of Cooling Fan Power and Cooling Fan PWM.
+  - platform: template
+    name: "Cooling Fan Automatic"
+    id: cooling_fan_auto
+    icon: "mdi:fan-auto"
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
+    on_turn_on:
+      then:
+        - script.execute: apply_cooling_fan_automatic
+
 sensor:
-  # External fan 1 tachometer. Conversion uses the configured pulses
-  # per revolution (default: two).
   - platform: pulse_counter
     name: "Cooling Fan 1 RPM"
     id: cooling_fan_1_rpm
@@ -45,11 +60,8 @@ sensor:
     update_interval: 5s
     filters:
       - lambda: 'return x / ${cooling_fan_tach_pulses_per_revolution}f;'
-
     icon: "mdi:fan"
 
-  # External fan 2 tachometer. Conversion uses the configured pulses
-  # per revolution (default: two).
   - platform: pulse_counter
     name: "Cooling Fan 2 RPM"
     id: cooling_fan_2_rpm
@@ -66,11 +78,8 @@ sensor:
     update_interval: 5s
     filters:
       - lambda: 'return x / ${cooling_fan_tach_pulses_per_revolution}f;'
-
     icon: "mdi:fan"
 
-  # External fan 3 tachometer. Conversion uses the configured pulses
-  # per revolution (default: two).
   - platform: pulse_counter
     name: "Cooling Fan 3 RPM"
     id: cooling_fan_3_rpm
@@ -87,12 +96,12 @@ sensor:
     update_interval: 5s
     filters:
       - lambda: 'return x / ${cooling_fan_tach_pulses_per_revolution}f;'
-
     icon: "mdi:fan"
 
 number:
-  # Persistent manual 0-100% command for external 4-pin fans. Three-pin fans
-  # ignore this signal and continue to run whenever Cooling Fan Power is on.
+  # Manual PWM command and the visible commanded PWM value. While automatic
+  # mode is enabled, the controller updates this value from the temperature
+  # curve. Disable Cooling Fan Automatic to use it as a manual override.
   - platform: template
     name: "Cooling Fan PWM"
     id: cooling_fan_pwm_percent
@@ -110,3 +119,62 @@ number:
         - lambda: |-
             const float duty = std::max(0.0f, std::min(100.0f, x));
             id(cooling_fan_pwm_output).set_level(duty / 100.0f);
+
+script:
+  # Temperature curve with 2 C hysteresis on downward transitions:
+  #   <30 C   -> OFF / 0%
+  #   30 C    -> 35%
+  #   35 C    -> 45%
+  #   40 C    -> 60%
+  #   45 C    -> 80%
+  #   >=50 C  -> 100%
+  # A missing/invalid compartment temperature is fail-safe: power ON / 100%.
+  - id: apply_cooling_fan_automatic
+    mode: restart
+    then:
+      - if:
+          condition:
+            switch.is_on: cooling_fan_auto
+          then:
+            - lambda: |-
+                const float t = id(rectifier_compartment_temperature).state;
+                int stage = id(cooling_fan_auto_stage);
+
+                if (isnan(t)) {
+                  stage = 5;
+                  ESP_LOGW("cooling", "Compartment temperature unavailable; forcing external fans to 100%%.");
+                } else if (t >= 50.0f) {
+                  stage = 5;
+                } else if (t >= 45.0f) {
+                  stage = (stage >= 5 && t >= 48.0f) ? 5 : 4;
+                } else if (t >= 40.0f) {
+                  stage = (stage >= 4 && t >= 43.0f) ? 4 : 3;
+                } else if (t >= 35.0f) {
+                  stage = (stage >= 3 && t >= 38.0f) ? 3 : 2;
+                } else if (t >= 30.0f) {
+                  stage = (stage >= 2 && t >= 33.0f) ? 2 : 1;
+                } else {
+                  stage = (stage >= 1 && t >= 28.0f) ? 1 : 0;
+                }
+
+                id(cooling_fan_auto_stage) = stage;
+
+                static const float duty_by_stage[] = {0.0f, 35.0f, 45.0f, 60.0f, 80.0f, 100.0f};
+                const float duty = duty_by_stage[stage];
+
+                if (stage == 0) {
+                  id(cooling_fan_enable).turn_off();
+                } else {
+                  id(cooling_fan_enable).turn_on();
+                }
+
+                if (fabsf(id(cooling_fan_pwm_percent).state - duty) > 0.5f) {
+                  auto call = id(cooling_fan_pwm_percent).make_call();
+                  call.set_value(duty);
+                  call.perform();
+                }
+
+interval:
+  - interval: 5s
+    then:
+      - script.execute: apply_cooling_fan_automatic
