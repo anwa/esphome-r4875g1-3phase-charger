@@ -1,0 +1,67 @@
+name: One-shot v4.0.1 firmware patch
+
+on:
+  push:
+    paths:
+      - .github/workflows/patch-v4.0.1.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply exact firmware changes
+        shell: python
+        run: |
+          from pathlib import Path
+
+          root = Path("r4875g1-3phase-charger.yaml")
+          text = root.read_text(encoding="utf-8")
+
+          old_version = '    version: "4.0.0"'
+          assert text.count(old_version) == 1, "Unexpected project version occurrence count"
+          text = text.replace(old_version, '    version: "4.0.1"', 1)
+
+          old_timeout = '  can_watchdog_timeout_ms: "3000"'
+          assert text.count(old_timeout) == 1, "Unexpected watchdog substitution occurrence count"
+          # Keep the normal watchdog at 3 s. Discovery gets its own 7 s timeout
+          # in the per-unit watchdog lambda below.
+
+          root.write_text(text, encoding="utf-8", newline="\n")
+
+          display = Path("packages/display.yaml")
+          dtext = display.read_text(encoding="utf-8")
+          old_display_version = '  firmware_version: "4.0.0"'
+          assert dtext.count(old_display_version) == 1, "Unexpected TFT version occurrence count"
+          dtext = dtext.replace(old_display_version, '  firmware_version: "4.0.1"', 1)
+          display.write_text(dtext, encoding="utf-8", newline="\n")
+
+          unit = Path("packages/rectifier-unit.yaml")
+          utext = unit.read_text(encoding="utf-8")
+          old_lambda = '''    lambda: |-\n      return\n        id(last_can_rx_${ru_unit}) != 0 &&\n        static_cast<uint32_t>(\n          millis() - id(last_can_rx_${ru_unit})\n        ) < ${can_watchdog_timeout_ms}U;'''
+          new_lambda = '''    lambda: |-\n      const uint32_t timeout_ms =\n        id(rectifier_control_state_${ru_unit}) == ${rectifier_state_discovering}\n          ? 7000U\n          : ${can_watchdog_timeout_ms}U;\n\n      return\n        id(last_can_rx_${ru_unit}) != 0 &&\n        static_cast<uint32_t>(\n          millis() - id(last_can_rx_${ru_unit})\n        ) < timeout_ms;'''
+          assert utext.count(old_lambda) == 1, "Per-unit CAN watchdog lambda not found exactly once"
+          utext = utext.replace(old_lambda, new_lambda, 1)
+          unit.write_text(utext, encoding="utf-8", newline="\n")
+
+      - name: Verify only intended files changed
+        run: |
+          git diff --check
+          test "$(git diff --name-only | sort)" = "$(printf '%s\n' packages/display.yaml packages/rectifier-unit.yaml r4875g1-3phase-charger.yaml | sort)"
+          grep -q 'version: "4.0.1"' r4875g1-3phase-charger.yaml
+          grep -q 'firmware_version: "4.0.1"' packages/display.yaml
+          grep -q '? 7000U' packages/rectifier-unit.yaml
+
+      - name: Commit firmware patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add r4875g1-3phase-charger.yaml packages/display.yaml packages/rectifier-unit.yaml
+          git commit -m "Fix discovery watchdog grace and bump v4.0.1"
+          git push origin HEAD:main
