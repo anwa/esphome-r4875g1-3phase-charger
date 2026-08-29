@@ -1,0 +1,4 @@
+substitutions:
+  # Single source of truth for the firmware release version.
+  # Every repository commit increments PATCH by one.
+  firmware_version: "4.0.2"
