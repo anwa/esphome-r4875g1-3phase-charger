@@ -9,6 +9,9 @@ secrets.yaml
 *.elf
 *.map
 
+# Local runtime/debug captures
+logs/
+
 # Python cache files
 __pycache__/
 *.py[cod]
