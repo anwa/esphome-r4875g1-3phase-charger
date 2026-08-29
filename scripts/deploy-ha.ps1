@@ -165,7 +165,13 @@ function Get-ParentDirectories([string[]]$RelativePaths) {
             $parent = [System.IO.Path]::GetDirectoryName($parent)
         }
     }
-    return @($dirs | Sort-Object { ($_ -split '/').Count }, $_)
+
+    $sortProperties = @(
+        @{ Expression = { ($_ -split '/').Count }; Ascending = $true }
+        @{ Expression = { $_ }; Ascending = $true }
+    )
+
+    return @($dirs | Sort-Object -Property $sortProperties)
 }
 
 function New-RemoteDirectories([string]$Root, [string[]]$RelativePaths) {
