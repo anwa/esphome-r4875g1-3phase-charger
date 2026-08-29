@@ -108,7 +108,7 @@ For structural refactors, also compare the resolved configuration (`esphome conf
 
 ## Release status
 
-Firmware version **3.0.6** is the current modular baseline on `main`. Release tags are managed separately from normal firmware commits.
+Firmware version **3.0.7** is the current modular baseline on `main`. Release tags are managed separately from normal firmware commits.
 
 
 ## Fan terminology

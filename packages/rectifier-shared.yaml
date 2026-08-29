@@ -1023,9 +1023,20 @@ script:
                         std::vector<uint8_t> can_data(8, 0x00);
                         can_data[0] = 0x01;
                         can_data[1] = 0x03;
-                        float applied = std::min(id(set_dc_current_limit).state, id(effective_dc_current_limit));
-                        applied = std::min(applied, id(thermal_dc_current_limit));
-                        const int scaled_value = static_cast<int>(applied * id(current_scaling_factor));
+                        const float factor = id(current_scaling_factor);
+                        const int requested_raw = static_cast<int>(
+                          lroundf(id(set_dc_current_limit).state * factor)
+                        );
+                        const int hardware_limit_raw = static_cast<int>(
+                          floorf(id(effective_dc_current_limit) * factor)
+                        );
+                        const int thermal_limit_raw = static_cast<int>(
+                          floorf(id(thermal_dc_current_limit) * factor)
+                        );
+                        const int scaled_value = std::min(
+                          requested_raw,
+                          std::min(hardware_limit_raw, thermal_limit_raw)
+                        );
                         can_data[6] = (scaled_value >> 8) & 0xFF;
                         can_data[7] = scaled_value & 0xFF;
                         return can_data;
@@ -1041,9 +1052,20 @@ script:
                         std::vector<uint8_t> can_data(8, 0x00);
                         can_data[0] = 0x01;
                         can_data[1] = 0x03;
-                        float applied = std::min(id(set_dc_current_limit).state, id(effective_dc_current_limit));
-                        applied = std::min(applied, id(thermal_dc_current_limit));
-                        const int scaled_value = static_cast<int>(applied * id(current_scaling_factor));
+                        const float factor = id(current_scaling_factor);
+                        const int requested_raw = static_cast<int>(
+                          lroundf(id(set_dc_current_limit).state * factor)
+                        );
+                        const int hardware_limit_raw = static_cast<int>(
+                          floorf(id(effective_dc_current_limit) * factor)
+                        );
+                        const int thermal_limit_raw = static_cast<int>(
+                          floorf(id(thermal_dc_current_limit) * factor)
+                        );
+                        const int scaled_value = std::min(
+                          requested_raw,
+                          std::min(hardware_limit_raw, thermal_limit_raw)
+                        );
                         can_data[6] = (scaled_value >> 8) & 0xFF;
                         can_data[7] = scaled_value & 0xFF;
                         return can_data;
@@ -1059,9 +1081,20 @@ script:
                         std::vector<uint8_t> can_data(8, 0x00);
                         can_data[0] = 0x01;
                         can_data[1] = 0x03;
-                        float applied = std::min(id(set_dc_current_limit).state, id(effective_dc_current_limit));
-                        applied = std::min(applied, id(thermal_dc_current_limit));
-                        const int scaled_value = static_cast<int>(applied * id(current_scaling_factor));
+                        const float factor = id(current_scaling_factor);
+                        const int requested_raw = static_cast<int>(
+                          lroundf(id(set_dc_current_limit).state * factor)
+                        );
+                        const int hardware_limit_raw = static_cast<int>(
+                          floorf(id(effective_dc_current_limit) * factor)
+                        );
+                        const int thermal_limit_raw = static_cast<int>(
+                          floorf(id(thermal_dc_current_limit) * factor)
+                        );
+                        const int scaled_value = std::min(
+                          requested_raw,
+                          std::min(hardware_limit_raw, thermal_limit_raw)
+                        );
                         can_data[6] = (scaled_value >> 8) & 0xFF;
                         can_data[7] = scaled_value & 0xFF;
                         return can_data;

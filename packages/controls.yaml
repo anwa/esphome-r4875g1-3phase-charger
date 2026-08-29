@@ -207,7 +207,14 @@ number:
               std::vector<uint8_t> can_data(8, 0x00);
               can_data[0] = 0x01;
               can_data[1] = 0x04;
-              int scaled_value = (int)(id(set_dc_current_limit_fallback).state * id(current_scaling_factor));
+              const float factor = id(current_scaling_factor);
+              const int requested_raw = static_cast<int>(
+                lroundf(id(set_dc_current_limit_fallback).state * factor)
+              );
+              const int hardware_limit_raw = static_cast<int>(
+                floorf(id(effective_dc_current_limit) * factor)
+              );
+              const int scaled_value = std::min(requested_raw, hardware_limit_raw);
               can_data[6] = (scaled_value >> 8) & 0xFF;
               can_data[7] = scaled_value & 0xFF;
               return can_data;

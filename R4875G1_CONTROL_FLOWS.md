@@ -2,7 +2,7 @@
 
 This document describes the control flows, lifecycle state transitions, CAN recovery paths, discovery sequence, current-capability handling, setpoint routing, safety checks, telemetry processing, and local user-interface behavior implemented by the modular `r4875g1-3phase-charger.yaml` + `packages/` firmware source.
 
-It is synchronized with firmware version **3.0.6** on `main` as of **2026-08-29**. Runtime behaviour remains equivalent to the validated v3.0.4 baseline; this patch only removes an unused include variable and updates documentation.
+It is synchronized with firmware version **3.0.7** on `main` as of **2026-08-29**. Runtime behaviour remains equivalent to the validated v3.0.4 baseline; this patch only removes an unused include variable and updates documentation.
 
 > **Scope:** This is behavioral firmware documentation, not an electrical safety specification. Fuses, breakers, contactors, BMS protection, earthing, isolation, conductor sizing and other hardware protection remain independent of the firmware.
 
