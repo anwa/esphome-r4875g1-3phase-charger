@@ -1,4 +1,4 @@
-name: One-shot v4.0.1 firmware patch
+name: Finalize centralized firmware version
 
 on:
   push:
@@ -9,59 +9,88 @@ permissions:
   contents: write
 
 jobs:
-  patch:
+  finalize:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Apply exact firmware changes
+      - name: Centralize version and synchronize documentation
         shell: python
         run: |
           from pathlib import Path
 
           root = Path("r4875g1-3phase-charger.yaml")
           text = root.read_text(encoding="utf-8")
-
-          old_version = '    version: "4.0.0"'
-          assert text.count(old_version) == 1, "Unexpected project version occurrence count"
-          text = text.replace(old_version, '    version: "4.0.1"', 1)
-
-          old_timeout = '  can_watchdog_timeout_ms: "3000"'
-          assert text.count(old_timeout) == 1, "Unexpected watchdog substitution occurrence count"
-          # Keep the normal watchdog at 3 s. Discovery gets its own 7 s timeout
-          # in the per-unit watchdog lambda below.
-
+          assert text.count('substitutions:\n') >= 1
+          marker = 'substitutions:\n  mqtt_command_prefix:'
+          assert text.count(marker) == 1
+          text = text.replace(marker, 'substitutions:\n  # Firmware version is defined once in packages/version.yaml.\n  mqtt_command_prefix:', 1)
+          old = '    version: "4.0.1"'
+          assert text.count(old) == 1
+          text = text.replace(old, '    version: "${firmware_version}"', 1)
+          # Load the central version package before all consumers.
+          packages_marker = 'packages:\n  core: !include packages/core.yaml'
+          assert text.count(packages_marker) == 1
+          text = text.replace(packages_marker, 'packages:\n  version: !include packages/version.yaml\n  core: !include packages/core.yaml', 1)
           root.write_text(text, encoding="utf-8", newline="\n")
 
+          version = Path("packages/version.yaml")
+          version.write_text(
+              'substitutions:\n'
+              '  # Single source of truth for the firmware release version.\n'
+              '  # Every repository commit increments PATCH by one.\n'
+              '  firmware_version: "4.0.4"\n',
+              encoding="utf-8", newline="\n"
+          )
+
           display = Path("packages/display.yaml")
-          dtext = display.read_text(encoding="utf-8")
-          old_display_version = '  firmware_version: "4.0.0"'
-          assert dtext.count(old_display_version) == 1, "Unexpected TFT version occurrence count"
-          dtext = dtext.replace(old_display_version, '  firmware_version: "4.0.1"', 1)
-          display.write_text(dtext, encoding="utf-8", newline="\n")
+          d = display.read_text(encoding="utf-8")
+          old_display = '  display_rotation: "90"\n  firmware_version: "4.0.1"'
+          assert d.count(old_display) == 1
+          d = d.replace(old_display, '  display_rotation: "90"', 1)
+          display.write_text(d, encoding="utf-8", newline="\n")
 
-          unit = Path("packages/rectifier-unit.yaml")
-          utext = unit.read_text(encoding="utf-8")
-          old_lambda = '''    lambda: |-\n      return\n        id(last_can_rx_${ru_unit}) != 0 &&\n        static_cast<uint32_t>(\n          millis() - id(last_can_rx_${ru_unit})\n        ) < ${can_watchdog_timeout_ms}U;'''
-          new_lambda = '''    lambda: |-\n      const uint32_t timeout_ms =\n        id(rectifier_control_state_${ru_unit}) == ${rectifier_state_discovering}\n          ? 7000U\n          : ${can_watchdog_timeout_ms}U;\n\n      return\n        id(last_can_rx_${ru_unit}) != 0 &&\n        static_cast<uint32_t>(\n          millis() - id(last_can_rx_${ru_unit})\n        ) < timeout_ms;'''
-          assert utext.count(old_lambda) == 1, "Per-unit CAN watchdog lambda not found exactly once"
-          utext = utext.replace(old_lambda, new_lambda, 1)
-          unit.write_text(utext, encoding="utf-8", newline="\n")
+          readme = Path("README.md")
+          r = readme.read_text(encoding="utf-8")
+          r = r.replace('**Current firmware: 4.0.0**', '**Current firmware: 4.0.4**')
+          old_block = '''The authoritative ESPHome project metadata is:\n\n```yaml\nesphome:\n  project:\n    name: "anwa.3phase-charger"\n    version: "4.0.0"\n```\n\nThe TFT header also displays `v4.0.0`; these values must remain synchronized.\n\nThe project uses `MAJOR.MINOR.PATCH`. Major/minor milestones reset PATCH to zero; subsequent firmware commits increment PATCH as appropriate.'''
+          new_block = '''The firmware version has one source of truth in `packages/version.yaml`:\n\n```yaml\nsubstitutions:\n  firmware_version: "4.0.4"\n```\n\n`esphome.project.version` and the TFT header both consume `${firmware_version}`. The project uses `MAJOR.MINOR.PATCH`; every repository commit increments PATCH by one.'''
+          assert old_block in r
+          r = r.replace(old_block, new_block)
+          r = r.replace('firmware **4.0.0** on `main`', 'firmware **4.0.4** on `main`')
+          readme.write_text(r, encoding="utf-8", newline="\n")
 
-      - name: Verify only intended files changed
+          flows = Path("R4875G1_CONTROL_FLOWS.md")
+          f = flows.read_text(encoding="utf-8")
+          f = f.replace('firmware **4.0.0**', 'firmware **4.0.4**')
+          f = f.replace('`v4.0.0`', '`v4.0.4`')
+          f = f.replace('| Raw CAN watchdog | 3 s |', '| Raw CAN watchdog | 3 s ONLINE/OFFLINE; 7 s while DISCOVERING |')
+          f = f.replace('Communication is fresh for 3 seconds.', 'Communication is fresh for 3 seconds during normal operation and for 7 seconds while the unit is DISCOVERING, so the intentional 5-second stabilization window cannot expire the watchdog.')
+          flows.write_text(f, encoding="utf-8", newline="\n")
+
+          pkg = Path("packages/README.md")
+          p = pkg.read_text(encoding="utf-8")
+          p = p.replace('firmware **v4.0.0**', 'firmware **v4.0.4**')
+          p = p.replace('| `core.yaml` |', '| `version.yaml` | single source of truth for firmware version; every commit increments PATCH |\n| `core.yaml` |')
+          p = p.replace('The firmware version displayed in the header is `4.0.0` and must remain synchronized with `esphome.project.version` in the root YAML.', 'The TFT header and `esphome.project.version` both consume `${firmware_version}` from `version.yaml`, so the version is maintained in exactly one place.')
+          p = p.replace('Firmware **4.0.0**', 'Firmware **4.0.4**')
+          pkg.write_text(p, encoding="utf-8", newline="\n")
+
+      - name: Remove one-shot workflow and verify
         run: |
+          git rm .github/workflows/patch-v4.0.1.yml
           git diff --check
-          test "$(git diff --name-only | sort)" = "$(printf '%s\n' packages/display.yaml packages/rectifier-unit.yaml r4875g1-3phase-charger.yaml | sort)"
-          grep -q 'version: "4.0.1"' r4875g1-3phase-charger.yaml
-          grep -q 'firmware_version: "4.0.1"' packages/display.yaml
-          grep -q '? 7000U' packages/rectifier-unit.yaml
+          grep -q 'firmware_version: "4.0.4"' packages/version.yaml
+          grep -q 'version: "${firmware_version}"' r4875g1-3phase-charger.yaml
+          test "$(grep -R --include='*.yaml' -h 'firmware_version: "4.0.4"' . | wc -l)" -eq 1
+          ! grep -q 'firmware_version:' packages/display.yaml
 
-      - name: Commit firmware patch
+      - name: Commit v4.0.4
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add r4875g1-3phase-charger.yaml packages/display.yaml packages/rectifier-unit.yaml
-          git commit -m "Fix discovery watchdog grace and bump v4.0.1"
+          git add -A
+          git commit -m "Centralize firmware version at v4.0.4"
           git push origin HEAD:main
