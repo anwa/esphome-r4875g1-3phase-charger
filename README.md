@@ -81,7 +81,7 @@ CAN uses **125 kbit/s** and **29-bit extended identifiers**.
 - Fallback voltage/current configuration.
 - Internal R4875G1 fan minimum-duty, automatic-mode and full-speed control.
 - Nominal three-unit DC power target with automatic current calculation.
-- Runtime effective DC-current ceiling derived from detected rectifier capabilities.
+- Fail-safe runtime DC-current ceiling: 50 A until every currently CAN-reachable rectifier has a fresh capability; then the lowest reachable capability applies.
 - Periodic active-setpoint refresh only to verified online units.
 
 ## Local blackstart
@@ -148,12 +148,12 @@ Responsibilities are deliberately separated:
 - `rectifier-unit.yaml` is instantiated three times using `ru_unit` and owns per-rectifier state, discovery, telemetry entities, CAN watchdog and individual controls.
 - `rectifier-can/*.yaml` are parameterized `on_frame` mappings included from the single central CAN component for CAN families whose Unit 1/2/3 implementations are genuinely identical.
 
-The three capability handlers (`0x1081507F`, `0x1082507F`, `0x1083507F`) intentionally remain explicit in `rectifier-shared.yaml`: Unit 1 is the canonical source for the shared current-command scaling factor, while Units 2 and 3 provide diagnostic comparison values.
+The three capability handlers (`0x1081507F`, `0x1082507F`, `0x1083507F`) intentionally remain explicit in `rectifier-shared.yaml`. All three publish per-unit capability/scaling diagnostics; the shared current ceiling and command scaling are recomputed centrally from only the currently CAN-reachable units.
 
 See [`packages/README.md`](packages/README.md) for the package ownership rules and maintenance guidance.
 
 > [!IMPORTANT]
-> Firmware version `3.0.7` is the current modular baseline on `main`. Release tags are managed separately from normal firmware commits.
+> Firmware version `3.0.8` is the current modular baseline on `main`. Release tags are managed separately from normal firmware commits.
 
 ---
 
@@ -165,7 +165,7 @@ The ESPHome firmware publishes project metadata using:
 esphome:
   project:
     name: "anwa.3phase-charger"
-    version: "3.0.7"
+    version: "3.0.8"
 ```
 
 The project uses `MAJOR.MINOR.PATCH` firmware versions:
@@ -336,6 +336,16 @@ Therefore, before conversion losses and current clamping:
 ```
 
 The firmware deliberately does not increase current on the remaining visible rectifiers to compensate for a missing unit. A rectifier that lost CAN communication might still be electrically active, so automatic redistribution could otherwise create an unintended total-power increase.
+
+Current capability handling is deliberately fail-safe:
+
+- the shared hardware current ceiling starts at **50 A**,
+- only rectifiers with fresh `CAN Communication Unit x` state participate,
+- if any currently reachable unit has no fresh capability yet, the ceiling remains **50 A**,
+- once every reachable unit is known, the ceiling becomes the **lowest** reachable capability (maximum 75 A),
+- the shared command scaling uses the **highest** reachable capability,
+- a disconnected unit is removed from both calculations immediately,
+- a reconnecting unit returns to the 50 A failsafe until discovery confirms its capability again.
 
 ---
 
@@ -1211,7 +1221,7 @@ See `LICENSE` for the complete license text and retained notices.
 
 ## Documentation synchronization
 
-This README and `R4875G1_CONTROL_FLOWS.md` describe firmware version **3.0.7** on `main`. They were fully reviewed and resynchronized on **2026-08-29**. Previously documented physical CAN disconnect/reconnect behavior and the 52 A current-scaling trace come from the validated v2.2.2 runtime baseline and remain unchanged by the modular source refactor.
+This README and `R4875G1_CONTROL_FLOWS.md` describe firmware version **3.0.8** on `main`. They were fully reviewed and resynchronized on **2026-08-29**. Previously documented physical CAN disconnect/reconnect behavior and the 52 A current-scaling trace come from the validated v2.2.2 runtime baseline and remain unchanged by the modular source refactor.
 
 
 ---

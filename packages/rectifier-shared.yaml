@@ -35,19 +35,17 @@ globals:
     restore_value: false
     initial_value: "${project_max_dc_current_a}f"
 
-  # Current-command scaling factor.
+  # Shared current-command scaling factor.
   #
-  # The R4875G1 reports a maximum output current of 75 A, therefore the
-  # correct model-specific fallback is:
+  # Before all currently reachable rectifiers have fresh capability data, use
+  # the 75 A command scale (1024 / 75). This is the conservative universal
+  # command fallback: lower-current 50/52 A units are under-driven rather than
+  # over-driven while their exact capability is unknown.
   #
-  #     1024 / 75 A = 13.653333...
-  #
-  # This value is available immediately after boot so local blackstart remains
-  # usable even before capability discovery has completed.
-  #
-  # The value is not restored from flash because it is a hardware-derived
-  # parameter. Unit 1 capability discovery refreshes it automatically whenever
-  # Unit 1 becomes available on the CAN bus.
+  # Once every currently CAN-reachable unit has a fresh capability, the scale
+  # is derived from the highest capability among those reachable units. The
+  # shared effective current ceiling is independently derived from the lowest
+  # capability, so mixed-capability installations remain fail-safe.
   - id: current_scaling_factor
     type: float
     initial_value: "static_cast<float>(${protocol_value_scale}) / ${project_max_dc_current_a}f"
@@ -55,15 +53,15 @@ globals:
 
   # Effective maximum DC current command used by all current-control paths.
   #
-  # 75 A is the absolute project ceiling for the intended R4875G1 installation.
-  # As rectifier capability data becomes available, this value is reduced to
-  # the lowest valid capability reported by any of the three units.
-  #
-  # This prevents the shared current command from exceeding the weakest known
-  # rectifier capability.
+  # Start conservatively at 50 A. Only units with fresh CAN communication are
+  # considered. The limit may rise above 50 A only after every currently
+  # reachable unit has a freshly confirmed capability; it then becomes the
+  # lowest capability among those reachable units, capped by the 75 A project
+  # maximum. A reachable unit with unknown capability immediately forces the
+  # limit back to 50 A.
   - id: effective_dc_current_limit
     type: float
-    initial_value: "${project_max_dc_current_a}f"
+    initial_value: "${failsafe_dc_current_a}f"
     restore_value: false
 
   # Fixed-point protocol scale used by voltage and most telemetry fields.
@@ -484,76 +482,92 @@ script:
   # --------------------------------------------------------------------------
   # update_effective_dc_current_limit
   # --------------------------------------------------------------------------
-  # Maintains the common hardware current ceiling across all rectifiers.
+  # Recomputes the common command ceiling and command scaling from only the
+  # rectifiers that currently have fresh CAN communication.
+  #
+  # Failsafe policy:
+  #   - no reachable units -> 50 A ceiling, 75 A command scale
+  #   - any reachable unit with unknown capability -> same 50 A failsafe
+  #   - all reachable capabilities known -> ceiling = lowest capability,
+  #     command scale = 1024 / highest capability
   - id: update_effective_dc_current_limit
     mode: restart
     then:
       - lambda: |-
           constexpr float project_max_current =
               ${project_max_dc_current_a}f;
+          constexpr float failsafe_current =
+              ${failsafe_dc_current_a}f;
 
-          float effective_limit = project_max_current;
-          bool capability_available = false;
+          const bool reachable_1 = id(can_com_ok_1).state;
+          const bool reachable_2 = id(can_com_ok_2).state;
+          const bool reachable_3 = id(can_com_ok_3).state;
 
-          const float capability_1 =
-              id(max_dc_current_1).state;
+          const float capability_1 = id(max_dc_current_1).state;
+          const float capability_2 = id(max_dc_current_2).state;
+          const float capability_3 = id(max_dc_current_3).state;
 
-          const float capability_2 =
-              id(max_dc_current_2).state;
+          const bool known_1 =
+              reachable_1 && id(max_current_found_1) &&
+              !isnan(capability_1) && capability_1 > 0.0f;
+          const bool known_2 =
+              reachable_2 && id(max_current_found_2) &&
+              !isnan(capability_2) && capability_2 > 0.0f;
+          const bool known_3 =
+              reachable_3 && id(max_current_found_3) &&
+              !isnan(capability_3) && capability_3 > 0.0f;
 
-          const float capability_3 =
-              id(max_dc_current_3).state;
+          const int reachable_count =
+              (reachable_1 ? 1 : 0) +
+              (reachable_2 ? 1 : 0) +
+              (reachable_3 ? 1 : 0);
 
+          const bool all_reachable_known =
+              (!reachable_1 || known_1) &&
+              (!reachable_2 || known_2) &&
+              (!reachable_3 || known_3);
 
-          // Unit 1
-          if (!isnan(capability_1) &&
-              capability_1 > 0.0f) {
+          float effective_limit = failsafe_current;
+          float highest_capability = project_max_current;
 
-            capability_available = true;
+          if (reachable_count > 0 && all_reachable_known) {
+            effective_limit = project_max_current;
+            highest_capability = 0.0f;
 
-            if (capability_1 < effective_limit) {
-              effective_limit = capability_1;
-            }
+            const auto apply_capability =
+                [&effective_limit, &highest_capability](
+                    bool reachable, float capability) {
+              if (!reachable) {
+                return;
+              }
+              effective_limit = std::min(effective_limit, capability);
+              highest_capability = std::max(highest_capability, capability);
+            };
+
+            apply_capability(reachable_1, capability_1);
+            apply_capability(reachable_2, capability_2);
+            apply_capability(reachable_3, capability_3);
+
+            effective_limit = std::min(effective_limit, project_max_current);
+            highest_capability = std::min(highest_capability, project_max_current);
           }
 
+          const float new_scaling_factor =
+              static_cast<float>(${protocol_value_scale}) /
+              ((reachable_count > 0 && all_reachable_known &&
+                highest_capability > 0.0f)
+                   ? highest_capability
+                   : project_max_current);
 
-          // Unit 2
-          if (!isnan(capability_2) &&
-              capability_2 > 0.0f) {
+          const float previous_limit = id(effective_dc_current_limit);
+          const float previous_scaling = id(current_scaling_factor);
 
-            capability_available = true;
+          id(effective_dc_current_limit) = effective_limit;
+          id(current_scaling_factor) = new_scaling_factor;
 
-            if (capability_2 < effective_limit) {
-              effective_limit = capability_2;
-            }
-          }
-
-
-          // Unit 3
-          if (!isnan(capability_3) &&
-              capability_3 > 0.0f) {
-
-            capability_available = true;
-
-            if (capability_3 < effective_limit) {
-              effective_limit = capability_3;
-            }
-          }
-
-
-          const float previous_limit =
-              id(effective_dc_current_limit);
-
-          id(effective_dc_current_limit) =
-              effective_limit;
-
-          id(effective_dc_current_limit_sensor).publish_state(
-            effective_limit
-          );
-
+          id(effective_dc_current_limit_sensor).publish_state(effective_limit);
 
           if (fabsf(previous_limit - effective_limit) > 0.01f) {
-
             ESP_LOGI(
               "current_limit",
               "Effective DC current limit changed from %.1f A to %.1f A.",
@@ -562,34 +576,45 @@ script:
             );
           }
 
-
-          if (capability_available) {
-
+          if (fabsf(previous_scaling - new_scaling_factor) > 0.0001f) {
             ESP_LOGI(
               "current_limit",
-              "Effective DC current limit: %.1f A "
-              "(project ceiling %.1f A, lowest valid detected capability).",
-              effective_limit,
-              ${project_max_dc_current_a}f
-            );
-
-          } else {
-
-            ESP_LOGI(
-              "current_limit",
-              "No rectifier capability available yet. "
-              "Using %.1f A R4875G1 fallback.",
-              ${project_max_dc_current_a}f
+              "Shared current scaling factor changed from %.6f to %.6f.",
+              previous_scaling,
+              new_scaling_factor
             );
           }
 
+          if (reachable_count == 0) {
+            ESP_LOGI(
+              "current_limit",
+              "No CAN-reachable rectifiers. Using %.1f A failsafe ceiling "
+              "and 75 A command scaling.",
+              failsafe_current
+            );
+          } else if (!all_reachable_known) {
+            ESP_LOGW(
+              "current_limit",
+              "%d CAN-reachable rectifier(s), but at least one capability is "
+              "unknown. Using %.1f A failsafe ceiling and 75 A command scaling.",
+              reachable_count,
+              failsafe_current
+            );
+          } else {
+            ESP_LOGI(
+              "current_limit",
+              "Effective DC current limit %.1f A from %d reachable unit(s); "
+              "shared scaling based on highest reachable capability %.1f A.",
+              effective_limit,
+              reachable_count,
+              highest_capability
+            );
+          }
 
-          // Preserve the user-requested current. Hardware capability is now one
-          // input to the applied-current calculation instead of overwriting the
-          // requested value.
+          // Preserve the user-requested active current. Hardware capability is
+          // an applied-current ceiling, not a rewrite of the requested value.
           if (!isnan(id(set_dc_current_limit).state) &&
               id(set_dc_current_limit).state > effective_limit) {
-
             ESP_LOGW(
               "current_limit",
               "Requested active DC current %.1f A exceeds hardware limit %.1f A. "
@@ -599,11 +624,10 @@ script:
             );
           }
 
-
-          // Apply the same protection to the rectifier fallback-current value.
+          // The rectifier fallback-current value is a real device setpoint and
+          // is therefore reduced immediately when the effective limit drops.
           if (!isnan(id(set_dc_current_limit_fallback).state) &&
               id(set_dc_current_limit_fallback).state > effective_limit) {
-
             ESP_LOGW(
               "current_limit",
               "Fallback DC current %.1f A exceeds new effective limit %.1f A. "
@@ -612,9 +636,7 @@ script:
               effective_limit
             );
 
-            auto fallback_call =
-                id(set_dc_current_limit_fallback).make_call();
-
+            auto fallback_call = id(set_dc_current_limit_fallback).make_call();
             fallback_call.set_value(effective_limit);
             fallback_call.perform();
           }
@@ -785,74 +807,80 @@ script:
   # --------------------------------------------------------------------------
   # evaluate_rectifier_capabilities
   # --------------------------------------------------------------------------
-  # Compares the maximum-current capability reported by all three rectifiers.
-  #
-  # The diagnostic becomes valid only after all three capability responses have
-  # been received. Until then the binary sensor remains UNKNOWN.
-  #
-  # Huawei capability data is encoded in 0.5 A steps, therefore a tolerance of
-  # 0.25 A reliably distinguishes equal capabilities from an actual mismatch.
+  # Compares only currently CAN-reachable rectifiers. The diagnostic is valid
+  # when at least two units are reachable and every reachable unit has a fresh
+  # capability. Offline units and stale capability values are ignored.
   - id: evaluate_rectifier_capabilities
     mode: restart
     then:
-      - if:
-          condition:
-            lambda: |-
-              return
-                id(max_current_found_1) &&
-                id(max_current_found_2) &&
-                id(max_current_found_3) &&
+      - lambda: |-
+          const bool reachable_1 = id(can_com_ok_1).state;
+          const bool reachable_2 = id(can_com_ok_2).state;
+          const bool reachable_3 = id(can_com_ok_3).state;
 
-                !isnan(id(max_dc_current_1).state) &&
-                !isnan(id(max_dc_current_2).state) &&
-                !isnan(id(max_dc_current_3).state);
+          const float capability_1 = id(max_dc_current_1).state;
+          const float capability_2 = id(max_dc_current_2).state;
+          const float capability_3 = id(max_dc_current_3).state;
 
-          then:
-            - lambda: |-
-                const float capability_1 =
-                    id(max_dc_current_1).state;
+          const bool known_1 =
+              reachable_1 && id(max_current_found_1) &&
+              !isnan(capability_1) && capability_1 > 0.0f;
+          const bool known_2 =
+              reachable_2 && id(max_current_found_2) &&
+              !isnan(capability_2) && capability_2 > 0.0f;
+          const bool known_3 =
+              reachable_3 && id(max_current_found_3) &&
+              !isnan(capability_3) && capability_3 > 0.0f;
 
-                const float capability_2 =
-                    id(max_dc_current_2).state;
+          const int reachable_count =
+              (reachable_1 ? 1 : 0) +
+              (reachable_2 ? 1 : 0) +
+              (reachable_3 ? 1 : 0);
 
-                const float capability_3 =
-                    id(max_dc_current_3).state;
+          const bool all_reachable_known =
+              (!reachable_1 || known_1) &&
+              (!reachable_2 || known_2) &&
+              (!reachable_3 || known_3);
 
-                // Capability values are reported in 0.5 A steps.
-                // 0.25 A therefore safely separates equal values from
-                // different reported hardware capabilities.
-                constexpr float tolerance_a = 0.25f;
+          if (reachable_count < 2 || !all_reachable_known) {
+            id(rectifier_capability_mismatch).invalidate_state();
+            return;
+          }
 
-                const bool mismatch =
-                    fabsf(capability_1 - capability_2) > tolerance_a ||
-                    fabsf(capability_1 - capability_3) > tolerance_a ||
-                    fabsf(capability_2 - capability_3) > tolerance_a;
+          constexpr float tolerance_a = 0.25f;
+          bool mismatch = false;
+          float first_capability = NAN;
 
-                id(rectifier_capability_mismatch).publish_state(mismatch);
+          const auto compare_capability =
+              [&mismatch, &first_capability](bool reachable, float capability) {
+            if (!reachable) {
+              return;
+            }
+            if (isnan(first_capability)) {
+              first_capability = capability;
+              return;
+            }
+            if (fabsf(capability - first_capability) > tolerance_a) {
+              mismatch = true;
+            }
+          };
 
-                if (mismatch) {
-                  ESP_LOGE(
-                    "capability",
-                    "RECTIFIER CAPABILITY MISMATCH: "
-                    "Unit 1 = %.1f A, Unit 2 = %.1f A, Unit 3 = %.1f A. "
-                    "Shared current scaling remains based on Unit 1.",
-                    capability_1,
-                    capability_2,
-                    capability_3
-                  );
-                } else {
-                  ESP_LOGI(
-                    "capability",
-                    "Rectifier capabilities match: "
-                    "Unit 1 = %.1f A, Unit 2 = %.1f A, Unit 3 = %.1f A.",
-                    capability_1,
-                    capability_2,
-                    capability_3
-                  );
-                }
+          compare_capability(reachable_1, capability_1);
+          compare_capability(reachable_2, capability_2);
+          compare_capability(reachable_3, capability_3);
 
-          else:
-            - binary_sensor.invalidate_state: rectifier_capability_mismatch
+          id(rectifier_capability_mismatch).publish_state(mismatch);
+
+          if (mismatch) {
+            ESP_LOGE(
+              "capability",
+              "RECTIFIER CAPABILITY MISMATCH among currently reachable units: "
+              "U1=%s/%.1f A, U2=%s/%.1f A, U3=%s/%.1f A.",
+              reachable_1 ? "ON" : "OFF", capability_1,
+              reachable_2 ? "ON" : "OFF", capability_2,
+              reachable_3 ? "ON" : "OFF", capability_3
+            );
+          }
 
   # --------------------------------------------------------------------------
   # send_active_voltage_to_unit
@@ -2087,8 +2115,9 @@ canbus:
             ru_unit: "3"
 
       # ----------------------------------------------------------------------
-      # Maximum-current capability handlers. Unit 1 updates the shared current
-      # scaling factor; Units 2 and 3 expose diagnostic comparison values.
+      # Maximum-current capability handlers. All three publish per-unit
+      # capability/scaling diagnostics; shared limit/scaling is recomputed
+      # centrally from currently CAN-reachable units.
       - can_id: 0x1081507F
         use_extended_id: true
         then:
@@ -2141,18 +2170,17 @@ canbus:
               id(max_current_found_1) = true;
               id(max_dc_current_1).publish_state(max_current);
 
-              // Unit 1 defines the shared current-command scaling factor.
-              id(current_scaling_factor) =
+              const float unit_1_scaling_factor =
                   static_cast<float>(${protocol_value_scale}) / max_current;
 
               ESP_LOGI(
                 "canbus",
-                "Unit 1: Current scaling factor updated to %.6f",
-                id(current_scaling_factor)
+                "Unit 1: Diagnostic scaling factor: %.6f",
+                unit_1_scaling_factor
               );
 
               id(current_scaling_factor_unit_1).publish_state(
-                id(current_scaling_factor)
+                unit_1_scaling_factor
               );
 
 
@@ -2160,7 +2188,7 @@ canbus:
       # Max current capability for Unit 2
       # ----------------------------------------------------------------------
       # CAN RX 0x1082507F
-      # Unit 2 capability is decoded for diagnostics and comparison only.
+      # Unit 2 capability participates in the shared reachable-unit calculation.
       - can_id: 0x1082507F
         use_extended_id: true
         then:
@@ -2231,7 +2259,7 @@ canbus:
       # Max current capability for Unit 3
       # ----------------------------------------------------------------------
       # CAN RX 0x1083507F
-      # Unit 3 capability is decoded for diagnostics and comparison only.
+      # Unit 3 capability participates in the shared reachable-unit calculation.
       - can_id: 0x1083507F
         use_extended_id: true
         then:

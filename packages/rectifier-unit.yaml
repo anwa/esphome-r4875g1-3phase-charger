@@ -137,10 +137,13 @@ script:
     mode: single
     then:
       - lambda: |-
-          id(max_current_found_${ru_unit}) = false; // Reset the flag before starting
-          id(data_found_${ru_unit}) = false; // Reset the flag before starting
-          id(search_counter_${ru_unit}) = 0; // Initialize a fail-safe counter
-      - binary_sensor.invalidate_state: rectifier_capability_mismatch
+          // A discovery always starts from an unknown capability so stale data
+          // can never keep a higher shared current ceiling active.
+          id(max_current_found_${ru_unit}) = false;
+          id(data_found_${ru_unit}) = false;
+          id(search_counter_${ru_unit}) = 0;
+      - script.execute: update_effective_dc_current_limit
+      - script.execute: evaluate_rectifier_capabilities
       - while:
           condition:
             lambda: |-
@@ -495,6 +498,13 @@ binary_sensor:
 
     on_press:
       then:
+        # CAN reachability alone does not prove current capability. Force this
+        # unit back to the 50 A failsafe state until discovery confirms it.
+        - lambda: |-
+            id(max_current_found_${ru_unit}) = false;
+        - script.execute: update_effective_dc_current_limit
+        - script.execute: evaluate_rectifier_capabilities
+
         - if:
             condition:
               lambda: |-
@@ -529,6 +539,16 @@ binary_sensor:
                     - script.execute:
                         id: discovery_queue
                         unit: ${ru_unit}
+
+
+    on_release:
+      then:
+        # Offline/stale capability data must not constrain or raise the shared
+        # limit. Recompute immediately from the remaining reachable units.
+        - lambda: |-
+            id(max_current_found_${ru_unit}) = false;
+        - script.execute: update_effective_dc_current_limit
+        - script.execute: evaluate_rectifier_capabilities
 
 
 text_sensor:

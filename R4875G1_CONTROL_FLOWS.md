@@ -2,7 +2,7 @@
 
 This document describes the control flows, lifecycle state transitions, CAN recovery paths, discovery sequence, current-capability handling, setpoint routing, safety checks, telemetry processing, and local user-interface behavior implemented by the modular `r4875g1-3phase-charger.yaml` + `packages/` firmware source.
 
-It is synchronized with firmware version **3.0.7** on `main` as of **2026-08-29**. Runtime behaviour remains equivalent to the validated v3.0.4 baseline; this patch only removes an unused include variable and updates documentation.
+It is synchronized with firmware version **3.0.8** on `main` as of **2026-08-29**. This version adds CAN-aware fail-safe current capability handling and shared command scaling while preserving the existing lifecycle, thermal and blackstart safety model.
 
 > **Scope:** This is behavioral firmware documentation, not an electrical safety specification. Fuses, breakers, contactors, BMS protection, earthing, isolation, conductor sizing and other hardware protection remain independent of the firmware.
 
@@ -13,6 +13,7 @@ It is synchronized with firmware version **3.0.7** on `main` as of **2026-08-29*
 | Function | Current value |
 |---|---:|
 | Project DC current ceiling | 75 A per rectifier |
+| Capability failsafe ceiling | 50 A per rectifier |
 | Minimum DC current command | 1 A |
 | DC voltage range | 49–58 V |
 | Default DC voltage | 53 V |
@@ -152,13 +153,13 @@ current_scaling_factor = 1024 / 75
                        ≈ 13.653333
 ```
 
-Unit 1 capability discovery can replace this fallback at runtime.
+The 75 A scaling is the conservative command fallback. The effective hardware current ceiling starts independently at 50 A and can rise only after every currently CAN-reachable unit has a fresh capability.
 
 ---
 
 # 4. CAN transport strategy
 
-The v3 hardware-test candidate retains the v2.2.2 rule: **Single-Shot is used only for slow OFFLINE reconnect probes**.
+The firmware retains the v2.2.2 rule: **Single-Shot is used only for slow OFFLINE reconnect probes**.
 
 ## OFFLINE probe transport
 
@@ -230,6 +231,8 @@ Normal cyclic telemetry is the regular heartbeat. Valid property START/DATA and 
 
 A separate 1-second reconciliation task demotes lifecycle `ONLINE -> OFFLINE` only when raw CAN is false, no static property discovery is active and the 2-second post-property grace has expired. The CAN-reported power state is then set to `UNKNOWN`.
 
+The `can_com_ok_x` OFF edge independently clears that unit's capability-valid flag and immediately recomputes the effective current ceiling, shared command scaling and capability-mismatch diagnostic from the remaining reachable units.
+
 ---
 
 # 7. Slow probing of OFFLINE units
@@ -282,6 +285,8 @@ flowchart TD
 ```
 
 The first returned CAN frame proves reachability, not operational readiness.
+
+On the raw CAN OFF→ON edge, the unit's previous capability-valid flag is cleared immediately. The shared current ceiling therefore falls back to 50 A until the reconnect discovery receives a fresh capability response.
 
 ---
 
@@ -341,64 +346,78 @@ The tested reduced-current R4875G1 configuration reports **52.0 A**.
 
 # 11. Effective DC current limit
 
+The hardware current ceiling is CAN-aware and fail-safe.
+
 ```text
-effective_dc_current_limit
-  = min(75 A project ceiling, every valid detected capability)
+startup / no reachable units:
+    effective_dc_current_limit = 50 A
+
+any reachable unit with unknown capability:
+    effective_dc_current_limit = 50 A
+
+all currently reachable capabilities known:
+    effective_dc_current_limit = min(75 A, capabilities of reachable units)
 ```
 
-This is the hardware/capability ceiling. It constrains the **applied** active current and the rectifier fallback-current configuration. The active requested-current number is preserved even when it is temporarily above this ceiling.
+Only `can_com_ok_x == true` units participate. Offline units and their stale capability values are ignored immediately. When a unit reconnects, its `max_current_found_x` flag is cleared before discovery, so the shared ceiling returns to 50 A until that unit reports a fresh capability.
 
-Nominal three-unit power conversion calculates a requested per-unit current; hardware and thermal limits are applied only when the active CAN current command is encoded.
+Examples:
+
+| Reachable units | Fresh capabilities | Effective limit |
+|---|---|---:|
+| none | — | 50 A |
+| U1 | unknown | 50 A |
+| U1 | 52 A | 52 A |
+| U1 | 75 A | 75 A |
+| U1 + U2 | 75 A + 75 A | 75 A |
+| U1 + U2 | 75 A + 52 A | 52 A |
+| U1 + U2 | 75 A + unknown | 50 A |
+| U1 only; offline U2 previously 52 A | U1 = 75 A | 75 A |
+
+The active requested-current number is preserved even when above this ceiling; only the applied CAN command is limited. The fallback-current device setpoint is reduced immediately when the effective ceiling drops.
 
 ---
 
 # 12. Current command scaling
 
-Unit 1 is the canonical source:
+The shared command scale no longer has a permanent Unit-1 dependency.
 
 ```text
-current_scaling_factor = 1024 / Unit_1_max_current
-raw_current = int(I_command × current_scaling_factor)
+unknown/incomplete reachable capabilities:
+    current_scaling_factor = 1024 / 75
+
+all reachable capabilities known:
+    current_scaling_factor = 1024 / highest reachable capability
 ```
 
-For 52 A:
+Using the highest reachable capability produces the smallest raw counts-per-ampere factor. In a mixed 52 A / 75 A installation this deliberately under-drives the lower-capability unit rather than risking an over-current command, while `effective_dc_current_limit` independently limits the requested engineering current to the lowest reachable capability.
+
+Active DC current is quantized in raw protocol space:
 
 ```text
-1024 / 52 ≈ 19.6923077
+requested_raw      = round(requested_A × scaling)
+hardware_limit_raw = floor(effective_limit_A × scaling)
+thermal_limit_raw  = floor(thermal_limit_A × scaling)
+raw_command        = min(requested_raw, hardware_limit_raw, thermal_limit_raw)
 ```
 
-Verified values:
+This gives ordinary setpoints the nearest representable CAN value while ensuring hardware and thermal ceilings are never exceeded by quantization.
 
-| Setpoint | Raw decimal | Raw hex |
-|---:|---:|---:|
-| 10 A | 196 | `0x00C4` |
-| 20 A | 393 | `0x0189` |
-| 30 A | 590 | `0x024E` |
-| 40 A | 787 | `0x0313` |
-| 50 A | 984 | `0x03D8` |
-
-For 3 kW at 55.4 V with the fixed three-unit divisor:
-
-```text
-I_each = 3000 / (55.4 × 3) ≈ 18.0505 A
-raw = int(18.0505 × 1024 / 52) = 355 = 0x0163
-```
-
-Unit 2 and Unit 3 capabilities participate in the effective ceiling and mismatch diagnostic, but do not replace Unit 1 as the shared scaling source.
+Per-unit diagnostic scaling sensors still publish `1024 / unit_capability` for comparison.
 
 ---
 
 # 13. Capability mismatch
 
-After all three capability values are valid, the firmware compares them pairwise with 0.25 A tolerance.
+The mismatch diagnostic also considers only currently CAN-reachable units.
 
 ```text
-unknown = not all three known
-OFF     = capabilities match
-ON      = at least one differs
+UNKNOWN = fewer than two reachable units, or any reachable capability unknown
+OFF     = all reachable capabilities match within 0.25 A
+ON      = at least two reachable capabilities differ by more than 0.25 A
 ```
 
-The diagnostic does not inhibit operation automatically.
+A disconnected unit is ignored. A reconnecting unit temporarily makes the diagnostic UNKNOWN until its capability is rediscovered. The diagnostic does not inhibit operation automatically; the effective current ceiling and shared scaling already apply the fail-safe behavior described above.
 
 ---
 

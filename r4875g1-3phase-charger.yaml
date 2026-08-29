@@ -108,7 +108,11 @@ substitutions:
   # --------------------------------------------------------------------------
   # Project-wide operating limits
   # --------------------------------------------------------------------------
+  # Absolute supported project ceiling.
   project_max_dc_current_a: "75.0"
+  # Conservative current ceiling until every currently reachable rectifier
+  # has a freshly confirmed maximum-current capability.
+  failsafe_dc_current_a: "50.0"
   minimum_dc_current_a: "1.0"
 
   dc_voltage_min_v: "49.0"
@@ -230,7 +234,7 @@ esphome:
 
   project:
     name: "anwa.3phase-charger"
-    version: "3.0.7"
+    version: "3.0.8"
 
   on_boot:
     then:
@@ -245,8 +249,8 @@ esphome:
           id(thermal_state_text_2).publish_state("NORMAL");
           id(thermal_state_text_3).publish_state("NORMAL");
 
-          // Publish the model-specific fallback until actual rectifier
-          // capabilities become available.
+          // Publish the conservative 50 A failsafe ceiling until the
+          // capabilities of all currently reachable rectifiers are known.
           id(effective_dc_current_limit_sensor).publish_state(
             id(effective_dc_current_limit)
           );

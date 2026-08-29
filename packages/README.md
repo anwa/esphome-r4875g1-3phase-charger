@@ -61,7 +61,7 @@ Current handler templates:
 - `address-data.yaml` — shelf/slot addressing (`0x108x507E`)
 - `power-state.yaml` — alternate current + ON/OFF/ERROR (`0x100x117E`)
 
-The maximum-current capability handlers (`0x1081507F`, `0x1082507F`, `0x1083507F`) remain explicit in `rectifier-shared.yaml` because Unit 1 deliberately has different behavior: it updates the shared `current_scaling_factor`; Units 2 and 3 only publish diagnostic scaling factors.
+The maximum-current capability handlers (`0x1081507F`, `0x1082507F`, `0x1083507F`) remain explicit in `rectifier-shared.yaml`. Each publishes its own capability/scaling diagnostic. Shared `effective_dc_current_limit` and `current_scaling_factor` are calculated centrally from only currently CAN-reachable units, with a 50 A failsafe whenever a reachable capability is unknown.
 
 ## What remains shared on purpose
 
@@ -69,7 +69,7 @@ Do not move code into the unit template merely because it references Unit 1/2/3.
 
 - lifecycle state coordination
 - serialized discovery queue
-- capability comparison and effective current ceiling
+- CAN-aware capability comparison, 50 A failsafe ceiling and shared command scaling
 - staged shared thermal derating
 - blackstart coordination and safety checks
 - slow round-robin offline probing
@@ -108,7 +108,7 @@ For structural refactors, also compare the resolved configuration (`esphome conf
 
 ## Release status
 
-Firmware version **3.0.7** is the current modular baseline on `main`. Release tags are managed separately from normal firmware commits.
+Firmware version **3.0.8** is the current modular baseline on `main`. Release tags are managed separately from normal firmware commits.
 
 
 ## Fan terminology
