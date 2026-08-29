@@ -14,6 +14,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 $ProjectFile = "r4875g1-3phase-charger.yaml"
+$VersionFile = "packages/version.yaml"
 $RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $Timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
 $BackupDir = "$RemoteDir/.deploy-backups/r4875g1-3phase-charger/$Timestamp"
@@ -99,13 +100,25 @@ function Get-ESPHomeNodeName {
 }
 
 function Get-ProjectVersion {
-    $yaml = Get-Content -Raw -LiteralPath (Join-Path $RepoRoot $ProjectFile)
-    $match = [regex]::Match(
+    $versionPath = Join-Path $RepoRoot $VersionFile
+    if (-not (Test-Path -LiteralPath $versionPath -PathType Leaf)) {
+        throw "Central firmware version file is missing: $VersionFile"
+    }
+
+    $yaml = Get-Content -Raw -LiteralPath $versionPath
+    $matches = [regex]::Matches(
         $yaml,
-        '(?ms)^\s*project:\s*\r?\n\s*name:\s*["'']anwa\.3phase-charger["'']\s*\r?\n\s*version:\s*["'']([^"'']+)["'']'
+        '(?m)^\s*firmware_version:\s*["'']?([0-9]+\.[0-9]+\.[0-9]+)["'']?\s*(?:#.*)?$'
     )
-    if ($match.Success) { return $match.Groups[1].Value }
-    return "unknown"
+
+    if ($matches.Count -eq 0) {
+        throw "No valid firmware_version entry found in $VersionFile."
+    }
+    if ($matches.Count -gt 1) {
+        throw "Multiple firmware_version entries found in $VersionFile."
+    }
+
+    return $matches[0].Groups[1].Value
 }
 
 function Get-GitInfo {
