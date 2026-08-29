@@ -1,0 +1,109 @@
+can_id: 0x108${ru_unit}D27E
+use_extended_id: true
+then:
+  - lambda: |-
+      // The property END frame also confirms active CAN communication.
+      id(last_can_rx_${ru_unit}) = millis();
+
+      // Check if this frame contains additional payload data
+      if (x.size() > 2) {  // Payload starts at x[2], so size must be > 2
+        std::string frame_data((char*)&x[2], x.size() - 2);
+        ESP_LOGI(
+          "unit_properties",
+          "Unit ${ru_unit}: End Message Frame Data: %s",
+          frame_data.c_str()
+        );
+        // Append any remaining data to unit_properties_${ru_unit}
+        id(unit_properties_${ru_unit}) += frame_data;
+      }
+      ESP_LOGI(
+        "unit_properties",
+        "Unit ${ru_unit}: Total Frames Captured: %d",
+        id(frame_counter_msg_start_${ru_unit})
+      );
+      if (id(frame_counter_msg_start_${ru_unit}) == 0) {
+        ESP_LOGW(
+          "unit_properties",
+          "Unit ${ru_unit}: Property end frame received without a valid start/data frame. "
+          "Discarding incomplete response."
+        );
+
+        id(unit_properties_${ru_unit}).clear();
+        id(unit_properties_complete_${ru_unit}) = false;
+        return;
+      }
+      ESP_LOGD(
+        "unit_properties",
+        "Unit ${ru_unit}: Final Unit Properties: %s",
+        id(unit_properties_${ru_unit}).c_str()
+      );
+
+      auto extract_value = [](const std::string &data, const std::string &key) -> std::string {
+        size_t start = data.find(key);
+        if (start == std::string::npos) return "";
+        start += key.size();
+        size_t end = data.find_first_of("\r\n", start);
+        if (end == std::string::npos) {
+          end = data.size();
+        }
+        return data.substr(start, end - start);
+      };
+
+      struct KeySensorPair {
+        const char* key;
+        esphome::template_::TemplateTextSensor* sensor;
+        bool* flag;
+      };
+
+      // Map ASCII protocol keys to ESPHome text sensors. The final
+      // Manufactured field is also used as a completion marker so the
+      // discovery script can tell whether the property set was complete.
+      KeySensorPair mappings[] = {
+        {"BoardType=", id(unit_type_${ru_unit}), nullptr},
+        {"BarCode=", id(barcode_${ru_unit}), nullptr},
+        {"Item=", id(item_no_${ru_unit}), nullptr},
+        {"Description=", id(description_${ru_unit}), nullptr},
+        {"Manufactured=", id(manufactured_${ru_unit}), &id(unit_properties_complete_${ru_unit})}
+      };
+
+      bool all_keys_found = true;
+
+      for (const auto& mapping : mappings) {
+        std::string value = extract_value(id(unit_properties_${ru_unit}), mapping.key);
+        if (!value.empty()) {
+          ESP_LOGI(
+            "unit_properties",
+            "Unit ${ru_unit}: Extracted %s: %s",
+            mapping.key,
+            value.c_str()
+          );
+          mapping.sensor->publish_state(value.c_str());
+          if (mapping.flag) {
+            *(mapping.flag) = true;
+          }
+        } else {
+          ESP_LOGW(
+            "unit_properties",
+            "Unit ${ru_unit}: Key %s not found or empty",
+            mapping.key
+          );
+          all_keys_found = false;
+          if (mapping.flag) {
+            *(mapping.flag) = false; // Reset the flag for missing keys
+          }
+        }
+      }
+
+      if (all_keys_found) {
+        id(unit_properties_complete_${ru_unit}) = true; // Mark completion only if all keys are found
+        ESP_LOGI(
+          "unit_properties",
+          "Unit ${ru_unit}: All required keys found. Marking as complete."
+        );
+      } else {
+        id(unit_properties_complete_${ru_unit}) = false; // Explicitly reset the flag if keys are missing
+        ESP_LOGI(
+          "unit_properties",
+          "Unit ${ru_unit}: Not all keys found. Will continue processing."
+        );
+      }

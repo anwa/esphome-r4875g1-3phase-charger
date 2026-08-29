@@ -1,0 +1,707 @@
+# ==============================================================================
+# PARAMETERIZED R4875G1 RECTIFIER UNIT PACKAGE
+# ==============================================================================
+# Included three times from the main YAML with ru_unit = 1, 2 and 3.
+# IDs and entity names intentionally resolve to the existing public names.
+
+globals:
+  - id: last_can_rx_${ru_unit}
+    type: uint32_t
+    restore_value: false
+    initial_value: "0"
+
+  # Timestamp (millis) of the most recent valid CAN activity from Unit ${ru_unit}.
+  # Normally refreshed by cyclic telemetry and additionally by valid property
+  # frames during discovery.
+  - id: rectifier_control_state_${ru_unit}
+    type: uint8_t
+    restore_value: false
+    initial_value: "${rectifier_state_offline}"
+  - id: thermal_state_${ru_unit}
+    type: uint8_t
+    restore_value: false
+    initial_value: "${thermal_state_normal}"
+  - id: max_current_found_${ru_unit}
+    type: bool
+    restore_value: false
+    initial_value: "false"
+
+  # Discovery flag for Unit ${ru_unit} maximum-current capability.
+  - id: data_found_${ru_unit}
+    type: bool
+    restore_value: false
+    initial_value: "false"
+
+  # Discovery flag for Unit ${ru_unit} addressing data.
+  - id: unit_properties_${ru_unit}
+    type: std::string
+    restore_value: false
+    initial_value: '""'
+
+  # Temporary property-message buffer for Unit ${ru_unit}.
+  - id: unit_properties_complete_${ru_unit}
+    type: bool
+    restore_value: false
+    initial_value: "false"
+
+  # Completion flag for Unit ${ru_unit} properties.
+  - id: frame_counter_bp_${ru_unit}
+    type: int
+    restore_value: false
+    initial_value: "0"
+
+  # Fail-safe retry counter for Unit ${ru_unit} property requests.
+  - id: frame_counter_msg_start_${ru_unit}
+    type: int
+    restore_value: false
+    initial_value: "0"
+
+  # Property payload-frame counter for Unit ${ru_unit}.
+  - id: search_counter_${ru_unit}
+    type: int
+    restore_value: false
+    initial_value: "0"
+
+  # Fail-safe retry counter for Unit ${ru_unit} capability/address search.
+  - id: overtemp_lockout_${ru_unit}
+    type: bool
+    restore_value: false
+    initial_value: "false"
+
+  # Overtemperature lockout for Unit ${ru_unit} (see overtemp_lockout_${ru_unit}).
+
+script:
+  # --------------------------------------------------------------------------
+  # detect_unit_${ru_unit}_properties
+  # --------------------------------------------------------------------------
+  # Requests this rectifier's static multi-frame property block. Up to the
+  # configured number of requests are sent. CAN handlers assemble the answer
+  # and set unit_properties_complete_${ru_unit} once every required field has
+  # been parsed successfully.
+  - id: detect_unit_${ru_unit}_properties
+    mode: single
+    then:
+      - lambda: |-
+          id(unit_properties_complete_${ru_unit}) = false;
+          id(frame_counter_bp_${ru_unit}) = 0;
+          id(frame_counter_msg_start_${ru_unit}) = 0;
+          id(unit_properties_${ru_unit}).clear();
+
+      - delay: ${property_bus_quiet_delay}
+
+      - while:
+          condition:
+            lambda: |-
+              return !id(unit_properties_complete_${ru_unit}) &&
+                     id(frame_counter_bp_${ru_unit}) < ${property_discovery_attempts};
+          then:
+            - canbus.send:
+                can_id: 0x108${ru_unit}D2FE
+                use_extended_id: true
+                data: [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+
+            - delay: ${discovery_retry_delay}
+
+            - lambda: |-
+                id(frame_counter_bp_${ru_unit}) += 1;
+
+                ESP_LOGI(
+                  "unit_properties",
+                  "Unit ${ru_unit} Frame Counter: %d",
+                  id(frame_counter_bp_${ru_unit})
+                );
+
+      - lambda: |-
+          if (id(unit_properties_complete_${ru_unit})) {
+            ESP_LOGI(
+              "unit_properties",
+              "Unit ${ru_unit} properties detected successfully."
+            );
+          } else {
+            ESP_LOGW(
+              "unit_properties",
+              "Unit ${ru_unit} Fail-safe triggered: Loop stopped after %d attempts.",
+              ${property_discovery_attempts}
+            );
+          }
+
+          // Mark the end of the intentional cyclic-polling pause.
+          id(last_property_discovery_end) = millis();
+
+  # --------------------------------------------------------------------------
+  # detect_data_unit_${ru_unit}
+  # --------------------------------------------------------------------------
+  # Requests capability/address data until both maximum-current and shelf/slot
+  # information have been found or retries are exhausted.
+  - id: detect_data_unit_${ru_unit}
+    mode: single
+    then:
+      - lambda: |-
+          id(max_current_found_${ru_unit}) = false; // Reset the flag before starting
+          id(data_found_${ru_unit}) = false; // Reset the flag before starting
+          id(search_counter_${ru_unit}) = 0; // Initialize a fail-safe counter
+      - binary_sensor.invalidate_state: rectifier_capability_mismatch
+      - while:
+          condition:
+            lambda: |-
+              return !(id(max_current_found_${ru_unit}) && id(data_found_${ru_unit})) && id(search_counter_${ru_unit}) < ${capability_discovery_attempts};
+          then:
+            - canbus.send:
+                can_id: 0x108${ru_unit}50FE
+                use_extended_id: true
+                data: [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+            - delay: ${discovery_retry_delay}
+            - lambda: |-
+                id(search_counter_${ru_unit}) += 1; // Increment the fail-safe counter
+      - lambda: |-
+          if (id(max_current_found_${ru_unit}) && id(data_found_${ru_unit})) {
+            ESP_LOGI(
+              "canbus",
+              "Unit ${ru_unit} capability/address discovery completed successfully after %d attempt(s).",
+              id(search_counter_${ru_unit})
+            );
+          } else {
+            ESP_LOGW(
+              "canbus",
+              "Unit ${ru_unit} capability/address discovery failed after %d attempt(s). "
+              "Max current found: %s, address data found: %s",
+              id(search_counter_${ru_unit}),
+              id(max_current_found_${ru_unit}) ? "yes" : "no",
+              id(data_found_${ru_unit}) ? "yes" : "no"
+            );
+          }
+  # --------------------------------------------------------------------------
+  # discover_unit_${ru_unit}
+  # --------------------------------------------------------------------------
+  # Runs static-property discovery and capability/address discovery in order.
+  - id: discover_unit_${ru_unit}
+    mode: single
+    then:
+      - script.execute: detect_unit_${ru_unit}_properties
+      - script.wait: detect_unit_${ru_unit}_properties
+
+      - script.execute: detect_data_unit_${ru_unit}
+      - script.wait: detect_data_unit_${ru_unit}
+
+
+sensor:
+  # Input temperature: cyclic selector 0x80, scaled by 1024.
+  - platform: template
+    name: "Input Temperature Unit ${ru_unit}"
+    id: input_temperature_${ru_unit}
+    unit_of_measurement: "°C"
+    device_class: temperature
+    state_class: measurement
+    accuracy_decimals: 1
+    # Updated exclusively by CAN publish_state() calls.
+    # Disable the template sensor's own polling loop.
+    update_interval: never
+    filters:
+      - lambda: |-
+          return x / id(voltage_scaling_factor);
+      - timeout: ${live_telemetry_timeout}
+    icon: "mdi:thermometer"
+
+  # Output temperature: cyclic selector 0x7F; fresh values drive thermal protection.
+  - platform: template
+    name: "Output Temperature Unit ${ru_unit}"
+    id: output_temperature_${ru_unit}
+    unit_of_measurement: "°C"
+    device_class: temperature
+    state_class: measurement
+    accuracy_decimals: 1
+    update_interval: never
+    filters:
+      - lambda: |-
+          return x / id(voltage_scaling_factor);
+      - timeout: ${live_telemetry_timeout}
+    icon: "mdi:thermometer"
+    on_value:
+      then:
+        - if:
+            condition:
+              lambda: 'return !isnan(x);'
+            then:
+              - script.execute:
+                  id: update_rectifier_thermal_state
+                  unit: ${ru_unit}
+                  temperature: !lambda 'return x;'
+
+  # Per-unit current-command scaling diagnostic. Unit 1 remains canonical globally.
+  - platform: template
+    name: "Current Scaling Factor Unit ${ru_unit}"
+    id: current_scaling_factor_unit_${ru_unit}
+    entity_category: diagnostic
+    accuracy_decimals: 4
+    update_interval: never
+
+    icon: "mdi:information-outline"
+  # Shelf/address diagnostic decoded from capability/address data.
+  - platform: template
+    name: "Pin 11 Unit ${ru_unit}"
+    id: pin11_${ru_unit}
+    entity_category: diagnostic
+    update_interval: never
+
+    icon: "mdi:dip-switch"
+  # Slot/address diagnostic decoded from capability/address data.
+  - platform: template
+    name: "Pin 12 Unit ${ru_unit}"
+    id: pin12_${ru_unit}
+    entity_category: diagnostic
+    update_interval: never
+
+    icon: "mdi:dip-switch"
+  # Maximum DC-current capability reported during discovery.
+  - platform: template
+    name: "Max Current Capability Unit ${ru_unit}"
+    id: max_dc_current_${ru_unit}
+    unit_of_measurement: "A"
+    device_class: current
+    state_class: measurement
+    entity_category: diagnostic
+    accuracy_decimals: 3
+    update_interval: never
+    icon: "mdi:information-outline"
+
+    on_value:
+      then:
+        - script.execute: update_effective_dc_current_limit
+        - script.execute: evaluate_rectifier_capabilities
+
+  # Alternate DC-current reading from the 0x100x117E status frame.
+  - platform: template
+    name: "Output Current alt Unit ${ru_unit}"
+    id: alt_dc_current_${ru_unit}
+    unit_of_measurement: "A"
+    device_class: current
+    state_class: measurement
+    accuracy_decimals: 3
+    # Updated exclusively by CAN publish_state() calls.
+    # Disable the template sensor's own polling loop.
+    update_interval: never
+    filters:
+      - lambda: |-
+          return x / id(current_scaling_factor);
+      - timeout: ${live_telemetry_timeout}
+    icon: "mdi:current-dc"
+
+  # AC input power: cyclic selector 0x70.
+  - platform: template
+    name: "AC Power Unit ${ru_unit}"
+    id: ac_power_${ru_unit}
+    unit_of_measurement: "W"
+    device_class: power
+    state_class: measurement
+    accuracy_decimals: 3
+    # Updated exclusively by CAN publish_state() calls.
+    # Disable the template sensor's own polling loop.
+    update_interval: never
+    filters:
+      - lambda: |-
+          return x / id(voltage_scaling_factor);
+      - timeout: ${live_telemetry_timeout}
+    icon: "mdi:flash"
+
+  # DC output power: cyclic selector 0x73.
+  - platform: template
+    name: "DC Power Unit ${ru_unit}"
+    id: dc_power_${ru_unit}
+    unit_of_measurement: "W"
+    device_class: power
+    state_class: measurement
+    accuracy_decimals: 3
+    # Updated exclusively by CAN publish_state() calls.
+    # Disable the template sensor's own polling loop.
+    update_interval: never
+    filters:
+      - lambda: |-
+          return x / id(voltage_scaling_factor);
+      - timeout: ${live_telemetry_timeout}
+    icon: "mdi:flash"
+
+  # AC input frequency: cyclic selector 0x71.
+  - platform: template
+    name: "AC Frequency Unit ${ru_unit}"
+    id: ac_frequency_${ru_unit}
+    unit_of_measurement: "Hz"
+    device_class: frequency
+    state_class: measurement
+    accuracy_decimals: 3
+    # Updated exclusively by CAN publish_state() calls.
+    # Disable the template sensor's own polling loop.
+    update_interval: never
+    filters:
+      - lambda: |-
+          return x / id(voltage_scaling_factor);
+      - timeout: ${live_telemetry_timeout}
+    icon: "mdi:transmission-tower-import"
+
+  # AC input current: cyclic selector 0x72.
+  - platform: template
+    name: "AC Current Unit ${ru_unit}"
+    id: ac_current_${ru_unit}
+    unit_of_measurement: "A"
+    device_class: current
+    state_class: measurement
+    accuracy_decimals: 3
+    # Updated exclusively by CAN publish_state() calls.
+    # Disable the template sensor's own polling loop.
+    update_interval: never
+    filters:
+      - lambda: |-
+          return x / id(voltage_scaling_factor);
+      - timeout: ${live_telemetry_timeout}
+    icon: "mdi:current-ac"
+
+  # DC output voltage: cyclic selector 0x75.
+  - platform: template
+    name: "DC Voltage Unit ${ru_unit}"
+    id: dc_voltage_${ru_unit}
+    unit_of_measurement: "V"
+    device_class: voltage
+    state_class: measurement
+    accuracy_decimals: 3
+    # Updated exclusively by CAN publish_state() calls.
+    # Disable the template sensor's own polling loop.
+    update_interval: never
+    filters:
+      - lambda: |-
+          return x / id(voltage_scaling_factor);
+      - timeout: ${live_telemetry_timeout}
+    icon: "mdi:current-dc"
+
+  # AC input voltage: cyclic selector 0x78.
+  - platform: template
+    name: "AC Voltage Unit ${ru_unit}"
+    id: ac_voltage_${ru_unit}
+    unit_of_measurement: "V"
+    device_class: voltage
+    state_class: measurement
+    accuracy_decimals: 3
+    # Updated exclusively by CAN publish_state() calls.
+    # Disable the template sensor's own polling loop.
+    update_interval: never
+    filters:
+      - lambda: |-
+          return x / id(voltage_scaling_factor);
+      - timeout: ${live_telemetry_timeout}
+    icon: "mdi:sine-wave"
+
+  # DC output current: cyclic selector 0x81.
+  - platform: template
+    name: "DC Current Unit ${ru_unit}"
+    id: dc_current_${ru_unit}
+    unit_of_measurement: "A"
+    device_class: current
+    state_class: measurement
+    accuracy_decimals: 3
+    # Updated exclusively by CAN publish_state() calls.
+    # Disable the template sensor's own polling loop.
+    update_interval: never
+    filters:
+      - lambda: |-
+          return x / id(voltage_scaling_factor);
+      - timeout: ${live_telemetry_timeout}
+    icon: "mdi:current-dc"
+
+  # Rectifier-reported active maximum-current setpoint: cyclic selector 0x76.
+  - platform: template
+    name: "Max DC Current Setpoint Unit ${ru_unit}"
+    id: max_dc_current_setpoint_${ru_unit}
+    unit_of_measurement: "A"
+    device_class: current
+    state_class: measurement
+    accuracy_decimals: 3
+    # Updated exclusively by CAN publish_state() calls.
+    # Disable the template sensor's own polling loop.
+    update_interval: never
+    filters:
+      - lambda: |-
+          return x / id(current_scaling_factor);
+      - timeout: ${live_telemetry_timeout}
+    icon: "mdi:current-ac"
+
+  # Internal R4875G1 fan minimum duty reported by fan telemetry.
+  - platform: template
+    name: "Fan Minimum Duty Unit ${ru_unit}"
+    id: fan_duty_${ru_unit}
+    unit_of_measurement: "%"
+    state_class: measurement
+    accuracy_decimals: 1
+    update_interval: never
+    filters:
+      - timeout: ${live_telemetry_timeout}
+    icon: "mdi:fan"
+
+  # Internal R4875G1 fan target duty reported by fan telemetry.
+  - platform: template
+    name: "Fan Duty Target Unit ${ru_unit}"
+    id: fan_duty_setpoint_${ru_unit}
+    unit_of_measurement: "%"
+    state_class: measurement
+    accuracy_decimals: 1
+    update_interval: never
+    filters:
+      - timeout: ${live_telemetry_timeout}
+    icon: "mdi:fan"
+
+  # Internal R4875G1 fan speed reported directly in RPM.
+  - platform: template
+    name: "Fan RPM Unit ${ru_unit}"
+    id: fan_rpm_${ru_unit}
+    unit_of_measurement: "RPM"
+    state_class: measurement
+    accuracy_decimals: 0
+    update_interval: never
+    filters:
+      - timeout: ${live_telemetry_timeout}
+    icon: "mdi:fan"
+
+  # Lifetime operating-hours counter.
+  - platform: template
+    name: "Operating Hours Unit ${ru_unit}"
+    id: operating_hours_${ru_unit}
+    unit_of_measurement: "h"
+    device_class: duration
+    state_class: total_increasing
+    entity_category: diagnostic
+    accuracy_decimals: 0
+    update_interval: never
+    filters:
+      - lambda: |-
+          return x;
+    icon: "mdi:clock-outline"
+
+
+binary_sensor:
+  # --------------------------------------------------------------------------
+  # CAN Communication Unit ${ru_unit}
+  # --------------------------------------------------------------------------
+  # Per-unit connectivity watchdog. A transition from unavailable to available
+  # starts discovery only while the unit lifecycle is OFFLINE.
+  - platform: template
+    id: can_com_ok_${ru_unit}
+    name: "CAN Communication Unit ${ru_unit}"
+    device_class: connectivity
+    entity_category: diagnostic
+
+    lambda: |-
+      return
+        id(last_can_rx_${ru_unit}) != 0 &&
+        static_cast<uint32_t>(
+          millis() - id(last_can_rx_${ru_unit})
+        ) < ${can_watchdog_timeout_ms}U;
+
+    on_press:
+      then:
+        - if:
+            condition:
+              lambda: |-
+                return
+                  id(rectifier_control_state_${ru_unit}) ==
+                    ${rectifier_state_offline};
+
+            then:
+              - script.execute:
+                  id: set_rectifier_control_state
+                  unit: ${ru_unit}
+                  state: ${rectifier_state_discovering}
+
+              - logger.log:
+                  level: INFO
+                  format: "Unit ${ru_unit} CAN communication detected - entering discovery stabilization."
+
+              - delay: ${discovery_startup_delay}
+
+              - if:
+                  condition:
+                    lambda: |-
+                      return
+                        id(rectifier_control_state_${ru_unit}) ==
+                          ${rectifier_state_discovering};
+
+                  then:
+                    - logger.log:
+                        level: INFO
+                        format: "Unit ${ru_unit} discovery stabilization complete - starting automatic discovery."
+
+                    - script.execute:
+                        id: discovery_queue
+                        unit: ${ru_unit}
+
+
+text_sensor:
+  # Human-readable OFFLINE / DISCOVERING / ONLINE lifecycle state.
+  - platform: template
+    id: rectifier_control_state_text_${ru_unit}
+    name: "Control State Unit ${ru_unit}"
+    entity_category: diagnostic
+    update_interval: never
+    icon: "mdi:state-machine"
+
+  # Human-readable NORMAL / WARNING_1 / WARNING_2 / LOCKOUT state.
+  - platform: template
+    id: thermal_state_text_${ru_unit}
+    name: "Thermal State Unit ${ru_unit}"
+    entity_category: diagnostic
+    update_interval: never
+    icon: "mdi:thermometer-alert"
+  # CAN-reported ON/OFF/ERROR state decoded from 0x100x117E.
+  # Communication loss publishes UNKNOWN through the lifecycle handler.
+  - platform: template
+    id: power_state_${ru_unit}
+    name: "Power State Unit ${ru_unit}"
+    update_interval: never
+    icon: "mdi:information-outline"
+
+  # Static BoardType property from the multi-frame identification response.
+  - platform: template
+    name: "Board Type Unit ${ru_unit}"
+    id: unit_type_${ru_unit}
+    entity_category: diagnostic
+    update_interval: never
+    icon: "mdi:information-outline"
+
+  # Static BarCode property from the multi-frame identification response.
+  - platform: template
+    name: "Barcode Unit ${ru_unit}"
+    id: barcode_${ru_unit}
+    entity_category: diagnostic
+    update_interval: never
+    icon: "mdi:information-outline"
+
+  # Static Item property from the multi-frame identification response.
+  - platform: template
+    name: "Item Number Unit ${ru_unit}"
+    id: item_no_${ru_unit}
+    entity_category: diagnostic
+    update_interval: never
+    icon: "mdi:information-outline"
+
+  # Static Description property from the multi-frame identification response.
+  - platform: template
+    name: "Description Unit ${ru_unit}"
+    id: description_${ru_unit}
+    entity_category: diagnostic
+    update_interval: never
+    icon: "mdi:information-outline"
+
+  # Static Manufactured property from the multi-frame identification response.
+  - platform: template
+    name: "Manufacturing Date Unit ${ru_unit}"
+    id: manufactured_${ru_unit}
+    entity_category: diagnostic
+    update_interval: never
+    icon: "mdi:calendar"
+
+button:
+  # --------------------------------------------------------------------------
+  # Turn On Unit ${ru_unit}
+  # --------------------------------------------------------------------------
+  # Reasserts the latest per-unit voltage/current setpoints before sending ON.
+  # Start is allowed only for a verified ONLINE rectifier with fresh CAN, an
+  # explicit OFF state, a valid safe temperature and no thermal lockout.
+  - platform: template
+    name: "Turn On Unit ${ru_unit}"
+    id: on_button_${ru_unit}
+    icon: "mdi:power"
+
+    on_press:
+      then:
+        - lambda: |-
+            ESP_LOGI(
+              "custom",
+              "Unit ${ru_unit} ON Button pressed."
+            );
+
+        - if:
+            condition:
+              lambda: |-
+                return
+                  id(rectifier_control_state_${ru_unit}) ==
+                    ${rectifier_state_online} &&
+                  id(can_com_ok_${ru_unit}).state &&
+                  id(power_state_${ru_unit}).state == "OFF" &&
+                  !isnan(id(output_temperature_${ru_unit}).state) &&
+                  id(output_temperature_${ru_unit}).state <
+                    ${overtemp_trip_c}f &&
+                  !id(overtemp_lockout_${ru_unit});
+
+            then:
+              - lambda: |-
+                  id(send_active_voltage_to_unit)->execute(${ru_unit});
+
+              - script.wait: send_active_voltage_to_unit
+
+              - delay: 50ms
+
+              - lambda: |-
+                  id(send_active_current_to_unit)->execute(${ru_unit});
+
+              - script.wait: send_active_current_to_unit
+
+              - delay: 100ms
+
+              - canbus.send:
+                  use_extended_id: true
+                  can_id: 0x108${ru_unit}80FE
+                  data:
+                    - 0x01
+                    - 0x32
+                    - 0x00
+                    - 0x00
+                    - 0x00
+                    - 0x00
+                    - 0x00
+                    - 0x00
+
+              - logger.log:
+                  level: INFO
+                  format: "Unit ${ru_unit} commanded ON."
+
+            else:
+              - logger.log:
+                  level: WARN
+                  format: "Unit ${ru_unit} ON blocked - ONLINE lifecycle state, fresh CAN communication, explicit OFF state, valid safe temperature and cleared overtemperature lockout are required."
+
+  # Unrestricted individual OFF command.
+  - platform: template
+    name: "Turn Off Unit ${ru_unit}"
+    id: off_button_${ru_unit}
+    icon: "mdi:power"
+    on_press:
+      then:
+        - lambda: |-
+            ESP_LOGI(
+              "custom",
+              "Unit ${ru_unit} OFF Button pressed."
+            );
+        - canbus.send:
+            use_extended_id: true
+            can_id: 0x108${ru_unit}80FE
+            data: [0x01, 0x32, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00]
+
+  # Internal R4875G1 fan full-speed override for this unit.
+  - platform: template
+    name: "Set Fan Full Speed Unit ${ru_unit}"
+    id: fan_full_speed_button_${ru_unit}
+    icon: "mdi:fan"
+    on_press:
+      then:
+        - canbus.send:
+            use_extended_id: true
+            can_id: 0x108${ru_unit}80FE
+            data: [0x01, 0x34, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00]
+
+  # Return this unit's internal R4875G1 fan to automatic control.
+  - platform: template
+    name: "Set Fan Auto Mode Unit ${ru_unit}"
+    id: fan_auto_mode_button_${ru_unit}
+    icon: "mdi:fan"
+    on_press:
+      then:
+        - canbus.send:
+            use_extended_id: true
+            can_id: 0x108${ru_unit}80FE
+            data: [0x01, 0x34, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]

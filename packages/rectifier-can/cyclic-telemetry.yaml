@@ -1,0 +1,37 @@
+can_id: 0x108${ru_unit}407F
+use_extended_id: true
+then:
+  - lambda: |-
+      if (x.size() >= 8) {
+        // Valid cyclic telemetry received: refresh CAN communication watchdog.
+        id(last_can_rx_${ru_unit}) = millis();
+
+        // Cyclic telemetry frame layout used below:
+        //   x[0]    = message class (0x01 for decoded measurement data)
+        //   x[1]    = parameter selector (power/frequency/current/etc.)
+        //   x[4..7] = unsigned 32-bit big-endian raw value
+        // The destination template sensor applies the engineering scale.
+        const uint8_t byte_0 = static_cast<uint8_t>(x[0]);
+        const uint8_t byte_1 = static_cast<uint8_t>(x[1]);
+        const uint32_t value = (static_cast<uint32_t>(x[4]) << 24) |
+                               (static_cast<uint32_t>(x[5]) << 16) |
+                               (static_cast<uint32_t>(x[6]) << 8) |
+                               static_cast<uint32_t>(x[7]);
+        switch (byte_0) {
+          case 0x01:
+            switch (byte_1) {
+              case 0x70: id(ac_power_${ru_unit}).publish_state(value); break;
+              case 0x71: id(ac_frequency_${ru_unit}).publish_state(value); break;
+              case 0x72: id(ac_current_${ru_unit}).publish_state(value); break;
+              case 0x73: id(dc_power_${ru_unit}).publish_state(value); break;
+              case 0x75: id(dc_voltage_${ru_unit}).publish_state(value); break;
+              case 0x76: id(max_dc_current_setpoint_${ru_unit}).publish_state(value); break;
+              case 0x78: id(ac_voltage_${ru_unit}).publish_state(value); break;
+              case 0x7F: id(output_temperature_${ru_unit}).publish_state(value); break;
+              case 0x81: id(dc_current_${ru_unit}).publish_state(value); break;
+              case 0x80: id(input_temperature_${ru_unit}).publish_state(value); break;
+              case 0x0E: id(operating_hours_${ru_unit}).publish_state(value); break;
+            }
+            break;
+        }
+      }

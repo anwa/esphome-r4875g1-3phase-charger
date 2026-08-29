@@ -1,0 +1,33 @@
+can_id: 0x100${ru_unit}117E
+use_extended_id: true
+then:
+  - lambda: |-
+      if (x.size() == 8) {
+        // Extract data from the message
+        const uint8_t state_byte = x[3];
+        const uint8_t error_byte = x[4];
+        const uint16_t alt_current_value =
+          (static_cast<uint16_t>(x[6]) << 8) |
+          static_cast<uint16_t>(x[7]);
+
+        // Publish every valid frame so the sensor timeout represents actual
+        // communication freshness rather than value changes.
+        id(alt_dc_current_${ru_unit}).publish_state(alt_current_value);
+
+        // Determine the new power state
+        std::string new_power_state;
+        if (error_byte == 1) {
+          new_power_state = "ERROR";
+        } else if (state_byte == 0) {
+          new_power_state = "ON";
+        } else {
+          new_power_state = "OFF";
+        }
+
+        // Compare against the actual published sensor state instead of a separate
+        // local cache. This allows the CAN watchdog to set the sensor to UNKNOWN
+        // and ensures the next valid CAN frame restores ON/OFF/ERROR correctly.
+        if (id(power_state_${ru_unit}).state != new_power_state) {
+          id(power_state_${ru_unit}).publish_state(new_power_state.c_str());
+        }
+      }

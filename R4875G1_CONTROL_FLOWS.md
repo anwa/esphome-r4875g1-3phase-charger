@@ -1,8 +1,8 @@
 # R4875G1 Three-Phase Charger — Control and Runtime Flows
 
-This document describes the control flows, lifecycle state transitions, CAN recovery paths, discovery sequence, current-capability handling, setpoint routing, safety checks, telemetry processing, and local user-interface behavior implemented in `r4875g1-3phase-charger.yaml`.
+This document describes the control flows, lifecycle state transitions, CAN recovery paths, discovery sequence, current-capability handling, setpoint routing, safety checks, telemetry processing, and local user-interface behavior implemented by the modular `r4875g1-3phase-charger.yaml` + `packages/` firmware source.
 
-It is synchronized with the stable `main` implementation as of **2026-08-28** and includes behavior verified with physical R4875G1 CAN disconnect/reconnect traces.
+It is synchronized with the **v3.0.1 hardware-test candidate** on branch `v3-modularization` as of **2026-08-29**. The runtime behaviour is intended to remain equivalent to the v2.2.2 baseline, including the previously verified physical R4875G1 CAN disconnect/reconnect sequence.
 
 > **Scope:** This is behavioral firmware documentation, not an electrical safety specification. Fuses, breakers, contactors, BMS protection, earthing, isolation, conductor sizing and other hardware protection remain independent of the firmware.
 
@@ -66,6 +66,26 @@ flowchart LR
 
 Core charger control remains local. Wi-Fi, Home Assistant and MQTT are optional for operation.
 
+## Firmware module ownership
+
+The runtime diagrams below describe the assembled ESPHome configuration. Source ownership in v3 is:
+
+| Source | Primary responsibility |
+|---|---|
+| `r4875g1-3phase-charger.yaml` | substitutions, three unit instances, device identity, boot safety sequence |
+| `packages/core.yaml` | ESP32/network/API/MQTT/web/controller diagnostics |
+| `packages/hardware.yaml` | shared I²C/SPI hardware buses |
+| `packages/display.yaml` | TFT, fonts, colors and display/backlight logic |
+| `packages/cooling.yaml` | external chassis fan power/PWM/tach |
+| `packages/controls.yaml` | charger-wide user controls |
+| `packages/rectifier-unit.yaml` | parameterized per-unit state, entities, discovery, watchdog and controls |
+| `packages/rectifier-shared.yaml` | cross-unit orchestration, current/thermal coordination, schedulers, CAN controller |
+| `packages/rectifier-can/*.yaml` | parameterized identical per-unit CAN RX handler families |
+
+The shared lifecycle, discovery queue, blackstart coordination, polling cadence, Single-Shot reconnect probing, TWAI recovery and aggregate current/thermal decisions remain explicit rather than being hidden behind a generic unit loop.
+
+---
+
 Controller hardware target: **Espressif ESP32-S3-DevKitC-1** with **ESP32-S3-WROOM-1-N16R8**, 16 MB Quad-SPI flash and 8 MB Octal-SPI PSRAM. GPIO assignments are centralized in YAML substitutions. Current map: encoder button 2; TFT backlight 4; TFT control 5/6/7; I2C 8/9; TFT SPI 11/12/13; CAN 15/16; encoder 17/18; cooling fan enable 21; cooling fan tach 39/40/41; cooling fan PWM 42. Strapping pins 0/3/45/46, native USB/JTAG 19/20 and Octal-memory GPIO33–37 remain unused.
 
 ---
@@ -116,11 +136,13 @@ The discovery queue waits for `reapply_active_setpoints` to complete before chan
 ```mermaid
 flowchart TD
     A[ESP32 boot] --> B[Restore persistent user setpoints]
-    B --> C[Power State 1..3 = UNKNOWN]
-    C --> D[Lifecycle 1..3 = OFFLINE]
-    D --> E[Publish fallback Effective DC Current Limit]
+    B --> C[Power State 1..3 = UNKNOWN / thermal text = NORMAL]
+    C --> D[Publish fallback Effective DC Current Limit]
+    D --> E[Lifecycle 1..3 = OFFLINE]
     E --> F[Start display inactivity timer]
-    F --> G[Normal runtime]
+    F --> G[Command external fan PWM = 100%]
+    G --> H[Enable external fan supply]
+    H --> I[Normal runtime]
 ```
 
 Initial current scaling:
@@ -136,7 +158,7 @@ Unit 1 capability discovery can replace this fallback at runtime.
 
 # 4. CAN transport strategy
 
-The stable baseline intentionally uses **Single-Shot only for slow OFFLINE reconnect probes**.
+The v3 hardware-test candidate retains the v2.2.2 rule: **Single-Shot is used only for slow OFFLINE reconnect probes**.
 
 ## OFFLINE probe transport
 
@@ -574,7 +596,7 @@ duty % = raw / 256
 RPM    = 16-bit raw value
 ```
 
-Fan queries run only for lifecycle-`ONLINE` units and use normal ESPHome `canbus.send` in the stable baseline.
+Fan queries run only for lifecycle-`ONLINE` units and use normal ESPHome `canbus.send` in the v3 hardware-test candidate.
 
 ---
 
@@ -688,7 +710,7 @@ The test showed successful reconnect without an ESP reboot and without BUS_OFF b
 12. The effective current ceiling is the lowest valid detected capability, capped at 75 A.
 13. Shared current scaling remains based on Unit 1 capability.
 14. Property discovery is serialized and temporarily owns the bus.
-15. Single-Shot is restricted to the slow OFFLINE reconnect probe in the stable baseline.
+15. Single-Shot is restricted to the slow OFFLINE reconnect probe in the v3 hardware-test candidate.
 16. BUS_OFF recovery is a final protection/recovery path, not the normal reconnect mechanism.
 
 ---
@@ -763,10 +785,11 @@ Only fresh numeric output-temperature samples can reduce a thermal state. A stal
 
 ## Source
 
-Behavior documented from the current stable `main` implementation in:
+Behavior documented from the **v3.0.1 hardware-test candidate** on branch `v3-modularization`:
 
 ```text
 r4875g1-3phase-charger.yaml
+packages/
 ```
 
-Last resynchronized: **2026-08-28**.
+Last fully reviewed and resynchronized before hardware testing: **2026-08-29**.

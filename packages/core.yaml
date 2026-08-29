@@ -1,0 +1,183 @@
+# ==============================================================================
+# CORE PLATFORM / NETWORK PACKAGE
+# ==============================================================================
+# Extracted from the monolithic configuration without functional changes.
+# Project-wide substitutions remain defined in the main YAML.
+
+esp32:
+  variant: esp32s3
+
+  flash_size: 16MB
+  flash_mode: qio
+  flash_frequency: 80MHz
+  cpu_frequency: 240MHz
+
+  toolchain: esp-idf
+
+  framework:
+    type: esp-idf
+    version: recommended
+    advanced:
+      execute_from_psram: true
+
+# ==============================================================================
+# EXTERNAL PSRAM
+# ==============================================================================
+# Explicitly enables the unit's 8 MB Octal PSRAM at 80 MHz. The large TFT
+# framebuffer and Wi-Fi allocations benefit significantly from this memory.
+
+psram:
+  mode: octal
+  speed: 80MHz
+  ignore_not_found: false
+
+# ==============================================================================
+# LOGGING
+# ==============================================================================
+# Keep ESPHome logging available through the API/network, but disable the
+# hardware UART logger. GPIO43/GPIO44 therefore remain electrically unused and
+# available as service/reserve pins rather than carrying continuous debug data.
+
+logger:
+  level: INFO
+  baud_rate: 0
+  logs:
+    canbus: WARN
+
+# ==============================================================================
+# LOCAL ESPHOME WEB SERVER
+# ==============================================================================
+# Exposes entities and controls directly from the ESP32 whenever IP networking
+# is available. Local blackstart operation does not depend on this web server.
+
+web_server:
+  version: 3
+  port: 80
+
+  # Keep all web UI assets on the ESP32 so the interface remains usable
+  # without internet access, including during blackstart scenarios.
+  local: true
+
+  # Internal helper entities are implementation details and should not be
+  # exposed through the browser UI.
+  include_internal: false
+
+  # Protect browser access to charger controls and diagnostics.
+  auth:
+    username: !secret web_server_username
+    password: !secret web_server_password
+    type: digest
+
+  # Native ESPHome OTA is already configured separately. Do not expose
+  # firmware upload through the normal web interface.
+  ota: false
+
+# ==============================================================================
+# HOME ASSISTANT NATIVE API
+# ==============================================================================
+# Encrypted ESPHome API. reboot_timeout is disabled deliberately: a missing
+# Home Assistant instance must never reboot a charger needed for blackstart.
+
+api:
+  encryption:
+    key: !secret api_encryption_key
+  reboot_timeout: 0s
+
+# ==============================================================================
+# OVER-THE-AIR FIRMWARE UPDATE
+# ==============================================================================
+# Enables normal ESPHome OTA updates after the first USB installation.
+
+ota:
+  - platform: esphome
+
+# ==============================================================================
+# WI-FI
+# ==============================================================================
+# Wi-Fi credentials come from secrets.yaml. Power saving is disabled for stable
+# latency. reboot_timeout: 0s keeps the controller alive indefinitely when Wi-Fi
+# is unavailable, which is essential for offline blackstart operation.
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+  # The device is permanently powered: disable Wi-Fi power saving for maximum link stability.
+  power_save_mode: none
+
+  # Allow Wi-Fi buffers/allocations to use the available 8 MB PSRAM.
+  use_psram: true
+  reboot_timeout: 0s
+
+  ap:
+    ssid: 3PhCharger Fallback Hotspot
+    password: !secret fallback_ap_password
+
+# ==============================================================================
+# FALLBACK CAPTIVE PORTAL
+# ==============================================================================
+# Works with the fallback access point above if the configured infrastructure
+# Wi-Fi cannot be reached.
+
+captive_portal:
+
+# ==============================================================================
+# TIME SYNCHRONIZATION
+# ==============================================================================
+# SNTP provides Europe/Berlin local time for the TFT clock and daily energy
+# integration. Display updates are handled independently by the TFT component.
+
+time:
+  - platform: sntp
+    id: sntp_time
+    timezone: Europe/Berlin
+    servers:
+      - 0.de.pool.ntp.org
+      - 1.de.pool.ntp.org
+      - 2.de.pool.ntp.org
+
+    on_time_sync:
+      then:
+        - lambda: |-
+            auto now = id(sntp_time).now();
+
+            ESP_LOGI(
+              "time",
+              "SNTP synchronized: %02d.%02d.%04d %02d:%02d:%02d",
+              now.day_of_month,
+              now.month,
+              now.year,
+              now.hour,
+              now.minute,
+              now.second
+            );
+
+# ==============================================================================
+# ESPHOME DEBUG METRICS
+# ==============================================================================
+# Enables internal diagnostic values such as heap, loop timing, PSRAM and CPU
+# frequency that are published further down in the sensor section.
+
+debug:
+  update_interval: 5s
+
+# ==============================================================================
+# MQTT CLIENT
+# ==============================================================================
+# Provides additional command topics besides the native API. MQTT is optional:
+# reboot_timeout is disabled so broker failure cannot affect local charging.
+
+mqtt:
+  id: mqtt_client
+  broker: !secret mqtt_host
+  username: !secret mqtt_username
+  password: !secret mqtt_password
+
+  # Home Assistant uses the native ESPHome API as the canonical integration.
+  # Keep MQTT available for external command/state transport without creating
+  # duplicate MQTT-discovered entities in Home Assistant.
+  discovery: false
+  discover_ip: true
+
+  # MQTT availability must never affect local charger operation.
+  reboot_timeout: 0s

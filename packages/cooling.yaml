@@ -1,0 +1,112 @@
+# ==============================================================================
+# EXTERNAL COOLING-FAN PACKAGE
+# ==============================================================================
+# Optional chassis/cooling fans around the rectifier assembly. These GPIO-based
+# fans are separate from the Huawei R4875G1 internal fan CAN telemetry/control.
+
+output:
+  # Shared 25 kHz PWM for external 4-pin fans. The planned transistor stage
+  # is inverting, so inverted=true keeps 100% equal to a full-speed command.
+  - platform: ledc
+    id: cooling_fan_pwm_output
+    frequency: ${cooling_fan_pwm_frequency}
+    pin:
+      number: ${pin_fan_pwm}
+      inverted: true
+
+switch:
+  # Common external fan-supply enable. Three-pin fans are controlled only by
+  # this power switch; they do not use the PWM command below.
+  - platform: gpio
+    name: "Cooling Fan Power"
+    id: cooling_fan_enable
+    icon: "mdi:fan"
+    restore_mode: ALWAYS_OFF
+    pin:
+      number: ${pin_fan_enable}
+      inverted: false
+
+sensor:
+  # External fan 1 tachometer. Conversion uses the configured pulses
+  # per revolution (default: two).
+  - platform: pulse_counter
+    name: "Cooling Fan 1 RPM"
+    id: cooling_fan_1_rpm
+    pin:
+      number: ${pin_fan1_tach}
+      mode:
+        input: true
+        pullup: true
+    count_mode:
+      rising_edge: INCREMENT
+      falling_edge: DISABLE
+    unit_of_measurement: "RPM"
+    accuracy_decimals: 0
+    update_interval: 5s
+    filters:
+      - lambda: 'return x / ${cooling_fan_tach_pulses_per_revolution}f;'
+
+    icon: "mdi:fan"
+
+  # External fan 2 tachometer. Conversion uses the configured pulses
+  # per revolution (default: two).
+  - platform: pulse_counter
+    name: "Cooling Fan 2 RPM"
+    id: cooling_fan_2_rpm
+    pin:
+      number: ${pin_fan2_tach}
+      mode:
+        input: true
+        pullup: true
+    count_mode:
+      rising_edge: INCREMENT
+      falling_edge: DISABLE
+    unit_of_measurement: "RPM"
+    accuracy_decimals: 0
+    update_interval: 5s
+    filters:
+      - lambda: 'return x / ${cooling_fan_tach_pulses_per_revolution}f;'
+
+    icon: "mdi:fan"
+
+  # External fan 3 tachometer. Conversion uses the configured pulses
+  # per revolution (default: two).
+  - platform: pulse_counter
+    name: "Cooling Fan 3 RPM"
+    id: cooling_fan_3_rpm
+    pin:
+      number: ${pin_fan3_tach}
+      mode:
+        input: true
+        pullup: true
+    count_mode:
+      rising_edge: INCREMENT
+      falling_edge: DISABLE
+    unit_of_measurement: "RPM"
+    accuracy_decimals: 0
+    update_interval: 5s
+    filters:
+      - lambda: 'return x / ${cooling_fan_tach_pulses_per_revolution}f;'
+
+    icon: "mdi:fan"
+
+number:
+  # Persistent manual 0-100% command for external 4-pin fans. Three-pin fans
+  # ignore this signal and continue to run whenever Cooling Fan Power is on.
+  - platform: template
+    name: "Cooling Fan PWM"
+    id: cooling_fan_pwm_percent
+    min_value: 0
+    max_value: 100
+    step: 1
+    unit_of_measurement: "%"
+    optimistic: true
+    restore_value: true
+    initial_value: ${cooling_fan_default_pwm_percent}
+    mode: SLIDER
+    icon: "mdi:fan-speed-3"
+    on_value:
+      then:
+        - lambda: |-
+            const float duty = std::max(0.0f, std::min(100.0f, x));
+            id(cooling_fan_pwm_output).set_level(duty / 100.0f);

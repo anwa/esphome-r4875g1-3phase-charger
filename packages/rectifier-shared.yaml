@@ -1,0 +1,2711 @@
+# ==============================================================================
+# SHARED RECTIFIER CONTROL PACKAGE
+# ==============================================================================
+# Cross-unit runtime state, scripts, CAN protocol handling and periodic schedulers.
+
+globals:
+  # Selects what the rotary encoder edits locally.
+  # 0 = DC voltage, 1 = total DC power. It is not restored so the UI starts in a
+  # known mode after boot.
+  - id: encoder_mode
+    type: int
+    restore_value: false
+    initial_value: "0"
+
+  # Timestamp (millis) when static property discovery most recently ended.
+  # Used for the post-property grace period before connectivity demotion resumes.
+  - id: last_property_discovery_end
+    type: uint32_t
+    restore_value: false
+    initial_value: "0"
+
+  # Next unit considered by the five-second OFFLINE round-robin probe task.
+  - id: offline_probe_next_unit
+    type: uint8_t
+    restore_value: false
+    initial_value: "1"
+
+  # --------------------------------------------------------------------------
+  # Thermal derating state
+  # --------------------------------------------------------------------------
+  # Updated only from valid output-temperature telemetry. A stale/NAN value
+  # never relaxes an existing warning or lockout.
+  - id: thermal_dc_current_limit
+    type: float
+    restore_value: false
+    initial_value: "${project_max_dc_current_a}f"
+
+  # Current-command scaling factor.
+  #
+  # The R4875G1 reports a maximum output current of 75 A, therefore the
+  # correct model-specific fallback is:
+  #
+  #     1024 / 75 A = 13.653333...
+  #
+  # This value is available immediately after boot so local blackstart remains
+  # usable even before capability discovery has completed.
+  #
+  # The value is not restored from flash because it is a hardware-derived
+  # parameter. Unit 1 capability discovery refreshes it automatically whenever
+  # Unit 1 becomes available on the CAN bus.
+  - id: current_scaling_factor
+    type: float
+    initial_value: "static_cast<float>(${protocol_value_scale}) / ${project_max_dc_current_a}f"
+    restore_value: false
+
+  # Effective maximum DC current command used by all current-control paths.
+  #
+  # 75 A is the absolute project ceiling for the intended R4875G1 installation.
+  # As rectifier capability data becomes available, this value is reduced to
+  # the lowest valid capability reported by any of the three units.
+  #
+  # This prevents the shared current command from exceeding the weakest known
+  # rectifier capability.
+  - id: effective_dc_current_limit
+    type: float
+    initial_value: "${project_max_dc_current_a}f"
+    restore_value: false
+
+  # Fixed-point protocol scale used by voltage and most telemetry fields.
+  # This is a protocol constant and must always start from protocol_value_scale;
+  # it is therefore never restored from persistent storage.
+  - id: voltage_scaling_factor
+    type: int
+    initial_value: "${protocol_value_scale}"
+    restore_value: false
+
+script:
+  # --------------------------------------------------------------------------
+  # set_rectifier_control_state
+  # --------------------------------------------------------------------------
+  # Centralized lifecycle-state handler for all three rectifiers.
+  #
+  # States:
+  #   0 = OFFLINE
+  #   1 = DISCOVERING
+  #   2 = ONLINE
+  #
+  # The state is published for diagnostics and is also used by the CAN polling
+  # scheduler and charger-wide lifecycle coordination.
+  - id: set_rectifier_control_state
+    mode: queued
+    max_runs: 12
+
+    parameters:
+      unit: int
+      state: int
+
+    then:
+      - lambda: |-
+          const uint8_t offline =
+              ${rectifier_state_offline};
+
+          const uint8_t discovering =
+              ${rectifier_state_discovering};
+
+          const uint8_t online =
+              ${rectifier_state_online};
+
+
+          if (state != offline &&
+              state != discovering &&
+              state != online) {
+
+            ESP_LOGW(
+              "rectifier_state",
+              "Ignoring invalid rectifier control state %d for Unit %d.",
+              state,
+              unit
+            );
+
+            return;
+          }
+
+          const auto state_name =
+              [offline, discovering, online](uint8_t value) -> const char * {
+
+            if (value == offline) {
+              return "OFFLINE";
+            }
+
+            if (value == discovering) {
+              return "DISCOVERING";
+            }
+
+            if (value == online) {
+              return "ONLINE";
+            }
+
+            return "UNKNOWN";
+          };
+
+          if (unit == 1) {
+
+            const uint8_t previous =
+                id(rectifier_control_state_1);
+
+            id(rectifier_control_state_1) =
+                static_cast<uint8_t>(state);
+
+            id(rectifier_control_state_text_1).publish_state(
+              state_name(static_cast<uint8_t>(state))
+            );
+
+            if (previous != state) {
+
+              ESP_LOGI(
+                "rectifier_state",
+                "Unit 1 control state: %s -> %s",
+                state_name(previous),
+                state_name(static_cast<uint8_t>(state))
+              );
+            }
+
+            return;
+          }
+
+          if (unit == 2) {
+
+            const uint8_t previous =
+                id(rectifier_control_state_2);
+
+            id(rectifier_control_state_2) =
+                static_cast<uint8_t>(state);
+
+            id(rectifier_control_state_text_2).publish_state(
+              state_name(static_cast<uint8_t>(state))
+            );
+
+            if (previous != state) {
+
+              ESP_LOGI(
+                "rectifier_state",
+                "Unit 2 control state: %s -> %s",
+                state_name(previous),
+                state_name(static_cast<uint8_t>(state))
+              );
+            }
+
+            return;
+          }
+
+          if (unit == 3) {
+
+            const uint8_t previous =
+                id(rectifier_control_state_3);
+
+            id(rectifier_control_state_3) =
+                static_cast<uint8_t>(state);
+
+            id(rectifier_control_state_text_3).publish_state(
+              state_name(static_cast<uint8_t>(state))
+            );
+
+            if (previous != state) {
+
+              ESP_LOGI(
+                "rectifier_state",
+                "Unit 3 control state: %s -> %s",
+                state_name(previous),
+                state_name(static_cast<uint8_t>(state))
+              );
+            }
+
+            return;
+          }
+
+          ESP_LOGW(
+            "rectifier_state",
+            "Ignoring control-state update for invalid Unit %d.",
+            unit
+          );
+
+  # --------------------------------------------------------------------------
+  # reconcile_rectifier_connectivity
+  # --------------------------------------------------------------------------
+  # Converts raw CAN connectivity loss into an operational lifecycle transition.
+  #
+  # Raw can_com_ok_x may temporarily become false while static property
+  # discovery intentionally suspends cyclic polling. Such expected gaps must
+  # not demote a healthy ONLINE rectifier.
+  #
+  # Lifecycle demotion is therefore suppressed:
+  #   - while any property discovery is active
+  #   - for a short grace period after property discovery ends
+  #
+  # If CAN communication is still unavailable after that grace period, the
+  # affected ONLINE rectifier is returned to OFFLINE.
+  - id: reconcile_rectifier_connectivity
+    mode: restart
+    then:
+      # Unit 1
+      - if:
+          condition:
+            lambda: |-
+              const bool property_discovery_active =
+                  id(detect_unit_1_properties).is_running() ||
+                  id(detect_unit_2_properties).is_running() ||
+                  id(detect_unit_3_properties).is_running();
+
+              const bool property_resume_grace =
+                  id(last_property_discovery_end) != 0 &&
+                  static_cast<uint32_t>(
+                    millis() - id(last_property_discovery_end)
+                  ) < ${property_poll_resume_grace_ms}U;
+
+              return
+                id(rectifier_control_state_1) ==
+                  ${rectifier_state_online} &&
+                !id(can_com_ok_1).state &&
+                !property_discovery_active &&
+                !property_resume_grace;
+
+          then:
+            - script.execute:
+                id: set_rectifier_control_state
+                unit: 1
+                state: ${rectifier_state_offline}
+
+            - lambda: |-
+                if (id(power_state_1).state != "UNKNOWN") {
+                  id(power_state_1).publish_state("UNKNOWN");
+                }
+
+                ESP_LOGW(
+                  "canbus",
+                  "Unit 1: CAN communication lost - "
+                  "returning lifecycle state to OFFLINE."
+                );
+
+      # Unit 2
+      - if:
+          condition:
+            lambda: |-
+              const bool property_discovery_active =
+                  id(detect_unit_1_properties).is_running() ||
+                  id(detect_unit_2_properties).is_running() ||
+                  id(detect_unit_3_properties).is_running();
+
+              const bool property_resume_grace =
+                  id(last_property_discovery_end) != 0 &&
+                  static_cast<uint32_t>(
+                    millis() - id(last_property_discovery_end)
+                  ) < ${property_poll_resume_grace_ms}U;
+
+              return
+                id(rectifier_control_state_2) ==
+                  ${rectifier_state_online} &&
+                !id(can_com_ok_2).state &&
+                !property_discovery_active &&
+                !property_resume_grace;
+
+          then:
+            - script.execute:
+                id: set_rectifier_control_state
+                unit: 2
+                state: ${rectifier_state_offline}
+
+            - lambda: |-
+                if (id(power_state_2).state != "UNKNOWN") {
+                  id(power_state_2).publish_state("UNKNOWN");
+                }
+
+                ESP_LOGW(
+                  "canbus",
+                  "Unit 2: CAN communication lost - "
+                  "returning lifecycle state to OFFLINE."
+                );
+
+      # Unit 3
+      - if:
+          condition:
+            lambda: |-
+              const bool property_discovery_active =
+                  id(detect_unit_1_properties).is_running() ||
+                  id(detect_unit_2_properties).is_running() ||
+                  id(detect_unit_3_properties).is_running();
+
+              const bool property_resume_grace =
+                  id(last_property_discovery_end) != 0 &&
+                  static_cast<uint32_t>(
+                    millis() - id(last_property_discovery_end)
+                  ) < ${property_poll_resume_grace_ms}U;
+
+              return
+                id(rectifier_control_state_3) ==
+                  ${rectifier_state_online} &&
+                !id(can_com_ok_3).state &&
+                !property_discovery_active &&
+                !property_resume_grace;
+
+          then:
+            - script.execute:
+                id: set_rectifier_control_state
+                unit: 3
+                state: ${rectifier_state_offline}
+
+            - lambda: |-
+                if (id(power_state_3).state != "UNKNOWN") {
+                  id(power_state_3).publish_state("UNKNOWN");
+                }
+
+                ESP_LOGW(
+                  "canbus",
+                  "Unit 3: CAN communication lost - "
+                  "returning lifecycle state to OFFLINE."
+                );
+
+  # --------------------------------------------------------------------------
+  # send_single_shot_offline_probe
+  # --------------------------------------------------------------------------
+  # Sends exactly one cyclic telemetry request to an OFFLINE rectifier.
+  #
+  # ESPHome's normal canbus.send path uses the standard TWAI transmission mode.
+  # When no CAN peer is present, the hardware automatically retries an
+  # unacknowledged frame and can quickly drive the controller into BUS_OFF.
+  #
+  # Offline reachability probes therefore bypass canbus.send and use the
+  # ESP-IDF TWAI_MSG_FLAG_SS flag:
+  #
+  #   SS = Single Shot
+  #
+  # The frame is attempted exactly once. A missing ACK does not cause automatic
+  # retransmission of that same frame.
+  #
+  # This project uses exactly one ESP32 CAN controller. ESPHome installs it as
+  # TWAI controller 0, therefore the legacy twai_transmit() wrapper addresses
+  # the same driver instance used by ESPHome's internal twai_transmit_v2().
+  - id: send_single_shot_offline_probe
+    mode: queued
+    max_runs: 4
+
+    parameters:
+      unit: int
+
+    then:
+      - lambda: |-
+          uint32_t can_id = 0;
+
+          switch (unit) {
+            case 1:
+              can_id = 0x108140FE;
+              break;
+
+            case 2:
+              can_id = 0x108240FE;
+              break;
+
+            case 3:
+              can_id = 0x108340FE;
+              break;
+
+            default:
+              ESP_LOGW(
+                "offline_probe",
+                "Invalid rectifier unit for single-shot probe: %d",
+                unit
+              );
+              return;
+          }
+
+          // Do not enqueue application traffic while the TWAI controller is
+          // BUS_OFF, recovering or stopped. The dedicated recovery task owns
+          // those controller states.
+          twai_status_info_t status_info{};
+
+          const esp_err_t status_result =
+              twai_get_status_info(&status_info);
+
+          if (status_result != ESP_OK) {
+            ESP_LOGW(
+              "offline_probe",
+              "Unable to read TWAI status before Unit %d probe: %s",
+              unit,
+              esp_err_to_name(status_result)
+            );
+            return;
+          }
+
+          if (status_info.state != TWAI_STATE_RUNNING) {
+            ESP_LOGD(
+              "offline_probe",
+              "Unit %d probe skipped because TWAI is not RUNNING.",
+              unit
+            );
+            return;
+          }
+
+          twai_message_t message{};
+
+          message.flags =
+              TWAI_MSG_FLAG_EXTD |
+              TWAI_MSG_FLAG_SS;
+
+          message.identifier =
+              can_id;
+
+          message.data_length_code =
+              8;
+
+          memset(
+            message.data,
+            0x00,
+            sizeof(message.data)
+          );
+
+          // Non-blocking queue operation.
+          //
+          // ESP_OK means the frame was accepted for transmission; it does not
+          // imply that another CAN node acknowledged it.
+          const esp_err_t transmit_result =
+              twai_transmit(
+                &message,
+                0
+              );
+
+          if (transmit_result != ESP_OK) {
+            ESP_LOGD(
+              "offline_probe",
+              "Single-shot probe for Unit %d could not be queued: %s",
+              unit,
+              esp_err_to_name(transmit_result)
+            );
+            return;
+          }
+
+          ESP_LOGD(
+            "offline_probe",
+            "Single-shot reconnect probe queued for Unit %d "
+            "(CAN ID 0x%08lX).",
+            unit,
+            static_cast<unsigned long>(can_id)
+          );
+
+  # --------------------------------------------------------------------------
+  # update_effective_dc_current_limit
+  # --------------------------------------------------------------------------
+  # Maintains the common hardware current ceiling across all rectifiers.
+  - id: update_effective_dc_current_limit
+    mode: restart
+    then:
+      - lambda: |-
+          constexpr float project_max_current =
+              ${project_max_dc_current_a}f;
+
+          float effective_limit = project_max_current;
+          bool capability_available = false;
+
+          const float capability_1 =
+              id(max_dc_current_1).state;
+
+          const float capability_2 =
+              id(max_dc_current_2).state;
+
+          const float capability_3 =
+              id(max_dc_current_3).state;
+
+
+          // Unit 1
+          if (!isnan(capability_1) &&
+              capability_1 > 0.0f) {
+
+            capability_available = true;
+
+            if (capability_1 < effective_limit) {
+              effective_limit = capability_1;
+            }
+          }
+
+
+          // Unit 2
+          if (!isnan(capability_2) &&
+              capability_2 > 0.0f) {
+
+            capability_available = true;
+
+            if (capability_2 < effective_limit) {
+              effective_limit = capability_2;
+            }
+          }
+
+
+          // Unit 3
+          if (!isnan(capability_3) &&
+              capability_3 > 0.0f) {
+
+            capability_available = true;
+
+            if (capability_3 < effective_limit) {
+              effective_limit = capability_3;
+            }
+          }
+
+
+          const float previous_limit =
+              id(effective_dc_current_limit);
+
+          id(effective_dc_current_limit) =
+              effective_limit;
+
+          id(effective_dc_current_limit_sensor).publish_state(
+            effective_limit
+          );
+
+
+          if (fabsf(previous_limit - effective_limit) > 0.01f) {
+
+            ESP_LOGI(
+              "current_limit",
+              "Effective DC current limit changed from %.1f A to %.1f A.",
+              previous_limit,
+              effective_limit
+            );
+          }
+
+
+          if (capability_available) {
+
+            ESP_LOGI(
+              "current_limit",
+              "Effective DC current limit: %.1f A "
+              "(project ceiling %.1f A, lowest valid detected capability).",
+              effective_limit,
+              ${project_max_dc_current_a}f
+            );
+
+          } else {
+
+            ESP_LOGI(
+              "current_limit",
+              "No rectifier capability available yet. "
+              "Using %.1f A R4875G1 fallback.",
+              ${project_max_dc_current_a}f
+            );
+          }
+
+
+          // Preserve the user-requested current. Hardware capability is now one
+          // input to the applied-current calculation instead of overwriting the
+          // requested value.
+          if (!isnan(id(set_dc_current_limit).state) &&
+              id(set_dc_current_limit).state > effective_limit) {
+
+            ESP_LOGW(
+              "current_limit",
+              "Requested active DC current %.1f A exceeds hardware limit %.1f A. "
+              "Keeping requested value; applied current is limited.",
+              id(set_dc_current_limit).state,
+              effective_limit
+            );
+          }
+
+
+          // Apply the same protection to the rectifier fallback-current value.
+          if (!isnan(id(set_dc_current_limit_fallback).state) &&
+              id(set_dc_current_limit_fallback).state > effective_limit) {
+
+            ESP_LOGW(
+              "current_limit",
+              "Fallback DC current %.1f A exceeds new effective limit %.1f A. "
+              "Reducing setpoint.",
+              id(set_dc_current_limit_fallback).state,
+              effective_limit
+            );
+
+            auto fallback_call =
+                id(set_dc_current_limit_fallback).make_call();
+
+            fallback_call.set_value(effective_limit);
+            fallback_call.perform();
+          }
+
+      - script.execute: send_active_current_to_online_units
+
+  # --------------------------------------------------------------------------
+  # update_thermal_current_limit
+  # --------------------------------------------------------------------------
+  # Shared thermal ceiling based on the most severe latched per-unit state.
+  # NORMAL=75 A, WARNING_1=50 A, WARNING_2/LOCKOUT=30 A.
+  - id: update_thermal_current_limit
+    mode: restart
+    then:
+      - lambda: |-
+          float limit = ${project_max_dc_current_a}f;
+
+          const auto apply_state = [&limit](uint8_t state) {
+            if (state == ${thermal_state_warn1}) {
+              limit = std::min(limit, ${thermal_warn1_limit_a}f);
+            } else if (state == ${thermal_state_warn2} ||
+                       state == ${thermal_state_lockout}) {
+              limit = std::min(limit, ${thermal_warn2_limit_a}f);
+            }
+          };
+
+          apply_state(id(thermal_state_1));
+          apply_state(id(thermal_state_2));
+          apply_state(id(thermal_state_3));
+
+          const float previous = id(thermal_dc_current_limit);
+          id(thermal_dc_current_limit) = limit;
+
+          if (fabsf(previous - limit) > 0.01f) {
+            ESP_LOGW(
+              "thermal",
+              "Thermal DC current limit changed from %.1f A to %.1f A.",
+              previous,
+              limit
+            );
+          }
+
+      # Apply a new thermal ceiling immediately. The normal 30-second refresh
+      # remains the periodic fallback.
+      - script.execute: send_active_current_to_online_units
+
+  # --------------------------------------------------------------------------
+  # update_rectifier_thermal_state
+  # --------------------------------------------------------------------------
+  # Hysteretic per-unit state machine. It runs only for valid numeric
+  # output-temperature samples. Missing/stale data therefore never clears a
+  # warning or lockout.
+  - id: update_rectifier_thermal_state
+    mode: queued
+    max_runs: 12
+    parameters:
+      unit: int
+      temperature: float
+    then:
+      # Hard trip sends OFF once on entry.
+      - if:
+          condition:
+            lambda: 'return unit == 1 && temperature >= ${overtemp_trip_c}f && !id(overtemp_lockout_1);'
+          then:
+            - lambda: 'id(overtemp_lockout_1) = true;'
+            - canbus.send:
+                use_extended_id: true
+                can_id: 0x108180FE
+                data: [0x01, 0x32, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00]
+      - if:
+          condition:
+            lambda: 'return unit == 2 && temperature >= ${overtemp_trip_c}f && !id(overtemp_lockout_2);'
+          then:
+            - lambda: 'id(overtemp_lockout_2) = true;'
+            - canbus.send:
+                use_extended_id: true
+                can_id: 0x108280FE
+                data: [0x01, 0x32, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00]
+      - if:
+          condition:
+            lambda: 'return unit == 3 && temperature >= ${overtemp_trip_c}f && !id(overtemp_lockout_3);'
+          then:
+            - lambda: 'id(overtemp_lockout_3) = true;'
+            - canbus.send:
+                use_extended_id: true
+                can_id: 0x108380FE
+                data: [0x01, 0x32, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00]
+
+      - lambda: |-
+          uint8_t *state = nullptr;
+          bool *lockout = nullptr;
+          esphome::template_::TemplateTextSensor *text = nullptr;
+
+          if (unit == 1) {
+            state = &id(thermal_state_1);
+            lockout = &id(overtemp_lockout_1);
+            text = id(thermal_state_text_1);
+          } else if (unit == 2) {
+            state = &id(thermal_state_2);
+            lockout = &id(overtemp_lockout_2);
+            text = id(thermal_state_text_2);
+          } else if (unit == 3) {
+            state = &id(thermal_state_3);
+            lockout = &id(overtemp_lockout_3);
+            text = id(thermal_state_text_3);
+          } else {
+            ESP_LOGW("thermal", "Invalid thermal-state unit: %d", unit);
+            return;
+          }
+
+          const uint8_t previous = *state;
+          uint8_t next = previous;
+
+          if (previous == ${thermal_state_lockout}) {
+            if (temperature < ${overtemp_reset_c}f) {
+              next = ${thermal_state_warn1};
+            }
+          } else if (previous == ${thermal_state_warn2}) {
+            if (temperature >= ${overtemp_trip_c}f) {
+              next = ${thermal_state_lockout};
+            } else if (temperature < ${thermal_warn2_reset_c}f) {
+              next = ${thermal_state_warn1};
+            }
+          } else if (previous == ${thermal_state_warn1}) {
+            if (temperature >= ${overtemp_trip_c}f) {
+              next = ${thermal_state_lockout};
+            } else if (temperature >= ${thermal_warn2_c}f) {
+              next = ${thermal_state_warn2};
+            } else if (temperature < ${thermal_warn1_reset_c}f) {
+              next = ${thermal_state_normal};
+            }
+          } else {
+            if (temperature >= ${overtemp_trip_c}f) {
+              next = ${thermal_state_lockout};
+            } else if (temperature >= ${thermal_warn2_c}f) {
+              next = ${thermal_state_warn2};
+            } else if (temperature >= ${thermal_warn1_c}f) {
+              next = ${thermal_state_warn1};
+            } else {
+              next = ${thermal_state_normal};
+            }
+          }
+
+          *lockout = (next == ${thermal_state_lockout});
+
+          if (next != previous) {
+            *state = next;
+
+            const char *name =
+              next == ${thermal_state_lockout} ? "LOCKOUT" :
+              next == ${thermal_state_warn2} ? "WARNING_2" :
+              next == ${thermal_state_warn1} ? "WARNING_1" :
+              "NORMAL";
+
+            text->publish_state(name);
+
+            ESP_LOGW(
+              "thermal",
+              "Unit %d thermal state changed to %s at %.1f C.",
+              unit,
+              name,
+              temperature
+            );
+
+            id(update_thermal_current_limit)->execute();
+          }
+
+  # --------------------------------------------------------------------------
+  # evaluate_rectifier_capabilities
+  # --------------------------------------------------------------------------
+  # Compares the maximum-current capability reported by all three rectifiers.
+  #
+  # The diagnostic becomes valid only after all three capability responses have
+  # been received. Until then the binary sensor remains UNKNOWN.
+  #
+  # Huawei capability data is encoded in 0.5 A steps, therefore a tolerance of
+  # 0.25 A reliably distinguishes equal capabilities from an actual mismatch.
+  - id: evaluate_rectifier_capabilities
+    mode: restart
+    then:
+      - if:
+          condition:
+            lambda: |-
+              return
+                id(max_current_found_1) &&
+                id(max_current_found_2) &&
+                id(max_current_found_3) &&
+
+                !isnan(id(max_dc_current_1).state) &&
+                !isnan(id(max_dc_current_2).state) &&
+                !isnan(id(max_dc_current_3).state);
+
+          then:
+            - lambda: |-
+                const float capability_1 =
+                    id(max_dc_current_1).state;
+
+                const float capability_2 =
+                    id(max_dc_current_2).state;
+
+                const float capability_3 =
+                    id(max_dc_current_3).state;
+
+                // Capability values are reported in 0.5 A steps.
+                // 0.25 A therefore safely separates equal values from
+                // different reported hardware capabilities.
+                constexpr float tolerance_a = 0.25f;
+
+                const bool mismatch =
+                    fabsf(capability_1 - capability_2) > tolerance_a ||
+                    fabsf(capability_1 - capability_3) > tolerance_a ||
+                    fabsf(capability_2 - capability_3) > tolerance_a;
+
+                id(rectifier_capability_mismatch).publish_state(mismatch);
+
+                if (mismatch) {
+                  ESP_LOGE(
+                    "capability",
+                    "RECTIFIER CAPABILITY MISMATCH: "
+                    "Unit 1 = %.1f A, Unit 2 = %.1f A, Unit 3 = %.1f A. "
+                    "Shared current scaling remains based on Unit 1.",
+                    capability_1,
+                    capability_2,
+                    capability_3
+                  );
+                } else {
+                  ESP_LOGI(
+                    "capability",
+                    "Rectifier capabilities match: "
+                    "Unit 1 = %.1f A, Unit 2 = %.1f A, Unit 3 = %.1f A.",
+                    capability_1,
+                    capability_2,
+                    capability_3
+                  );
+                }
+
+          else:
+            - binary_sensor.invalidate_state: rectifier_capability_mismatch
+
+  # --------------------------------------------------------------------------
+  # send_active_voltage_to_unit
+  # --------------------------------------------------------------------------
+  # Sends the configured active DC voltage to exactly one rectifier.
+  #
+  # Unit-specific addressing prevents OFFLINE or DISCOVERING rectifiers from
+  # receiving normal operating setpoints intended for already ONLINE units.
+  - id: send_active_voltage_to_unit
+    mode: queued
+    max_runs: 12
+    parameters:
+      unit: int
+
+    then:
+      - if:
+          condition:
+            lambda: |-
+              const float voltage =
+                  id(set_dc_voltage_limit).state;
+
+              return
+                unit >= 1 &&
+                unit <= 3 &&
+                !isnan(voltage) &&
+                voltage >= ${dc_voltage_min_v}f &&
+                voltage <= ${dc_voltage_max_v}f;
+
+          then:
+            # Unit 1
+            - if:
+                condition:
+                  lambda: 'return unit == 1;'
+                then:
+                  - canbus.send:
+                      use_extended_id: true
+                      can_id: 0x108180FE
+                      data: !lambda |-
+                        std::vector<uint8_t> can_data(8, 0x00);
+
+                        can_data[0] = 0x01;
+
+                        const int scaled_value =
+                            static_cast<int>(
+                              id(set_dc_voltage_limit).state *
+                              id(voltage_scaling_factor)
+                            );
+
+                        can_data[6] = (scaled_value >> 8) & 0xFF;
+                        can_data[7] = scaled_value & 0xFF;
+
+                        return can_data;
+
+            # Unit 2
+            - if:
+                condition:
+                  lambda: 'return unit == 2;'
+                then:
+                  - canbus.send:
+                      use_extended_id: true
+                      can_id: 0x108280FE
+                      data: !lambda |-
+                        std::vector<uint8_t> can_data(8, 0x00);
+
+                        can_data[0] = 0x01;
+
+                        const int scaled_value =
+                            static_cast<int>(
+                              id(set_dc_voltage_limit).state *
+                              id(voltage_scaling_factor)
+                            );
+
+                        can_data[6] = (scaled_value >> 8) & 0xFF;
+                        can_data[7] = scaled_value & 0xFF;
+
+                        return can_data;
+
+            # Unit 3
+            - if:
+                condition:
+                  lambda: 'return unit == 3;'
+                then:
+                  - canbus.send:
+                      use_extended_id: true
+                      can_id: 0x108380FE
+                      data: !lambda |-
+                        std::vector<uint8_t> can_data(8, 0x00);
+
+                        can_data[0] = 0x01;
+
+                        const int scaled_value =
+                            static_cast<int>(
+                              id(set_dc_voltage_limit).state *
+                              id(voltage_scaling_factor)
+                            );
+
+                        can_data[6] = (scaled_value >> 8) & 0xFF;
+                        can_data[7] = scaled_value & 0xFF;
+
+                        return can_data;
+
+          else:
+            - lambda: |-
+                ESP_LOGW(
+                  "setpoint",
+                  "Active DC voltage not sent: invalid Unit %d "
+                  "or voltage %.2f V.",
+                  unit,
+                  id(set_dc_voltage_limit).state
+                );
+
+
+  # --------------------------------------------------------------------------
+  # send_active_current_to_unit
+  # --------------------------------------------------------------------------
+  # Sends the requested active DC current, limited by hardware capability and
+  # the shared thermal derating ceiling, to exactly one rectifier.
+  - id: send_active_current_to_unit
+    mode: queued
+    max_runs: 12
+    parameters:
+      unit: int
+
+    then:
+      - if:
+          condition:
+            lambda: |-
+              const float requested = id(set_dc_current_limit).state;
+              return
+                unit >= 1 && unit <= 3 &&
+                !isnan(requested) &&
+                requested >= ${minimum_dc_current_a}f &&
+                requested <= ${project_max_dc_current_a}f + 0.01f &&
+                !isnan(id(effective_dc_current_limit)) &&
+                id(effective_dc_current_limit) > 0.0f &&
+                !isnan(id(thermal_dc_current_limit)) &&
+                id(thermal_dc_current_limit) > 0.0f &&
+                !isnan(id(current_scaling_factor)) &&
+                id(current_scaling_factor) > 0.0f;
+
+          then:
+            - lambda: |-
+                float applied = id(set_dc_current_limit).state;
+                applied = std::min(applied, id(effective_dc_current_limit));
+                applied = std::min(applied, id(thermal_dc_current_limit));
+
+                id(applied_dc_current_limit_sensor).publish_state(applied);
+
+                ESP_LOGD(
+                  "setpoint",
+                  "Unit %d current request %.1f A -> applied %.1f A "
+                  "(hardware %.1f A, thermal %.1f A).",
+                  unit,
+                  id(set_dc_current_limit).state,
+                  applied,
+                  id(effective_dc_current_limit),
+                  id(thermal_dc_current_limit)
+                );
+
+            - if:
+                condition:
+                  lambda: 'return unit == 1;'
+                then:
+                  - canbus.send:
+                      use_extended_id: true
+                      can_id: 0x108180FE
+                      data: !lambda |-
+                        std::vector<uint8_t> can_data(8, 0x00);
+                        can_data[0] = 0x01;
+                        can_data[1] = 0x03;
+                        float applied = std::min(id(set_dc_current_limit).state, id(effective_dc_current_limit));
+                        applied = std::min(applied, id(thermal_dc_current_limit));
+                        const int scaled_value = static_cast<int>(applied * id(current_scaling_factor));
+                        can_data[6] = (scaled_value >> 8) & 0xFF;
+                        can_data[7] = scaled_value & 0xFF;
+                        return can_data;
+
+            - if:
+                condition:
+                  lambda: 'return unit == 2;'
+                then:
+                  - canbus.send:
+                      use_extended_id: true
+                      can_id: 0x108280FE
+                      data: !lambda |-
+                        std::vector<uint8_t> can_data(8, 0x00);
+                        can_data[0] = 0x01;
+                        can_data[1] = 0x03;
+                        float applied = std::min(id(set_dc_current_limit).state, id(effective_dc_current_limit));
+                        applied = std::min(applied, id(thermal_dc_current_limit));
+                        const int scaled_value = static_cast<int>(applied * id(current_scaling_factor));
+                        can_data[6] = (scaled_value >> 8) & 0xFF;
+                        can_data[7] = scaled_value & 0xFF;
+                        return can_data;
+
+            - if:
+                condition:
+                  lambda: 'return unit == 3;'
+                then:
+                  - canbus.send:
+                      use_extended_id: true
+                      can_id: 0x108380FE
+                      data: !lambda |-
+                        std::vector<uint8_t> can_data(8, 0x00);
+                        can_data[0] = 0x01;
+                        can_data[1] = 0x03;
+                        float applied = std::min(id(set_dc_current_limit).state, id(effective_dc_current_limit));
+                        applied = std::min(applied, id(thermal_dc_current_limit));
+                        const int scaled_value = static_cast<int>(applied * id(current_scaling_factor));
+                        can_data[6] = (scaled_value >> 8) & 0xFF;
+                        can_data[7] = scaled_value & 0xFF;
+                        return can_data;
+
+          else:
+            - lambda: |-
+                ESP_LOGW(
+                  "setpoint",
+                  "Active DC current not sent to Unit %d: invalid "
+                  "requested/hardware/thermal/scaling state.",
+                  unit
+                );
+
+  # --------------------------------------------------------------------------
+  # send_active_voltage_to_online_units
+  # --------------------------------------------------------------------------
+  - id: send_active_voltage_to_online_units
+    mode: restart
+    then:
+      - if:
+          condition:
+            lambda: |-
+              return
+                id(rectifier_control_state_1) ==
+                  ${rectifier_state_online} &&
+                id(can_com_ok_1).state;
+          then:
+            - lambda: 'id(send_active_voltage_to_unit)->execute(1);'
+            - script.wait: send_active_voltage_to_unit
+
+      - if:
+          condition:
+            lambda: |-
+              return
+                id(rectifier_control_state_2) ==
+                  ${rectifier_state_online} &&
+                id(can_com_ok_2).state;
+          then:
+            - lambda: 'id(send_active_voltage_to_unit)->execute(2);'
+            - script.wait: send_active_voltage_to_unit
+
+      - if:
+          condition:
+            lambda: |-
+              return
+                id(rectifier_control_state_3) ==
+                  ${rectifier_state_online} &&
+                id(can_com_ok_3).state;
+          then:
+            - lambda: 'id(send_active_voltage_to_unit)->execute(3);'
+            - script.wait: send_active_voltage_to_unit
+
+
+  # --------------------------------------------------------------------------
+  # send_active_current_to_online_units
+  # --------------------------------------------------------------------------
+  - id: send_active_current_to_online_units
+    mode: restart
+    then:
+      - if:
+          condition:
+            lambda: |-
+              return
+                id(rectifier_control_state_1) ==
+                  ${rectifier_state_online} &&
+                id(can_com_ok_1).state;
+          then:
+            - lambda: 'id(send_active_current_to_unit)->execute(1);'
+            - script.wait: send_active_current_to_unit
+
+      - if:
+          condition:
+            lambda: |-
+              return
+                id(rectifier_control_state_2) ==
+                  ${rectifier_state_online} &&
+                id(can_com_ok_2).state;
+          then:
+            - lambda: 'id(send_active_current_to_unit)->execute(2);'
+            - script.wait: send_active_current_to_unit
+
+      - if:
+          condition:
+            lambda: |-
+              return
+                id(rectifier_control_state_3) ==
+                  ${rectifier_state_online} &&
+                id(can_com_ok_3).state;
+          then:
+            - lambda: 'id(send_active_current_to_unit)->execute(3);'
+            - script.wait: send_active_current_to_unit
+
+
+  # --------------------------------------------------------------------------
+  # refresh_active_setpoints_online
+  # --------------------------------------------------------------------------
+  # Periodically reasserts active voltage/current only to fully ONLINE units.
+  - id: refresh_active_setpoints_online
+    mode: restart
+    then:
+      - script.execute: send_active_voltage_to_online_units
+      - script.wait: send_active_voltage_to_online_units
+
+      - delay: 50ms
+
+      - script.execute: send_active_current_to_online_units
+      - script.wait: send_active_current_to_online_units
+
+  # --------------------------------------------------------------------------
+  # reapply_active_setpoints
+  # --------------------------------------------------------------------------
+  # Restores the currently configured active voltage and current to one
+  # specifically verified rectifier after discovery.
+  #
+  # The unit is still DISCOVERING while these commands are sent. It is marked
+  # ONLINE by the discovery queue only after this script has completed.
+  - id: reapply_active_setpoints
+    mode: queued
+    max_runs: 8
+
+    parameters:
+      unit: int
+
+    then:
+      - if:
+          condition:
+            lambda: |-
+              const float voltage =
+                  id(set_dc_voltage_limit).state;
+
+              const float current =
+                  id(set_dc_current_limit).state;
+
+              return
+                unit >= 1 &&
+                unit <= 3 &&
+
+                !isnan(voltage) &&
+                voltage >= ${dc_voltage_min_v}f &&
+                voltage <= ${dc_voltage_max_v}f &&
+
+                !isnan(current) &&
+                current >= ${minimum_dc_current_a}f &&
+                current <= ${project_max_dc_current_a}f + 0.01f &&
+
+                !isnan(id(effective_dc_current_limit)) &&
+                id(effective_dc_current_limit) > 0.0f &&
+                !isnan(id(thermal_dc_current_limit)) &&
+                id(thermal_dc_current_limit) > 0.0f &&
+
+                !isnan(id(current_scaling_factor)) &&
+                id(current_scaling_factor) > 0.0f;
+
+          then:
+            - lambda: |-
+                ESP_LOGI(
+                  "setpoint_restore",
+                  "Reapplying active DC setpoints to Unit %d after discovery: "
+                  "%.1f V, %.1f A/unit.",
+                  unit,
+                  id(set_dc_voltage_limit).state,
+                  id(set_dc_current_limit).state
+                );
+
+                id(send_active_voltage_to_unit)->execute(unit);
+
+            - script.wait: send_active_voltage_to_unit
+
+            - delay: 50ms
+
+            - lambda: |-
+                id(send_active_current_to_unit)->execute(unit);
+
+            - script.wait: send_active_current_to_unit
+
+            - lambda: |-
+                ESP_LOGI(
+                  "setpoint_restore",
+                  "Active DC setpoint restore commands sent to Unit %d.",
+                  unit
+                );
+
+          else:
+            - lambda: |-
+                ESP_LOGW(
+                  "setpoint_restore",
+                  "Active DC setpoints were not reapplied to Unit %d because "
+                  "the stored voltage/current/scaling state is invalid. "
+                  "Voltage=%.2f V, current=%.2f A, scaling=%.6f.",
+                  unit,
+                  id(set_dc_voltage_limit).state,
+                  id(set_dc_current_limit).state,
+                  id(current_scaling_factor)
+                );
+
+  # --------------------------------------------------------------------------
+  # discovery_queue
+  # --------------------------------------------------------------------------
+  # Global serialized discovery worker.
+  #
+  # All automatic per-unit discovery requests and the manual full discovery
+  # sequence are routed through this queue so only one discovery operation can
+  # use the CAN bus at a time.
+  #
+  # A successfully discovered unit receives its configured active DC voltage
+  # and current before transitioning from DISCOVERING to ONLINE.
+  #
+  # unit:
+  #   0 = full manual discovery sequence
+  #   1 = Unit 1 only
+  #   2 = Unit 2 only
+  #   3 = Unit 3 only
+  - id: discovery_queue
+    mode: queued
+    max_runs: 8
+
+    parameters:
+      unit: int
+
+    then:
+      # ----------------------------------------------------------------------
+      # Full three-unit discovery
+      # ----------------------------------------------------------------------
+      - if:
+          condition:
+            lambda: 'return unit == 0;'
+
+          then:
+            - logger.log:
+                level: INFO
+                format: "Discovery queue: starting full three-unit discovery."
+
+            # Prevent normal fast polling and duplicate automatic discovery
+            # triggers while the manual discovery is running.
+            - script.execute:
+                id: set_rectifier_control_state
+                unit: 1
+                state: ${rectifier_state_discovering}
+
+            - script.execute:
+                id: set_rectifier_control_state
+                unit: 2
+                state: ${rectifier_state_discovering}
+
+            - script.execute:
+                id: set_rectifier_control_state
+                unit: 3
+                state: ${rectifier_state_discovering}
+
+            # --------------------------------------------------------------
+            # Unit 1
+            # --------------------------------------------------------------
+            - logger.log:
+                level: INFO
+                format: "Discovery queue: starting Unit 1 discovery."
+
+            - script.execute: discover_unit_1
+            - script.wait: discover_unit_1
+
+            - if:
+                condition:
+                  lambda: |-
+                    return
+                      id(can_com_ok_1).state &&
+                      id(unit_properties_complete_1) &&
+                      id(max_current_found_1) &&
+                      id(data_found_1);
+
+                then:
+                  - logger.log:
+                      level: INFO
+                      format: "Discovery queue: Unit 1 discovery verified - restoring active DC setpoints."
+
+                  - lambda: 'id(reapply_active_setpoints)->execute(1);'
+                  - script.wait: reapply_active_setpoints
+
+                  - script.execute:
+                      id: set_rectifier_control_state
+                      unit: 1
+                      state: ${rectifier_state_online}
+
+                else:
+                  - logger.log:
+                      level: WARN
+                      format: "Discovery queue: Unit 1 discovery incomplete - returning unit to OFFLINE."
+
+                  - script.execute:
+                      id: set_rectifier_control_state
+                      unit: 1
+                      state: ${rectifier_state_offline}
+
+            # --------------------------------------------------------------
+            # Unit 2
+            # --------------------------------------------------------------
+            - logger.log:
+                level: INFO
+                format: "Discovery queue: starting Unit 2 discovery."
+
+            - script.execute: discover_unit_2
+            - script.wait: discover_unit_2
+
+            - if:
+                condition:
+                  lambda: |-
+                    return
+                      id(can_com_ok_2).state &&
+                      id(unit_properties_complete_2) &&
+                      id(max_current_found_2) &&
+                      id(data_found_2);
+
+                then:
+                  - logger.log:
+                      level: INFO
+                      format: "Discovery queue: Unit 2 discovery verified - restoring active DC setpoints."
+
+                  - lambda: 'id(reapply_active_setpoints)->execute(2);'
+                  - script.wait: reapply_active_setpoints
+
+                  - script.execute:
+                      id: set_rectifier_control_state
+                      unit: 2
+                      state: ${rectifier_state_online}
+
+                else:
+                  - logger.log:
+                      level: WARN
+                      format: "Discovery queue: Unit 2 discovery incomplete - returning unit to OFFLINE."
+
+                  - script.execute:
+                      id: set_rectifier_control_state
+                      unit: 2
+                      state: ${rectifier_state_offline}
+
+            # --------------------------------------------------------------
+            # Unit 3
+            # --------------------------------------------------------------
+            - logger.log:
+                level: INFO
+                format: "Discovery queue: starting Unit 3 discovery."
+
+            - script.execute: discover_unit_3
+            - script.wait: discover_unit_3
+
+            - if:
+                condition:
+                  lambda: |-
+                    return
+                      id(can_com_ok_3).state &&
+                      id(unit_properties_complete_3) &&
+                      id(max_current_found_3) &&
+                      id(data_found_3);
+
+                then:
+                  - logger.log:
+                      level: INFO
+                      format: "Discovery queue: Unit 3 discovery verified - restoring active DC setpoints."
+
+                  - lambda: 'id(reapply_active_setpoints)->execute(3);'
+                  - script.wait: reapply_active_setpoints
+
+                  - script.execute:
+                      id: set_rectifier_control_state
+                      unit: 3
+                      state: ${rectifier_state_online}
+
+                else:
+                  - logger.log:
+                      level: WARN
+                      format: "Discovery queue: Unit 3 discovery incomplete - returning unit to OFFLINE."
+
+                  - script.execute:
+                      id: set_rectifier_control_state
+                      unit: 3
+                      state: ${rectifier_state_offline}
+
+            - logger.log:
+                level: INFO
+                format: "Discovery queue: full three-unit discovery completed."
+
+      # ----------------------------------------------------------------------
+      # Unit 1 automatic / individual discovery
+      # ----------------------------------------------------------------------
+      - if:
+          condition:
+            lambda: 'return unit == 1;'
+
+          then:
+            - logger.log:
+                level: INFO
+                format: "Discovery queue: starting Unit 1 discovery."
+
+            - script.execute: discover_unit_1
+            - script.wait: discover_unit_1
+
+            - if:
+                condition:
+                  lambda: |-
+                    return
+                      id(can_com_ok_1).state &&
+                      id(unit_properties_complete_1) &&
+                      id(max_current_found_1) &&
+                      id(data_found_1);
+
+                then:
+                  - logger.log:
+                      level: INFO
+                      format: "Discovery queue: Unit 1 discovery verified - restoring active DC setpoints."
+
+                  - lambda: 'id(reapply_active_setpoints)->execute(1);'
+                  - script.wait: reapply_active_setpoints
+
+                  - script.execute:
+                      id: set_rectifier_control_state
+                      unit: 1
+                      state: ${rectifier_state_online}
+
+                else:
+                  - logger.log:
+                      level: WARN
+                      format: "Discovery queue: Unit 1 discovery incomplete - returning unit to OFFLINE."
+
+                  - script.execute:
+                      id: set_rectifier_control_state
+                      unit: 1
+                      state: ${rectifier_state_offline}
+
+            - logger.log:
+                level: INFO
+                format: "Discovery queue: Unit 1 discovery completed."
+
+      # ----------------------------------------------------------------------
+      # Unit 2 automatic / individual discovery
+      # ----------------------------------------------------------------------
+      - if:
+          condition:
+            lambda: 'return unit == 2;'
+
+          then:
+            - logger.log:
+                level: INFO
+                format: "Discovery queue: starting Unit 2 discovery."
+
+            - script.execute: discover_unit_2
+            - script.wait: discover_unit_2
+
+            - if:
+                condition:
+                  lambda: |-
+                    return
+                      id(can_com_ok_2).state &&
+                      id(unit_properties_complete_2) &&
+                      id(max_current_found_2) &&
+                      id(data_found_2);
+
+                then:
+                  - logger.log:
+                      level: INFO
+                      format: "Discovery queue: Unit 2 discovery verified - restoring active DC setpoints."
+
+                  - lambda: 'id(reapply_active_setpoints)->execute(2);'
+                  - script.wait: reapply_active_setpoints
+
+                  - script.execute:
+                      id: set_rectifier_control_state
+                      unit: 2
+                      state: ${rectifier_state_online}
+
+                else:
+                  - logger.log:
+                      level: WARN
+                      format: "Discovery queue: Unit 2 discovery incomplete - returning unit to OFFLINE."
+
+                  - script.execute:
+                      id: set_rectifier_control_state
+                      unit: 2
+                      state: ${rectifier_state_offline}
+
+            - logger.log:
+                level: INFO
+                format: "Discovery queue: Unit 2 discovery completed."
+
+      # ----------------------------------------------------------------------
+      # Unit 3 automatic / individual discovery
+      # ----------------------------------------------------------------------
+      - if:
+          condition:
+            lambda: 'return unit == 3;'
+
+          then:
+            - logger.log:
+                level: INFO
+                format: "Discovery queue: starting Unit 3 discovery."
+
+            - script.execute: discover_unit_3
+            - script.wait: discover_unit_3
+
+            - if:
+                condition:
+                  lambda: |-
+                    return
+                      id(can_com_ok_3).state &&
+                      id(unit_properties_complete_3) &&
+                      id(max_current_found_3) &&
+                      id(data_found_3);
+
+                then:
+                  - logger.log:
+                      level: INFO
+                      format: "Discovery queue: Unit 3 discovery verified - restoring active DC setpoints."
+
+                  - lambda: 'id(reapply_active_setpoints)->execute(3);'
+                  - script.wait: reapply_active_setpoints
+
+                  - script.execute:
+                      id: set_rectifier_control_state
+                      unit: 3
+                      state: ${rectifier_state_online}
+
+                else:
+                  - logger.log:
+                      level: WARN
+                      format: "Discovery queue: Unit 3 discovery incomplete - returning unit to OFFLINE."
+
+                  - script.execute:
+                      id: set_rectifier_control_state
+                      unit: 3
+                      state: ${rectifier_state_offline}
+
+            - logger.log:
+                level: INFO
+                format: "Discovery queue: Unit 3 discovery completed."
+
+      # ----------------------------------------------------------------------
+      # Invalid parameter
+      # ----------------------------------------------------------------------
+      - if:
+          condition:
+            lambda: |-
+              return unit < 0 || unit > 3;
+
+          then:
+            - lambda: |-
+                ESP_LOGW(
+                  "discovery",
+                  "Discovery queue received invalid unit number: %d",
+                  unit
+                );
+
+  # --------------------------------------------------------------------------
+  # apply_dc_sum_power
+  # --------------------------------------------------------------------------
+  # Converts the nominal three-unit power target into the requested per-unit
+  # current. Hardware and thermal limits are applied later when CAN is sent.
+  - id: apply_dc_sum_power
+    mode: restart
+    then:
+      - lambda: |-
+          const float voltage = id(set_dc_voltage_limit).state;
+          const float power_kw = id(set_dc_sum_power).state;
+
+          if (isnan(voltage) || voltage < ${dc_voltage_min_v}f) {
+            ESP_LOGW("encoder", "Invalid DC voltage - cannot calculate current.");
+            return;
+          }
+
+          float requested = (power_kw * 1000.0f) / (voltage * 3.0f);
+          requested = std::min(requested, ${project_max_dc_current_a}f);
+          requested = std::max(requested, ${minimum_dc_current_a}f);
+
+          float applied = std::min(requested, id(effective_dc_current_limit));
+          applied = std::min(applied, id(thermal_dc_current_limit));
+
+          ESP_LOGI(
+            "encoder",
+            "Nominal 3-unit DC target %.2f kW @ %.2f V -> "
+            "requested %.1f A/unit, applied %.1f A/unit "
+            "(hardware %.1f A, thermal %.1f A)",
+            power_kw, voltage, requested, applied,
+            id(effective_dc_current_limit),
+            id(thermal_dc_current_limit)
+          );
+
+          auto call = id(set_dc_current_limit).make_call();
+          call.set_value(requested);
+          call.perform();
+
+  # --------------------------------------------------------------------------
+  # blackstart_start
+  # --------------------------------------------------------------------------
+  # Local START sequence.
+  #
+  # The configured nominal three-unit power target is first converted into the
+  # common per-unit current command using the fixed divisor of three.
+  #
+  # Before any ON command is sent, active voltage/current setpoints are
+  # explicitly refreshed only to rectifiers that are fully ONLINE.
+  #
+  # A rectifier is eligible for START only when:
+  # - its lifecycle state is ONLINE,
+  # - fresh raw CAN communication is available,
+  # - its CAN-reported power state is explicitly OFF,
+  # - valid output-temperature telemetry is available,
+  # - output temperature is strictly below the configured trip threshold,
+  # - no overtemperature lockout is active.
+  #
+  # OFFLINE and DISCOVERING rectifiers never receive an ON command.
+  - id: blackstart_start
+    mode: single
+    then:
+      # Recalculate the common per-unit current from the configured nominal
+      # three-unit DC power target. The divisor intentionally remains fixed at 3.
+      - script.execute: apply_dc_sum_power
+      - script.wait: apply_dc_sum_power
+
+      # Allow the optimistic number update/on_value path to settle before the
+      # explicit final setpoint refresh.
+      - delay: 25ms
+
+      # Explicitly refresh active voltage/current only to fully ONLINE units.
+      - script.execute: refresh_active_setpoints_online
+      - script.wait: refresh_active_setpoints_online
+
+      - delay: 100ms
+
+      # ----------------------------------------------------------------------
+      # Unit 1
+      # ----------------------------------------------------------------------
+      - if:
+          condition:
+            lambda: |-
+              return
+                id(rectifier_control_state_1) ==
+                  ${rectifier_state_online} &&
+                id(can_com_ok_1).state &&
+                id(power_state_1).state == "OFF" &&
+                !isnan(id(output_temperature_1).state) &&
+                id(output_temperature_1).state < ${overtemp_trip_c}f &&
+                !id(overtemp_lockout_1);
+
+          then:
+            - canbus.send:
+                use_extended_id: true
+                can_id: 0x108180FE
+                data:
+                  - 0x01
+                  - 0x32
+                  - 0x00
+                  - 0x00
+                  - 0x00
+                  - 0x00
+                  - 0x00
+                  - 0x00
+
+            - logger.log:
+                level: INFO
+                format: "BLACKSTART: Unit 1 commanded ON."
+
+          else:
+            - lambda: |-
+                if (id(rectifier_control_state_1) !=
+                    ${rectifier_state_online}) {
+
+                  ESP_LOGW(
+                    "blackstart",
+                    "Unit 1 skipped - lifecycle state is not ONLINE."
+                  );
+
+                } else if (!id(can_com_ok_1).state) {
+
+                  ESP_LOGW(
+                    "blackstart",
+                    "Unit 1 skipped - CAN communication unavailable."
+                  );
+
+                } else if (id(power_state_1).state != "OFF") {
+
+                  ESP_LOGW(
+                    "blackstart",
+                    "Unit 1 skipped - power state is %s, expected OFF.",
+                    id(power_state_1).state.c_str()
+                  );
+
+                } else if (isnan(id(output_temperature_1).state)) {
+
+                  ESP_LOGW(
+                    "blackstart",
+                    "Unit 1 skipped - output temperature unavailable."
+                  );
+
+                } else if (
+                    id(output_temperature_1).state >=
+                      ${overtemp_trip_c}f) {
+
+                  ESP_LOGW(
+                    "blackstart",
+                    "Unit 1 skipped - output temperature too high (%.1f°C).",
+                    id(output_temperature_1).state
+                  );
+
+                } else if (id(overtemp_lockout_1)) {
+
+                  ESP_LOGW(
+                    "blackstart",
+                    "Unit 1 skipped - overtemperature lockout active."
+                  );
+                }
+
+      # ----------------------------------------------------------------------
+      # Unit 2
+      # ----------------------------------------------------------------------
+      - if:
+          condition:
+            lambda: |-
+              return
+                id(rectifier_control_state_2) ==
+                  ${rectifier_state_online} &&
+                id(can_com_ok_2).state &&
+                id(power_state_2).state == "OFF" &&
+                !isnan(id(output_temperature_2).state) &&
+                id(output_temperature_2).state < ${overtemp_trip_c}f &&
+                !id(overtemp_lockout_2);
+
+          then:
+            - canbus.send:
+                use_extended_id: true
+                can_id: 0x108280FE
+                data:
+                  - 0x01
+                  - 0x32
+                  - 0x00
+                  - 0x00
+                  - 0x00
+                  - 0x00
+                  - 0x00
+                  - 0x00
+
+            - logger.log:
+                level: INFO
+                format: "BLACKSTART: Unit 2 commanded ON."
+
+          else:
+            - lambda: |-
+                if (id(rectifier_control_state_2) !=
+                    ${rectifier_state_online}) {
+
+                  ESP_LOGW(
+                    "blackstart",
+                    "Unit 2 skipped - lifecycle state is not ONLINE."
+                  );
+
+                } else if (!id(can_com_ok_2).state) {
+
+                  ESP_LOGW(
+                    "blackstart",
+                    "Unit 2 skipped - CAN communication unavailable."
+                  );
+
+                } else if (id(power_state_2).state != "OFF") {
+
+                  ESP_LOGW(
+                    "blackstart",
+                    "Unit 2 skipped - power state is %s, expected OFF.",
+                    id(power_state_2).state.c_str()
+                  );
+
+                } else if (isnan(id(output_temperature_2).state)) {
+
+                  ESP_LOGW(
+                    "blackstart",
+                    "Unit 2 skipped - output temperature unavailable."
+                  );
+
+                } else if (
+                    id(output_temperature_2).state >=
+                      ${overtemp_trip_c}f) {
+
+                  ESP_LOGW(
+                    "blackstart",
+                    "Unit 2 skipped - output temperature too high (%.1f°C).",
+                    id(output_temperature_2).state
+                  );
+
+                } else if (id(overtemp_lockout_2)) {
+
+                  ESP_LOGW(
+                    "blackstart",
+                    "Unit 2 skipped - overtemperature lockout active."
+                  );
+                }
+
+      # ----------------------------------------------------------------------
+      # Unit 3
+      # ----------------------------------------------------------------------
+      - if:
+          condition:
+            lambda: |-
+              return
+                id(rectifier_control_state_3) ==
+                  ${rectifier_state_online} &&
+                id(can_com_ok_3).state &&
+                id(power_state_3).state == "OFF" &&
+                !isnan(id(output_temperature_3).state) &&
+                id(output_temperature_3).state < ${overtemp_trip_c}f &&
+                !id(overtemp_lockout_3);
+
+          then:
+            - canbus.send:
+                use_extended_id: true
+                can_id: 0x108380FE
+                data:
+                  - 0x01
+                  - 0x32
+                  - 0x00
+                  - 0x00
+                  - 0x00
+                  - 0x00
+                  - 0x00
+                  - 0x00
+
+            - logger.log:
+                level: INFO
+                format: "BLACKSTART: Unit 3 commanded ON."
+
+          else:
+            - lambda: |-
+                if (id(rectifier_control_state_3) !=
+                    ${rectifier_state_online}) {
+
+                  ESP_LOGW(
+                    "blackstart",
+                    "Unit 3 skipped - lifecycle state is not ONLINE."
+                  );
+
+                } else if (!id(can_com_ok_3).state) {
+
+                  ESP_LOGW(
+                    "blackstart",
+                    "Unit 3 skipped - CAN communication unavailable."
+                  );
+
+                } else if (id(power_state_3).state != "OFF") {
+
+                  ESP_LOGW(
+                    "blackstart",
+                    "Unit 3 skipped - power state is %s, expected OFF.",
+                    id(power_state_3).state.c_str()
+                  );
+
+                } else if (isnan(id(output_temperature_3).state)) {
+
+                  ESP_LOGW(
+                    "blackstart",
+                    "Unit 3 skipped - output temperature unavailable."
+                  );
+
+                } else if (
+                    id(output_temperature_3).state >=
+                      ${overtemp_trip_c}f) {
+
+                  ESP_LOGW(
+                    "blackstart",
+                    "Unit 3 skipped - output temperature too high (%.1f°C).",
+                    id(output_temperature_3).state
+                  );
+
+                } else if (id(overtemp_lockout_3)) {
+
+                  ESP_LOGW(
+                    "blackstart",
+                    "Unit 3 skipped - overtemperature lockout active."
+                  );
+                }
+
+      - logger.log:
+          level: INFO
+          format: "BLACKSTART: Start sequence completed; only fully ONLINE units passing CAN, explicit OFF-state, temperature and lockout checks were commanded ON."
+
+  # --------------------------------------------------------------------------
+  # blackstart_stop
+  # --------------------------------------------------------------------------
+  # Offline STOP sequence. Broadcasts the OFF command to all units.
+  - id: blackstart_stop
+    mode: single
+    then:
+      - canbus.send:
+          use_extended_id: true
+          can_id: 0x108080FE
+          data: [0x01, 0x32, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00]
+
+      - logger.log:
+          level: INFO
+          format: "BLACKSTART: Rectifiers switched OFF"
+
+  # --------------------------------------------------------------------------
+  # display_inactivity_timer
+  # --------------------------------------------------------------------------
+  # Restartable inactivity timer. Any encoder movement or
+  # button press restarts it and wakes the backlight. After five minutes without
+  # input, the backlight fades out over ten seconds.
+  - id: display_inactivity_timer
+    mode: restart
+    then:
+      # Wake display / keep backlight on
+      - light.turn_on:
+          id: back_light
+          brightness: 100%
+          transition_length: 200ms
+
+      # Wait for 5 minutes without user input
+      - delay: 5min
+
+      # Slowly fade out backlight
+      - light.turn_off:
+          id: back_light
+          transition_length: 10s
+
+
+# ==============================================================================
+# CAN BUS INTERFACE AND FRAME DECODERS
+# ==============================================================================
+# Uses the ESP32-S3 native CAN/TWAI peripheral at 125 kbit/s. The R4875G1
+# protocol uses extended 29-bit CAN IDs. Unit number is encoded in the ID.
+# Typical SN65HVD230 wiring:
+#
+# ${pin_can_tx} -> CAN module CTX
+# ${pin_can_rx} -> CAN module CRX
+# ESP32 3.3 V   -> 3V3
+# ESP32 GND     -> GND
+# CAN-H         -> CAN-H bus
+# CAN-L         -> CAN-L bus
+
+canbus:
+  - platform: esp32_can
+    tx_pin: ${pin_can_tx}
+    rx_pin: ${pin_can_rx}
+    can_id: 0xE5F32E5
+    bit_rate: 125kbps
+    use_extended_id: true
+    rx_queue_len: ${can_rx_queue_len}
+    on_frame:
+      # ----------------------------------------------------------------------
+      # Static property START/DATA handlers for Units 1..3 (0x108xD27F).
+      - !include
+          file: rectifier-can/property-start.yaml
+          vars:
+            ru_unit: "1"
+
+      - !include
+          file: rectifier-can/property-start.yaml
+          vars:
+            ru_unit: "2"
+
+      - !include
+          file: rectifier-can/property-start.yaml
+          vars:
+            ru_unit: "3"
+
+      # ----------------------------------------------------------------------
+      # Static property END handlers for Units 1..3 (0x108xD27E).
+      - !include
+          file: rectifier-can/property-end.yaml
+          vars:
+            ru_unit: "1"
+
+      - !include
+          file: rectifier-can/property-end.yaml
+          vars:
+            ru_unit: "2"
+
+      - !include
+          file: rectifier-can/property-end.yaml
+          vars:
+            ru_unit: "3"
+
+      # ----------------------------------------------------------------------
+      # Cyclic telemetry handlers for Units 1..3 (0x108x407F).
+      - !include
+          file: rectifier-can/cyclic-telemetry.yaml
+          vars:
+            ru_unit: "1"
+
+      - !include
+          file: rectifier-can/cyclic-telemetry.yaml
+          vars:
+            ru_unit: "2"
+
+      - !include
+          file: rectifier-can/cyclic-telemetry.yaml
+          vars:
+            ru_unit: "3"
+
+      # ----------------------------------------------------------------------
+      # Maximum-current capability handlers. Unit 1 updates the shared current
+      # scaling factor; Units 2 and 3 expose diagnostic comparison values.
+      - can_id: 0x1081507F
+        use_extended_id: true
+        then:
+          - lambda: |-
+              if (id(max_current_found_1)) {
+                return;
+              }
+
+              if (x.size() != 8) {
+                ESP_LOGW(
+                  "canbus",
+                  "Unit 1: Ignoring invalid capability frame 0x1081507F "
+                  "(DLC=%u, expected 8).",
+                  static_cast<unsigned>(x.size())
+                );
+                return;
+              }
+
+              const uint8_t packet_number =
+                  static_cast<uint8_t>(x[1]);
+
+              if (packet_number != 1) {
+                return;
+              }
+
+              // A valid capability response confirms active communication during discovery.
+              id(last_can_rx_1) = millis();
+
+              const uint8_t max_current_raw =
+                  static_cast<uint8_t>(x[5]);
+
+              const float max_current =
+                  max_current_raw / 2.0f;
+
+              if (max_current <= 0.0f) {
+                ESP_LOGW(
+                  "canbus",
+                  "Unit 1: Invalid maximum current capability %.1f A.",
+                  max_current
+                );
+                return;
+              }
+
+              ESP_LOGI(
+                "canbus",
+                "Unit 1: Max current capability: %.1f A",
+                max_current
+              );
+
+              id(max_current_found_1) = true;
+              id(max_dc_current_1).publish_state(max_current);
+
+              // Unit 1 defines the shared current-command scaling factor.
+              id(current_scaling_factor) =
+                  static_cast<float>(${protocol_value_scale}) / max_current;
+
+              ESP_LOGI(
+                "canbus",
+                "Unit 1: Current scaling factor updated to %.6f",
+                id(current_scaling_factor)
+              );
+
+              id(current_scaling_factor_unit_1).publish_state(
+                id(current_scaling_factor)
+              );
+
+
+      # Handler for CAN ID 0x1082507F (Packet 1)
+      # Max current capability for Unit 2
+      # ----------------------------------------------------------------------
+      # CAN RX 0x1082507F
+      # Unit 2 capability is decoded for diagnostics and comparison only.
+      - can_id: 0x1082507F
+        use_extended_id: true
+        then:
+          - lambda: |-
+              if (id(max_current_found_2)) {
+                return;
+              }
+
+              if (x.size() != 8) {
+                ESP_LOGW(
+                  "canbus",
+                  "Unit 2: Ignoring invalid capability frame 0x1082507F "
+                  "(DLC=%u, expected 8).",
+                  static_cast<unsigned>(x.size())
+                );
+                return;
+              }
+
+              const uint8_t packet_number =
+                  static_cast<uint8_t>(x[1]);
+
+              if (packet_number != 1) {
+                return;
+              }
+
+              // A valid capability response confirms active communication during discovery.
+              id(last_can_rx_2) = millis();
+
+              const uint8_t max_current_raw =
+                  static_cast<uint8_t>(x[5]);
+
+              const float max_current =
+                  max_current_raw / 2.0f;
+
+              if (max_current <= 0.0f) {
+                ESP_LOGW(
+                  "canbus",
+                  "Unit 2: Invalid maximum current capability %.1f A.",
+                  max_current
+                );
+                return;
+              }
+
+              ESP_LOGI(
+                "canbus",
+                "Unit 2: Max current capability: %.1f A",
+                max_current
+              );
+
+              id(max_current_found_2) = true;
+              id(max_dc_current_2).publish_state(max_current);
+
+              const float unit_2_scaling_factor =
+                  static_cast<float>(${protocol_value_scale}) / max_current;
+
+              ESP_LOGI(
+                "canbus",
+                "Unit 2: Diagnostic scaling factor: %.6f",
+                unit_2_scaling_factor
+              );
+
+              id(current_scaling_factor_unit_2).publish_state(
+                unit_2_scaling_factor
+              );
+
+
+      # Handler for CAN ID 0x1083507F (Packet 1)
+      # Max current capability for Unit 3
+      # ----------------------------------------------------------------------
+      # CAN RX 0x1083507F
+      # Unit 3 capability is decoded for diagnostics and comparison only.
+      - can_id: 0x1083507F
+        use_extended_id: true
+        then:
+          - lambda: |-
+              if (id(max_current_found_3)) {
+                return;
+              }
+
+              if (x.size() != 8) {
+                ESP_LOGW(
+                  "canbus",
+                  "Unit 3: Ignoring invalid capability frame 0x1083507F "
+                  "(DLC=%u, expected 8).",
+                  static_cast<unsigned>(x.size())
+                );
+                return;
+              }
+
+              const uint8_t packet_number =
+                  static_cast<uint8_t>(x[1]);
+
+              if (packet_number != 1) {
+                return;
+              }
+
+              // A valid capability response confirms active communication during discovery.
+              id(last_can_rx_3) = millis();
+
+              const uint8_t max_current_raw =
+                  static_cast<uint8_t>(x[5]);
+
+              const float max_current =
+                  max_current_raw / 2.0f;
+
+              if (max_current <= 0.0f) {
+                ESP_LOGW(
+                  "canbus",
+                  "Unit 3: Invalid maximum current capability %.1f A.",
+                  max_current
+                );
+                return;
+              }
+
+              ESP_LOGI(
+                "canbus",
+                "Unit 3: Max current capability: %.1f A",
+                max_current
+              );
+
+              id(max_current_found_3) = true;
+              id(max_dc_current_3).publish_state(max_current);
+
+              const float unit_3_scaling_factor =
+                  static_cast<float>(${protocol_value_scale}) / max_current;
+
+              ESP_LOGI(
+                "canbus",
+                "Unit 3: Diagnostic scaling factor: %.6f",
+                unit_3_scaling_factor
+              );
+
+              id(current_scaling_factor_unit_3).publish_state(
+                unit_3_scaling_factor
+              );
+
+      # ----------------------------------------------------------------------
+      # Internal R4875G1 fan telemetry handlers for Units 1..3 (0x108x827E).
+      # ----------------------------------------------------------------------
+      # Internal R4875G1 fan telemetry handlers for Units 1..3 (0x108x827E).
+      - !include
+          file: rectifier-can/fan-telemetry.yaml
+          vars:
+            ru_unit: "1"
+
+      - !include
+          file: rectifier-can/fan-telemetry.yaml
+          vars:
+            ru_unit: "2"
+
+      - !include
+          file: rectifier-can/fan-telemetry.yaml
+          vars:
+            ru_unit: "3"
+
+      # ----------------------------------------------------------------------
+      # Shelf/slot address-data handlers for Units 1..3 (0x108x507E).
+      - !include
+          file: rectifier-can/address-data.yaml
+          vars:
+            ru_unit: "1"
+
+      - !include
+          file: rectifier-can/address-data.yaml
+          vars:
+            ru_unit: "2"
+
+      - !include
+          file: rectifier-can/address-data.yaml
+          vars:
+            ru_unit: "3"
+
+      # ----------------------------------------------------------------------
+      # Power-state / alternate-current handlers for Units 1..3 (0x100x117E).
+      - !include
+          file: rectifier-can/power-state.yaml
+          vars:
+            ru_unit: "1"
+
+      - !include
+          file: rectifier-can/power-state.yaml
+          vars:
+            ru_unit: "2"
+
+      - !include
+          file: rectifier-can/power-state.yaml
+          vars:
+            ru_unit: "3"
+
+
+# ==============================================================================
+# PERIODIC RECTIFIER / CAN TASKS
+# ==============================================================================
+# Lifecycle reconciliation, TWAI recovery, slow reconnect probes, fast ONLINE
+# polling and periodic active-setpoint refresh.
+
+interval:
+  # --------------------------------------------------------------------------
+  # Periodic task: reconcile raw CAN connectivity with lifecycle state
+  # --------------------------------------------------------------------------
+  - interval: 1s
+    then:
+      - script.execute: reconcile_rectifier_connectivity
+
+  # --------------------------------------------------------------------------
+  # Periodic task: TWAI controller recovery
+  #
+  # If every physical CAN peer disappears, transmitted frames are no longer
+  # acknowledged. Repeated transmission errors can eventually place the
+  # ESP32 TWAI controller into BUS_OFF state.
+  #
+  # ESP-IDF requires bus recovery to be initiated explicitly. The legacy TWAI
+  # driver enters STOPPED state when recovery completes and must then be
+  # started again before normal CAN communication can resume.
+  #
+  # Once the controller is running again, the normal telemetry polling below
+  # automatically detects returning rectifiers. The existing can_com_ok_x
+  # OFF->ON transition then launches automatic unit discovery.
+  - interval: ${can_recovery_check_interval}
+    then:
+      - lambda: |-
+          twai_status_info_t status_info{};
+
+          const esp_err_t status_result =
+              twai_get_status_info(&status_info);
+
+          if (status_result != ESP_OK) {
+            ESP_LOGW(
+              "can_recovery",
+              "Unable to read TWAI controller status: %s",
+              esp_err_to_name(status_result)
+            );
+
+            return;
+          }
+
+          // --------------------------------------------------------------
+          // BUS_OFF
+          // --------------------------------------------------------------
+          //
+          // The controller has disabled itself after excessive CAN errors.
+          // Start the ESP-IDF bus-recovery sequence.
+          if (status_info.state == TWAI_STATE_BUS_OFF) {
+
+            ESP_LOGW(
+              "can_recovery",
+              "TWAI controller BUS_OFF "
+              "(TX errors: %lu, bus errors: %lu). "
+              "Starting recovery.",
+              static_cast<unsigned long>(status_info.tx_error_counter),
+              static_cast<unsigned long>(status_info.bus_error_count)
+            );
+
+            const esp_err_t recovery_result =
+                twai_initiate_recovery();
+
+            if (recovery_result == ESP_OK) {
+
+              ESP_LOGI(
+                "can_recovery",
+                "TWAI bus recovery initiated."
+              );
+
+            } else {
+
+              ESP_LOGW(
+                "can_recovery",
+                "Failed to initiate TWAI recovery: %s",
+                esp_err_to_name(recovery_result)
+              );
+            }
+
+            return;
+          }
+
+          // --------------------------------------------------------------
+          // STOPPED
+          // --------------------------------------------------------------
+          //
+          // The legacy ESP-IDF TWAI driver returns to STOPPED state after
+          // successful bus recovery. Restart it so normal RX/TX can resume.
+          if (status_info.state == TWAI_STATE_STOPPED) {
+
+            const esp_err_t start_result =
+                twai_start();
+
+            if (start_result == ESP_OK) {
+
+              ESP_LOGI(
+                "can_recovery",
+                "TWAI controller restarted after recovery."
+              );
+
+            } else {
+
+              ESP_LOGW(
+                "can_recovery",
+                "Failed to restart TWAI controller: %s",
+                esp_err_to_name(start_result)
+              );
+            }
+
+            return;
+          }
+
+  # --------------------------------------------------------------------------
+  # Periodic task: slow offline rectifier probing
+  #
+  # Offline rectifiers are not included in the normal high-rate polling cycle.
+  #
+  # Instead, one unit is considered every five seconds in round-robin order:
+  #
+  #   Unit 1 -> Unit 2 -> Unit 3 -> Unit 1 ...
+  #
+  # A telemetry request is transmitted only when the selected unit is OFFLINE.
+  # Therefore each continuously offline unit is probed approximately every
+  # 15 seconds.
+  #
+  # Only the normal cyclic telemetry request is used as the probe. Fan
+  # telemetry is deliberately not requested from an offline unit.
+  #
+  # Offline probing is suspended while the serialized discovery worker is
+  # active so reconnect probes cannot interfere with discovery traffic.
+  - interval: ${offline_probe_slot_interval}
+    then:
+      - if:
+          condition:
+            lambda: |-
+              return !id(discovery_queue).is_running();
+
+          then:
+            # --------------------------------------------------------------
+            # Unit 1 probe slot
+            # --------------------------------------------------------------
+            - if:
+                condition:
+                  lambda: |-
+                    return
+                      id(offline_probe_next_unit) == 1 &&
+                      id(rectifier_control_state_1) ==
+                        ${rectifier_state_offline};
+
+                then:
+                  - script.execute:
+                      id: send_single_shot_offline_probe
+                      unit: 1
+
+            # --------------------------------------------------------------
+            # Unit 2 probe slot
+            # --------------------------------------------------------------
+            - if:
+                condition:
+                  lambda: |-
+                    return
+                      id(offline_probe_next_unit) == 2 &&
+                      id(rectifier_control_state_2) ==
+                        ${rectifier_state_offline};
+
+                then:
+                  - script.execute:
+                      id: send_single_shot_offline_probe
+                      unit: 2
+
+            # --------------------------------------------------------------
+            # Unit 3 probe slot
+            # --------------------------------------------------------------
+            - if:
+                condition:
+                  lambda: |-
+                    return
+                      id(offline_probe_next_unit) == 3 &&
+                      id(rectifier_control_state_3) ==
+                        ${rectifier_state_offline};
+
+                then:
+                  - script.execute:
+                      id: send_single_shot_offline_probe
+                      unit: 3
+
+            # Advance to the next unit for the following probe slot.
+            - lambda: |-
+                id(offline_probe_next_unit)++;
+
+                if (id(offline_probe_next_unit) > 3) {
+                  id(offline_probe_next_unit) = 1;
+                }
+
+  # --------------------------------------------------------------------------
+  # Periodic task: 577 ms
+  #
+  # State-aware fast CAN polling.
+  #
+  # ONLINE:
+  #   cyclic telemetry + fan telemetry
+  #
+  # DISCOVERING:
+  #   excluded from normal polling; discovery traffic itself confirms
+  #   communication
+  #
+  # OFFLINE:
+  #   excluded from fast polling; reconnect detection is handled by the
+  #   slow probe scheduler above
+  #
+  # During property discovery the complete fast-polling cycle is suspended so
+  # the multi-frame property response has exclusive access to the CAN bus.
+  - interval: ${telemetry_poll_interval}
+    then:
+      - if:
+          condition:
+            lambda: |-
+              return
+                !id(detect_unit_1_properties).is_running() &&
+                !id(detect_unit_2_properties).is_running() &&
+                !id(detect_unit_3_properties).is_running();
+
+          then:
+            # --------------------------------------------------------------
+            # Unit 1 cyclic telemetry
+            # --------------------------------------------------------------
+            - if:
+                condition:
+                  lambda: |-
+                    return
+                      id(rectifier_control_state_1) ==
+                        ${rectifier_state_online};
+
+                then:
+                  - canbus.send:
+                      use_extended_id: true
+                      can_id: 0x108140FE
+                      data:
+                        - 0x00
+                        - 0x00
+                        - 0x00
+                        - 0x00
+                        - 0x00
+                        - 0x00
+                        - 0x00
+                        - 0x00
+
+            - delay: ${fan_query_delay}
+
+            # Fan telemetry is normal operational polling and therefore runs
+            # only when Unit 1 is fully ONLINE.
+            - if:
+                condition:
+                  lambda: |-
+                    return
+                      id(rectifier_control_state_1) ==
+                        ${rectifier_state_online};
+
+                then:
+                  - canbus.send:
+                      use_extended_id: true
+                      can_id: 0x108182FE
+                      data:
+                        - 0x01
+                        - 0x87
+                        - 0x00
+                        - 0x00
+                        - 0x00
+                        - 0x00
+                        - 0x00
+                        - 0x00
+
+            - delay: ${unit_2_poll_gap}
+
+            # --------------------------------------------------------------
+            # Unit 2 cyclic telemetry
+            # --------------------------------------------------------------
+            - if:
+                condition:
+                  lambda: |-
+                    return
+                      id(rectifier_control_state_2) ==
+                        ${rectifier_state_online};
+
+                then:
+                  - canbus.send:
+                      use_extended_id: true
+                      can_id: 0x108240FE
+                      data:
+                        - 0x00
+                        - 0x00
+                        - 0x00
+                        - 0x00
+                        - 0x00
+                        - 0x00
+                        - 0x00
+                        - 0x00
+
+            - delay: ${fan_query_delay}
+
+            - if:
+                condition:
+                  lambda: |-
+                    return
+                      id(rectifier_control_state_2) ==
+                        ${rectifier_state_online};
+
+                then:
+                  - canbus.send:
+                      use_extended_id: true
+                      can_id: 0x108282FE
+                      data:
+                        - 0x01
+                        - 0x87
+                        - 0x00
+                        - 0x00
+                        - 0x00
+                        - 0x00
+                        - 0x00
+                        - 0x00
+
+            - delay: ${unit_3_poll_gap}
+
+            # --------------------------------------------------------------
+            # Unit 3 cyclic telemetry
+            # --------------------------------------------------------------
+            - if:
+                condition:
+                  lambda: |-
+                    return
+                      id(rectifier_control_state_3) ==
+                        ${rectifier_state_online};
+
+                then:
+                  - canbus.send:
+                      use_extended_id: true
+                      can_id: 0x108340FE
+                      data:
+                        - 0x00
+                        - 0x00
+                        - 0x00
+                        - 0x00
+                        - 0x00
+                        - 0x00
+                        - 0x00
+                        - 0x00
+
+            - delay: ${fan_query_delay}
+
+            - if:
+                condition:
+                  lambda: |-
+                    return
+                      id(rectifier_control_state_3) ==
+                        ${rectifier_state_online};
+
+                then:
+                  - canbus.send:
+                      use_extended_id: true
+                      can_id: 0x108382FE
+                      data:
+                        - 0x01
+                        - 0x87
+                        - 0x00
+                        - 0x00
+                        - 0x00
+                        - 0x00
+                        - 0x00
+                        - 0x00
+
+  # --------------------------------------------------------------------------
+  # Periodic task: active setpoint refresh
+  #
+  # Active voltage/current are periodically reasserted only to rectifiers that
+  # completed discovery and are currently ONLINE.
+  #
+  # OFFLINE and DISCOVERING units deliberately receive no normal active
+  # setpoints. A successfully rediscovered unit receives its configured active
+  # values through reapply_active_setpoints before transitioning to ONLINE.
+  - interval: ${setpoint_refresh_interval}
+    then:
+      - script.execute: refresh_active_setpoints_online
+
+# ==============================================================================
+# MANUAL CONTROL BUTTON ENTITIES
+# ==============================================================================
+# Home Assistant/web controls for broadcast and individual ON/OFF commands,
+# fan overrides and manual unit discovery.

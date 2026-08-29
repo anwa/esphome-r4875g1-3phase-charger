@@ -1,0 +1,487 @@
+# ==============================================================================
+# CHARGER CONTROLS PACKAGE
+# ==============================================================================
+# Charger-wide setpoints and broadcast/shared control buttons. Individual
+# per-rectifier controls are instantiated from rectifier-unit.yaml.
+
+number:
+  # --------------------------------------------------------------------------
+  # Internal R4875G1 Fan Minimum Duty
+  # --------------------------------------------------------------------------
+  # Broadcasts the minimum duty for the rectifiers' built-in fans using Huawei
+  # CAN command selector 0x14. This is not the external chassis-fan PWM.
+  - platform: template
+    name: "Set Fan Minimum Speed"
+    id: set_fan_min_speed
+    min_value: 0
+    max_value: 100
+    step: 1
+    unit_of_measurement: "%"
+    optimistic: true
+    mode: SLIDER
+    restore_value: true
+    initial_value: 0
+    icon: "mdi:fan"
+    on_value:
+      then:
+        # Allow the optimistic number entity to finish updating before reading
+        # its new state and constructing the CAN command.
+        - delay: 0.01s
+        - lambda: |-
+            // Log the requested engineering value before CAN encoding.
+            float fan_value = id(set_fan_min_speed).state;
+            ESP_LOGI(
+              "custom",
+              "Received fan minimum speed: %.0f%%",
+              fan_value
+            );
+        - canbus.send:
+            use_extended_id: true
+            can_id: 0x108080FE
+            data: !lambda |-
+              // Build an 8-byte broadcast command frame initialized to zero.
+              std::vector<uint8_t> can_data(8, 0x00);
+              // Command group 0x01 with selector 0x14 addresses the
+              // minimum fan duty-cycle setting.
+              can_data[0] = 0x01;
+              can_data[1] = 0x14;
+              // Convert percentage to the rectifier fixed-point format.
+              // Example:
+              //   25% * 256 = 6400 = 0x1900
+              const int scaled_value =
+                  static_cast<int>(
+                    id(set_fan_min_speed).state *
+                    ${fan_duty_counts_per_percent}f
+                  );
+              // Store the 16-bit value in big-endian format.
+              can_data[2] = (scaled_value >> 8) & 0xFF;
+              can_data[3] = scaled_value & 0xFF;
+              // Bytes 4..7 remain zero.
+              return can_data;
+
+  # DC Voltage Setting
+  # --------------------------------------------------------------------------
+  # Set DC Voltage Limit
+  # Primary broadcast DC voltage setpoint using the centralized project
+  # voltage range and 0.1 V steps.
+  # The value is encoded as V * voltage_scaling_factor and sent in bytes 6..7 of
+  # broadcast CAN ID 0x108080FE.
+  - platform: template
+    name: "Set DC Voltage Limit"
+    id: set_dc_voltage_limit
+    min_value: ${dc_voltage_min_v}
+    max_value: ${dc_voltage_max_v}
+    step: 0.1
+    unit_of_measurement: "V"
+    icon: "mdi:flash"
+    optimistic: true
+    mode: BOX
+    restore_value: true
+    initial_value: ${dc_voltage_default_v}
+    command_topic: "${mqtt_command_prefix}/set_dc_voltage"
+    on_value:
+      then:
+        - lambda: |-
+            // Encode engineering volts into the rectifier's fixed-point CAN format.
+            float voltage_value = id(set_dc_voltage_limit).state;
+            ESP_LOGI(
+              "custom",
+              "Received DC voltage limit: %.1f V",
+              voltage_value
+            );
+
+        - script.execute: send_active_voltage_to_online_units
+
+  # DC Current Setting
+  # --------------------------------------------------------------------------
+  # Set DC Current Limit
+  # Secondary all-rectifier current setpoint. The requested current is
+  # validated against the detected unit model/capability, encoded using
+  # current_scaling_factor and broadcast with command selector 0x03.
+  - platform: template
+    name: "Set DC Current Limit"
+    id: set_dc_current_limit
+    min_value: ${minimum_dc_current_a}
+    # Absolute project/UI ceiling. The runtime effective limit may be lower.
+    max_value: ${project_max_dc_current_a}
+    step: 1
+    unit_of_measurement: "A"
+    optimistic: true
+    mode: BOX
+    restore_value: true
+    initial_value: ${minimum_dc_current_a}
+    command_topic: "${mqtt_command_prefix}/set_dc_current"
+    icon: "mdi:current-dc"
+    on_value:
+      then:
+        - delay: 0.01s
+        - lambda: |-
+            float current_value =
+                id(set_dc_current_limit).state;
+
+            const float max_current =
+                id(effective_dc_current_limit);
+
+
+            float applied_current = current_value;
+            applied_current = std::min(applied_current, max_current);
+            applied_current = std::min(
+              applied_current,
+              id(thermal_dc_current_limit)
+            );
+
+            ESP_LOGI(
+              "custom",
+              "DC Current request %.1f A -> applied %.1f A "
+              "(hardware %.1f A, thermal %.1f A).",
+              current_value,
+              applied_current,
+              max_current,
+              id(thermal_dc_current_limit)
+            );
+
+        - script.execute: send_active_current_to_online_units
+
+  # DC Current Fallback Setting
+  # --------------------------------------------------------------------------
+  # Set DC Current Limit Fallback
+  # Fallback current parameter. Uses the same model-dependent
+  # current validation but command selector 0x04.
+  - platform: template
+    name: "Set DC Current Limit Fallback"
+    id: set_dc_current_limit_fallback
+    min_value: ${minimum_dc_current_a}
+    # Absolute project/UI ceiling. The runtime effective limit may be lower.
+    max_value: ${project_max_dc_current_a}
+    step: 1
+    unit_of_measurement: "A"
+    optimistic: true
+    mode: BOX
+    restore_value: true
+    initial_value: ${minimum_dc_current_a}
+    command_topic: "${mqtt_command_prefix}/set_dc_current_fallback"
+    icon: "mdi:current-dc"
+    on_value:
+      then:
+        - delay: 0.01s
+        - lambda: |-
+            float fallback_current_value =
+                id(set_dc_current_limit_fallback).state;
+
+            const float max_current =
+                id(effective_dc_current_limit);
+
+
+            if (fallback_current_value > max_current) {
+
+              ESP_LOGW(
+                "current_limit",
+                "Requested fallback DC current %.1f A exceeds "
+                "effective limit %.1f A. Clamping setpoint.",
+                fallback_current_value,
+                max_current
+              );
+
+              id(set_dc_current_limit_fallback).publish_state(
+                max_current
+              );
+
+              fallback_current_value = max_current;
+            }
+
+
+            ESP_LOGI(
+              "custom",
+              "DC Current Limit fallback set to %.1f A "
+              "(effective maximum %.1f A).",
+              fallback_current_value,
+              max_current
+            );
+
+        - canbus.send:
+            use_extended_id: true
+            can_id: 0x108080FE
+            data: !lambda |-
+              std::vector<uint8_t> can_data(8, 0x00);
+              can_data[0] = 0x01;
+              can_data[1] = 0x04;
+              int scaled_value = (int)(id(set_dc_current_limit_fallback).state * id(current_scaling_factor));
+              can_data[6] = (scaled_value >> 8) & 0xFF;
+              can_data[7] = scaled_value & 0xFF;
+              return can_data;
+
+  # DC Voltage Fallback Setting
+  # --------------------------------------------------------------------------
+  # Set DC Voltage Limit Fallback
+  # Fallback voltage parameter using the same centralized project voltage
+  # range as the active DC voltage setting.
+  - platform: template
+    name: "Set DC Voltage Limit Fallback"
+    id: set_dc_voltage_limit_fallback
+    min_value: ${dc_voltage_min_v}
+    max_value: ${dc_voltage_max_v}
+    step: 0.1
+    unit_of_measurement: "V"
+    icon: "mdi:flash-outline"
+    optimistic: true
+    mode: BOX
+    restore_value: true
+    initial_value: ${dc_voltage_default_v}
+    command_topic: "${mqtt_command_prefix}/set_dc_voltage_fallback"
+    on_value:
+      then:
+        - lambda: |-
+            // Fallback voltage uses the same V * 1024 representation as active voltage.
+            float fallback_voltage_value = id(set_dc_voltage_limit_fallback).state;  // Get the fallback voltage value
+            ESP_LOGI(
+              "custom",
+              "Received fallback DC voltage limit: %.1f V",
+              fallback_voltage_value
+            );
+
+        - canbus.send:
+            use_extended_id: true
+            can_id: 0x108080FE
+            data: !lambda |-
+              std::vector<uint8_t> can_data(8, 0x00);  // Initialize with 8 zeros
+              can_data[0] = 0x01;  // First byte is always 0x01
+              can_data[1] = 0x01;  // Second byte is 0x01 for the Fallback Voltage setting
+              int fallback_scaled_value = (int)(id(set_dc_voltage_limit_fallback).state * id(voltage_scaling_factor));  // Scale the voltage value
+              can_data[6] = (fallback_scaled_value >> 8) & 0xFF;  // Encode the high byte in the 7th byte
+              can_data[7] = fallback_scaled_value & 0xFF;         // Encode the low byte in the 8th byte
+              return can_data;
+
+  # AC Current Setting
+  # --------------------------------------------------------------------------
+  # Set AC Current Limit
+  # Broadcast AC input-current limit for all rectifiers.
+  # A model-dependent maximum is derived from current_scaling_factor.
+  # The requested amperage is encoded using voltage_scaling_factor
+  # (1024 counts per ampere) and sent with command selector 0x09.
+  # Byte 3 enables the limit when the requested value is greater than zero.
+  - platform: template
+    name: "Set AC Current Limit"
+    id: set_ac_current_limit
+    min_value: 0
+    max_value: 21
+    step: 0.1
+    unit_of_measurement: "A"
+    optimistic: true
+    mode: BOX
+    restore_value: true
+    initial_value: 0
+    icon: "mdi:current-ac"
+    on_value:
+      then:
+        - delay: 0.01s
+        - lambda: |-
+            float current_value = id(set_ac_current_limit).state;
+            float max_current = 10.0; // default
+            if (id(current_scaling_factor) >= 18 && id(current_scaling_factor) <= 22) {
+              max_current = 17.0;
+            } else if (id(current_scaling_factor) >= 13 && id(current_scaling_factor) <= 15) {
+              max_current = 21.0;
+            } else if (id(current_scaling_factor) >= 25 && id(current_scaling_factor) <= 35) {
+              max_current = 13.0;
+            }
+            if (current_value > max_current) {
+              ESP_LOGW(
+                "custom",
+                "Entered AC Current %.1f exceeds model limit %.1f, resetting.",
+                current_value,
+                max_current
+              );
+              id(set_ac_current_limit).publish_state(max_current);
+              current_value = max_current;
+            }
+            if (current_value == 0) {
+              ESP_LOGI(
+                "custom",
+                "AC Current Limit disabled."
+              );
+            } else {
+              ESP_LOGI(
+                "custom",
+                "AC Current Limit set to %.1f A.",
+                current_value
+              );
+            }
+        - canbus.send:
+            use_extended_id: true
+            can_id: 0x108080FE
+            data: !lambda |-
+              std::vector<uint8_t> can_data(8, 0x00);
+              int scaled_value = (int)(id(set_ac_current_limit).state * id(voltage_scaling_factor));
+              can_data[0] = 0x01;
+              can_data[1] = 0x09;
+              can_data[3] = (id(set_ac_current_limit).state > 0) ? 0x01 : 0x00;
+              can_data[6] = (scaled_value >> 8) & 0xFF;
+              can_data[7] = scaled_value & 0xFF;
+              return can_data;
+
+  # --------------------------------------------------------------------------
+  # Set DC Sum Power
+  # Nominal total DC power target for the complete three-rectifier system.
+  #
+  # This is not a native rectifier parameter. Changing it runs
+  # apply_dc_sum_power, which always calculates the common current command as:
+  #
+  #     I_each = P_target / (3 * V_DC)
+  #
+  # The target is intentionally not redistributed across fewer available units.
+  # If only one or two rectifiers operate, actual total output power will be
+  # proportionally lower than this nominal three-unit target.
+  - platform: template
+    name: "Set DC Sum Power"
+    id: set_dc_sum_power
+    unit_of_measurement: "kW"
+    icon: "mdi:flash"
+    min_value: 0.25
+    max_value: 12.0
+    step: 0.25
+    optimistic: true
+    restore_value: true
+    initial_value: 1.0
+    mode: BOX
+
+    on_value:
+      then:
+        - script.execute: apply_dc_sum_power
+
+# ==============================================================================
+# BROADCAST / SHARED CONTROL BUTTONS
+# ==============================================================================
+# Charger-wide ON/OFF, internal R4875G1 fan-mode overrides and manual discovery.
+
+button:
+  # Broadcast ON command to all three rectifiers.
+  #
+  # Because a broadcast ON command cannot exclude an individual unit, every
+  # rectifier must be fully ONLINE and satisfy all START safety requirements.
+  - platform: template
+    name: "Turn On All Units"
+    id: on_button_all
+    icon: "mdi:power"
+
+    on_press:
+      then:
+        - lambda: |-
+            ESP_LOGI(
+              "custom",
+              "All Unit ON button pressed."
+            );
+
+        - if:
+            condition:
+              lambda: |-
+                return
+                  id(rectifier_control_state_1) ==
+                    ${rectifier_state_online} &&
+                  id(rectifier_control_state_2) ==
+                    ${rectifier_state_online} &&
+                  id(rectifier_control_state_3) ==
+                    ${rectifier_state_online} &&
+
+                  id(can_com_ok_1).state &&
+                  id(can_com_ok_2).state &&
+                  id(can_com_ok_3).state &&
+
+                  id(power_state_1).state == "OFF" &&
+                  id(power_state_2).state == "OFF" &&
+                  id(power_state_3).state == "OFF" &&
+
+                  !isnan(id(output_temperature_1).state) &&
+                  !isnan(id(output_temperature_2).state) &&
+                  !isnan(id(output_temperature_3).state) &&
+
+                  id(output_temperature_1).state <
+                    ${overtemp_trip_c}f &&
+                  id(output_temperature_2).state <
+                    ${overtemp_trip_c}f &&
+                  id(output_temperature_3).state <
+                    ${overtemp_trip_c}f &&
+
+                  !id(overtemp_lockout_1) &&
+                  !id(overtemp_lockout_2) &&
+                  !id(overtemp_lockout_3);
+
+            then:
+              # Ensure all three verified ONLINE units have the latest active
+              # voltage/current values immediately before ON.
+              - script.execute: refresh_active_setpoints_online
+              - script.wait: refresh_active_setpoints_online
+
+              - delay: 100ms
+
+              - canbus.send:
+                  use_extended_id: true
+                  can_id: 0x108080FE
+                  data:
+                    - 0x01
+                    - 0x32
+                    - 0x00
+                    - 0x00
+                    - 0x00
+                    - 0x00
+                    - 0x00
+                    - 0x00
+
+              - logger.log:
+                  level: INFO
+                  format: "All three verified ONLINE rectifiers commanded ON."
+
+            else:
+              - logger.log:
+                  level: WARN
+                  format: "All ON blocked - all three units must be ONLINE with fresh CAN communication, explicit OFF state, valid safe temperature and no overtemperature lockout."
+
+  # Broadcast OFF command to all three rectifiers.
+  - platform: template
+    name: "Turn Off All Units"
+    id: off_button_all
+    icon: "mdi:power"
+    on_press:
+      then:
+        - lambda: |-
+            ESP_LOGI(
+              "custom",
+              "All Units OFF Button pressed."
+            );
+        - canbus.send:
+            use_extended_id: true
+            can_id: 0x108080FE
+            data: [0x01, 0x32, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00]
+
+  # Broadcast internal R4875G1 fan full-speed override.
+  - platform: template
+    name: "Set Fan Full Speed All Units"
+    id: fan_full_speed_button_all
+    icon: "mdi:fan"
+    on_press:
+      then:
+        - canbus.send:
+            use_extended_id: true
+            can_id: 0x108080FE
+            data: [0x01, 0x34, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00]
+
+  # Broadcast return of all R4875G1 internal fans to automatic mode.
+  - platform: template
+    name: "Set Fan Auto Mode All Units"
+    id: fan_auto_mode_button_all
+    icon: "mdi:fan"
+    on_press:
+      then:
+        - canbus.send:
+            use_extended_id: true
+            can_id: 0x108080FE
+            data: [0x01, 0x34, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+
+  - platform: template
+    name: "Discover Rectifier Units"
+    id: setup_button
+    icon: "mdi:database-search"
+    on_press:
+      then:
+        - script.execute:
+            id: discovery_queue
+            unit: 0

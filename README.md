@@ -79,7 +79,7 @@ CAN uses **125 kbit/s** and **29-bit extended identifiers**.
 - Normal active setpoints routed only to verified `ONLINE` rectifiers with fresh CAN communication.
 - Individual and broadcast ON/OFF controls.
 - Fallback voltage/current configuration.
-- Fan minimum-duty, automatic-mode and full-speed control.
+- Internal R4875G1 fan minimum-duty, automatic-mode and full-speed control.
 - Nominal three-unit DC power target with automatic current calculation.
 - Runtime effective DC-current ceiling derived from detected rectifier capabilities.
 - Periodic active-setpoint refresh only to verified online units.
@@ -111,6 +111,52 @@ CAN uses **125 kbit/s** and **29-bit extended identifiers**.
 
 ---
 
+# Firmware source architecture
+
+Version 3 introduces a modular ESPHome source layout. The refactor preserves public entity IDs/names, CAN protocol values and timing from the v2.2.2 baseline. The v3.0.1 review candidate additionally makes one safety-boundary correction: every START path now requires output temperature to be strictly below the 90 °C hard-trip threshold.
+
+The source of truth is now:
+
+```text
+r4875g1-3phase-charger.yaml
+packages/
+├── core.yaml
+├── hardware.yaml
+├── display.yaml
+├── cooling.yaml
+├── controls.yaml
+├── rectifier-shared.yaml
+├── rectifier-unit.yaml
+└── rectifier-can/
+    ├── property-start.yaml
+    ├── property-end.yaml
+    ├── cyclic-telemetry.yaml
+    ├── fan-telemetry.yaml
+    ├── address-data.yaml
+    └── power-state.yaml
+```
+
+Responsibilities are deliberately separated:
+
+- `r4875g1-3phase-charger.yaml` keeps project-wide substitutions, package assembly, the three unit instantiations, device identity/boot sequence, local encoder input, controller diagnostics and charger-wide aggregate/status entities.
+- `core.yaml` contains ESP32 platform/framework, PSRAM, logger, network/API/MQTT/web/OTA/time and low-level controller services.
+- `hardware.yaml` contains the shared I²C and SPI bus definitions.
+- `display.yaml` contains the TFT, fonts, colors and display/backlight behaviour.
+- `cooling.yaml` contains the external chassis-fan interface.
+- `controls.yaml` contains charger-wide setpoint numbers plus broadcast/shared control buttons.
+- `rectifier-shared.yaml` contains cross-unit lifecycle/discovery orchestration, thermal/current coordination, blackstart/shared scripts, CAN scheduling/recovery and the single physical CAN controller.
+- `rectifier-unit.yaml` is instantiated three times using `ru_unit`/`ru_phase` and owns per-rectifier state, discovery, telemetry entities, CAN watchdog and individual controls.
+- `rectifier-can/*.yaml` are parameterized `on_frame` mappings included from the single central CAN component for CAN families whose Unit 1/2/3 implementations are genuinely identical.
+
+The three capability handlers (`0x1081507F`, `0x1082507F`, `0x1083507F`) intentionally remain explicit in `rectifier-shared.yaml`: Unit 1 is the canonical source for the shared current-command scaling factor, while Units 2 and 3 provide diagnostic comparison values.
+
+See [`packages/README.md`](packages/README.md) for the package ownership rules and maintenance guidance.
+
+> [!IMPORTANT]
+> The `3.0.4` code on the `v3-modularization` branch is a hardware-test candidate. No v3 release tag is final until hardware regression testing is complete and the branch is explicitly approved for merge/tagging.
+
+---
+
 # Versioning
 
 The ESPHome firmware publishes project metadata using:
@@ -119,7 +165,7 @@ The ESPHome firmware publishes project metadata using:
 esphome:
   project:
     name: "anwa.3phase-charger"
-    version: "2.2.2"
+    version: "3.0.4"
 ```
 
 The project uses `MAJOR.MINOR.PATCH` firmware versions:
@@ -402,7 +448,7 @@ The probe scheduler is suspended while the serialized discovery worker is active
 
 # Single-Shot CAN strategy
 
-The stable CAN baseline deliberately restricts TWAI Single-Shot (`TWAI_MSG_FLAG_SS`) to **slow OFFLINE reconnect probes only**.
+The retained v2.2.2 CAN behavior in the v3 candidate deliberately restricts TWAI Single-Shot (`TWAI_MSG_FLAG_SS`) to **slow OFFLINE reconnect probes only**.
 
 That path exists to prevent one missing rectifier from causing automatic hardware retransmission of the same unacknowledged probe frame.
 
@@ -452,7 +498,7 @@ If verification fails, the lifecycle returns to `OFFLINE`.
 
 If verification succeeds, the controller restores active setpoints to that specific unit and only then changes the lifecycle to `ONLINE`.
 
-Property and capability/address requests use normal ESPHome `canbus.send` in the current stable baseline.
+Property and capability/address requests use normal ESPHome `canbus.send` in the current v3 hardware-test candidate.
 
 ---
 
@@ -636,7 +682,7 @@ normal fast polling resumes
 
 The reconnect completed without an ESP reboot and did not require `BUS_OFF` as a prerequisite.
 
-The physical trace verifies the lifecycle and protocol sequence. It does not imply Single-Shot transport for normal polling, discovery or restore; in the current stable baseline only the slow OFFLINE probe itself is Single-Shot.
+The physical trace verifies the lifecycle and protocol sequence. It does not imply Single-Shot transport for normal polling, discovery or restore; in the current v3 hardware-test candidate only the slow OFFLINE probe itself is Single-Shot.
 
 ---
 
@@ -954,13 +1000,14 @@ This is a project-oriented map, not a complete Huawei protocol specification.
 
 ## Configuration
 
-Place:
+Place the main YAML **and the complete `packages/` directory** in the same ESPHome configuration directory:
 
 ```text
 r4875g1-3phase-charger.yaml
+packages/
 ```
 
-in the ESPHome configuration directory and provide the required secrets.
+The `!include` paths are relative to the main YAML, so the package directory is required. Then provide the required secrets.
 
 Example `secrets.yaml` keys:
 
@@ -1082,7 +1129,7 @@ Check:
 1. at least one unit is lifecycle `ONLINE`,
 2. its CAN communication is fresh,
 3. its power state is explicitly `OFF`,
-4. output temperature is valid and <= 90 °C,
+4. output temperature is valid and < 90 °C,
 5. no overtemperature lockout is active,
 6. the external AC source is present,
 7. voltage/current targets are valid.
@@ -1116,6 +1163,21 @@ A lower reported capability intentionally reduces the common current ceiling. Th
 │   └── ... mechanical R4875G1 mounting design
 ├── KiCAD/
 │   └── Charger/ ... charger controller schematic and PCB project
+├── packages/
+│   ├── core.yaml
+│   ├── hardware.yaml
+│   ├── display.yaml
+│   ├── cooling.yaml
+│   ├── controls.yaml
+│   ├── rectifier-shared.yaml
+│   ├── rectifier-unit.yaml
+│   └── rectifier-can/
+│       ├── property-start.yaml
+│       ├── property-end.yaml
+│       ├── cyclic-telemetry.yaml
+│       ├── fan-telemetry.yaml
+│       ├── address-data.yaml
+│       └── power-state.yaml
 ├── .gitignore
 ├── LICENSE
 ├── README.md
@@ -1149,4 +1211,105 @@ See `LICENSE` for the complete license text and retained notices.
 
 ## Documentation synchronization
 
-This README and `R4875G1_CONTROL_FLOWS.md` describe the current stable `main` implementation of `r4875g1-3phase-charger.yaml` and were resynchronized on **2026-08-27**, including the physically verified CAN disconnect/reconnect behavior and 52 A current-scaling trace.
+This README and `R4875G1_CONTROL_FLOWS.md` describe the **v3.0.4 hardware-test candidate** on branch `v3-modularization`. They were fully reviewed and resynchronized on **2026-08-29** before hardware regression testing. Previously documented physical CAN disconnect/reconnect behavior and the 52 A current-scaling trace come from the validated v2.2.2 runtime baseline and are intended to remain unchanged by the modular source refactor.
+
+
+---
+
+# Deploying to Home Assistant from Windows
+
+For development, the repository can be deployed directly from a Windows workstation to Home Assistant over SSH/SCP. This avoids manually copying the main YAML and every package file through the Home Assistant editor.
+
+The deployment tooling lives in:
+
+```text
+scripts/
+├── setup-ha-ssh.ps1
+└── deploy-ha.ps1
+```
+
+The default target is:
+
+```text
+root@10.10.80.9:/config/esphome
+```
+
+The repository keeps the generic source filename `r4875g1-3phase-charger.yaml`. During deployment the script reads the top-level `esphome.name` value from that YAML and derives the Home Assistant filename as `<esphome.name>.yaml`. With the current configuration (`name: hg-dg-technik-charger3ph`) the deployed file is therefore `hg-dg-technik-charger3ph.yaml`. The complete `packages/` tree keeps its repository filenames.
+
+All connection values can be overridden with PowerShell parameters.
+
+## 1. One-time SSH key setup
+
+From the repository root:
+
+```powershell
+.\scripts\setup-ha-ssh.ps1
+```
+
+The script creates a dedicated Ed25519 key at:
+
+```text
+~/.ssh/ha_esphome_deploy
+```
+
+It prints the public key. Add **only the public key** to the `authorized_keys` configuration/file used by the Home Assistant SSH add-on. The exact location depends on the installed SSH add-on. Never copy the private key to Home Assistant.
+
+After the key has been added, restart the Home Assistant SSH add-on and press Enter in the setup script to test passwordless authentication.
+
+The tested Windows client (`OpenSSH_for_Windows_9.5p2`) requires the MAC algorithm `hmac-sha2-512-etm@openssh.com` for this Home Assistant SSH endpoint. Both deployment scripts therefore use that MAC explicitly by default. The value remains configurable through `-MacAlgorithm`.
+
+The Home Assistant SSH add-on is configured with `sftp: true`, so the normal modern OpenSSH `scp` transport is used; no legacy SCP mode is required.
+
+Custom connection example:
+
+```powershell
+.\scripts\setup-ha-ssh.ps1 -HaHost 10.10.80.9 -HaUser root -Port 22
+```
+
+## 2. Preview a deployment
+
+A dry run performs no network connection and changes no files:
+
+```powershell
+.\scripts\deploy-ha.ps1 -DryRun
+```
+
+It lists the exact managed files and destination paths.
+
+## 3. Deploy
+
+```powershell
+.\scripts\deploy-ha.ps1
+```
+
+The script:
+
+1. verifies that all required local ESPHome source files exist and derives the destination YAML filename from the top-level `esphome.name`;
+2. shows firmware version, ESPHome node name, Git branch/commit and warns about uncommitted changes;
+3. verifies key-based SSH access;
+4. uploads all managed files into a temporary staging directory on Home Assistant;
+5. compares SHA-256 hashes before installation;
+6. backs up the currently managed remote files under `/config/esphome/.deploy-backups/r4875g1-3phase-charger/<timestamp>/`;
+7. copies the staged files into `/config/esphome`;
+8. verifies the installed files again by SHA-256;
+9. removes the temporary staging directory.
+
+Only project-managed files are copied. The script does **not** delete unrelated files from `/config/esphome` and does not copy Git, KiCad, FreeCAD or GitHub metadata.
+
+Backups can be disabled explicitly:
+
+```powershell
+.\scripts\deploy-ha.ps1 -NoBackup
+```
+
+A different Home Assistant target can be supplied without editing the script:
+
+```powershell
+.\scripts\deploy-ha.ps1 `
+  -HaHost 10.10.80.9 `
+  -HaUser root `
+  -Port 22 `
+  -RemoteDir /config/esphome
+```
+
+The deployment intentionally stops after copying and verifying the source files. Firmware validation/installation remains an explicit action in the ESPHome add-on during the v3 hardware-test phase.
