@@ -1,12 +1,12 @@
 # Firmware package architecture
 
-This directory is the modular source of truth for firmware **v4.0.11** on development branch `v4-lvgl-menu`, assembled by `../r4875g1-3phase-charger.yaml`.
+This directory is the modular source of truth for stable firmware **v4.1.0**, assembled by `../r4875g1-3phase-charger.yaml`. The `v4-lvgl-menu` branch continues from the same release baseline for further UI development.
 
 ## Ownership rules
 
 | File | Responsibility |
 |---|---|
-| `version.yaml` | single source of truth for firmware version; every repository commit increments PATCH |
+| `version.yaml` | single source of truth for firmware version; every repository commit increments PATCH unless an intentional release milestone advances MAJOR/MINOR |
 | `core.yaml` | ESP32 platform/framework, PSRAM, network, API, MQTT, web, OTA and time services |
 | `hardware.yaml` | shared I²C and SPI buses |
 | `display.yaml` | display package aggregator and rotation substitution |
@@ -54,15 +54,13 @@ Maximum-current capability handlers remain explicit in `rectifier-shared.yaml`. 
 
 The deployment script reads the firmware version from `version.yaml`, stages files remotely, verifies SHA-256 hashes, optionally backs up currently managed files, installs the staged YAML files, verifies installed hashes and removes the staging directory.
 
-Firmware v4.0.11 restores the complete deployment script after the previous YAML-filter edit accidentally left the file truncated inside its final installed-file verification loop. The YAML-only selection itself is retained.
-
 ## Change discipline
 
 Preserve public ESPHome IDs/entity names, CAN identifiers/payloads, protocol scaling, timing/order, lifecycle transitions, requested/applied current semantics, thermal thresholds and blackstart safety unless a change explicitly targets them.
 
-Repository convention: **every commit increments PATCH exactly once**, with `version.yaml` as the single version source. README documentation must be synchronized whenever a change affects documented behavior, architecture or tooling.
+Repository convention: every normal commit increments PATCH exactly once, with `version.yaml` as the single version source. Intentional release milestones may advance MAJOR/MINOR and reset PATCH. README documentation must be synchronized whenever a change affects documented behavior, architecture or tooling.
 
-Commit messages should use a concise subject followed by bullet points that explain the relevant changes and effects.
+Commit messages use a concise subject followed by bullet points explaining the relevant changes and effects.
 
 Validate meaningful changes with:
 
@@ -80,4 +78,4 @@ Two independent fan domains exist: external/chassis fans are GPIO-controlled thr
 
 ## Release / branch status
 
-Firmware **4.0.11** is the current development baseline on `v4-lvgl-menu`. The stable `main` branch remains separate while the four-page UI is developed and hardware-tested.
+Firmware **4.1.0** is the stable baseline promoted to `main` after physical verification of the four-page TFT navigation and deployment workflow. `v4-lvgl-menu` remains available and starts its next development work from this exact release commit; the next normal development commit will therefore be v4.1.1.

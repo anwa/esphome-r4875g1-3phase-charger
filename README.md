@@ -2,9 +2,9 @@
 
 ESPHome controller for **three Huawei R4875G1 rectifiers** operated as a coordinated three-phase battery charger with a common parallel DC output.
 
-**Current development firmware: 4.0.11** on branch `v4-lvgl-menu`.
+**Current stable firmware: 4.1.0** on `main`. Continued UI development takes place on branch `v4-lvgl-menu` from this release baseline.
 
-Version 4 keeps the validated charger, CAN-recovery, thermal-protection and local-blackstart model from v3 and uses an **LVGL-based local TFT interface**. The current development branch splits that interface into four dedicated pages while keeping CAN/control behavior outside the display layer.
+Version 4.1 promotes the hardware-tested four-page LVGL interface and encoder page navigation to the stable baseline while retaining the validated charger, CAN-recovery, thermal-protection and local-blackstart model.
 
 For detailed runtime behavior, see `R4875G1_CONTROL_FLOWS.md`. Package ownership and maintenance rules are documented in `packages/README.md`.
 
@@ -123,10 +123,10 @@ The firmware version has one source of truth in `packages/version.yaml`:
 
 ```yaml
 substitutions:
-  firmware_version: "4.0.11"
+  firmware_version: "4.1.0"
 ```
 
-`esphome.project.version` and the TFT consume `${firmware_version}`. Project convention: **every repository commit increments PATCH by one**.
+`esphome.project.version` and the TFT consume `${firmware_version}`. Project convention: **every repository commit increments PATCH by one**. Intentional release milestones may advance MINOR and reset PATCH, as with v4.1.0.
 
 # Hardware
 
@@ -187,9 +187,7 @@ The deployment script:
 - verifies installed hashes and cleans the staging directory;
 - supports `-DryRun`.
 
-The v4.0.11 maintenance change restores the complete deployment script after an earlier edit accidentally truncated it in the final installed-file verification loop. The YAML-only deployment boundary remains unchanged.
-
-# Known limitations / current development status
+# Known limitations / continued development
 
 - Optimized for three R4875G1 units.
 - Nominal total-power calculation always divides by three.
@@ -198,7 +196,7 @@ The v4.0.11 maintenance change restores the complete deployment script after an 
 - Blackstart still requires power for ESP32/CAN electronics.
 - SNTP date/time requires network synchronization after a cold start.
 - External fan control has no automatic thermal curve or RPM-failure alarm yet.
-- Rectifiers and System pages do not yet show every planned diagnostic field.
+- Rectifiers and System pages do not yet show every planned diagnostic field; this work continues on `v4-lvgl-menu` after the v4.1.0 release.
 - Software does not replace hardware protection.
 
 # Credits and license
@@ -210,4 +208,4 @@ Additional project development: Copyright (c) 2026 Andreas Wansner
 
 # Documentation status
 
-This README describes firmware **4.0.11** on development branch `v4-lvgl-menu`, including the four-page navigation and the repaired YAML-only Home Assistant deployment workflow.
+This README describes stable firmware **4.1.0**. The tested four-page LVGL interface, encoder double-click navigation and repaired YAML-only Home Assistant deployment workflow are part of this release. `main` and `v4-lvgl-menu` share this release commit; subsequent UI development continues on `v4-lvgl-menu`.
