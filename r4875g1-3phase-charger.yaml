@@ -804,7 +804,7 @@ sensor:
 binary_sensor:
   # --------------------------------------------------------------------------
   # local_encoder_button
-  # Physical encoder push button; pin is defined in substitutions. The internal pull-up makes the input active-low. A 30 ms delayed_on_off filter debounces the switch. on_press wakes the display; short press changes encoder mode; >=3 s long press starts/stops the rectifiers.
+  # Physical encoder push button; pin is defined in substitutions. The internal pull-up makes the input active-low. A 30 ms delayed_on_off filter debounces the switch. on_press wakes the display; short press changes encoder mode; double press advances the LVGL page; >=3 s long press starts/stops the rectifiers.
   - platform: gpio
     id: local_encoder_button
     internal: true
@@ -827,11 +827,29 @@ binary_sensor:
 
     on_multi_click:
 
+      # Double press:
+      # Advance to the next LVGL page. The second press must begin within
+      # 350 ms so the action remains distinct from a normal short press.
+      - timing:
+          - ON for 50ms to 700ms
+          - OFF for 50ms to 350ms
+          - ON for 50ms to 700ms
+          - OFF for at least 50ms
+        then:
+          - lvgl.page.next:
+              animation: OUT_LEFT
+              time: 180ms
+          - logger.log:
+              level: DEBUG
+              format: "Encoder double-click: switched to next LVGL page."
+
       # Short press:
       # Toggle encoder editing mode: DC Voltage <-> Total DC Power.
+      # Waiting at least 350 ms after release prevents the first click of a
+      # double-click from firing the single-click action prematurely.
       - timing:
-          - ON for 50ms to 2800ms
-          - OFF for at least 50ms
+          - ON for 50ms to 700ms
+          - OFF for at least 350ms
         then:
           - lambda: |-
               id(encoder_mode) = !id(encoder_mode);

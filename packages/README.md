@@ -1,6 +1,6 @@
 # Firmware package architecture
 
-This directory is the modular source of truth for firmware **v4.0.8** on development branch `v4-lvgl-menu`, assembled by `../r4875g1-3phase-charger.yaml`.
+This directory is the modular source of truth for firmware **v4.0.10** on development branch `v4-lvgl-menu`, assembled by `../r4875g1-3phase-charger.yaml`.
 
 ## Ownership rules
 
@@ -54,7 +54,7 @@ display.yaml
 
 **System** currently contains firmware in the header, IP address, Wi-Fi RSSI, CPU temperature and L1/L2/L3 CAN communication state. Planned Uptime/Heap/PSRAM fields are **not implemented on this page yet**.
 
-The page definitions exist, but the physical encoder button still has its pre-menu behavior: short press selects Voltage/Power and ≥3 s performs START/STOP. **Double-click page navigation is the next implementation step.** Do not describe it as functional until the root button automation is changed and hardware-tested.
+The physical encoder button now distinguishes three gestures: short press selects Voltage/Power, double press advances to the next LVGL page, and ≥3 s performs START/STOP. The double-click pattern requires the second press within 350 ms; the single-click pattern waits at least 350 ms after release so both actions cannot fire for the same gesture. Page wrapping returns from System to Dashboard.
 
 The TFT and `esphome.project.version` both consume `${firmware_version}` from `version.yaml`.
 
@@ -111,4 +111,4 @@ Two independent fan domains exist: external/chassis fans are GPIO-controlled thr
 
 ## Release / branch status
 
-Firmware **4.0.8** is the current development baseline on `v4-lvgl-menu`. The stable `main` branch remains separate while the four-page UI is developed and hardware-tested. Charger control, CAN recovery and blackstart behavior continue from the validated v4 baseline unless a change explicitly targets them.
+Firmware **4.0.10** is the current development baseline on `v4-lvgl-menu`. The stable `main` branch remains separate while the four-page UI is developed and hardware-tested. Charger control, CAN recovery and blackstart behavior continue from the validated v4 baseline unless a change explicitly targets them.

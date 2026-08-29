@@ -2,7 +2,7 @@
 
 ESPHome controller for **three Huawei R4875G1 rectifiers** operated as a coordinated three-phase battery charger with a common parallel DC output.
 
-**Current development firmware: 4.0.8** on branch `v4-lvgl-menu`.
+**Current development firmware: 4.0.10** on branch `v4-lvgl-menu`.
 
 Version 4 keeps the validated charger, CAN-recovery, thermal-protection and local-blackstart model from v3 and uses an **LVGL-based local TFT interface**. The current development branch is splitting that interface into four dedicated pages while keeping CAN/control behavior outside the display layer.
 
@@ -73,11 +73,12 @@ Current implemented encoder behavior is:
 
 - rotate: edit the selected DC voltage or nominal three-unit DC-power target;
 - short press: select `Voltage` or `Power` editing;
+- double press: advance to the next LVGL page (`Dashboard → Rectifiers → Cooling → System → Dashboard`);
 - long press (≥3 s): START/STOP;
 - STOP has priority and is unrestricted;
 - START is issued only to units that are `ONLINE`, CAN-fresh, explicitly `OFF`, below the temperature trip threshold and not locked out.
 
-The four-page LVGL branch already contains page definitions and `page_wrap`, but **double-click page navigation has not yet been connected to the physical encoder button**. That is the next UI implementation step.
+Single-click recognition deliberately waits 350 ms after release so the first click of a double-click cannot also toggle the Voltage/Power edit mode.
 
 ## Thermal protection
 
@@ -130,7 +131,7 @@ The firmware version has one source of truth in `packages/version.yaml`:
 
 ```yaml
 substitutions:
-  firmware_version: "4.0.8"
+  firmware_version: "4.0.10"
 ```
 
 `esphome.project.version` and the TFT consume `${firmware_version}`. Project convention: **every repository commit increments PATCH by one**.
@@ -193,7 +194,7 @@ Current configuration:
 
 `System` currently shows firmware in the header, IP address, Wi-Fi RSSI, controller CPU temperature and CAN communication status for L1/L2/L3. **Uptime, heap and PSRAM are not yet displayed on this page**, although runtime diagnostic entities already exist in ESPHome.
 
-`display/ui.yaml` enables LVGL `page_wrap` and includes the four page files. Physical button navigation between them is still pending.
+`display/ui.yaml` enables LVGL `page_wrap` and includes the four page files. Encoder double-click uses `lvgl.page.next` with a short left transition and wraps from System back to Dashboard.
 
 ## AHT10 compartment sensor
 
@@ -280,7 +281,6 @@ The deployment stops after copying/verifying source files; ESPHome validation/in
 - Blackstart still requires power for ESP32/CAN electronics.
 - SNTP date/time requires network synchronization after a cold start.
 - External fan control has no automatic thermal curve or RPM-failure alarm yet.
-- Four-page LVGL page definitions exist, but encoder double-click page switching is not implemented yet.
 - Rectifiers and System pages are intentionally incomplete compared with their planned final diagnostic content; the exact current content is listed above.
 - Software does not replace hardware protection.
 
@@ -293,4 +293,4 @@ Additional project development: Copyright (c) 2026 Andreas Wansner
 
 # Documentation status
 
-This README describes firmware **4.0.8** on development branch `v4-lvgl-menu` as implemented at this commit. It intentionally distinguishes implemented four-page UI content from the remaining menu/navigation work instead of documenting planned fields as already available.
+This README describes firmware **4.0.10** on development branch `v4-lvgl-menu` as implemented at this commit. It intentionally distinguishes implemented four-page UI content from the remaining menu/navigation work instead of documenting planned fields as already available.
