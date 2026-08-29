@@ -1,97 +1,57 @@
 # Firmware package architecture
 
-The `packages/` directory is the modular source-of-truth for the ESPHome firmware assembled by `../r4875g1-3phase-charger.yaml`.
+This directory is the modular source of truth for firmware **v4.0.0**, assembled by `../r4875g1-3phase-charger.yaml`.
 
 ## Ownership rules
 
-| File | Owns | Must not own |
-|---|---|---|
-| `core.yaml` | ESP32 platform/framework and network/API/MQTT/web/OTA/time services | charger protocol or per-unit rectifier logic |
-| `hardware.yaml` | shared I²C and SPI bus definitions | CAN protocol semantics |
-| `display.yaml` | TFT, fonts, colors, display/backlight behavior | rectifier state machines |
-| `cooling.yaml` | external chassis fan enable/PWM/tach | Huawei internal fan protocol |
-| `controls.yaml` | charger-wide setpoint numbers and broadcast/shared control buttons | repeated individual unit controls |
-| `rectifier-unit.yaml` | one parameterized R4875G1 instance | cross-unit scheduling/aggregation |
-| `rectifier-shared.yaml` | lifecycle/discovery orchestration, shared limits/scripts, schedulers, single physical CAN component, non-identical shared protocol logic | repeated identical unit entity definitions |
-| `rectifier-can/*.yaml` | one parameterized CAN `on_frame` mapping per genuinely identical handler family | the physical `canbus:` component |
+| File | Responsibility |
+|---|---|
+| `core.yaml` | ESP32 platform/framework, PSRAM, network, API, MQTT, web, OTA and time services |
+| `hardware.yaml` | shared I²C and SPI buses |
+| `display.yaml` | v4 display package aggregator and display substitutions |
+| `display/hardware.yaml` | ILI9488 transport, panel transform and backlight |
+| `display/theme.yaml` | LVGL, RGB565 framebuffer, fonts and reusable styles |
+| `display/ui.yaml` | portrait dashboard widgets and dynamic display updates |
+| `cooling.yaml` | external chassis fan enable/PWM/tach |
+| `controls.yaml` | charger-wide setpoints and shared/broadcast controls |
+| `rectifier-unit.yaml` | one parameterized R4875G1 instance |
+| `rectifier-shared.yaml` | lifecycle/discovery orchestration, shared limits/scripts, schedulers and the physical CAN component |
+| `rectifier-can/*.yaml` | parameterized per-unit CAN receive handlers |
+
+## v4 display architecture
+
+Version 4 replaces the previous immediate-mode TFT renderer with **ESPHome LVGL** while keeping charger/CAN/blackstart behavior unchanged. `display.yaml` is intentionally only an aggregator. Hardware transport, visual styling and screen logic are separated so they can evolve independently.
+
+The ILI9488 is configured as a 480×320 RGB565 panel. LVGL rotates the logical canvas by 90° for the default **320×480 portrait dashboard**. Set `display_rotation` to `0` for landscape. The ESP32-S3 N16R8 has 8 MB PSRAM, so LVGL uses a **100% 16-bit RGB565 framebuffer**. All dashboard containers explicitly disable scrolling and scrollbars.
+
+The portrait dashboard contains a header with date/time, firmware version and charger state, AC/DC summary cards, per-rectifier status, local encoder setpoints, thermal/efficiency information, network diagnostics and the local START/STOP reminder. The firmware version displayed in the header is `4.0.0` and must remain synchronized with `esphome.project.version` in the root YAML.
 
 ## Rectifier unit template
 
-`rectifier-unit.yaml` is included three times from the main YAML:
-
-```yaml
-rectifier_unit_1: !include
-  file: packages/rectifier-unit.yaml
-  vars:
-    ru_unit: "1"
-```
-
-Units 2 and 3 use the same file with `ru_unit: "2"` and `ru_unit: "3"` respectively.
-
-The template intentionally preserves the existing public IDs and entity names after substitution, such as:
-
-```text
-dc_voltage_1
-output_temperature_1
-can_com_ok_1
-on_button_1
-```
-
-This protects Home Assistant entities, display references, MQTT-facing behavior and internal script references from an architecture-only refactor.
+`rectifier-unit.yaml` is included three times with `ru_unit` set to `1`, `2` and `3`. Public IDs and entity names remain stable, for example `dc_voltage_1`, `output_temperature_1`, `can_com_ok_1` and `on_button_1`.
 
 ## CAN handler templates
 
-ESPHome validates each `esp32_can` component before package merging, so the physical CAN component is defined exactly once in `rectifier-shared.yaml`.
+The physical `esp32_can` component exists exactly once in `rectifier-shared.yaml`. Repeated RX handlers are included inside its `on_frame` list from `rectifier-can/`:
 
-Repeated RX handlers are instead parameterized as individual mappings and included inside that component's `on_frame:` list:
-
-```yaml
-- !include
-    file: rectifier-can/cyclic-telemetry.yaml
-    vars:
-      ru_unit: "1"
-```
-
-Current handler templates:
-
-- `property-start.yaml` — property START/DATA frames (`0x108xD27F`)
-- `property-end.yaml` — property END parsing (`0x108xD27E`)
-- `cyclic-telemetry.yaml` — normal telemetry/heartbeat (`0x108x407F`)
-- `fan-telemetry.yaml` — internal Huawei fan telemetry (`0x108x827E`)
+- `property-start.yaml` — property START/DATA (`0x108xD27F`)
+- `property-end.yaml` — property END (`0x108xD27E`)
+- `cyclic-telemetry.yaml` — telemetry/heartbeat (`0x108x407F`)
+- `fan-telemetry.yaml` — internal fan telemetry (`0x108x827E`)
 - `address-data.yaml` — shelf/slot addressing (`0x108x507E`)
-- `power-state.yaml` — alternate current + ON/OFF/ERROR (`0x100x117E`)
+- `power-state.yaml` — current + ON/OFF/ERROR (`0x100x117E`)
 
-The maximum-current capability handlers (`0x1081507F`, `0x1082507F`, `0x1083507F`) remain explicit in `rectifier-shared.yaml`. Each publishes its own capability/scaling diagnostic. Shared `effective_dc_current_limit` and `current_scaling_factor` are calculated centrally from only currently CAN-reachable units, with a 50 A failsafe whenever a reachable capability is unknown.
+Maximum-current capability handlers remain explicit in `rectifier-shared.yaml`. Shared `effective_dc_current_limit` and `current_scaling_factor` are recomputed from currently CAN-reachable rectifiers. A reachable unit with unknown capability forces the 50 A fail-safe ceiling; once all reachable capabilities are known, the effective ceiling uses the lowest reachable capability and command scaling uses the highest reachable capability.
 
-## What remains shared on purpose
+## Shared behavior that stays explicit
 
-Do not move code into the unit template merely because it references Unit 1/2/3. These operations describe the charger as a coordinated three-unit system and should stay explicit unless there is a strong functional reason to redesign them:
-
-- lifecycle state coordination
-- serialized discovery queue
-- CAN-aware capability comparison, 50 A failsafe ceiling and shared command scaling
-- staged shared thermal derating
-- blackstart coordination and safety checks
-- slow round-robin offline probing
-- Single-Shot offline reconnect transport
-- TWAI BUS_OFF recovery
-- fixed fast-poll cadence and inter-unit timing
-- aggregate AC/DC power and charger-wide diagnostics
+Cross-unit lifecycle coordination, serialized discovery, CAN-aware capability handling, staged thermal derating, blackstart safety, slow Single-Shot reconnect probing, TWAI BUS_OFF recovery, fixed fast-poll timing and aggregate charger telemetry intentionally remain shared rather than being hidden in the unit template.
 
 ## Change discipline
 
-For architecture-only changes, preserve:
+Preserve public ESPHome IDs/entity names, CAN identifiers/payloads, protocol scaling, timing/order, lifecycle transitions, requested/applied current semantics, thermal thresholds and blackstart safety unless a change explicitly targets them.
 
-- existing ESPHome IDs and entity names
-- CAN identifiers and payloads
-- protocol scaling
-- timing constants and poll order
-- lifecycle transitions
-- requested/applied current semantics
-- thermal thresholds and lockout behavior
-- blackstart safety conditions
-
-Validate meaningful changes with at least:
+Validate meaningful changes with:
 
 ```text
 git diff --check
@@ -99,23 +59,12 @@ esphome config r4875g1-3phase-charger.yaml
 esphome compile r4875g1-3phase-charger.yaml
 ```
 
-For structural refactors, also compare the resolved configuration (`esphome config ... --no-defaults`) against the last known-good baseline and verify the entity/ID/CAN inventory.
-
-
-## Root-level assembled entities
-
-`../r4875g1-3phase-charger.yaml` intentionally retains the project-wide substitutions/package assembly and boot sequence plus cross-package entities such as controller diagnostics, AHT10 compartment data, local encoder input, aggregate charger telemetry, the physical encoder button, capability-mismatch diagnostic and network/device text diagnostics. These are shared assembled-device concerns rather than one rectifier instance.
-
-## Release status
-
-Firmware version **3.0.8** is the current modular baseline on `main`. Release tags are managed separately from normal firmware commits.
-
+For display changes, also verify the physical ILI9488 because panel rotation, font rendering and RGB565 appearance are hardware-visible concerns.
 
 ## Fan terminology
 
-The project has two independent fan-control domains:
+Two independent fan domains exist: external/chassis fans are GPIO-controlled through `cooling.yaml`; internal R4875G1 fans are controlled and read through Huawei CAN commands. Documentation and comments must keep these domains distinct.
 
-- **External/chassis fans** are GPIO-controlled in `cooling.yaml` through `Cooling Fan Power`, shared 25 kHz PWM and three tachometer inputs.
-- **Internal R4875G1 fans** are controlled/read through Huawei CAN commands and telemetry in `controls.yaml`, `rectifier-unit.yaml` and the CAN handler packages.
+## Release status
 
-Comments and entity descriptions must keep those two domains distinct.
+Firmware **4.0.0** is the current baseline on `main`. Version 4 introduces the LVGL display architecture; charger control, CAN recovery and blackstart behavior continue from the validated v3 baseline unless explicitly documented otherwise.
