@@ -1,0 +1,291 @@
+# ==============================================================================
+# LVGL PORTRAIT DASHBOARD
+# ==============================================================================
+# Compact local dashboard for blackstart/offline operation. All values are read
+# from the existing v3 entities; no CAN/control behavior is duplicated here.
+
+lvgl:
+  pages:
+    - id: charger_dashboard
+      bg_color: 0xF3F5F8
+      bg_opa: COVER
+      scrollable: false
+      widgets:
+        - obj:
+            x: 0
+            y: 0
+            width: 100%
+            height: 58
+            styles: style_header
+            widgets:
+              - label:
+                  x: 10
+                  y: 6
+                  text: "R4875G1 Charger"
+                  text_font: ui_font_26_bold
+              - label:
+                  id: ui_version
+                  align: TOP_RIGHT
+                  x: -10
+                  y: 8
+                  text: "v${firmware_version}"
+                  text_font: ui_font_14
+                  text_color: 0xB9C6D6
+              - label:
+                  id: ui_clock
+                  x: 11
+                  y: 37
+                  text: "--.--.---- --:--"
+                  text_font: ui_font_14
+                  text_color: 0xB9C6D6
+              - label:
+                  id: ui_run_state
+                  align: TOP_RIGHT
+                  x: -10
+                  y: 35
+                  text: "OFF"
+                  text_font: ui_font_14
+
+        - obj:
+            x: 8
+            y: 66
+            width: 148
+            height: 78
+            styles: style_card
+            widgets:
+              - label:
+                  text: "AC INPUT"
+                  text_font: ui_font_14
+                  text_color: 0x657080
+              - label:
+                  id: ui_ac_power
+                  x: 0
+                  y: 19
+                  text: "--.-- kW"
+                  text_font: ui_font_26_bold
+                  text_color: 0x1769AA
+              - label:
+                  id: ui_ac_detail
+                  x: 0
+                  y: 50
+                  text: "-- V  -- A  -- Hz"
+                  text_font: ui_font_14
+
+        - obj:
+            x: 164
+            y: 66
+            width: 148
+            height: 78
+            styles: style_card
+            widgets:
+              - label:
+                  text: "DC OUTPUT"
+                  text_font: ui_font_14
+                  text_color: 0x657080
+              - label:
+                  id: ui_dc_power
+                  x: 0
+                  y: 19
+                  text: "--.-- kW"
+                  text_font: ui_font_26_bold
+                  text_color: 0x198754
+              - label:
+                  id: ui_dc_detail
+                  x: 0
+                  y: 50
+                  text: "-- V  -- A"
+                  text_font: ui_font_14
+
+        - obj:
+            x: 8
+            y: 152
+            width: 304
+            height: 112
+            styles: style_card
+            widgets:
+              - label:
+                  text: "RECTIFIERS"
+                  text_font: ui_font_14
+                  text_color: 0x657080
+              - label:
+                  id: ui_unit_1
+                  x: 0
+                  y: 24
+                  text: "L1  waiting for telemetry"
+                  text_font: ui_font_14
+              - label:
+                  id: ui_unit_2
+                  x: 0
+                  y: 49
+                  text: "L2  waiting for telemetry"
+                  text_font: ui_font_14
+              - label:
+                  id: ui_unit_3
+                  x: 0
+                  y: 74
+                  text: "L3  waiting for telemetry"
+                  text_font: ui_font_14
+
+        - obj:
+            x: 8
+            y: 272
+            width: 304
+            height: 104
+            styles: style_card
+            widgets:
+              - label:
+                  text: "LOCAL SETPOINTS"
+                  text_font: ui_font_14
+                  text_color: 0x657080
+              - label:
+                  id: ui_set_voltage
+                  x: 0
+                  y: 25
+                  text: "> Voltage  --.- V"
+                  text_font: ui_font_18_bold
+              - label:
+                  id: ui_set_power
+                  x: 0
+                  y: 53
+                  text: "  Power    --.-- kW"
+                  text_font: ui_font_18_bold
+              - label:
+                  id: ui_set_current
+                  align: BOTTOM_RIGHT
+                  x: 0
+                  y: 0
+                  text: "--.- A/unit"
+                  text_font: ui_font_14
+                  text_color: 0x657080
+
+        - obj:
+            x: 8
+            y: 384
+            width: 304
+            height: 86
+            styles: style_card
+            widgets:
+              - label:
+                  id: ui_thermal
+                  text: "Temp --.- °C   Efficiency --.- %"
+                  text_font: ui_font_14
+              - label:
+                  id: ui_network
+                  x: 0
+                  y: 25
+                  text: "IP --   WiFi -- dBm"
+                  text_font: ui_font_14
+                  text_color: 0x657080
+              - label:
+                  id: ui_hint
+                  x: 0
+                  y: 49
+                  text: "Press: select  •  Hold 3 s: START/STOP"
+                  text_font: ui_font_14
+                  text_color: 0x657080
+
+interval:
+  - interval: 500ms
+    then:
+      - lvgl.label.update:
+          id: ui_clock
+          text: !lambda |-
+            auto now = id(sntp_time).now();
+            if (!now.is_valid()) return std::string("Time not synchronized");
+            return str_sprintf("%02d.%02d.%04d %02d:%02d", now.day_of_month, now.month, now.year, now.hour, now.minute);
+
+      - lvgl.label.update:
+          id: ui_ac_power
+          text: !lambda |-
+            if (isnan(id(combined_ac_power).state)) return std::string("--.-- kW");
+            return str_sprintf("%.2f kW", id(combined_ac_power).state);
+
+      - lvgl.label.update:
+          id: ui_ac_detail
+          text: !lambda |-
+            float v = 0.0f, a = 0.0f, hz = 0.0f;
+            int n = 0;
+            if (id(can_com_ok_1).state && !isnan(id(ac_voltage_1).state) && !isnan(id(ac_current_1).state) && !isnan(id(ac_frequency_1).state)) { v += id(ac_voltage_1).state; a += id(ac_current_1).state; hz += id(ac_frequency_1).state; n++; }
+            if (id(can_com_ok_2).state && !isnan(id(ac_voltage_2).state) && !isnan(id(ac_current_2).state) && !isnan(id(ac_frequency_2).state)) { v += id(ac_voltage_2).state; a += id(ac_current_2).state; hz += id(ac_frequency_2).state; n++; }
+            if (id(can_com_ok_3).state && !isnan(id(ac_voltage_3).state) && !isnan(id(ac_current_3).state) && !isnan(id(ac_frequency_3).state)) { v += id(ac_voltage_3).state; a += id(ac_current_3).state; hz += id(ac_frequency_3).state; n++; }
+            if (!n) return std::string("CAN offline");
+            return str_sprintf("%.0f V  %.1f A  %.1f Hz", v/n, a/n, hz/n);
+
+      - lvgl.label.update:
+          id: ui_dc_power
+          text: !lambda |-
+            if (isnan(id(combined_dc_power).state)) return std::string("--.-- kW");
+            return str_sprintf("%.2f kW", id(combined_dc_power).state);
+
+      - lvgl.label.update:
+          id: ui_dc_detail
+          text: !lambda |-
+            if (isnan(id(average_dc_voltage).state) || isnan(id(combined_dc_current).state)) return std::string("CAN offline");
+            return str_sprintf("%.1f V  %.1f A", id(average_dc_voltage).state, id(combined_dc_current).state);
+
+      - lvgl.label.update:
+          id: ui_unit_1
+          text: !lambda |-
+            if (!id(can_com_ok_1).state) return std::string("L1  CAN communication fault");
+            if (isnan(id(dc_voltage_1).state) || isnan(id(dc_current_1).state) || isnan(id(dc_power_1).state) || isnan(id(output_temperature_1).state)) return std::string("L1  telemetry incomplete");
+            return str_sprintf("L1  %.1fV  %.1fA  %.0fW  %.0f°C  %s", id(dc_voltage_1).state, id(dc_current_1).state, id(dc_power_1).state, id(output_temperature_1).state, id(power_state_1).state.c_str());
+          text_color: !lambda 'return id(can_com_ok_1).state ? lv_color_hex(0x182433) : lv_color_hex(0xC62828);'
+
+      - lvgl.label.update:
+          id: ui_unit_2
+          text: !lambda |-
+            if (!id(can_com_ok_2).state) return std::string("L2  CAN communication fault");
+            if (isnan(id(dc_voltage_2).state) || isnan(id(dc_current_2).state) || isnan(id(dc_power_2).state) || isnan(id(output_temperature_2).state)) return std::string("L2  telemetry incomplete");
+            return str_sprintf("L2  %.1fV  %.1fA  %.0fW  %.0f°C  %s", id(dc_voltage_2).state, id(dc_current_2).state, id(dc_power_2).state, id(output_temperature_2).state, id(power_state_2).state.c_str());
+          text_color: !lambda 'return id(can_com_ok_2).state ? lv_color_hex(0x182433) : lv_color_hex(0xC62828);'
+
+      - lvgl.label.update:
+          id: ui_unit_3
+          text: !lambda |-
+            if (!id(can_com_ok_3).state) return std::string("L3  CAN communication fault");
+            if (isnan(id(dc_voltage_3).state) || isnan(id(dc_current_3).state) || isnan(id(dc_power_3).state) || isnan(id(output_temperature_3).state)) return std::string("L3  telemetry incomplete");
+            return str_sprintf("L3  %.1fV  %.1fA  %.0fW  %.0f°C  %s", id(dc_voltage_3).state, id(dc_current_3).state, id(dc_power_3).state, id(output_temperature_3).state, id(power_state_3).state.c_str());
+          text_color: !lambda 'return id(can_com_ok_3).state ? lv_color_hex(0x182433) : lv_color_hex(0xC62828);'
+
+      - lvgl.label.update:
+          id: ui_run_state
+          text: !lambda |-
+            int on = 0;
+            if (id(can_com_ok_1).state && id(power_state_1).state == "ON") on++;
+            if (id(can_com_ok_2).state && id(power_state_2).state == "ON") on++;
+            if (id(can_com_ok_3).state && id(power_state_3).state == "ON") on++;
+            return on == 0 ? std::string("OFF") : str_sprintf("%d/3 ON", on);
+          text_color: !lambda |-
+            int on = (id(power_state_1).state == "ON") + (id(power_state_2).state == "ON") + (id(power_state_3).state == "ON");
+            return on == 3 ? lv_color_hex(0x55D68A) : (on > 0 ? lv_color_hex(0xF3B64A) : lv_color_hex(0xFF7B7B));
+
+      - lvgl.label.update:
+          id: ui_set_voltage
+          text: !lambda 'return str_sprintf("%s Voltage  %.1f V", id(encoder_mode) == 0 ? ">" : " ", id(set_dc_voltage_limit).state);'
+          text_color: !lambda 'return id(encoder_mode) == 0 ? lv_color_hex(0x1769AA) : lv_color_hex(0x182433);'
+
+      - lvgl.label.update:
+          id: ui_set_power
+          text: !lambda 'return str_sprintf("%s Power    %.2f kW", id(encoder_mode) == 1 ? ">" : " ", id(set_dc_sum_power).state);'
+          text_color: !lambda 'return id(encoder_mode) == 1 ? lv_color_hex(0x1769AA) : lv_color_hex(0x182433);'
+
+      - lvgl.label.update:
+          id: ui_set_current
+          text: !lambda 'return str_sprintf("%.1f A/unit", id(set_dc_current_limit).state);'
+
+      - lvgl.label.update:
+          id: ui_thermal
+          text: !lambda |-
+            const float t = id(highest_output_temperature).state;
+            const float e = id(conversion_efficiency).state;
+            if (isnan(t) && isnan(e)) return std::string("Temp --.- °C   Efficiency --.- %");
+            if (isnan(e)) return str_sprintf("Temp %.1f °C   Efficiency --.- %%", t);
+            if (isnan(t)) return str_sprintf("Temp --.- °C   Efficiency %.1f %%", e);
+            return str_sprintf("Temp %.1f °C   Efficiency %.1f %%", t, e);
+
+      - lvgl.label.update:
+          id: ui_network
+          text: !lambda |-
+            const char *ip = id(ip_address).state.empty() ? "--" : id(ip_address).state.c_str();
+            if (isnan(id(wifi_sig).state)) return str_sprintf("IP %s   WiFi -- dBm", ip);
+            return str_sprintf("IP %s   WiFi %.0f dBm", ip, id(wifi_sig).state);

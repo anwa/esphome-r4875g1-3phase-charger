@@ -1,0 +1,42 @@
+# ==============================================================================
+# DISPLAY HARDWARE - ILI9488 / ESP32-S3
+# ==============================================================================
+# Keep the proven v3 SPI wiring and panel transform. LVGL owns all drawing.
+
+light:
+  - platform: monochromatic
+    output: backlight_pwm
+    name: "Display Backlight"
+    id: back_light
+    icon: "mdi:brightness-6"
+    restore_mode: ALWAYS_ON
+
+display:
+  - platform: mipi_spi
+    model: ILI9488
+    id: tft
+    cs_pin: ${pin_tft_cs}
+    dc_pin: ${pin_tft_dc}
+    reset_pin: ${pin_tft_reset}
+    invert_colors: false
+    data_rate: 40MHz
+
+    # Preserve the known-good v3 panel orientation. This yields the portrait
+    # logical canvas used by the v4 UI. LVGL can rotate the complete UI later.
+    dimensions:
+      width: 480
+      height: 320
+    transform:
+      swap_xy: true
+      mirror_x: false
+      mirror_y: false
+
+    # LVGL renders RGB565 and manages redraws itself.
+    color_depth: 16
+    auto_clear_enabled: false
+    update_interval: never
+
+output:
+  - platform: ledc
+    pin: ${pin_tft_backlight}
+    id: backlight_pwm
