@@ -14,44 +14,50 @@ lvgl:
         # ------------------------------------------------------------------
         # Header
         # ------------------------------------------------------------------
-        # Keep the title on its own row. The second row contains the three
-        # pieces of information that are useful at a glance during local use:
-        # clock, firmware version and actual rectifier run state.
+        # Use explicit coordinates instead of BOTTOM_* alignment. This avoids
+        # ambiguous offsets after display rotation and guarantees that clock,
+        # version and run state stay inside the visible 320 px header width.
         - obj:
             x: 0
             y: 0
             width: 100%
             height: 76
             styles: style_header
+            pad_all: 0
             widgets:
               - label:
-                  align: TOP_MID
+                  x: 10
                   y: 6
+                  width: 300
+                  text_align: CENTER
                   text: "R4875G1 Charger"
                   text_font: ui_font_26_bold
 
               - label:
                   id: ui_clock
-                  align: BOTTOM_LEFT
                   x: 10
-                  y: -8
+                  y: 48
+                  width: 145
                   text: "--.--.---- --:--"
                   text_font: ui_font_14
                   text_color: 0xB9C6D6
 
               - label:
                   id: ui_version
-                  align: BOTTOM_MID
-                  y: -8
+                  x: 145
+                  y: 48
+                  width: 70
+                  text_align: CENTER
                   text: "v${firmware_version}"
                   text_font: ui_font_14
                   text_color: 0xB9C6D6
 
               - label:
                   id: ui_run_state
-                  align: BOTTOM_RIGHT
-                  x: -10
-                  y: -8
+                  x: 215
+                  y: 48
+                  width: 95
+                  text_align: RIGHT
                   text: "OFF"
                   text_font: ui_font_14
                   text_color: 0xFF7B7B
