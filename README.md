@@ -153,7 +153,7 @@ The three capability handlers (`0x1081507F`, `0x1082507F`, `0x1083507F`) intenti
 See [`packages/README.md`](packages/README.md) for the package ownership rules and maintenance guidance.
 
 > [!IMPORTANT]
-> Firmware version `3.0.5` is the current modular baseline on `main`. Release tags are managed separately from normal firmware commits.
+> Firmware version `3.0.6` is the current modular baseline on `main`. Release tags are managed separately from normal firmware commits.
 
 ---
 
@@ -165,7 +165,7 @@ The ESPHome firmware publishes project metadata using:
 esphome:
   project:
     name: "anwa.3phase-charger"
-    version: "3.0.5"
+    version: "3.0.6"
 ```
 
 The project uses `MAJOR.MINOR.PATCH` firmware versions:
@@ -1211,7 +1211,7 @@ See `LICENSE` for the complete license text and retained notices.
 
 ## Documentation synchronization
 
-This README and `R4875G1_CONTROL_FLOWS.md` describe firmware version **3.0.5** on `main`. They were fully reviewed and resynchronized on **2026-08-29**. Previously documented physical CAN disconnect/reconnect behavior and the 52 A current-scaling trace come from the validated v2.2.2 runtime baseline and remain unchanged by the modular source refactor.
+This README and `R4875G1_CONTROL_FLOWS.md` describe firmware version **3.0.6** on `main`. They were fully reviewed and resynchronized on **2026-08-29**. Previously documented physical CAN disconnect/reconnect behavior and the 52 A current-scaling trace come from the validated v2.2.2 runtime baseline and remain unchanged by the modular source refactor.
 
 
 ---

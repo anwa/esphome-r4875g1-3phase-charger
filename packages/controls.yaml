@@ -104,7 +104,8 @@ number:
     min_value: ${minimum_dc_current_a}
     # Absolute project/UI ceiling. The runtime effective limit may be lower.
     max_value: ${project_max_dc_current_a}
-    step: 1
+    # 0.1 A matches the useful UI resolution while power-derived values remain floats.
+    step: 0.1
     unit_of_measurement: "A"
     optimistic: true
     mode: BOX
@@ -153,7 +154,8 @@ number:
     min_value: ${minimum_dc_current_a}
     # Absolute project/UI ceiling. The runtime effective limit may be lower.
     max_value: ${project_max_dc_current_a}
-    step: 1
+    # Keep manual fallback adjustment consistent with the active current control.
+    step: 0.1
     unit_of_measurement: "A"
     optimistic: true
     mode: BOX
