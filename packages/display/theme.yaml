@@ -8,14 +8,14 @@ font:
       family: Roboto
     id: ui_font_14
     size: 14
-    glyphs: "äöüÄÖÜßabcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!§$%&=?<> .,:-_/()°µ@€²³+"
+    glyphs: "äöüÄÖÜßabcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!§$%&=?<> .,:-_/()°µ@€²³+|"
 
   - file:
       type: gfonts
       family: Roboto
     id: ui_font_18
     size: 18
-    glyphs: "äöüÄÖÜßabcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!§$%&=?<> .,:-_/()°µ@€²³+"
+    glyphs: "äöüÄÖÜßabcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!§$%&=?<> .,:-_/()°µ@€²³+|"
 
   - file:
       type: gfonts
@@ -23,7 +23,7 @@ font:
       weight: bold
     id: ui_font_18_bold
     size: 18
-    glyphs: "äöüÄÖÜßabcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!§$%&=?<> .,:-_/()°µ@€²³+"
+    glyphs: "äöüÄÖÜßabcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!§$%&=?<> .,:-_/()°µ@€²³+|"
 
   - file:
       type: gfonts
@@ -31,12 +31,15 @@ font:
       weight: bold
     id: ui_font_26_bold
     size: 26
-    glyphs: "äöüÄÖÜßabcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!§$%&=?<> .,:-_/()°µ@€²³+"
+    glyphs: "äöüÄÖÜßabcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!§$%&=?<> .,:-_/()°µ@€²³+|"
 
 lvgl:
   displays: tft
   rotation: ${display_rotation}
-  buffer_size: 12%
+  # The ESP32-S3 has 8 MB PSRAM, so keep a complete RGB565 framebuffer.
+  # ESPHome LVGL currently supports 16-bit RGB565 output only.
+  color_depth: 16
+  buffer_size: 100%
   default_font: ui_font_18
   log_level: WARN
 
