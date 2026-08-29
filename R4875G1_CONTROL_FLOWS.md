@@ -1,43 +1,31 @@
 # R4875G1 Three-Phase Charger — Control and Runtime Flows
 
-This document describes the control flows, lifecycle state transitions, CAN recovery paths, discovery sequence, current-capability handling, setpoint routing, safety checks, telemetry processing, and local user-interface behavior implemented by the modular `r4875g1-3phase-charger.yaml` + `packages/` firmware source.
+This document describes firmware **4.0.0** on `main` as of **2026-08-29**. Version 4 keeps the validated v3 charger/CAN/blackstart control model and replaces the local TFT renderer with an LVGL-based UI.
 
-It is synchronized with firmware version **3.0.8** on `main` as of **2026-08-29**. This version adds CAN-aware fail-safe current capability handling and shared command scaling while preserving the existing lifecycle, thermal and blackstart safety model.
-
-> **Scope:** This is behavioral firmware documentation, not an electrical safety specification. Fuses, breakers, contactors, BMS protection, earthing, isolation, conductor sizing and other hardware protection remain independent of the firmware.
-
----
+> **Scope:** behavioral firmware documentation, not an electrical safety specification.
 
 ## Runtime constants
 
 | Function | Current value |
 |---|---:|
 | Project DC current ceiling | 75 A per rectifier |
-| Capability failsafe ceiling | 50 A per rectifier |
+| Capability fail-safe ceiling | 50 A per rectifier |
 | Minimum DC current command | 1 A |
-| DC voltage range | 49–58 V |
-| Default DC voltage | 53 V |
+| DC voltage range / default | 49–58 V / 53 V |
 | Overtemperature trip / reset | 90 °C / 80 °C |
 | Raw CAN watchdog | 3 s |
-| Lifecycle reconciliation | 1 s |
 | Live telemetry freshness | 5 s |
 | Fast polling cycle | 577 ms |
-| Fan query delay | 27 ms |
-| Offline probe slot | 5 s |
-| Maximum probe interval per unit | ≈15 s |
+| Offline probe slot / per-unit maximum | 5 s / ≈15 s |
 | TWAI recovery check | 2 s |
-| Periodic active-setpoint refresh | 30 s |
-| Reconnect discovery stabilization | 5 s |
-| Post-property polling grace | 2 s |
+| Active-setpoint refresh | 30 s |
+| Reconnect stabilization | 5 s |
 | Property bus quiet period | 500 ms |
 | Property / capability attempts | 3 / 10 |
-| Discovery retry delay | 1 s |
 | TWAI RX queue | 64 frames |
-| General protocol scale | 1024 |
-| Fan duty scale | 256 counts/% |
-| Display refresh / inactivity | 500 ms / 5 min |
-
----
+| Display UI update / inactivity | 500 ms / 5 min |
+| LVGL framebuffer | 100%, 16-bit RGB565 |
+| Default UI orientation | 320×480 portrait |
 
 # 1. System architecture
 
@@ -46,341 +34,120 @@ flowchart LR
     AC[Three-phase AC source] --> U1[R4875G1 Unit 1]
     AC --> U2[R4875G1 Unit 2]
     AC --> U3[R4875G1 Unit 3]
-
     U1 --> DCBUS[Common DC bus / battery]
     U2 --> DCBUS
     U3 --> DCBUS
-
-    ENC[Rotary encoder + button] --> ESP[ESP32-S3-DevKitC-1 N16R8]
-    AHT[AHT10 compartment sensor] --> ESP
-    ESP --> TFT[ILI9488 TFT]
-
-    ESP <--> CAN[125 kbit/s extended CAN]
+    ESP[ESP32-S3 N16R8] <--> CAN[125 kbit/s extended CAN]
     CAN <--> U1
     CAN <--> U2
     CAN <--> U3
-
-    ESP <--> HA[Home Assistant API]
+    ENC[Rotary encoder + button] --> ESP
+    AHT[AHT10] --> ESP
+    ESP --> TFT[ILI9488 + LVGL]
+    ESP <--> HA[Home Assistant]
     ESP <--> MQTT[MQTT]
-    ESP <--> WEB[Local Web UI]
 ```
 
-Core charger control remains local. Wi-Fi, Home Assistant and MQTT are optional for operation.
+Core charging remains local. Wi-Fi, Home Assistant and MQTT are optional for charger control and blackstart.
 
-## Firmware module ownership
+# 2. Firmware module ownership
 
-The runtime diagrams below describe the assembled ESPHome configuration. Source ownership in v3 is:
+Version 4 retains the modular v3 charger architecture and adds a split LVGL display package:
 
 | Source | Primary responsibility |
 |---|---|
-| `r4875g1-3phase-charger.yaml` | substitutions, three unit instances, device identity, boot safety sequence |
-| `packages/core.yaml` | ESP32/network/API/MQTT/web/controller diagnostics |
-| `packages/hardware.yaml` | shared I²C/SPI hardware buses |
-| `packages/display.yaml` | TFT, fonts, colors and display/backlight logic |
-| `packages/cooling.yaml` | external chassis fan power/PWM/tach |
-| `packages/controls.yaml` | charger-wide user controls |
-| `packages/rectifier-unit.yaml` | parameterized per-unit state, entities, discovery, watchdog and controls |
-| `packages/rectifier-shared.yaml` | cross-unit orchestration, current/thermal coordination, schedulers, CAN controller |
-| `packages/rectifier-can/*.yaml` | parameterized identical per-unit CAN RX handler families |
+| `r4875g1-3phase-charger.yaml` | substitutions, unit instances, identity, boot sequence, aggregate entities |
+| `packages/core.yaml` | ESP32/network/API/MQTT/web/OTA/time |
+| `packages/hardware.yaml` | I²C/SPI buses |
+| `packages/display.yaml` | display aggregator, rotation/version substitutions |
+| `packages/display/hardware.yaml` | ILI9488 transport and backlight |
+| `packages/display/theme.yaml` | LVGL, RGB565 framebuffer, fonts/styles |
+| `packages/display/ui.yaml` | portrait dashboard and dynamic labels |
+| `packages/cooling.yaml` | external fan interface |
+| `packages/controls.yaml` | charger-wide controls/setpoints |
+| `packages/rectifier-unit.yaml` | parameterized per-unit state/entities/discovery/watchdog |
+| `packages/rectifier-shared.yaml` | cross-unit lifecycle, limits, CAN scheduling/recovery |
+| `packages/rectifier-can/*.yaml` | parameterized CAN RX handlers |
 
-The shared lifecycle, discovery queue, blackstart coordination, polling cadence, Single-Shot reconnect probing, TWAI recovery and aggregate current/thermal decisions remain explicit rather than being hidden behind a generic unit loop.
-
----
-
-Controller hardware target: **Espressif ESP32-S3-DevKitC-1** with **ESP32-S3-WROOM-1-N16R8**, 16 MB Quad-SPI flash and 8 MB Octal-SPI PSRAM. GPIO assignments are centralized in YAML substitutions. Current map: encoder button 2; TFT backlight 4; TFT control 5/6/7; I2C 8/9; TFT SPI 11/12/13; CAN 15/16; encoder 17/18; cooling fan enable 21; cooling fan tach 39/40/41; cooling fan PWM 42. Strapping pins 0/3/45/46, native USB/JTAG 19/20 and Octal-memory GPIO33–37 remain unused.
-
----
-
-# External cooling-fan baseline
-
-The external/chassis fan control is independent of the R4875G1 internal fan commands.
-
-```mermaid
-flowchart TD
-    A[Cooling Fan Power] --> B[FAN_ENABLE GPIO21]
-    C[Cooling Fan PWM 0..100%] --> D[25 kHz LEDC / GPIO42]
-    E[FAN1_TACH GPIO41] --> R1[Cooling Fan 1 RPM]
-    F[FAN2_TACH GPIO40] --> R2[Cooling Fan 2 RPM]
-    G[FAN3_TACH GPIO39] --> R3[Cooling Fan 3 RPM]
-```
-
-On boot a 100% PWM command is applied first and the common fan supply is then enabled. The persistent PWM number may subsequently restore another configured value. Tach conversion assumes two pulses per revolution. No automatic temperature curve or fan-failure alarm is implemented yet.
-
----
-
-# 2. Per-unit lifecycle state machine
-
-The operational lifecycle is deliberately separate from raw CAN reachability.
+# 3. Rectifier lifecycle
 
 ```mermaid
 stateDiagram-v2
     [*] --> OFFLINE: ESP boot
-    OFFLINE --> DISCOVERING: valid CAN heartbeat detected
-    DISCOVERING --> ONLINE: discovery verified + restore step completed
-    DISCOVERING --> OFFLINE: discovery verification fails
-    ONLINE --> OFFLINE: raw CAN lost outside discovery/grace
+    OFFLINE --> DISCOVERING: valid CAN heartbeat
+    DISCOVERING --> ONLINE: discovery verified + restore complete
+    DISCOVERING --> OFFLINE: discovery failed
+    ONLINE --> OFFLINE: CAN lost outside discovery/grace
     ONLINE --> DISCOVERING: manual/full discovery
 ```
 
-Meaning:
+`OFFLINE` units receive no normal fast polling or START. `DISCOVERING` proves hardware identity/capability/address. `ONLINE` is the operationally released state.
 
-- **OFFLINE** — no operationally released communication; excluded from fast polling and START.
-- **DISCOVERING** — communication has been detected, but property/capability/address validation and the post-discovery restore step have not yet completed.
-- **ONLINE** — discovery verification succeeded and the post-discovery restore script has completed, so the unit is released for normal polling, active setpoint traffic and START decisions.
-
-The discovery queue waits for `reapply_active_setpoints` to complete before changing the lifecycle to `ONLINE`. It does not separately inspect a CAN acknowledgement/result for those restore commands.
-
----
-
-# 3. Boot and initialization
+# 4. Boot sequence
 
 ```mermaid
 flowchart TD
-    A[ESP32 boot] --> B[Restore persistent user setpoints]
-    B --> C[Power State 1..3 = UNKNOWN / thermal text = NORMAL]
-    C --> D[Publish fallback Effective DC Current Limit]
+    A[ESP boot] --> B[Restore persistent user setpoints]
+    B --> C[Power states UNKNOWN]
+    C --> D[Effective current limit = 50 A fail-safe]
     D --> E[Lifecycle 1..3 = OFFLINE]
     E --> F[Start display inactivity timer]
-    F --> G[Command external fan PWM = 100%]
-    G --> H[Enable external fan supply]
+    F --> G[External fan PWM = 100%]
+    G --> H[Enable fan supply]
     H --> I[Normal runtime]
 ```
 
-Initial current scaling:
+Initial current command scaling is `1024 / 75`. Capability discovery later recomputes shared scaling.
+
+# 5. CAN transport strategy
+
+**Single-Shot is used only for slow OFFLINE reconnect probes.** Normal telemetry, fan polling, property/capability discovery, active setpoints, reconnect restore, ON/OFF and broadcast configuration use normal ESPHome CAN transmission. TWAI BUS_OFF recovery remains the final controller-level recovery layer.
+
+# 6. Normal fast polling
+
+Every 577 ms, while property discovery is not owning the bus, each lifecycle-`ONLINE` rectifier is queried for cyclic telemetry and then fan telemetry. Units 2 and 3 follow the configured inter-unit gaps. `OFFLINE` and `DISCOVERING` units are excluded.
+
+# 7. Raw CAN watchdog
+
+Valid per-unit traffic refreshes `last_can_rx_x`. Communication is fresh for 3 seconds. Loss changes `CAN Communication Unit x` to false, invalidates that unit's capability contribution and eventually demotes lifecycle `ONLINE → OFFLINE`; its published power state becomes `UNKNOWN`.
+
+# 8. Slow OFFLINE probing and reconnect
+
+One unit slot is considered every 5 seconds in round-robin order. Only an `OFFLINE` unit receives a Single-Shot cyclic probe, so a continuously offline unit is probed about every 15 seconds.
+
+A returned heartbeat changes `OFFLINE → DISCOVERING`, clears the previous capability-valid state and starts a 5-second stabilization period before serialized discovery.
+
+# 9. Discovery
+
+Discovery runs one rectifier at a time:
+
+```mermaid
+flowchart TD
+    A[Queue unit] --> B[Static properties]
+    B --> C[Capability + address]
+    C --> D{CAN fresh + required data complete?}
+    D -- No --> E[OFFLINE]
+    D -- Yes --> F[Targeted active setpoint restore]
+    F --> G[ONLINE]
+```
+
+Static property discovery has a 500 ms quiet period and up to 3 attempts. Capability/address discovery has up to 10 attempts. The tested property response contained 56 frames; the TWAI RX queue is 64 frames.
+
+# 10. Effective DC current limit
+
+Only currently CAN-reachable units participate:
 
 ```text
-current_scaling_factor = 1024 / 75
-                       ≈ 13.653333
+no reachable units                       -> 50 A
+any reachable capability still unknown  -> 50 A
+all reachable capabilities known         -> min(75 A, reachable capabilities)
 ```
 
-The 75 A scaling is the conservative command fallback. The effective hardware current ceiling starts independently at 50 A and can rise only after every currently CAN-reachable unit has a fresh capability.
+A disconnected unit is removed immediately. A reconnecting unit forces the fail-safe until its capability is freshly rediscovered.
 
----
+# 11. Current command scaling
 
-# 4. CAN transport strategy
-
-The firmware retains the v2.2.2 rule: **Single-Shot is used only for slow OFFLINE reconnect probes**.
-
-## OFFLINE probe transport
-
-`send_single_shot_offline_probe` bypasses normal ESPHome CAN transmission and uses:
-
-```text
-TWAI_MSG_FLAG_EXTD | TWAI_MSG_FLAG_SS
-```
-
-This prevents automatic hardware retransmission of an unacknowledged reconnect probe when a rectifier or the complete CAN bus is absent.
-
-## Normal ESPHome CAN transport
-
-The following traffic uses normal ESPHome `canbus.send`:
-
-- online cyclic telemetry polling,
-- online fan telemetry polling,
-- static property discovery,
-- capability/address discovery,
-- normal active voltage/current setpoints,
-- reconnect active-setpoint restore,
-- ON/OFF commands,
-- fallback and other broadcast configuration commands.
-
-`BUS_OFF` recovery therefore remains relevant as a final controller-level recovery mechanism.
-
----
-
-# 5. Normal fast polling
-
-Fast polling runs every 577 ms while no static property-discovery script is active.
-
-Only lifecycle-`ONLINE` units participate.
-
-```mermaid
-flowchart TD
-    A[577 ms interval] --> B{Any property discovery active?}
-    B -- Yes --> X[Skip complete cycle]
-    B -- No --> U1{Unit 1 ONLINE?}
-    U1 -- Yes --> Q1[ESPHome cyclic telemetry request U1]
-    U1 -- No --> S1[Skip U1 telemetry]
-    Q1 --> W1[27 ms]
-    S1 --> W1
-    W1 --> F1{Unit 1 ONLINE?}
-    F1 -- Yes --> FAN1[ESPHome fan query U1]
-    F1 -- No --> SF1[Skip fan]
-    FAN1 --> G2[156 ms then Unit 2]
-    SF1 --> G2
-    G2 --> U2[Repeat Unit 2]
-    U2 --> G3[166 ms then Unit 3]
-    G3 --> U3[Repeat Unit 3]
-```
-
-There is no separate TWAI-state or TX-error-counter gate in the current 577-ms polling condition. Controller-level `BUS_OFF`/`STOPPED` handling is performed by the independent TWAI recovery task.
-
----
-
-# 6. Raw CAN watchdog and lifecycle reconciliation
-
-```mermaid
-flowchart TD
-    A[Valid per-unit CAN heartbeat] --> B[last_can_rx_x = millis]
-    B --> C{age < 3 s?}
-    C -- Yes --> D[CAN Communication Unit x = ON]
-    C -- No --> E[CAN Communication Unit x = OFF]
-```
-
-Normal cyclic telemetry is the regular heartbeat. Valid property START/DATA and END frames also refresh it while property discovery temporarily suspends cyclic polling. Valid capability/address responses refresh the corresponding unit timestamp as well.
-
-A separate 1-second reconciliation task demotes lifecycle `ONLINE -> OFFLINE` only when raw CAN is false, no static property discovery is active and the 2-second post-property grace has expired. The CAN-reported power state is then set to `UNKNOWN`.
-
-The `can_com_ok_x` OFF edge independently clears that unit's capability-valid flag and immediately recomputes the effective current ceiling, shared command scaling and capability-mismatch diagnostic from the remaining reachable units.
-
----
-
-# 7. Slow probing of OFFLINE units
-
-One probe slot runs every five seconds in round-robin order:
-
-```text
-Unit 1 → Unit 2 → Unit 3 → Unit 1 → ...
-```
-
-A request is transmitted only if the selected unit is `OFFLINE`.
-
-```mermaid
-flowchart TD
-    A[Every 5 s] --> B{Discovery queue idle?}
-    B -- No --> X[No probe]
-    B -- Yes --> C{Current slot}
-    C -- U1 --> D{U1 OFFLINE?}
-    C -- U2 --> E{U2 OFFLINE?}
-    C -- U3 --> F{U3 OFFLINE?}
-    D -- Yes --> Q1[Single-Shot 0x108140FE]
-    E -- Yes --> Q2[Single-Shot 0x108240FE]
-    F -- Yes --> Q3[Single-Shot 0x108340FE]
-    D -- No --> N[No transmission]
-    E -- No --> N
-    F -- No --> N
-    Q1 --> A2[Advance slot]
-    Q2 --> A2
-    Q3 --> A2
-    N --> A2
-```
-
-A continuously offline unit is therefore probed about every 15 seconds in a three-slot installation. Fan telemetry is not requested from offline units.
-
----
-
-# 8. Reconnect trigger and stabilization
-
-A raw CAN OFF→ON edge starts automatic reconnect handling only when the lifecycle is `OFFLINE`.
-
-```mermaid
-flowchart TD
-    A[Raw CAN OFF → ON] --> B{Lifecycle OFFLINE?}
-    B -- No --> X[No duplicate discovery]
-    B -- Yes --> C[Lifecycle → DISCOVERING]
-    C --> D[Wait 5 s]
-    D --> E{Still DISCOVERING?}
-    E -- No --> X
-    E -- Yes --> F[Queue Unit x discovery]
-```
-
-The first returned CAN frame proves reachability, not operational readiness.
-
-On the raw CAN OFF→ON edge, the unit's previous capability-valid flag is cleared immediately. The shared current ceiling therefore falls back to 50 A until the reconnect discovery receives a fresh capability response.
-
----
-
-# 9. Static property discovery
-
-```mermaid
-flowchart TD
-    A[detect_unit_x_properties] --> B[Clear flags/counters/buffer]
-    B --> C[500 ms bus quiet period]
-    C --> D{Complete?}
-    D -- Yes --> OK[Success]
-    D -- No --> E{Attempts < 3?}
-    E -- No --> FAIL[End with warning]
-    E -- Yes --> F[ESPHome canbus.send 0x108xD2FE]
-    F --> G[Wait 1 s]
-    G --> H[Increment attempt]
-    H --> D
-```
-
-The response is assembled from `0x108xD27F` START/DATA frames and a `0x108xD27E` END frame. Required parsed keys are:
-
-- `BoardType`
-- `BarCode`
-- `Item`
-- `Description`
-- `Manufactured`
-
-The tested R4875G1 produced **56 captured property frames**. The firmware uses a **64-frame TWAI RX queue**.
-
----
-
-# 10. Capability and address discovery
-
-```mermaid
-flowchart TD
-    A[detect_data_unit_x] --> B[Clear capability/address flags]
-    B --> C[Invalidate mismatch diagnostic]
-    C --> D{Capability AND address found?}
-    D -- Yes --> OK[Stage complete]
-    D -- No --> E{Attempts < 10?}
-    E -- No --> FAIL[End with warning]
-    E -- Yes --> F[ESPHome canbus.send 0x108x50FE]
-    F --> G[Wait 1 s]
-    G --> H[Increment attempt]
-    H --> D
-```
-
-Maximum-current capability is decoded from capability packet 1:
-
-```text
-maximum_current_A = capability_byte_5 / 2
-```
-
-The tested reduced-current R4875G1 configuration reports **52.0 A**.
-
----
-
-# 11. Effective DC current limit
-
-The hardware current ceiling is CAN-aware and fail-safe.
-
-```text
-startup / no reachable units:
-    effective_dc_current_limit = 50 A
-
-any reachable unit with unknown capability:
-    effective_dc_current_limit = 50 A
-
-all currently reachable capabilities known:
-    effective_dc_current_limit = min(75 A, capabilities of reachable units)
-```
-
-Only `can_com_ok_x == true` units participate. Offline units and their stale capability values are ignored immediately. When a unit reconnects, its `max_current_found_x` flag is cleared before discovery, so the shared ceiling returns to 50 A until that unit reports a fresh capability.
-
-Examples:
-
-| Reachable units | Fresh capabilities | Effective limit |
-|---|---|---:|
-| none | — | 50 A |
-| U1 | unknown | 50 A |
-| U1 | 52 A | 52 A |
-| U1 | 75 A | 75 A |
-| U1 + U2 | 75 A + 75 A | 75 A |
-| U1 + U2 | 75 A + 52 A | 52 A |
-| U1 + U2 | 75 A + unknown | 50 A |
-| U1 only; offline U2 previously 52 A | U1 = 75 A | 75 A |
-
-The active requested-current number is preserved even when above this ceiling; only the applied CAN command is limited. The fallback-current device setpoint is reduced immediately when the effective ceiling drops.
-
----
-
-# 12. Current command scaling
-
-The shared command scale no longer has a permanent Unit-1 dependency.
+The current implementation has **no permanent Unit-1 scaling dependency**:
 
 ```text
 unknown/incomplete reachable capabilities:
@@ -390,9 +157,9 @@ all reachable capabilities known:
     current_scaling_factor = 1024 / highest reachable capability
 ```
 
-Using the highest reachable capability produces the smallest raw counts-per-ampere factor. In a mixed 52 A / 75 A installation this deliberately under-drives the lower-capability unit rather than risking an over-current command, while `effective_dc_current_limit` independently limits the requested engineering current to the lowest reachable capability.
+The effective engineering-current ceiling independently uses the **lowest** reachable capability. This combination is deliberately conservative for differing reachable capabilities.
 
-Active DC current is quantized in raw protocol space:
+Raw command selection is bounded in protocol space:
 
 ```text
 requested_raw      = round(requested_A × scaling)
@@ -401,414 +168,110 @@ thermal_limit_raw  = floor(thermal_limit_A × scaling)
 raw_command        = min(requested_raw, hardware_limit_raw, thermal_limit_raw)
 ```
 
-This gives ordinary setpoints the nearest representable CAN value while ensuring hardware and thermal ceilings are never exceeded by quantization.
+# 12. Capability mismatch
 
-Per-unit diagnostic scaling sensors still publish `1024 / unit_capability` for comparison.
-
----
-
-# 13. Capability mismatch
-
-The mismatch diagnostic also considers only currently CAN-reachable units.
+`Rectifier Capability Mismatch` considers currently reachable units only:
 
 ```text
-UNKNOWN = fewer than two reachable units, or any reachable capability unknown
-OFF     = all reachable capabilities match within 0.25 A
-ON      = at least two reachable capabilities differ by more than 0.25 A
+UNKNOWN = fewer than two reachable units or a reachable capability is unknown
+OFF     = reachable capabilities match within 0.25 A
+ON      = at least two reachable capabilities differ by >0.25 A
 ```
 
-A disconnected unit is ignored. A reconnecting unit temporarily makes the diagnostic UNKNOWN until its capability is rediscovered. The diagnostic does not inhibit operation automatically; the effective current ceiling and shared scaling already apply the fail-safe behavior described above.
+The diagnostic itself does not inhibit charging; fail-safe current limiting/scaling handles the operational boundary.
 
----
+# 13. Active setpoints and reconnect restore
 
-# 14. Serialized discovery queue
+Normal active voltage/current changes and the 30-second refresh are sent only to `ONLINE` + CAN-fresh rectifiers. A rediscovered unit receives its current active voltage and current through targeted unit-specific CAN commands before returning to `ONLINE`. Restore does not send ON.
 
-All automatic and manual discoveries share one queued worker.
+Fallback voltage/current remain broadcast configuration commands.
 
-```mermaid
-flowchart TD
-    A[Queue Unit x] --> B[Static properties]
-    B --> C[Capability + address]
-    C --> D{CAN fresh AND properties complete AND max-current found AND address found?}
-    D -- No --> E[Lifecycle → OFFLINE]
-    D -- Yes --> F[Run reapply_active_setpoints for Unit x]
-    F --> G[Wait until restore script completes]
-    G --> H[Lifecycle → ONLINE]
-```
-
-For manual full discovery, all three lifecycle states are first set to `DISCOVERING`, then Unit 1, Unit 2 and Unit 3 are processed sequentially.
-
-Important implementation detail: lifecycle promotion depends on discovery verification and completion of the restore script. The discovery queue does **not** perform an additional CAN acknowledgement check for the restore frames before setting `ONLINE`.
-
----
-
-# 15. Post-discovery active-setpoint restore
-
-`reapply_active_setpoints(unit)` validates stored active voltage/current/scaling, then invokes the normal unit-specific setpoint scripts.
-
-```mermaid
-flowchart TD
-    A[Discovery verified] --> B[Read active voltage/current/scaling]
-    B --> C{Stored values valid?}
-    C -- No --> D[Log warning; no restore commands sent]
-    C -- Yes --> E[send_active_voltage_to_unit]
-    E --> F[Wait 50 ms]
-    F --> G[send_active_current_to_unit]
-    D --> H[Restore script completes]
-    G --> H
-    H --> I[Discovery queue sets lifecycle ONLINE]
-```
-
-The restore uses normal ESPHome CAN transmission via the existing unit-specific active-setpoint helpers. It does not send an ON command.
-
----
-
-# 16. Normal active-setpoint routing
-
-Normal active voltage/current changes are routed only to rectifiers that are both:
-
-- lifecycle `ONLINE`, and
-- raw CAN fresh.
-
-```mermaid
-flowchart TD
-    A[Active V/I changed] --> B[Inspect Unit 1..3]
-    B --> C{ONLINE + CAN fresh?}
-    C -- Yes --> D[Send unit-specific setpoint]
-    C -- No --> E[Do not send to that unit]
-```
-
-Fallback voltage/current remain broadcast configuration commands using `0x108080FE` selectors `0x01` and `0x04`.
-
----
-
-# 17. Periodic active-setpoint refresh
-
-Every 30 seconds:
-
-```mermaid
-flowchart TD
-    A[30 s interval] --> B[Voltage to ONLINE + CAN-fresh units]
-    B --> C[50 ms]
-    C --> D[Current to ONLINE + CAN-fresh units]
-```
-
-`OFFLINE` and `DISCOVERING` units receive no normal periodic active refresh.
-
----
-
-# 18. Nominal three-unit power → current
+# 14. Nominal power target
 
 ```text
 I_each = P_target / (3 × V_DC)
 ```
 
-The divisor stays fixed at three:
+The divisor intentionally remains fixed at three. Therefore, before losses/clamping, two active rectifiers deliver roughly 67% and one roughly 33% of the configured nominal three-unit target. The firmware does not automatically increase remaining-unit current when a rectifier disappears.
 
-```text
-3 active units ≈ 100% target
-2 active units ≈  67% target
-1 active unit  ≈  33% target
-```
+# 15. Blackstart and local encoder
 
-The requested value is clamped only to the 1–75 A project/UI range. The transmitted applied current is then `min(requested, hardware limit, thermal limit)`.
+The encoder edits DC voltage or nominal three-unit DC power. Short press toggles the edit target; long press (≥3 s) toggles START/STOP. STOP has priority and remains unrestricted.
 
----
+START evaluates each rectifier independently. A unit must be `ONLINE`, CAN-fresh, explicitly `OFF`, have valid output temperature below 90 °C and have no overtemperature lockout. Active setpoints are refreshed before individual ON commands are issued.
 
-# 19. Blackstart START
+# 16. Thermal derating
 
-```mermaid
-flowchart TD
-    A[blackstart_start] --> B[Recalculate common current]
-    B --> C[Wait 25 ms]
-    C --> D[Refresh active V/I to ONLINE + CAN-fresh units]
-    D --> E[Wait 100 ms]
-    E --> U1[Evaluate Unit 1]
-    E --> U2[Evaluate Unit 2]
-    E --> U3[Evaluate Unit 3]
-    U1 --> C1{ONLINE?<br/>CAN fresh?<br/>Power state OFF?<br/>Temp valid and <90 C?<br/>No lockout?}
-    U2 --> C2{Same checks}
-    U3 --> C3{Same checks}
-    C1 -- Yes --> ON1[Individual ON U1]
-    C1 -- No --> S1[Skip U1]
-    C2 -- Yes --> ON2[Individual ON U2]
-    C2 -- No --> S2[Skip U2]
-    C3 -- Yes --> ON3[Individual ON U3]
-    C3 -- No --> S3[Skip U3]
-```
+The most severe per-unit thermal state determines a shared thermal current ceiling:
 
-`OFFLINE`, `DISCOVERING`, `UNKNOWN` and `ERROR` do not satisfy START readiness.
+| State | Enter | Recovery threshold | Shared limit |
+|---|---:|---:|---:|
+| `NORMAL` | <70 °C | — | 75 A |
+| `WARNING_1` | ≥70 °C | <65 °C | 50 A |
+| `WARNING_2` | ≥80 °C | <75 °C | 30 A |
+| `LOCKOUT` | ≥90 °C | <80 °C | 30 A + individual OFF |
 
----
+Applied current is `min(requested, hardware capability limit, thermal limit)`. Derating never overwrites the user's requested current. Stale temperature cannot relax a warning or lockout, and lockout recovery never automatically starts a rectifier.
 
-# 20. Encoder long press
+# 17. Telemetry and aggregate sensors
 
-```mermaid
-flowchart TD
-    A[Hold >=3 s] --> B{Any power state ON?}
-    B -- Yes --> C[STOP]
-    B -- No --> D{At least one ONLINE + CAN-fresh unit?}
-    D -- No --> E[Ignore START]
-    D -- Yes --> F[blackstart_start]
-```
+Cyclic selectors include operating hours (`0x0E`), AC power (`0x70`), frequency (`0x71`), AC current (`0x72`), DC power (`0x73`), DC voltage (`0x75`), configured max DC current (`0x76`), AC voltage (`0x78`), output temperature (`0x7F`), input temperature (`0x80`) and DC current (`0x81`). Most engineering values use `raw / 1024`.
 
-STOP has priority and remains unrestricted.
+Aggregate AC/DC power, DC current, average DC voltage, highest output temperature and efficiency include only CAN-fresh units with valid required telemetry. `Available Units` returns the reachable count.
 
----
+# 18. LVGL TFT behavior — v4
 
-# 21. Manual ON/OFF
+Version 4 replaces the previous immediate-mode display renderer with LVGL. The physical ILI9488 transport remains 480×320 RGB565; LVGL rotation `90` produces the default 320×480 portrait UI. Rotation `0` is available for landscape.
 
-Individual ON requires lifecycle `ONLINE`, fresh CAN, explicit `OFF`, valid safe output temperature and no lockout. The latest active setpoints are reasserted to that unit before ON.
+The ESP32-S3 N16R8 has 8 MB PSRAM, and LVGL is configured with a **100% 16-bit RGB565 framebuffer**. The dashboard updates dynamic labels every 500 ms. Scrollbars are explicitly disabled on the page and cards.
 
-Broadcast ON is stricter: all three rectifiers must satisfy those conditions because a broadcast cannot exclude one unsafe unit.
+The dashboard contains:
 
-Individual and broadcast OFF are intentionally unrestricted by START-style preconditions.
+- header: `R4875G1 Charger`, date/time, `v4.0.0`, overall ON/OFF state;
+- AC INPUT and DC OUTPUT cards;
+- three rectifier status lines;
+- local voltage/power/current setpoints;
+- highest temperature and conversion efficiency;
+- IP address and Wi-Fi RSSI;
+- encoder START/STOP reminder.
 
----
+The UI differentiates `CAN communication fault`, incomplete telemetry and normal numeric telemetry. Display inactivity still switches the backlight off after five minutes and encoder/button activity restarts the timer.
 
-# 22. Power-state decode
+# 19. TWAI BUS_OFF recovery
 
-`0x100x117E` determines `ON`, `OFF` or `ERROR`.
+Every 2 seconds the controller checks TWAI state. `BUS_OFF` initiates recovery; `STOPPED` restarts TWAI. This is a final recovery mechanism, not the normal rectifier reconnect path.
 
-Communication loss explicitly changes the published state to `UNKNOWN`, preventing stale state from being used for control decisions.
+# 20. Verified physical reconnect behavior
 
----
+The 2026-08-27 physical test remains the validated CAN baseline: unplugging CAN while the rectifier stayed powered caused the 3-second watchdog to expire, lifecycle moved to OFFLINE, slow Single-Shot probes continued, reconnect triggered DISCOVERING, the 56-frame property exchange and capability/address discovery completed, active setpoints were restored, and lifecycle returned to ONLINE without an ESP reboot.
 
-# 23. Cyclic telemetry
+The tested reduced-current connector configuration reported a 52 A capability. That trace remains valid protocol evidence; v4's LVGL work does not alter this CAN behavior.
 
-Important `0x108x407F` selectors:
+# 21. Safety and behavioral invariants
 
-| Selector | Meaning |
-|---:|---|
-| `0x0E` | Operating hours |
-| `0x70` | AC input power |
-| `0x71` | Grid frequency |
-| `0x72` | AC input current |
-| `0x73` | DC output power |
-| `0x75` | DC output voltage |
-| `0x76` | Configured maximum DC-current setpoint |
-| `0x78` | AC input voltage |
-| `0x7F` | Output temperature |
-| `0x80` | Input temperature |
-| `0x81` | DC output current |
-
-Most engineering values use `raw / 1024`.
-
-`0x80` is **input temperature**, not maximum-current capability. Maximum-current capability comes from the separate `0x108x50xx` discovery exchange.
-
-Live telemetry has a 5-second freshness timeout.
-
----
-
-# 24. Fan telemetry
-
-Fan response payload:
-
-```text
-bytes 2..3 = minimum duty raw
-bytes 4..5 = target duty raw
-bytes 6..7 = RPM
-```
-
-```text
-duty % = raw / 256
-RPM    = 16-bit raw value
-```
-
-Fan queries run only for lifecycle-`ONLINE` units and use normal ESPHome `canbus.send` in the v3 hardware-test candidate.
-
----
-
-# 25. Overtemperature protection
-
-The hard trip is integrated into the staged thermal state machine documented in section 32. At `>= 90 °C` the affected rectifier enters `LOCKOUT` and receives an individual OFF command. The lockout clears only after a fresh output-temperature value below 80 °C; clearing never sends an automatic ON command.
-
-Missing or stale temperature never clears a warning or lockout and never qualifies START.
-
----
-
-# 26. CAN-aware aggregate sensors
-
-A unit contributes only when its raw CAN state is valid and the required sensor value is numeric. Stale/unreachable units are excluded rather than contributing their last value.
-
-`Available Units` returns 0 when none are reachable; other aggregate sensors can become unavailable.
-
----
-
-# 27. TFT rendering
-
-```mermaid
-flowchart TD
-    A[Render Unit x] --> B{CAN reachable?}
-    B -- No --> C[CAN bus communication fault]
-    B -- Yes --> D{Required live telemetry valid?}
-    D -- No --> E[Telemetry incomplete]
-    D -- Yes --> F[Render numeric line]
-```
-
-The TFT therefore distinguishes communication loss from stale/incomplete telemetry.
-
----
-
-# 28. TWAI BUS_OFF recovery
-
-BUS_OFF is a final controller-level recovery mechanism, not a required normal reconnect path.
-
-```mermaid
-flowchart TD
-    A[Every 2 s] --> B[Read TWAI state]
-    B --> C{State}
-    C -- RUNNING --> D[No action]
-    C -- RECOVERING --> D
-    C -- BUS_OFF --> E[twai_initiate_recovery]
-    C -- STOPPED --> F[twai_start]
-```
-
-State-aware polling and Single-Shot OFFLINE probes reduce unnecessary transmit pressure when rectifiers disappear. Normal polling, discovery and control traffic still use regular ESPHome CAN transmission, so BUS_OFF recovery remains valuable as a final layer.
-
----
-
-# 29. Verified physical CAN disconnect/reconnect flow
-
-Verified on **2026-08-27** with the R4875G1 remaining powered while the CAN connector was physically unplugged and reconnected:
-
-```mermaid
-sequenceDiagram
-    participant ESP as ESP32
-    participant R as R4875G1
-    participant LIFE as Lifecycle
-    participant DISC as Discovery
-
-    LIFE-->>ESP: ONLINE
-    ESP->>R: Normal fast polling
-    R-->>ESP: Valid telemetry
-
-    Note over ESP,R: CAN connector unplugged
-    ESP-->>LIFE: ~3 s raw CAN timeout
-    LIFE-->>LIFE: ONLINE → OFFLINE
-    ESP-->>ESP: Power state → UNKNOWN
-
-    loop Slow round-robin probing
-        ESP->>R: Single-Shot probe in unit slot
-    end
-
-    Note over ESP,R: CAN connector reconnected
-    ESP->>R: Next Unit 1 probe
-    R-->>ESP: Valid cyclic telemetry
-    LIFE-->>LIFE: OFFLINE → DISCOVERING
-
-    ESP-->>ESP: 5 s stabilization
-    DISC->>R: Static property request via normal CAN path
-    R-->>DISC: 56 property frames observed
-    DISC->>R: Capability/address request via normal CAN path
-    R-->>DISC: Capability/address response
-    ESP-->>ESP: Effective limit = 52 A in tested setup
-    ESP->>R: Active voltage restore via unit-specific normal CAN path
-    ESP->>R: Active current restore via unit-specific normal CAN path
-    LIFE-->>LIFE: DISCOVERING → ONLINE
-    ESP->>R: Normal fast polling resumes
-```
-
-The test showed successful reconnect without an ESP reboot and without BUS_OFF being required for the recovery sequence.
-
----
-
-# 30. Safety and behavioral invariants
-
-1. Every rectifier starts lifecycle `OFFLINE` after ESP boot.
-2. Raw CAN reachability is not the same as operational readiness.
+1. Every rectifier boots `OFFLINE`.
+2. Raw CAN reachability is not operational readiness.
 3. Only `ONLINE` units receive normal fast polling.
-4. Only `ONLINE` + CAN-fresh units receive normal active setpoint changes and periodic refresh.
-5. `OFFLINE` units are probed sparsely with Single-Shot telemetry requests.
-6. `DISCOVERING` units receive discovery traffic instead of normal fast polling.
-7. Discovery verification must succeed before lifecycle promotion.
-8. The post-discovery restore script completes before lifecycle promotion; the queue does not separately verify a CAN acknowledgement for those restore frames.
-9. START requires `ONLINE`, fresh CAN, explicit `OFF`, valid safe temperature and no lockout.
-10. STOP remains unrestricted.
-11. The nominal power divisor remains fixed at three.
-12. The effective current ceiling is the lowest valid detected capability, capped at 75 A.
-13. Shared current scaling remains based on Unit 1 capability.
-14. Property discovery is serialized and temporarily owns the bus.
-15. Single-Shot is restricted to the slow OFFLINE reconnect probe in the v3 hardware-test candidate.
-16. BUS_OFF recovery is a final protection/recovery path, not the normal reconnect mechanism.
+4. Only `ONLINE` + CAN-fresh units receive normal active setpoints.
+5. `OFFLINE` units are probed sparsely with Single-Shot.
+6. Discovery must verify before `ONLINE` promotion.
+7. START requires lifecycle, CAN, power-state and temperature safety checks.
+8. STOP is unrestricted.
+9. Nominal power always divides by three.
+10. Effective current ceiling uses the lowest known reachable capability with a 50 A fail-safe for incomplete discovery.
+11. Shared command scaling uses the highest reachable capability once all reachable capabilities are known.
+12. Thermal/hardware limits clamp applied current without overwriting requested current.
+13. Property discovery is serialized.
+14. BUS_OFF recovery is a final recovery layer.
+15. LVGL affects presentation only; charger control and safety decisions remain outside the display layer.
 
----
+## Source status
 
-# 31. End-to-end runtime summary
-
-```mermaid
-flowchart TD
-    A[ESP boot] --> B[Lifecycle OFFLINE]
-    B --> C[Slow Single-Shot probes]
-    C --> D[Valid heartbeat]
-    D --> E[DISCOVERING]
-    E --> F[5 s stabilization]
-    F --> G[Serialized properties + capability/address via normal CAN]
-    G --> H{Discovery verified?}
-    H -- No --> C
-    H -- Yes --> I[Run targeted normal-CAN restore step]
-    I --> J[ONLINE]
-    J --> K[Normal fast telemetry + fan polling]
-    J --> L[Normal active setpoint routing]
-    J --> M[START eligible after safety checks]
-    K --> N{CAN lost?}
-    N -- No --> J
-    N -- Yes --> O[Power state UNKNOWN]
-    O --> P[OFFLINE]
-    P --> C
-    Q[TWAI BUS_OFF if it occurs] --> R[Automatic TWAI recovery]
-    R --> C
-```
-
----
-
-
-# 32. Staged thermal derating
-
-```mermaid
-stateDiagram-v2
-    [*] --> NORMAL
-    NORMAL --> WARNING_1: temperature >= 70 C
-    WARNING_1 --> NORMAL: temperature < 65 C
-    WARNING_1 --> WARNING_2: temperature >= 80 C
-    WARNING_2 --> WARNING_1: temperature < 75 C
-    WARNING_2 --> LOCKOUT: temperature >= 90 C
-    LOCKOUT --> WARNING_1: fresh temperature < 80 C
-```
-
-The states are per rectifier, but the current limit is shared. The most severe state wins:
-
-```text
-NORMAL     -> 75 A project thermal ceiling
-WARNING_1  -> 50 A
-WARNING_2  -> 30 A
-LOCKOUT    -> 30 A + individual OFF
-```
-
-The active-current layers are:
-
-```mermaid
-flowchart TD
-    A[Requested DC current] --> D[Minimum selector]
-    B[Effective hardware capability limit] --> D
-    C[Shared thermal current limit] --> D
-    D --> E[Applied DC Current Limit]
-    E --> F[Unit-specific current CAN command to ONLINE units]
-```
-
-Thermal or hardware derating never overwrites the requested active-current number. A lower applied current is therefore temporary and automatically rises again when limits recover.
-
-Only fresh numeric output-temperature samples can reduce a thermal state. A stale/NAN temperature leaves the previous state latched. `LOCKOUT` clearing never sends an automatic ON command.
-
----
-
-## Source
-
-Behavior documented from the **v3.0.1 hardware-test candidate** on branch `v3-modularization`:
+Behavior documented from firmware **4.0.0** on branch `main`:
 
 ```text
 r4875g1-3phase-charger.yaml
 packages/
 ```
 
-Last fully reviewed and resynchronized before hardware testing: **2026-08-29**.
+The v4 LVGL UI was physically verified on the ILI9488 on **2026-08-29**. The earlier physical CAN disconnect/reconnect trace remains the validated runtime baseline for the unchanged CAN/lifecycle behavior.
