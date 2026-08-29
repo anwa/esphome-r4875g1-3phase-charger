@@ -1,0 +1,135 @@
+# LVGL PAGE: COOLING
+lvgl:
+  pages:
+    - id: cooling_page
+      bg_color: 0xF3F5F8
+      bg_opa: COVER
+      scrollable: false
+      widgets:
+        - obj:
+            x: 0
+            y: 0
+            width: 100%
+            height: 64
+            styles: style_header
+            pad_all: 0
+            widgets:
+              - label:
+                  x: 10
+                  y: 8
+                  width: 300
+                  text_align: CENTER
+                  text: "COOLING"
+                  text_font: ui_font_26_bold
+              - label:
+                  x: 10
+                  y: 42
+                  width: 300
+                  text_align: CENTER
+                  text: "Compartment and external fans"
+                  text_font: ui_font_14
+                  text_color: 0xFFFFFF
+        - obj:
+            x: 8
+            y: 72
+            width: 304
+            height: 104
+            styles: style_card
+            widgets:
+              - label:
+                  text: "COMPARTMENT"
+                  text_font: ui_font_14
+                  text_color: 0x657080
+              - label:
+                  id: ui_cooling_environment
+                  x: 0
+                  y: 28
+                  text: "Temperature --.- C"
+                  text_font: ui_font_18_bold
+              - label:
+                  id: ui_cooling_humidity
+                  x: 0
+                  y: 60
+                  text: "Humidity --.- %"
+                  text_font: ui_font_18_bold
+        - obj:
+            x: 8
+            y: 184
+            width: 304
+            height: 96
+            styles: style_card
+            widgets:
+              - label:
+                  text: "EXTERNAL FAN CONTROL"
+                  text_font: ui_font_14
+                  text_color: 0x657080
+              - label:
+                  id: ui_cooling_control
+                  x: 0
+                  y: 30
+                  text: "Power --   PWM -- %"
+                  text_font: ui_font_18_bold
+              - label:
+                  x: 0
+                  y: 61
+                  text: "PWM applies to 4-pin fans"
+                  text_font: ui_font_14
+                  text_color: 0x657080
+        - obj:
+            x: 8
+            y: 288
+            width: 304
+            height: 132
+            styles: style_card
+            widgets:
+              - label:
+                  text: "EXTERNAL FAN SPEED"
+                  text_font: ui_font_14
+                  text_color: 0x657080
+              - label:
+                  id: ui_cooling_fan1
+                  x: 0
+                  y: 28
+                  text: "Fan 1  ---- RPM"
+                  text_font: ui_font_18_bold
+              - label:
+                  id: ui_cooling_fan2
+                  x: 0
+                  y: 58
+                  text: "Fan 2  ---- RPM"
+                  text_font: ui_font_18_bold
+              - label:
+                  id: ui_cooling_fan3
+                  x: 0
+                  y: 88
+                  text: "Fan 3  ---- RPM"
+                  text_font: ui_font_18_bold
+        - label:
+            x: 8
+            y: 448
+            width: 304
+            text_align: CENTER
+            text: "Double page | Hold START/STOP"
+            text_font: ui_font_14
+            text_color: 0x657080
+interval:
+  - interval: 1s
+    then:
+      - lvgl.label.update:
+          id: ui_cooling_environment
+          text: !lambda 'return str_sprintf("Temperature %.1f C", id(rectifier_compartment_temperature).state);'
+      - lvgl.label.update:
+          id: ui_cooling_humidity
+          text: !lambda 'return str_sprintf("Humidity %.1f %%", id(rectifier_compartment_humidity).state);'
+      - lvgl.label.update:
+          id: ui_cooling_control
+          text: !lambda 'return str_sprintf("Power %s   PWM %.0f %%", id(cooling_fan_enable).state ? "ON" : "OFF", id(cooling_fan_pwm_percent).state);'
+      - lvgl.label.update:
+          id: ui_cooling_fan1
+          text: !lambda 'return str_sprintf("Fan 1  %.0f RPM", id(cooling_fan_1_rpm).state);'
+      - lvgl.label.update:
+          id: ui_cooling_fan2
+          text: !lambda 'return str_sprintf("Fan 2  %.0f RPM", id(cooling_fan_2_rpm).state);'
+      - lvgl.label.update:
+          id: ui_cooling_fan3
+          text: !lambda 'return str_sprintf("Fan 3  %.0f RPM", id(cooling_fan_3_rpm).state);'

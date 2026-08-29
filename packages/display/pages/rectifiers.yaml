@@ -1,0 +1,111 @@
+# LVGL PAGE: RECTIFIERS
+lvgl:
+  pages:
+    - id: rectifiers_page
+      bg_color: 0xF3F5F8
+      bg_opa: COVER
+      scrollable: false
+      widgets:
+        - obj:
+            x: 0
+            y: 0
+            width: 100%
+            height: 64
+            styles: style_header
+            pad_all: 0
+            widgets:
+              - label:
+                  x: 10
+                  y: 8
+                  width: 300
+                  text_align: CENTER
+                  text: "RECTIFIERS"
+                  text_font: ui_font_26_bold
+              - label:
+                  x: 10
+                  y: 42
+                  width: 300
+                  text_align: CENTER
+                  text: "L1 / L2 / L3 detail"
+                  text_font: ui_font_14
+                  text_color: 0xFFFFFF
+        - obj:
+            x: 8
+            y: 72
+            width: 304
+            height: 112
+            styles: style_card
+            widgets:
+              - label:
+                  text: "L1"
+                  text_font: ui_font_18_bold
+                  text_color: 0x1769AA
+              - label:
+                  id: ui_rectifier_1
+                  x: 35
+                  y: 0
+                  width: 245
+                  text: "waiting for telemetry"
+                  text_font: ui_font_14
+        - obj:
+            x: 8
+            y: 190
+            width: 304
+            height: 112
+            styles: style_card
+            widgets:
+              - label:
+                  text: "L2"
+                  text_font: ui_font_18_bold
+                  text_color: 0x1769AA
+              - label:
+                  id: ui_rectifier_2
+                  x: 35
+                  y: 0
+                  width: 245
+                  text: "waiting for telemetry"
+                  text_font: ui_font_14
+        - obj:
+            x: 8
+            y: 308
+            width: 304
+            height: 112
+            styles: style_card
+            widgets:
+              - label:
+                  text: "L3"
+                  text_font: ui_font_18_bold
+                  text_color: 0x1769AA
+              - label:
+                  id: ui_rectifier_3
+                  x: 35
+                  y: 0
+                  width: 245
+                  text: "waiting for telemetry"
+                  text_font: ui_font_14
+        - label:
+            x: 8
+            y: 448
+            width: 304
+            text_align: CENTER
+            text: "Double page | Hold START/STOP"
+            text_font: ui_font_14
+            text_color: 0x657080
+interval:
+  - interval: 500ms
+    then:
+      - lvgl.label.update:
+          id: ui_rectifier_1
+          text: !lambda |-
+            if (!id(can_com_ok_1).state) return std::string("CAN FAULT\nPower --\nDC --");
+            return str_sprintf("Power %s\nDC %.1f V  %.1f A  %.0f W\nOutput %.1f C", id(power_state_1).state.c_str(), id(dc_voltage_1).state, id(dc_current_1).state, id(dc_power_1).state, id(output_temperature_1).state);
+      - lvgl.label.update:
+          id: ui_rectifier_2
+          text: !lambda |-
+            if (!id(can_com_ok_2).state) return std::string("CAN FAULT\nPower --\nDC --");
+            return str_sprintf("Power %s\nDC %.1f V  %.1f A  %.0f W\nOutput %.1f C", id(power_state_2).state.c_str(), id(dc_voltage_2).state, id(dc_current_2).state, id(dc_power_2).state, id(output_temperature_2).state);
+      - lvgl.label.update:
+          id: ui_rectifier_3
+          text: !lambda |-
+            if (!id(can_com_ok_3).state) return std::string("CAN FAULT\nPower --\nDC --");
+            return str_sprintf("Power %s\nDC %.1f V  %.1f A  %.0f W\nOutput %.1f C", id(power_state_3).state.c_str(), id(dc_voltage_3).state, id(dc_current_3).state, id(dc_power_3).state, id(output_temperature_3).state);
