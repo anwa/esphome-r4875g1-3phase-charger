@@ -56,7 +56,6 @@ lvgl:
                   text_color: 0xFF7070
 
         - obj:
-            scrollbar_mode: "OFF"
             x: 8
             y: 84
             width: 148
@@ -84,7 +83,6 @@ lvgl:
                   text_font: ui_font_14
 
         - obj:
-            scrollbar_mode: "OFF"
             x: 164
             y: 84
             width: 148
@@ -112,7 +110,6 @@ lvgl:
                   text_font: ui_font_14
 
         - obj:
-            scrollbar_mode: "OFF"
             x: 8
             y: 174
             width: 304
@@ -140,7 +137,6 @@ lvgl:
                   text_color: 0x657080
 
         - obj:
-            scrollbar_mode: "OFF"
             x: 8
             y: 260
             width: 304
