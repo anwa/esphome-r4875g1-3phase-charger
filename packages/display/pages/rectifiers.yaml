@@ -42,11 +42,18 @@ lvgl:
                   text_font: ui_font_18_bold
                   text_color: 0x1769AA
               - label:
-                  id: ui_rectifier_1
+                  id: ui_rectifier_status_1
                   x: 35
                   y: 0
                   width: 255
-                  text: "waiting for telemetry"
+                  text: "Power -- | CAN -- | --"
+                  text_font: ui_font_14
+              - label:
+                  id: ui_rectifier_1
+                  x: 35
+                  y: 23
+                  width: 255
+                  text: "DC --.- V  --.- A  ---- W\nTemp IN --.-  OUT --.- C\nFan ---- RPM | Cap --.- A"
                   text_font: ui_font_14
 
         - obj:
@@ -61,11 +68,18 @@ lvgl:
                   text_font: ui_font_18_bold
                   text_color: 0x1769AA
               - label:
-                  id: ui_rectifier_2
+                  id: ui_rectifier_status_2
                   x: 35
                   y: 0
                   width: 255
-                  text: "waiting for telemetry"
+                  text: "Power -- | CAN -- | --"
+                  text_font: ui_font_14
+              - label:
+                  id: ui_rectifier_2
+                  x: 35
+                  y: 23
+                  width: 255
+                  text: "DC --.- V  --.- A  ---- W\nTemp IN --.-  OUT --.- C\nFan ---- RPM | Cap --.- A"
                   text_font: ui_font_14
 
         - obj:
@@ -80,11 +94,18 @@ lvgl:
                   text_font: ui_font_18_bold
                   text_color: 0x1769AA
               - label:
-                  id: ui_rectifier_3
+                  id: ui_rectifier_status_3
                   x: 35
                   y: 0
                   width: 255
-                  text: "waiting for telemetry"
+                  text: "Power -- | CAN -- | --"
+                  text_font: ui_font_14
+              - label:
+                  id: ui_rectifier_3
+                  x: 35
+                  y: 23
+                  width: 255
+                  text: "DC --.- V  --.- A  ---- W\nTemp IN --.-  OUT --.- C\nFan ---- RPM | Cap --.- A"
                   text_font: ui_font_14
 
         - label:
@@ -100,49 +121,52 @@ interval:
   - interval: 500ms
     then:
       - lvgl.label.update:
-          id: ui_rectifier_1
+          id: ui_rectifier_status_1
           text: !lambda |-
-            const char *can = id(can_com_ok_1).state ? "OK" : "FAULT";
             const std::string lifecycle = id(rectifier_control_state_text_1).state.empty() ? "--" : id(rectifier_control_state_text_1).state;
             const std::string power = id(power_state_1).state.empty() ? "--" : id(power_state_1).state;
-            if (!id(can_com_ok_1).state) {
-              return str_sprintf("Power %s | CAN %s | %s\nDC --.- V  --.- A  ---- W\nTemp IN --.-  OUT --.- C\nFan ---- RPM | Cap --.- A", power.c_str(), can, lifecycle.c_str());
-            }
-            return str_sprintf(
-              "Power %s | CAN %s | %s\nDC %.1f V  %.1f A  %.0f W\nTemp IN %.1f  OUT %.1f C\nFan %.0f RPM | Cap %.1f A",
-              power.c_str(), can, lifecycle.c_str(),
-              id(dc_voltage_1).state, id(dc_current_1).state, id(dc_power_1).state,
-              id(input_temperature_1).state, id(output_temperature_1).state,
-              id(fan_rpm_1).state, id(max_dc_current_1).state);
+            return str_sprintf("Power %s | CAN %s | %s", power.c_str(), id(can_com_ok_1).state ? "OK" : "FAULT", lifecycle.c_str());
+          text_color: !lambda |-
+            if (!id(can_com_ok_1).state) return lv_color_hex(0xC62828);
+            if (id(rectifier_control_state_1) == ${rectifier_state_discovering}) return lv_color_hex(0xC27A00);
+            if (id(rectifier_control_state_1) == ${rectifier_state_online}) return lv_color_hex(0x198754);
+            return lv_color_hex(0x657080);
+      - lvgl.label.update:
+          id: ui_rectifier_1
+          text: !lambda |-
+            if (!id(can_com_ok_1).state) return std::string("DC --.- V  --.- A  ---- W\nTemp IN --.-  OUT --.- C\nFan ---- RPM | Cap --.- A");
+            return str_sprintf("DC %.1f V  %.1f A  %.0f W\nTemp IN %.1f  OUT %.1f C\nFan %.0f RPM | Cap %.1f A", id(dc_voltage_1).state, id(dc_current_1).state, id(dc_power_1).state, id(input_temperature_1).state, id(output_temperature_1).state, id(fan_rpm_1).state, id(max_dc_current_1).state);
 
+      - lvgl.label.update:
+          id: ui_rectifier_status_2
+          text: !lambda |-
+            const std::string lifecycle = id(rectifier_control_state_text_2).state.empty() ? "--" : id(rectifier_control_state_text_2).state;
+            const std::string power = id(power_state_2).state.empty() ? "--" : id(power_state_2).state;
+            return str_sprintf("Power %s | CAN %s | %s", power.c_str(), id(can_com_ok_2).state ? "OK" : "FAULT", lifecycle.c_str());
+          text_color: !lambda |-
+            if (!id(can_com_ok_2).state) return lv_color_hex(0xC62828);
+            if (id(rectifier_control_state_2) == ${rectifier_state_discovering}) return lv_color_hex(0xC27A00);
+            if (id(rectifier_control_state_2) == ${rectifier_state_online}) return lv_color_hex(0x198754);
+            return lv_color_hex(0x657080);
       - lvgl.label.update:
           id: ui_rectifier_2
           text: !lambda |-
-            const char *can = id(can_com_ok_2).state ? "OK" : "FAULT";
-            const std::string lifecycle = id(rectifier_control_state_text_2).state.empty() ? "--" : id(rectifier_control_state_text_2).state;
-            const std::string power = id(power_state_2).state.empty() ? "--" : id(power_state_2).state;
-            if (!id(can_com_ok_2).state) {
-              return str_sprintf("Power %s | CAN %s | %s\nDC --.- V  --.- A  ---- W\nTemp IN --.-  OUT --.- C\nFan ---- RPM | Cap --.- A", power.c_str(), can, lifecycle.c_str());
-            }
-            return str_sprintf(
-              "Power %s | CAN %s | %s\nDC %.1f V  %.1f A  %.0f W\nTemp IN %.1f  OUT %.1f C\nFan %.0f RPM | Cap %.1f A",
-              power.c_str(), can, lifecycle.c_str(),
-              id(dc_voltage_2).state, id(dc_current_2).state, id(dc_power_2).state,
-              id(input_temperature_2).state, id(output_temperature_2).state,
-              id(fan_rpm_2).state, id(max_dc_current_2).state);
+            if (!id(can_com_ok_2).state) return std::string("DC --.- V  --.- A  ---- W\nTemp IN --.-  OUT --.- C\nFan ---- RPM | Cap --.- A");
+            return str_sprintf("DC %.1f V  %.1f A  %.0f W\nTemp IN %.1f  OUT %.1f C\nFan %.0f RPM | Cap %.1f A", id(dc_voltage_2).state, id(dc_current_2).state, id(dc_power_2).state, id(input_temperature_2).state, id(output_temperature_2).state, id(fan_rpm_2).state, id(max_dc_current_2).state);
 
+      - lvgl.label.update:
+          id: ui_rectifier_status_3
+          text: !lambda |-
+            const std::string lifecycle = id(rectifier_control_state_text_3).state.empty() ? "--" : id(rectifier_control_state_text_3).state;
+            const std::string power = id(power_state_3).state.empty() ? "--" : id(power_state_3).state;
+            return str_sprintf("Power %s | CAN %s | %s", power.c_str(), id(can_com_ok_3).state ? "OK" : "FAULT", lifecycle.c_str());
+          text_color: !lambda |-
+            if (!id(can_com_ok_3).state) return lv_color_hex(0xC62828);
+            if (id(rectifier_control_state_3) == ${rectifier_state_discovering}) return lv_color_hex(0xC27A00);
+            if (id(rectifier_control_state_3) == ${rectifier_state_online}) return lv_color_hex(0x198754);
+            return lv_color_hex(0x657080);
       - lvgl.label.update:
           id: ui_rectifier_3
           text: !lambda |-
-            const char *can = id(can_com_ok_3).state ? "OK" : "FAULT";
-            const std::string lifecycle = id(rectifier_control_state_text_3).state.empty() ? "--" : id(rectifier_control_state_text_3).state;
-            const std::string power = id(power_state_3).state.empty() ? "--" : id(power_state_3).state;
-            if (!id(can_com_ok_3).state) {
-              return str_sprintf("Power %s | CAN %s | %s\nDC --.- V  --.- A  ---- W\nTemp IN --.-  OUT --.- C\nFan ---- RPM | Cap --.- A", power.c_str(), can, lifecycle.c_str());
-            }
-            return str_sprintf(
-              "Power %s | CAN %s | %s\nDC %.1f V  %.1f A  %.0f W\nTemp IN %.1f  OUT %.1f C\nFan %.0f RPM | Cap %.1f A",
-              power.c_str(), can, lifecycle.c_str(),
-              id(dc_voltage_3).state, id(dc_current_3).state, id(dc_power_3).state,
-              id(input_temperature_3).state, id(output_temperature_3).state,
-              id(fan_rpm_3).state, id(max_dc_current_3).state);
+            if (!id(can_com_ok_3).state) return std::string("DC --.- V  --.- A  ---- W\nTemp IN --.-  OUT --.- C\nFan ---- RPM | Cap --.- A");
+            return str_sprintf("DC %.1f V  %.1f A  %.0f W\nTemp IN %.1f  OUT %.1f C\nFan %.0f RPM | Cap %.1f A", id(dc_voltage_3).state, id(dc_current_3).state, id(dc_power_3).state, id(input_temperature_3).state, id(output_temperature_3).state, id(fan_rpm_3).state, id(max_dc_current_3).state);
