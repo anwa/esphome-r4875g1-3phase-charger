@@ -5,8 +5,11 @@ lvgl:
       bg_color: 0xF3F5F8
       bg_opa: COVER
       scrollable: false
+      scrollbar_mode: "OFF"
       widgets:
         - obj:
+            scrollable: false
+            scrollbar_mode: "OFF"
             x: 0
             y: 0
             width: 100%
@@ -30,6 +33,8 @@ lvgl:
                   text_font: ui_font_14
                   text_color: 0xFFFFFF
         - obj:
+            scrollable: false
+            scrollbar_mode: "OFF"
             x: 8
             y: 72
             width: 304
@@ -53,6 +58,8 @@ lvgl:
                   text: "Humidity --.- %"
                   text_font: ui_font_18_bold
         - obj:
+            scrollable: false
+            scrollbar_mode: "OFF"
             x: 8
             y: 184
             width: 304
@@ -76,6 +83,8 @@ lvgl:
                   text_font: ui_font_14
                   text_color: 0x657080
         - obj:
+            scrollable: false
+            scrollbar_mode: "OFF"
             x: 8
             y: 288
             width: 304

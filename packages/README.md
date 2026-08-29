@@ -1,10 +1,10 @@
 # Firmware package architecture
 
-This directory documents development firmware **v4.1.3** on `v4-lvgl-menu`. Stable `main` remains at v4.1.0 until the display changes are hardware-tested and promoted.
+This directory documents development firmware **v4.1.4** on `v4-lvgl-menu`. Stable `main` remains at v4.1.0 until the display changes are hardware-tested and promoted.
 
 ## Display architecture
 
-The ILI9488 uses ESPHome LVGL with separate hardware, theme, page aggregation and page files. The controller has no touchscreen, so `display/theme.yaml` globally disables scrolling and scrollbars for generic LVGL `obj` containers. Page roots are non-scrollable as well. New cards must fit their content rather than depend on touch scrolling.
+The ILI9488 uses ESPHome LVGL with separate hardware, theme, page aggregation and page files. The controller has no touchscreen, so scrolling and scrollbar rendering are disabled twice: globally in `display/theme.yaml` and explicitly on every page/header/card `obj` container. The explicit local settings avoid scrollbar-part inheritance differences in LVGL. New cards must fit their content rather than depend on touch scrolling.
 
 Current pages:
 
@@ -39,4 +39,4 @@ External/chassis fans are GPIO-controlled through `cooling.yaml`. Internal R4875
 
 ## Release status
 
-Firmware **4.1.0** remains stable on `main`. Firmware **4.1.3** on `v4-lvgl-menu` adds the Rectifiers layout cleanup and the global non-touch no-scrollbar policy without changing charger-control, CAN-discovery or blackstart behavior.
+Firmware **4.1.0** remains stable on `main`. Firmware **4.1.4** on `v4-lvgl-menu` adds the Rectifiers layout cleanup and the global non-touch no-scrollbar policy without changing charger-control, CAN-discovery or blackstart behavior.

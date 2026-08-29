@@ -2,9 +2,9 @@
 
 ESPHome controller for **three Huawei R4875G1 rectifiers** operated as a coordinated three-phase battery charger with a common parallel DC output.
 
-**Current stable firmware: 4.1.0** on `main`. **Current UI development firmware: 4.1.3** on `v4-lvgl-menu`.
+**Current stable firmware: 4.1.0** on `main`. **Current UI development firmware: 4.1.4** on `v4-lvgl-menu`.
 
-Version 4.1 promotes the hardware-tested four-page LVGL interface and encoder page navigation to the stable baseline while retaining the validated charger, CAN-recovery, thermal-protection and local-blackstart model. Development v4.1.3 completes the Rectifiers diagnostic content and cleans up the non-touch LVGL presentation without changing charger control behavior.
+Version 4.1 promotes the hardware-tested four-page LVGL interface and encoder page navigation to the stable baseline while retaining the validated charger, CAN-recovery, thermal-protection and local-blackstart model. Development v4.1.4 completes the Rectifiers diagnostic content and cleans up the non-touch LVGL presentation without changing charger control behavior.
 
 For detailed runtime behavior, see `R4875G1_CONTROL_FLOWS.md`. Package ownership and maintenance rules are documented in `packages/README.md`.
 
@@ -147,7 +147,7 @@ The firmware version has one source of truth in `packages/version.yaml`. `esphom
 
 # Four-page UI
 
-The installation has no touchscreen. Generic LVGL container objects therefore have scrolling disabled and `scrollbar_mode: OFF` globally in the shared theme. Page roots are also non-scrollable. New cards inherit this behavior automatically and must not rely on touch scrolling.
+The installation has no touchscreen. Scrolling and `scrollbar_mode: OFF` are configured both globally in the shared LVGL theme and explicitly on every page/header/card container. The explicit per-container settings avoid LVGL scrollbar-part inheritance differences and guarantee that no unusable horizontal or vertical scrollbars are rendered. New cards must follow the same rule and must not rely on touch scrolling.
 
 `Dashboard` provides the compact operating overview: date/time and firmware, overall ON/OFF state, combined AC/DC summaries, available-unit count, highest output temperature, conversion efficiency and local Voltage/Power/Applied-current setpoints.
 
@@ -191,4 +191,4 @@ Additional project development: Copyright (c) 2026 Andreas Wansner
 
 # Documentation status
 
-Stable `main` remains at **v4.1.0**. This README documents development firmware **v4.1.3** on `v4-lvgl-menu`, including the completed Rectifiers diagnostics, status-color polish and global non-touch scrollbar policy. Charger-control behavior remains unchanged.
+Stable `main` remains at **v4.1.0**. This README documents development firmware **v4.1.4** on `v4-lvgl-menu`, including the completed Rectifiers diagnostics, status-color polish and global non-touch scrollbar policy. Charger-control behavior remains unchanged.
