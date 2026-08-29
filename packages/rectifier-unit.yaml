@@ -72,12 +72,65 @@ globals:
 
 script:
   # --------------------------------------------------------------------------
+  # wait_for_twai_running_${ru_unit}
+  # --------------------------------------------------------------------------
+  # Discovery must never consume retries merely because the shared TWAI
+  # controller is BUS_OFF, recovering or stopped. The periodic recovery task in
+  # rectifier-shared.yaml owns those states. This helper waits until the driver
+  # is RUNNING again and logs the controller counters while it is unavailable.
+  - id: wait_for_twai_running_${ru_unit}
+    mode: restart
+    then:
+      - while:
+          condition:
+            lambda: |-
+              twai_status_info_t status_info{};
+              const esp_err_t result = twai_get_status_info(&status_info);
+              return result != ESP_OK || status_info.state != TWAI_STATE_RUNNING;
+          then:
+            - lambda: |-
+                twai_status_info_t status_info{};
+                const esp_err_t result = twai_get_status_info(&status_info);
+
+                if (result != ESP_OK) {
+                  ESP_LOGW(
+                    "can_discovery",
+                    "Unit ${ru_unit}: waiting for TWAI RUNNING; status read failed: %s",
+                    esp_err_to_name(result)
+                  );
+                  return;
+                }
+
+                const char *state_name = "UNKNOWN";
+                switch (status_info.state) {
+                  case TWAI_STATE_STOPPED: state_name = "STOPPED"; break;
+                  case TWAI_STATE_RUNNING: state_name = "RUNNING"; break;
+                  case TWAI_STATE_BUS_OFF: state_name = "BUS_OFF"; break;
+                  case TWAI_STATE_RECOVERING: state_name = "RECOVERING"; break;
+                  default: break;
+                }
+
+                ESP_LOGW(
+                  "can_discovery",
+                  "Unit ${ru_unit}: discovery paused; TWAI=%s, TEC=%lu, REC=%lu, "
+                  "tx_failed=%lu, bus_errors=%lu, arb_lost=%lu, tx_queue=%lu, rx_queue=%lu",
+                  state_name,
+                  static_cast<unsigned long>(status_info.tx_error_counter),
+                  static_cast<unsigned long>(status_info.rx_error_counter),
+                  static_cast<unsigned long>(status_info.tx_failed_count),
+                  static_cast<unsigned long>(status_info.bus_error_count),
+                  static_cast<unsigned long>(status_info.arb_lost_count),
+                  static_cast<unsigned long>(status_info.msgs_to_tx),
+                  static_cast<unsigned long>(status_info.msgs_to_rx)
+                );
+            - delay: 500ms
+
+  # --------------------------------------------------------------------------
   # detect_unit_${ru_unit}_properties
   # --------------------------------------------------------------------------
   # Requests this rectifier's static multi-frame property block. Up to the
-  # configured number of requests are sent. CAN handlers assemble the answer
-  # and set unit_properties_complete_${ru_unit} once every required field has
-  # been parsed successfully.
+  # configured number of actual requests are sent. Time spent with TWAI not
+  # RUNNING does not consume discovery attempts.
   - id: detect_unit_${ru_unit}_properties
     mode: single
     then:
@@ -95,6 +148,26 @@ script:
               return !id(unit_properties_complete_${ru_unit}) &&
                      id(frame_counter_bp_${ru_unit}) < ${property_discovery_attempts};
           then:
+            - script.execute: wait_for_twai_running_${ru_unit}
+            - script.wait: wait_for_twai_running_${ru_unit}
+
+            - lambda: |-
+                twai_status_info_t status_info{};
+                if (twai_get_status_info(&status_info) == ESP_OK) {
+                  ESP_LOGI(
+                    "can_discovery",
+                    "Unit ${ru_unit}: property request attempt %d/%d; "
+                    "TWAI RUNNING, TEC=%lu, REC=%lu, tx_failed=%lu, bus_errors=%lu, arb_lost=%lu",
+                    id(frame_counter_bp_${ru_unit}) + 1,
+                    ${property_discovery_attempts},
+                    static_cast<unsigned long>(status_info.tx_error_counter),
+                    static_cast<unsigned long>(status_info.rx_error_counter),
+                    static_cast<unsigned long>(status_info.tx_failed_count),
+                    static_cast<unsigned long>(status_info.bus_error_count),
+                    static_cast<unsigned long>(status_info.arb_lost_count)
+                  );
+                }
+
             - canbus.send:
                 can_id: 0x108${ru_unit}D2FE
                 use_extended_id: true
@@ -105,11 +178,39 @@ script:
             - lambda: |-
                 id(frame_counter_bp_${ru_unit}) += 1;
 
-                ESP_LOGI(
-                  "unit_properties",
-                  "Unit ${ru_unit} Frame Counter: %d",
-                  id(frame_counter_bp_${ru_unit})
-                );
+                twai_status_info_t status_info{};
+                const esp_err_t status_result = twai_get_status_info(&status_info);
+
+                if (status_result == ESP_OK) {
+                  const char *state_name = "UNKNOWN";
+                  switch (status_info.state) {
+                    case TWAI_STATE_STOPPED: state_name = "STOPPED"; break;
+                    case TWAI_STATE_RUNNING: state_name = "RUNNING"; break;
+                    case TWAI_STATE_BUS_OFF: state_name = "BUS_OFF"; break;
+                    case TWAI_STATE_RECOVERING: state_name = "RECOVERING"; break;
+                    default: break;
+                  }
+
+                  ESP_LOGI(
+                    "unit_properties",
+                    "Unit ${ru_unit} Frame Counter: %d; TWAI=%s, TEC=%lu, REC=%lu, "
+                    "tx_failed=%lu, bus_errors=%lu, arb_lost=%lu",
+                    id(frame_counter_bp_${ru_unit}),
+                    state_name,
+                    static_cast<unsigned long>(status_info.tx_error_counter),
+                    static_cast<unsigned long>(status_info.rx_error_counter),
+                    static_cast<unsigned long>(status_info.tx_failed_count),
+                    static_cast<unsigned long>(status_info.bus_error_count),
+                    static_cast<unsigned long>(status_info.arb_lost_count)
+                  );
+                } else {
+                  ESP_LOGW(
+                    "unit_properties",
+                    "Unit ${ru_unit} Frame Counter: %d; unable to read TWAI status: %s",
+                    id(frame_counter_bp_${ru_unit}),
+                    esp_err_to_name(status_result)
+                  );
+                }
 
       - lambda: |-
           if (id(unit_properties_complete_${ru_unit})) {
@@ -120,7 +221,7 @@ script:
           } else {
             ESP_LOGW(
               "unit_properties",
-              "Unit ${ru_unit} Fail-safe triggered: Loop stopped after %d attempts.",
+              "Unit ${ru_unit} Fail-safe triggered: Loop stopped after %d actual request attempts.",
               ${property_discovery_attempts}
             );
           }
@@ -132,7 +233,8 @@ script:
   # detect_data_unit_${ru_unit}
   # --------------------------------------------------------------------------
   # Requests capability/address data until both maximum-current and shelf/slot
-  # information have been found or retries are exhausted.
+  # information have been found or actual request retries are exhausted.
+  # Recovery wait time does not consume retries.
   - id: detect_data_unit_${ru_unit}
     mode: single
     then:
@@ -147,26 +249,73 @@ script:
       - while:
           condition:
             lambda: |-
-              return !(id(max_current_found_${ru_unit}) && id(data_found_${ru_unit})) && id(search_counter_${ru_unit}) < ${capability_discovery_attempts};
+              return !(id(max_current_found_${ru_unit}) && id(data_found_${ru_unit})) &&
+                     id(search_counter_${ru_unit}) < ${capability_discovery_attempts};
           then:
+            - script.execute: wait_for_twai_running_${ru_unit}
+            - script.wait: wait_for_twai_running_${ru_unit}
+
+            - lambda: |-
+                twai_status_info_t status_info{};
+                if (twai_get_status_info(&status_info) == ESP_OK) {
+                  ESP_LOGI(
+                    "can_discovery",
+                    "Unit ${ru_unit}: capability/address request attempt %d/%d; "
+                    "TWAI RUNNING, TEC=%lu, REC=%lu, tx_failed=%lu, bus_errors=%lu, arb_lost=%lu",
+                    id(search_counter_${ru_unit}) + 1,
+                    ${capability_discovery_attempts},
+                    static_cast<unsigned long>(status_info.tx_error_counter),
+                    static_cast<unsigned long>(status_info.rx_error_counter),
+                    static_cast<unsigned long>(status_info.tx_failed_count),
+                    static_cast<unsigned long>(status_info.bus_error_count),
+                    static_cast<unsigned long>(status_info.arb_lost_count)
+                  );
+                }
+
             - canbus.send:
                 can_id: 0x108${ru_unit}50FE
                 use_extended_id: true
                 data: [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
             - delay: ${discovery_retry_delay}
             - lambda: |-
-                id(search_counter_${ru_unit}) += 1; // Increment the fail-safe counter
+                id(search_counter_${ru_unit}) += 1;
+
+                twai_status_info_t status_info{};
+                const esp_err_t status_result = twai_get_status_info(&status_info);
+                if (status_result == ESP_OK && status_info.state != TWAI_STATE_RUNNING) {
+                  const char *state_name = "UNKNOWN";
+                  switch (status_info.state) {
+                    case TWAI_STATE_STOPPED: state_name = "STOPPED"; break;
+                    case TWAI_STATE_RUNNING: state_name = "RUNNING"; break;
+                    case TWAI_STATE_BUS_OFF: state_name = "BUS_OFF"; break;
+                    case TWAI_STATE_RECOVERING: state_name = "RECOVERING"; break;
+                    default: break;
+                  }
+
+                  ESP_LOGW(
+                    "can_discovery",
+                    "Unit ${ru_unit}: request attempt %d completed with TWAI=%s; "
+                    "TEC=%lu, REC=%lu, tx_failed=%lu, bus_errors=%lu, arb_lost=%lu",
+                    id(search_counter_${ru_unit}),
+                    state_name,
+                    static_cast<unsigned long>(status_info.tx_error_counter),
+                    static_cast<unsigned long>(status_info.rx_error_counter),
+                    static_cast<unsigned long>(status_info.tx_failed_count),
+                    static_cast<unsigned long>(status_info.bus_error_count),
+                    static_cast<unsigned long>(status_info.arb_lost_count)
+                  );
+                }
       - lambda: |-
           if (id(max_current_found_${ru_unit}) && id(data_found_${ru_unit})) {
             ESP_LOGI(
               "canbus",
-              "Unit ${ru_unit} capability/address discovery completed successfully after %d attempt(s).",
+              "Unit ${ru_unit} capability/address discovery completed successfully after %d actual request attempt(s).",
               id(search_counter_${ru_unit})
             );
           } else {
             ESP_LOGW(
               "canbus",
-              "Unit ${ru_unit} capability/address discovery failed after %d attempt(s). "
+              "Unit ${ru_unit} capability/address discovery failed after %d actual request attempt(s). "
               "Max current found: %s, address data found: %s",
               id(search_counter_${ru_unit}),
               id(max_current_found_${ru_unit}) ? "yes" : "no",
@@ -230,7 +379,7 @@ sensor:
                   unit: ${ru_unit}
                   temperature: !lambda 'return x;'
 
-  # Per-unit current-command scaling diagnostic. Unit 1 remains canonical globally.
+  # Per-unit current-command scaling diagnostic.
   - platform: template
     name: "Current Scaling Factor Unit ${ru_unit}"
     id: current_scaling_factor_unit_${ru_unit}
