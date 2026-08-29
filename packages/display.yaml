@@ -5,11 +5,12 @@
 # focused packages so hardware transport, visual styling and screen logic can
 # evolve independently.
 #
-# Portrait (0 deg) is the default. Set display_rotation to 90 in the main YAML
-# substitutions to use the same widget tree in landscape mode.
+# The proven v3 display configuration exposes a 480x320 landscape canvas.
+# LVGL rotates that canvas by 90 degrees for the default 320x480 portrait UI.
+# Set display_rotation to 0 to use landscape orientation instead.
 
 substitutions:
-  display_rotation: "0"
+  display_rotation: "90"
   firmware_version: "4.0.0"
 
 packages:
