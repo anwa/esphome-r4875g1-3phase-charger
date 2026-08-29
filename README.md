@@ -2,9 +2,9 @@
 
 ESPHome controller for **three Huawei R4875G1 rectifiers** operated as a coordinated three-phase battery charger with a common parallel DC output.
 
-**Current development firmware: 4.0.10** on branch `v4-lvgl-menu`.
+**Current development firmware: 4.0.11** on branch `v4-lvgl-menu`.
 
-Version 4 keeps the validated charger, CAN-recovery, thermal-protection and local-blackstart model from v3 and uses an **LVGL-based local TFT interface**. The current development branch is splitting that interface into four dedicated pages while keeping CAN/control behavior outside the display layer.
+Version 4 keeps the validated charger, CAN-recovery, thermal-protection and local-blackstart model from v3 and uses an **LVGL-based local TFT interface**. The current development branch splits that interface into four dedicated pages while keeping CAN/control behavior outside the display layer.
 
 For detailed runtime behavior, see `R4875G1_CONTROL_FLOWS.md`. Package ownership and maintenance rules are documented in `packages/README.md`.
 
@@ -67,9 +67,9 @@ CAN uses 29-bit extended identifiers.
 - Targeted active-setpoint restore before a rediscovered unit returns to `ONLINE`.
 - TWAI BUS_OFF recovery as a final controller-level recovery mechanism.
 
-## Local blackstart
+## Local blackstart and menu navigation
 
-Current implemented encoder behavior is:
+Current encoder behavior:
 
 - rotate: edit the selected DC voltage or nominal three-unit DC-power target;
 - short press: select `Voltage` or `Power` editing;
@@ -82,13 +82,7 @@ Single-click recognition deliberately waits 350 ms after release so the first cl
 
 ## Thermal protection
 
-Shared applied current is:
-
-```text
-min(requested current, effective hardware capability, thermal limit)
-```
-
-Thermal states use 70/80/90 °C thresholds with hysteresis. Warning stages reduce the shared current ceiling to 50 A and 30 A. At ≥90 °C the affected unit is switched off and locked out until a fresh temperature below 80 °C is received. Derating never overwrites the user's requested current.
+Shared applied current is `min(requested current, effective hardware capability, thermal limit)`. Thermal states use 70/80/90 °C thresholds with hysteresis. Warning stages reduce the shared current ceiling to 50 A and 30 A. At ≥90 °C the affected unit is switched off and locked out until a fresh temperature below 80 °C is received. Derating never overwrites the user's requested current.
 
 # Firmware architecture
 
@@ -121,8 +115,6 @@ packages/
     └── power-state.yaml
 ```
 
-`r4875g1-3phase-charger.yaml` owns project-wide substitutions, package assembly, the three unit instances, boot behavior, encoder input and aggregate entities. `rectifier-unit.yaml` is instantiated three times. `rectifier-shared.yaml` owns cross-unit lifecycle/discovery/current/thermal logic and the single physical CAN controller.
-
 The display stack is deliberately separated: hardware transport in `display/hardware.yaml`, shared LVGL/fonts/styles in `display/theme.yaml`, page aggregation in `display/ui.yaml`, and one file per screen in `display/pages/`.
 
 # Versioning
@@ -131,21 +123,19 @@ The firmware version has one source of truth in `packages/version.yaml`:
 
 ```yaml
 substitutions:
-  firmware_version: "4.0.10"
+  firmware_version: "4.0.11"
 ```
 
 `esphome.project.version` and the TFT consume `${firmware_version}`. Project convention: **every repository commit increments PATCH by one**.
 
 # Hardware
 
-## Main controller
-
-- Espressif ESP32-S3-DevKitC-1
-- ESP32-S3-WROOM-1-N16R8
-- 16 MB Quad-SPI flash
-- 8 MB Octal-SPI PSRAM
-- ESP-IDF framework
-- ESPHome minimum version: 2026.7.4
+- Espressif ESP32-S3-DevKitC-1 / ESP32-S3-WROOM-1-N16R8
+- 16 MB Quad-SPI flash / 8 MB Octal-SPI PSRAM
+- SN65HVD230 CAN transceiver, 125 kbit/s, 29-bit extended identifiers
+- ILI9488 TFT, 16-bit RGB565, 40 MHz SPI, full LVGL framebuffer in PSRAM
+- AHT10 compartment temperature/humidity sensor
+- external fan enable/PWM plus three tachometer inputs
 
 ## GPIO map
 
@@ -162,115 +152,42 @@ substitutions:
 | Fan tach 3 / 2 / 1 | 39 / 40 / 41 |
 | Fan PWM | 42 |
 
-## CAN interface
+# Current four-page UI
 
-- SN65HVD230 3.3 V transceiver
-- 125 kbit/s
-- 29-bit extended identifiers
-- proper twisted-pair wiring, stable connector contacts, common reference and correct termination required
+`Dashboard` provides the compact operating overview: date/time and firmware, overall ON/OFF state, combined AC/DC summaries, available-unit count, highest output temperature, conversion efficiency and local Voltage/Power/Applied-current setpoints.
 
-## ILI9488 / LVGL display
-
-The physical panel is 480×320 over SPI. LVGL rotation `90` produces the default 320×480 portrait UI.
-
-Current configuration:
-
-- ESPHome `mipi_spi`, model ILI9488;
-- 40 MHz SPI display data rate;
-- 16-bit RGB565 color depth;
-- LVGL full framebuffer (`buffer_size: 100%`) in PSRAM;
-- default `display_rotation: 90`;
-- Roboto 14/18/26 px fonts;
-- scrolling disabled on the primary page/card layouts;
-- 5-minute backlight inactivity timeout.
-
-### Current four-page development UI
-
-`Dashboard` is implemented as the compact operating overview: date/time and firmware, overall ON/OFF state, combined AC/DC summaries, available-unit count, highest output temperature, conversion efficiency and local Voltage/Power/Applied-current setpoints.
-
-`Rectifiers` currently shows three cards (L1/L2/L3) with CAN fault state or power state plus DC voltage, current, power and output temperature. **Input temperature, internal fan, capability and lifecycle are not yet shown on this page.**
+`Rectifiers` currently shows three cards (L1/L2/L3) with CAN fault state or power state plus DC voltage, current, power and output temperature. Input temperature, internal fan, capability and lifecycle are planned additions.
 
 `Cooling` shows compartment temperature/humidity, external fan power, PWM command and external fan 1/2/3 RPM.
 
-`System` currently shows firmware in the header, IP address, Wi-Fi RSSI, controller CPU temperature and CAN communication status for L1/L2/L3. **Uptime, heap and PSRAM are not yet displayed on this page**, although runtime diagnostic entities already exist in ESPHome.
-
-`display/ui.yaml` enables LVGL `page_wrap` and includes the four page files. Encoder double-click uses `lvgl.page.next` with a short left transition and wraps from System back to Dashboard.
-
-## AHT10 compartment sensor
-
-The shared rear rectifier compartment uses an AHT10 at I²C address `0x38` for temperature and humidity.
-
-## External cooling fans
-
-External/chassis fans are independent from the R4875G1 internal fans. GPIO21 enables the common fan supply, GPIO42 provides shared 25 kHz PWM, and GPIO41/40/39 read fan 1/2/3 tachometer signals. Tach conversion assumes two pulses/revolution. Automatic temperature curves and fan-failure alarms are not implemented yet.
+`System` currently shows firmware, IP address, Wi-Fi RSSI, controller CPU temperature and CAN communication status for L1/L2/L3. Uptime, heap and PSRAM are planned additions.
 
 # Electrical / power-control model
 
-All three rectifier outputs share the DC bus. The local nominal power selector uses:
+All three rectifier outputs share the DC bus. The local nominal power selector uses `I_each = P_target / (3 × V_DC)`. The divisor remains fixed at three even when fewer rectifiers are active, intentionally avoiding increased current on remaining units when another unit disappears.
 
-```text
-I_each = P_target / (3 × V_DC)
-```
-
-The divisor remains fixed at three even when fewer rectifiers are active. This intentionally avoids increasing current on remaining units when another unit disappears.
-
-Capability handling is CAN-aware:
-
-```text
-startup/no reachable units               -> 50 A
-reachable capability missing             -> 50 A
-all reachable capabilities known         -> lowest reachable capability, max 75 A
-command scaling when complete             -> 1024 / highest reachable capability
-```
-
-A disconnected unit is removed from these calculations. A reconnecting unit returns the shared limit to the 50 A fail-safe until its capability is freshly rediscovered.
+Capability handling is CAN-aware: unknown reachable capability forces the 50 A fail-safe ceiling; once all reachable capabilities are known, the effective ceiling uses the lowest reachable capability (max 75 A) while command scaling uses `1024 / highest reachable capability`.
 
 # Rectifier lifecycle and reconnect
 
-Every unit starts `OFFLINE`. A valid heartbeat triggers `DISCOVERING`; the discovery stabilization period is 5 seconds. During that state the connectivity watchdog allows 7 seconds instead of the normal 3 seconds. Serialized discovery reads static properties, maximum-current capability and address information. Before each discovery request, firmware waits for TWAI `RUNNING`; time spent in BUS_OFF/recovery does not consume a retry. Verification is followed by targeted active voltage/current restore, then the unit is promoted to `ONLINE`.
+Every unit starts `OFFLINE`. A valid heartbeat triggers `DISCOVERING`; the discovery stabilization period is 5 seconds and uses a 7-second connectivity watchdog instead of the normal 3 seconds. Serialized discovery reads static properties, maximum-current capability and address information. Before each discovery request, firmware waits for TWAI `RUNNING`; time spent in BUS_OFF/recovery does not consume a retry. Verification is followed by targeted active voltage/current restore, then the unit is promoted to `ONLINE`.
 
-A continuously offline rectifier is probed approximately every 15 seconds. Physical testing has verified disconnect/reconnect recovery without ESP reboot and a complete 56-frame property response.
-
-# Current capability and scaling
-
-Maximum current is decoded from capability data in 0.5 A steps. The tested reduced-current connector configuration reported 52 A.
-
-When all currently reachable capabilities are known, scaling uses the **highest reachable capability**, while the effective engineering-current ceiling uses the **lowest reachable capability**. If capability knowledge is incomplete, scaling falls back to `1024 / 75` and the effective ceiling remains 50 A.
-
-`Rectifier Capability Mismatch` considers currently reachable units and is diagnostic rather than a direct charging inhibit.
-
-# Telemetry
-
-Per-unit telemetry includes AC/DC voltage, current and power, grid frequency, input/output temperature, operating hours, internal fan data, power state, maximum-current capability, address information and static identification properties.
-
-CAN-aware aggregate entities include combined AC/DC power, combined DC current, average DC voltage, highest output temperature, conversion efficiency and available-unit count. Stale/unreachable measurements are excluded instead of being treated as valid zero values.
-
-# Installation
-
-Place the root YAML and the complete YAML package tree in the same ESPHome configuration directory and provide the required secrets. Do not commit real credentials.
-
-Validate with:
-
-```bash
-esphome config r4875g1-3phase-charger.yaml
-esphome compile r4875g1-3phase-charger.yaml
-```
-
-# Deploying to Home Assistant from Windows
+# Deployment from Windows
 
 The repository contains `scripts/setup-ha-ssh.ps1` and `scripts/deploy-ha.ps1`.
 
 The deployment script:
 
 - derives the destination YAML filename from `esphome.name`;
-- reads the displayed firmware version from central `packages/version.yaml`;
+- reads the displayed firmware version from `packages/version.yaml`;
 - deploys the root project YAML plus **only `packages/**/*.yaml`**;
-- does **not** deploy `packages/README.md` or other non-YAML files;
-- stages uploads, verifies SHA-256 hashes, backs up currently managed target files and verifies installed hashes;
-- leaves unrelated Home Assistant files untouched;
-- supports `-DryRun` and `-NoBackup`.
+- excludes README and other non-YAML files;
+- stages uploads and verifies SHA-256 hashes before installation;
+- backs up currently managed target files unless `-NoBackup` is used;
+- verifies installed hashes and cleans the staging directory;
+- supports `-DryRun`.
 
-The deployment stops after copying/verifying source files; ESPHome validation/installation remains an explicit step.
+The v4.0.11 maintenance change restores the complete deployment script after an earlier edit accidentally truncated it in the final installed-file verification loop. The YAML-only deployment boundary remains unchanged.
 
 # Known limitations / current development status
 
@@ -281,7 +198,7 @@ The deployment stops after copying/verifying source files; ESPHome validation/in
 - Blackstart still requires power for ESP32/CAN electronics.
 - SNTP date/time requires network synchronization after a cold start.
 - External fan control has no automatic thermal curve or RPM-failure alarm yet.
-- Rectifiers and System pages are intentionally incomplete compared with their planned final diagnostic content; the exact current content is listed above.
+- Rectifiers and System pages do not yet show every planned diagnostic field.
 - Software does not replace hardware protection.
 
 # Credits and license
@@ -293,4 +210,4 @@ Additional project development: Copyright (c) 2026 Andreas Wansner
 
 # Documentation status
 
-This README describes firmware **4.0.10** on development branch `v4-lvgl-menu` as implemented at this commit. It intentionally distinguishes implemented four-page UI content from the remaining menu/navigation work instead of documenting planned fields as already available.
+This README describes firmware **4.0.11** on development branch `v4-lvgl-menu`, including the four-page navigation and the repaired YAML-only Home Assistant deployment workflow.

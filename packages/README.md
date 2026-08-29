@@ -1,6 +1,6 @@
 # Firmware package architecture
 
-This directory is the modular source of truth for firmware **v4.0.10** on development branch `v4-lvgl-menu`, assembled by `../r4875g1-3phase-charger.yaml`.
+This directory is the modular source of truth for firmware **v4.0.11** on development branch `v4-lvgl-menu`, assembled by `../r4875g1-3phase-charger.yaml`.
 
 ## Ownership rules
 
@@ -25,75 +25,44 @@ This directory is the modular source of truth for firmware **v4.0.10** on develo
 
 ## v4 display architecture
 
-Version 4 uses **ESPHome LVGL** on the ILI9488. The physical panel is 480×320 RGB565; LVGL rotation `90` produces the default **320×480 portrait UI**. The ESP32-S3 N16R8 has 8 MB PSRAM and LVGL uses a 100% 16-bit RGB565 framebuffer.
+Version 4 uses ESPHome LVGL on the ILI9488. The display stack is deliberately layered into hardware, theme, page aggregation and four page files. `display/ui.yaml` enables page wrapping.
 
-The display stack is deliberately layered:
+Current pages:
 
-```text
-display.yaml
-└── display/
-    ├── hardware.yaml
-    ├── theme.yaml
-    └── ui.yaml
-        └── pages/
-            ├── dashboard.yaml
-            ├── rectifiers.yaml
-            ├── cooling.yaml
-            └── system.yaml
-```
+- **Dashboard** — operating overview and local setpoints.
+- **Rectifiers** — L1/L2/L3 power state, DC V/A/W, output temperature and CAN fault presentation; further per-unit diagnostics remain planned.
+- **Cooling** — compartment temperature/humidity, external fan power/PWM and three tachometer speeds.
+- **System** — firmware, IP, Wi-Fi RSSI, CPU temperature and per-unit CAN state; uptime/heap/PSRAM remain planned.
 
-`display/ui.yaml` enables `page_wrap` and includes all four page files. Each page owns its own widgets and periodic label updates.
-
-### Current page content
-
-**Dashboard** currently contains date/time, firmware, overall rectifier ON/OFF state, combined AC/DC summaries, available-unit count, highest output temperature, conversion efficiency and local Voltage/Power/Applied-current setpoints.
-
-**Rectifiers** currently contains one card each for L1/L2/L3. Each card reports CAN fault state or power state plus DC voltage, DC current, DC power and output temperature. The planned input-temperature, internal-fan, capability and lifecycle fields are **not implemented on this page yet**.
-
-**Cooling** currently contains compartment temperature/humidity, external fan power, external PWM command and fan 1/2/3 RPM.
-
-**System** currently contains firmware in the header, IP address, Wi-Fi RSSI, CPU temperature and L1/L2/L3 CAN communication state. Planned Uptime/Heap/PSRAM fields are **not implemented on this page yet**.
-
-The physical encoder button now distinguishes three gestures: short press selects Voltage/Power, double press advances to the next LVGL page, and ≥3 s performs START/STOP. The double-click pattern requires the second press within 350 ms; the single-click pattern waits at least 350 ms after release so both actions cannot fire for the same gesture. Page wrapping returns from System to Dashboard.
+The physical encoder button distinguishes three gestures: short press selects Voltage/Power, double press advances to the next LVGL page, and ≥3 s performs START/STOP. The double-click pattern requires the second press within 350 ms; the single-click pattern waits at least 350 ms after release so both actions cannot fire for the same gesture. Page wrapping returns from System to Dashboard.
 
 The TFT and `esphome.project.version` both consume `${firmware_version}` from `version.yaml`.
 
-## Rectifier unit template
+## Rectifier unit template and CAN lifecycle
 
-`rectifier-unit.yaml` is included three times with `ru_unit` set to `1`, `2` and `3`. Public IDs and entity names remain stable, for example `dc_voltage_1`, `output_temperature_1`, `can_com_ok_1` and `on_button_1`.
+`rectifier-unit.yaml` is included three times with `ru_unit` set to `1`, `2` and `3`. Public IDs and entity names remain stable.
 
-The per-unit CAN connectivity watchdog uses a **3 s normal timeout** and a **7 s timeout while lifecycle state is `DISCOVERING`**. The extended discovery timeout deliberately exceeds the 5 s stabilization delay so a newly detected rectifier does not falsely become unreachable before discovery starts.
+The per-unit CAN connectivity watchdog uses a 3 s normal timeout and a 7 s timeout while lifecycle state is `DISCOVERING`. Per-unit discovery waits until the shared TWAI controller is `RUNNING`; time spent in `BUS_OFF`, `RECOVERING` or `STOPPED` does not consume a property/capability discovery attempt.
 
-Per-unit discovery also waits until the shared TWAI controller is `RUNNING`. Time spent in `BUS_OFF`, `RECOVERING` or `STOPPED` does not consume a property/capability discovery attempt. Actual transmitted requests still count toward the configured retry limits.
+The physical `esp32_can` component exists exactly once in `rectifier-shared.yaml`. Repeated RX handlers live under `rectifier-can/` for property, cyclic telemetry, fan telemetry, address and power-state frames.
 
-## CAN handler templates
-
-The physical `esp32_can` component exists exactly once in `rectifier-shared.yaml`. Repeated RX handlers are included inside its `on_frame` list from `rectifier-can/`:
-
-- `property-start.yaml` — property START/DATA (`0x108xD27F`)
-- `property-end.yaml` — property END (`0x108xD27E`)
-- `cyclic-telemetry.yaml` — telemetry/heartbeat (`0x108x407F`)
-- `fan-telemetry.yaml` — internal fan telemetry (`0x108x827E`)
-- `address-data.yaml` — shelf/slot addressing (`0x108x507E`)
-- `power-state.yaml` — current + ON/OFF/ERROR (`0x100x117E`)
-
-Maximum-current capability handlers remain explicit in `rectifier-shared.yaml`. Shared `effective_dc_current_limit` and `current_scaling_factor` are recomputed from currently CAN-reachable rectifiers. A reachable unit with unknown capability forces the 50 A fail-safe ceiling; once all reachable capabilities are known, the effective ceiling uses the lowest reachable capability and command scaling uses the highest reachable capability.
-
-## Shared behavior that stays explicit
-
-Cross-unit lifecycle coordination, serialized discovery, CAN-aware capability handling, staged thermal derating, blackstart safety, slow Single-Shot reconnect probing, TWAI BUS_OFF recovery, fixed fast-poll timing and aggregate charger telemetry intentionally remain shared rather than being hidden in the unit template.
+Maximum-current capability handlers remain explicit in `rectifier-shared.yaml`. A reachable unit with unknown capability forces the 50 A fail-safe ceiling; once all reachable capabilities are known, the effective ceiling uses the lowest reachable capability and command scaling uses the highest reachable capability.
 
 ## Deployment boundary
 
-`scripts/deploy-ha.ps1` treats the root project YAML separately and recursively manages **only `packages/**/*.yaml`**. `packages/README.md` and any future non-YAML documentation/assets under `packages/` are not deployed to Home Assistant.
+`scripts/deploy-ha.ps1` treats the root project YAML separately and recursively manages **only `packages/**/*.yaml`**. `packages/README.md` and future non-YAML documentation/assets are not deployed to Home Assistant.
 
-The deployment script reads the displayed firmware version from `version.yaml`, stages files remotely, verifies SHA-256 hashes, optionally backs up the currently managed files, installs the staged YAML files and verifies the installed hashes.
+The deployment script reads the firmware version from `version.yaml`, stages files remotely, verifies SHA-256 hashes, optionally backs up currently managed files, installs the staged YAML files, verifies installed hashes and removes the staging directory.
+
+Firmware v4.0.11 restores the complete deployment script after the previous YAML-filter edit accidentally left the file truncated inside its final installed-file verification loop. The YAML-only selection itself is retained.
 
 ## Change discipline
 
 Preserve public ESPHome IDs/entity names, CAN identifiers/payloads, protocol scaling, timing/order, lifecycle transitions, requested/applied current semantics, thermal thresholds and blackstart safety unless a change explicitly targets them.
 
-Repository convention: **every commit increments PATCH exactly once**, with `version.yaml` as the single version source.
+Repository convention: **every commit increments PATCH exactly once**, with `version.yaml` as the single version source. README documentation must be synchronized whenever a change affects documented behavior, architecture or tooling.
+
+Commit messages should use a concise subject followed by bullet points that explain the relevant changes and effects.
 
 Validate meaningful changes with:
 
@@ -103,12 +72,12 @@ esphome config r4875g1-3phase-charger.yaml
 esphome compile r4875g1-3phase-charger.yaml
 ```
 
-For display changes, also verify the physical ILI9488 because panel rotation, font rendering, page layout and RGB565 appearance are hardware-visible concerns.
+For PowerShell tooling changes, also run a parser check or execute the script with `-DryRun` before relying on it for deployment.
 
 ## Fan terminology
 
-Two independent fan domains exist: external/chassis fans are GPIO-controlled through `cooling.yaml`; internal R4875G1 fans are controlled and read through Huawei CAN commands. Documentation and comments must keep these domains distinct.
+Two independent fan domains exist: external/chassis fans are GPIO-controlled through `cooling.yaml`; internal R4875G1 fans are controlled and read through Huawei CAN commands.
 
 ## Release / branch status
 
-Firmware **4.0.10** is the current development baseline on `v4-lvgl-menu`. The stable `main` branch remains separate while the four-page UI is developed and hardware-tested. Charger control, CAN recovery and blackstart behavior continue from the validated v4 baseline unless a change explicitly targets them.
+Firmware **4.0.11** is the current development baseline on `v4-lvgl-menu`. The stable `main` branch remains separate while the four-page UI is developed and hardware-tested.
