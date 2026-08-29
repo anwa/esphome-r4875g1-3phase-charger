@@ -2,9 +2,9 @@
 
 ESPHome controller for **three Huawei R4875G1 rectifiers** operated as a coordinated three-phase battery charger with a common parallel DC output.
 
-**Current stable firmware: 4.1.0** on `main`. Continued UI development takes place on branch `v4-lvgl-menu` from this release baseline.
+**Current stable firmware: 4.1.0** on `main`. **Current UI development firmware: 4.1.1** on `v4-lvgl-menu`.
 
-Version 4.1 promotes the hardware-tested four-page LVGL interface and encoder page navigation to the stable baseline while retaining the validated charger, CAN-recovery, thermal-protection and local-blackstart model.
+Version 4.1 promotes the hardware-tested four-page LVGL interface and encoder page navigation to the stable baseline while retaining the validated charger, CAN-recovery, thermal-protection and local-blackstart model. Development v4.1.1 completes the planned Rectifiers and System diagnostic page content without changing charger control behavior.
 
 For detailed runtime behavior, see `R4875G1_CONTROL_FLOWS.md`. Package ownership and maintenance rules are documented in `packages/README.md`.
 
@@ -119,14 +119,7 @@ The display stack is deliberately separated: hardware transport in `display/hard
 
 # Versioning
 
-The firmware version has one source of truth in `packages/version.yaml`:
-
-```yaml
-substitutions:
-  firmware_version: "4.1.0"
-```
-
-`esphome.project.version` and the TFT consume `${firmware_version}`. Project convention: **every repository commit increments PATCH by one**. Intentional release milestones may advance MINOR and reset PATCH, as with v4.1.0.
+The firmware version has one source of truth in `packages/version.yaml`. `esphome.project.version` and the TFT consume `${firmware_version}`. Every normal repository commit increments PATCH by one; intentional release milestones may advance MAJOR/MINOR and reset PATCH.
 
 # Hardware
 
@@ -152,15 +145,15 @@ substitutions:
 | Fan tach 3 / 2 / 1 | 39 / 40 / 41 |
 | Fan PWM | 42 |
 
-# Current four-page UI
+# Four-page UI
 
 `Dashboard` provides the compact operating overview: date/time and firmware, overall ON/OFF state, combined AC/DC summaries, available-unit count, highest output temperature, conversion efficiency and local Voltage/Power/Applied-current setpoints.
 
-`Rectifiers` currently shows three cards (L1/L2/L3) with CAN fault state or power state plus DC voltage, current, power and output temperature. Input temperature, internal fan, capability and lifecycle are planned additions.
+`Rectifiers` shows one card each for L1/L2/L3. Every card contains Power State, CAN state, lifecycle (`OFFLINE` / `DISCOVERING` / `ONLINE`), DC voltage/current/power, input/output temperature, internal R4875G1 fan RPM and discovered maximum-current capability. CAN-unreachable units retain state context but replace live telemetry with placeholders.
 
 `Cooling` shows compartment temperature/humidity, external fan power, PWM command and external fan 1/2/3 RPM.
 
-`System` currently shows firmware, IP address, Wi-Fi RSSI, controller CPU temperature and CAN communication status for L1/L2/L3. Uptime, heap and PSRAM are planned additions.
+`System` shows firmware, IP address, Wi-Fi RSSI, controller uptime, CPU temperature, free internal heap, free PSRAM and compact CAN communication status for L1/L2/L3. Uptime is derived locally from the controller monotonic clock; heap and PSRAM are read directly from ESP-IDF heap capabilities so no duplicate Home Assistant entities are required for the TFT.
 
 # Electrical / power-control model
 
@@ -174,18 +167,7 @@ Every unit starts `OFFLINE`. A valid heartbeat triggers `DISCOVERING`; the disco
 
 # Deployment from Windows
 
-The repository contains `scripts/setup-ha-ssh.ps1` and `scripts/deploy-ha.ps1`.
-
-The deployment script:
-
-- derives the destination YAML filename from `esphome.name`;
-- reads the displayed firmware version from `packages/version.yaml`;
-- deploys the root project YAML plus **only `packages/**/*.yaml`**;
-- excludes README and other non-YAML files;
-- stages uploads and verifies SHA-256 hashes before installation;
-- backs up currently managed target files unless `-NoBackup` is used;
-- verifies installed hashes and cleans the staging directory;
-- supports `-DryRun`.
+`scripts/deploy-ha.ps1` derives the destination YAML filename from `esphome.name`, reads the firmware version from `packages/version.yaml`, deploys the root YAML plus only `packages/**/*.yaml`, excludes README/non-YAML files, stages and SHA-256-verifies uploads, optionally backs up managed target files, verifies installed hashes and cleans its staging directory. `-DryRun` is supported.
 
 # Known limitations / continued development
 
@@ -196,7 +178,6 @@ The deployment script:
 - Blackstart still requires power for ESP32/CAN electronics.
 - SNTP date/time requires network synchronization after a cold start.
 - External fan control has no automatic thermal curve or RPM-failure alarm yet.
-- Rectifiers and System pages do not yet show every planned diagnostic field; this work continues on `v4-lvgl-menu` after the v4.1.0 release.
 - Software does not replace hardware protection.
 
 # Credits and license
@@ -208,4 +189,4 @@ Additional project development: Copyright (c) 2026 Andreas Wansner
 
 # Documentation status
 
-This README describes stable firmware **4.1.0**. The tested four-page LVGL interface, encoder double-click navigation and repaired YAML-only Home Assistant deployment workflow are part of this release. `main` and `v4-lvgl-menu` share this release commit; subsequent UI development continues on `v4-lvgl-menu`.
+Stable `main` remains at **v4.1.0**. This README also documents development firmware **v4.1.1** on `v4-lvgl-menu`, where the Rectifiers and System pages have been completed with their planned diagnostic content while charger-control behavior remains unchanged.

@@ -29,11 +29,12 @@ lvgl:
                   text: "Firmware v${firmware_version}"
                   text_font: ui_font_14
                   text_color: 0xFFFFFF
+
         - obj:
             x: 8
             y: 72
             width: 304
-            height: 104
+            height: 86
             styles: style_card
             widgets:
               - label:
@@ -43,42 +44,69 @@ lvgl:
               - label:
                   id: ui_system_ip
                   x: 0
-                  y: 28
+                  y: 25
                   text: "IP --"
                   text_font: ui_font_18_bold
               - label:
                   id: ui_system_wifi
                   x: 0
-                  y: 62
+                  y: 54
                   text: "WiFi -- dBm"
-                  text_font: ui_font_18_bold
+                  text_font: ui_font_14
+
         - obj:
             x: 8
-            y: 184
+            y: 166
             width: 304
-            height: 104
+            height: 86
             styles: style_card
             widgets:
               - label:
-                  text: "CONTROLLER"
+                  text: "RUNTIME"
                   text_font: ui_font_14
                   text_color: 0x657080
               - label:
-                  id: ui_system_cpu
+                  id: ui_system_uptime
                   x: 0
-                  y: 28
-                  text: "CPU --.- C"
+                  y: 25
+                  text: "Uptime --"
                   text_font: ui_font_18_bold
               - label:
+                  id: ui_system_cpu
                   x: 0
-                  y: 62
-                  text: "ESP32-S3 / ESPHome"
-                  text_font: ui_font_18_bold
+                  y: 54
+                  text: "CPU --.- C"
+                  text_font: ui_font_14
+
         - obj:
             x: 8
-            y: 296
+            y: 260
             width: 304
-            height: 124
+            height: 86
+            styles: style_card
+            widgets:
+              - label:
+                  text: "MEMORY"
+                  text_font: ui_font_14
+                  text_color: 0x657080
+              - label:
+                  id: ui_system_heap
+                  x: 0
+                  y: 25
+                  text: "Heap ---- kB"
+                  text_font: ui_font_18_bold
+              - label:
+                  id: ui_system_psram
+                  x: 0
+                  y: 54
+                  text: "PSRAM ---- kB"
+                  text_font: ui_font_14
+
+        - obj:
+            x: 8
+            y: 354
+            width: 304
+            height: 76
             styles: style_card
             widgets:
               - label:
@@ -86,23 +114,12 @@ lvgl:
                   text_font: ui_font_14
                   text_color: 0x657080
               - label:
-                  id: ui_system_can1
+                  id: ui_system_can
                   x: 0
-                  y: 28
-                  text: "L1 --"
+                  y: 30
+                  text: "L1 --   L2 --   L3 --"
                   text_font: ui_font_18_bold
-              - label:
-                  id: ui_system_can2
-                  x: 0
-                  y: 58
-                  text: "L2 --"
-                  text_font: ui_font_18_bold
-              - label:
-                  id: ui_system_can3
-                  x: 0
-                  y: 88
-                  text: "L3 --"
-                  text_font: ui_font_18_bold
+
         - label:
             x: 8
             y: 448
@@ -111,28 +128,53 @@ lvgl:
             text: "Double page | Hold START/STOP"
             text_font: ui_font_14
             text_color: 0x657080
+
 interval:
   - interval: 1s
     then:
       - lvgl.label.update:
           id: ui_system_ip
           text: !lambda 'return std::string("IP ") + (id(ip_address).state.empty() ? "--" : id(ip_address).state);'
+
       - lvgl.label.update:
           id: ui_system_wifi
           text: !lambda |-
             if (isnan(id(wifi_sig).state)) return std::string("WiFi -- dBm");
             return str_sprintf("WiFi %.0f dBm", id(wifi_sig).state);
+
+      - lvgl.label.update:
+          id: ui_system_uptime
+          text: !lambda |-
+            const uint32_t seconds = millis() / 1000U;
+            const uint32_t days = seconds / 86400U;
+            const uint32_t hours = (seconds % 86400U) / 3600U;
+            const uint32_t minutes = (seconds % 3600U) / 60U;
+            if (days > 0) return str_sprintf("Uptime %lu d %02lu:%02lu", static_cast<unsigned long>(days), static_cast<unsigned long>(hours), static_cast<unsigned long>(minutes));
+            return str_sprintf("Uptime %02lu:%02lu", static_cast<unsigned long>(hours), static_cast<unsigned long>(minutes));
+
       - lvgl.label.update:
           id: ui_system_cpu
           text: !lambda |-
             if (isnan(id(cpu_temp).state)) return std::string("CPU --.- C");
             return str_sprintf("CPU %.1f C", id(cpu_temp).state);
+
       - lvgl.label.update:
-          id: ui_system_can1
-          text: !lambda 'return std::string("L1 ") + (id(can_com_ok_1).state ? "OK" : "FAULT");'
+          id: ui_system_heap
+          text: !lambda |-
+            const size_t free_heap = heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+            return str_sprintf("Heap %.0f kB free", free_heap / 1024.0f);
+
       - lvgl.label.update:
-          id: ui_system_can2
-          text: !lambda 'return std::string("L2 ") + (id(can_com_ok_2).state ? "OK" : "FAULT");'
+          id: ui_system_psram
+          text: !lambda |-
+            const size_t free_psram = heap_caps_get_free_size(MALLOC_CAP_SPIRAM);
+            return str_sprintf("PSRAM %.0f kB free", free_psram / 1024.0f);
+
       - lvgl.label.update:
-          id: ui_system_can3
-          text: !lambda 'return std::string("L3 ") + (id(can_com_ok_3).state ? "OK" : "FAULT");'
+          id: ui_system_can
+          text: !lambda |-
+            return str_sprintf(
+              "L1 %s   L2 %s   L3 %s",
+              id(can_com_ok_1).state ? "OK" : "FAULT",
+              id(can_com_ok_2).state ? "OK" : "FAULT",
+              id(can_com_ok_3).state ? "OK" : "FAULT");

@@ -1,12 +1,12 @@
 # Firmware package architecture
 
-This directory is the modular source of truth for stable firmware **v4.1.0**, assembled by `../r4875g1-3phase-charger.yaml`. The `v4-lvgl-menu` branch continues from the same release baseline for further UI development.
+This directory is the modular source of truth for development firmware **v4.1.1** on `v4-lvgl-menu`, assembled by `../r4875g1-3phase-charger.yaml`. Stable `main` remains at v4.1.0 until this development work is hardware-tested and promoted.
 
 ## Ownership rules
 
 | File | Responsibility |
 |---|---|
-| `version.yaml` | single source of truth for firmware version; every repository commit increments PATCH unless an intentional release milestone advances MAJOR/MINOR |
+| `version.yaml` | single source of truth for firmware version; normal commits increment PATCH |
 | `core.yaml` | ESP32 platform/framework, PSRAM, network, API, MQTT, web, OTA and time services |
 | `hardware.yaml` | shared I²C and SPI buses |
 | `display.yaml` | display package aggregator and rotation substitution |
@@ -14,9 +14,9 @@ This directory is the modular source of truth for stable firmware **v4.1.0**, as
 | `display/theme.yaml` | LVGL, RGB565 framebuffer, fonts and reusable styles |
 | `display/ui.yaml` | LVGL page aggregator and page wrapping |
 | `display/pages/dashboard.yaml` | compact charger overview and local setpoints |
-| `display/pages/rectifiers.yaml` | per-rectifier diagnostic page |
+| `display/pages/rectifiers.yaml` | complete per-rectifier operating/diagnostic overview |
 | `display/pages/cooling.yaml` | compartment/external-fan page |
-| `display/pages/system.yaml` | controller/network/CAN page |
+| `display/pages/system.yaml` | controller/network/memory/CAN diagnostics |
 | `cooling.yaml` | external chassis fan enable/PWM/tach |
 | `controls.yaml` | charger-wide setpoints and shared/broadcast controls |
 | `rectifier-unit.yaml` | one parameterized R4875G1 instance, discovery helpers and per-unit entities |
@@ -30,11 +30,13 @@ Version 4 uses ESPHome LVGL on the ILI9488. The display stack is deliberately la
 Current pages:
 
 - **Dashboard** — operating overview and local setpoints.
-- **Rectifiers** — L1/L2/L3 power state, DC V/A/W, output temperature and CAN fault presentation; further per-unit diagnostics remain planned.
+- **Rectifiers** — one L1/L2/L3 card each with Power State, CAN state, lifecycle, DC V/A/W, input/output temperature, internal fan RPM and discovered maximum-current capability. Unreachable units use telemetry placeholders instead of stale live values.
 - **Cooling** — compartment temperature/humidity, external fan power/PWM and three tachometer speeds.
-- **System** — firmware, IP, Wi-Fi RSSI, CPU temperature and per-unit CAN state; uptime/heap/PSRAM remain planned.
+- **System** — firmware, IP, Wi-Fi RSSI, uptime, CPU temperature, free internal heap, free PSRAM and compact L1/L2/L3 CAN state.
 
 The physical encoder button distinguishes three gestures: short press selects Voltage/Power, double press advances to the next LVGL page, and ≥3 s performs START/STOP. The double-click pattern requires the second press within 350 ms; the single-click pattern waits at least 350 ms after release so both actions cannot fire for the same gesture. Page wrapping returns from System to Dashboard.
+
+The System page intentionally reads runtime-only values locally: uptime comes from `millis()`, free internal heap from `heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT)` and free PSRAM from `heap_caps_get_free_size(MALLOC_CAP_SPIRAM)`. Existing Home Assistant diagnostic entities remain unchanged and no duplicate TFT-only sensors are introduced.
 
 The TFT and `esphome.project.version` both consume `${firmware_version}` from `version.yaml`.
 
@@ -70,12 +72,12 @@ esphome config r4875g1-3phase-charger.yaml
 esphome compile r4875g1-3phase-charger.yaml
 ```
 
-For PowerShell tooling changes, also run a parser check or execute the script with `-DryRun` before relying on it for deployment.
+For PowerShell tooling changes, also run a parser check or execute the script with `-DryRun` before relying on it for deployment. For display changes, verify the physical ILI9488 after compilation because text density and actual panel rendering remain hardware-visible concerns.
 
 ## Fan terminology
 
-Two independent fan domains exist: external/chassis fans are GPIO-controlled through `cooling.yaml`; internal R4875G1 fans are controlled and read through Huawei CAN commands.
+Two independent fan domains exist: external/chassis fans are GPIO-controlled through `cooling.yaml`; internal R4875G1 fans shown on the Rectifiers page are CAN-reported by each rectifier.
 
 ## Release / branch status
 
-Firmware **4.1.0** is the stable baseline promoted to `main` after physical verification of the four-page TFT navigation and deployment workflow. `v4-lvgl-menu` remains available and starts its next development work from this exact release commit; the next normal development commit will therefore be v4.1.1.
+Firmware **4.1.0** remains the stable baseline on `main`. Firmware **4.1.1** on `v4-lvgl-menu` completes the planned Rectifiers and System diagnostic content without changing charger-control, CAN-discovery or blackstart behavior.
