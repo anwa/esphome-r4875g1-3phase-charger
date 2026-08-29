@@ -639,11 +639,16 @@ binary_sensor:
     entity_category: diagnostic
 
     lambda: |-
+      const uint32_t timeout_ms =
+        id(rectifier_control_state_${ru_unit}) == ${rectifier_state_discovering}
+          ? 7000U
+          : ${can_watchdog_timeout_ms}U;
+
       return
         id(last_can_rx_${ru_unit}) != 0 &&
         static_cast<uint32_t>(
           millis() - id(last_can_rx_${ru_unit})
-        ) < ${can_watchdog_timeout_ms}U;
+        ) < timeout_ms;
 
     on_press:
       then:

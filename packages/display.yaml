@@ -14,7 +14,7 @@
 
 substitutions:
   display_rotation: "90"
-  firmware_version: "4.0.0"
+  firmware_version: "4.0.1"
 
 packages:
   display_hardware: !include display/hardware.yaml
