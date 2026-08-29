@@ -51,8 +51,7 @@
 # Current commands use current_scaling_factor.
 # The controller starts with the known 75 A R4875G1 fallback value
 # (1024 / 75 = 13.653333) and automatically refreshes the factor from
-# Unit 1's detected maximum-current capability whenever Unit 1 becomes
-# available on the CAN bus.
+# the currently reachable rectifier capabilities.
 #
 # COMMUNICATION HEALTH
 # --------------------
@@ -108,10 +107,7 @@ substitutions:
   # --------------------------------------------------------------------------
   # Project-wide operating limits
   # --------------------------------------------------------------------------
-  # Absolute supported project ceiling.
   project_max_dc_current_a: "75.0"
-  # Conservative current ceiling until every currently reachable rectifier
-  # has a freshly confirmed maximum-current capability.
   failsafe_dc_current_a: "50.0"
   minimum_dc_current_a: "1.0"
 
@@ -119,7 +115,6 @@ substitutions:
   dc_voltage_max_v: "58.0"
   dc_voltage_default_v: "53.0"
 
-  # Thermal derating thresholds and hysteresis.
   thermal_warn1_c: "70.0"
   thermal_warn1_reset_c: "65.0"
   thermal_warn1_limit_a: "50.0"
@@ -131,7 +126,6 @@ substitutions:
   overtemp_trip_c: "90.0"
   overtemp_reset_c: "80.0"
 
-  # Internal thermal-state codes.
   thermal_state_normal: "0"
   thermal_state_warn1: "1"
   thermal_state_warn2: "2"
@@ -139,44 +133,20 @@ substitutions:
 
   efficiency_min_ac_power_w: "100.0"
 
-  # --------------------------------------------------------------------------
-  # Protocol scaling
-  # --------------------------------------------------------------------------
   protocol_value_scale: "1024"
   fan_duty_counts_per_percent: "256.0"
 
-  # --------------------------------------------------------------------------
-  # Rectifier control-state codes
-  # --------------------------------------------------------------------------
-  # Internal lifecycle state used independently for each rectifier.
-  #
-  # OFFLINE:
-  #   No usable communication / unit not operationally released.
-  #
-  # DISCOVERING:
-  #   CAN communication has been detected, but discovery and validation have
-  #   not yet completed.
-  #
-  # ONLINE:
-  #   Discovery completed successfully and the unit is ready for normal
-  #   operational handling.
   rectifier_state_offline: "0"
   rectifier_state_discovering: "1"
   rectifier_state_online: "2"
 
-  # --------------------------------------------------------------------------
-  # CAN communication buffering
-  # --------------------------------------------------------------------------
   can_rx_queue_len: "64"
 
-  # --------------------------------------------------------------------------
-  # CAN communication timing
-  # --------------------------------------------------------------------------
-  # Normal runtime CAN watchdog.
-  can_watchdog_timeout_ms: "3000"
+  # Normal runtime CAN watchdog. 7 s deliberately exceeds the 5 s discovery
+  # stabilization delay so a newly detected unit does not appear unreachable
+  # during the intentional quiet/stabilization window before discovery starts.
+  can_watchdog_timeout_ms: "7000"
 
-  # Grace period after property discovery so normal cyclic polling has enough
-  # time to resume before lifecycle connectivity is evaluated again.
   property_poll_resume_grace_ms: "2000"
 
   live_telemetry_timeout: "5s"
@@ -186,18 +156,10 @@ substitutions:
   unit_2_poll_gap: "156ms"
   unit_3_poll_gap: "166ms"
 
-  # Offline rectifiers are probed round-robin. One unit is considered every
-  # five seconds, resulting in a maximum probe interval of approximately
-  # 15 seconds per offline rectifier.
   offline_probe_slot_interval: "5s"
-
   can_recovery_check_interval: "2s"
-
   setpoint_refresh_interval: "30s"
 
-  # --------------------------------------------------------------------------
-  # Discovery retry policy
-  # --------------------------------------------------------------------------
   property_discovery_attempts: "3"
   capability_discovery_attempts: "10"
   discovery_retry_delay: "1s"
@@ -234,12 +196,10 @@ esphome:
 
   project:
     name: "anwa.3phase-charger"
-    version: "4.0.0"
+    version: "4.0.1"
 
   on_boot:
     then:
-      # Until valid rectifier status frames have been received, the actual
-      # power state of each unit is unknown.
       - lambda: |-
           id(power_state_1).publish_state("UNKNOWN");
           id(power_state_2).publish_state("UNKNOWN");
@@ -249,15 +209,10 @@ esphome:
           id(thermal_state_text_2).publish_state("NORMAL");
           id(thermal_state_text_3).publish_state("NORMAL");
 
-          // Publish the conservative 50 A failsafe ceiling until the
-          // capabilities of all currently reachable rectifiers are known.
           id(effective_dc_current_limit_sensor).publish_state(
             id(effective_dc_current_limit)
           );
 
-      # Every rectifier starts in OFFLINE control state after an ESP reboot.
-      # A unit must be detected and successfully discovered before it can later
-      # transition to ONLINE.
       - script.execute:
           id: set_rectifier_control_state
           unit: 1
@@ -275,9 +230,6 @@ esphome:
 
       - script.execute: display_inactivity_timer
 
-      # Safe external cooling-fan startup: command full speed first, then
-      # enable the common fan supply. A restored user PWM value is applied
-      # afterwards by the number component.
       - lambda: |-
           id(cooling_fan_pwm_output).set_level(
             ${cooling_fan_default_pwm_percent}f / 100.0f
@@ -285,16 +237,7 @@ esphome:
 
       - switch.turn_on: cooling_fan_enable
 
-# ==============================================================================
-# PROJECT-WIDE / AGGREGATE SENSORS
-# ==============================================================================
-# Controller diagnostics, shared compartment/environment input, local encoder
-# input and charger-wide aggregate telemetry that do not belong to one package
-# or one parameterized rectifier instance.
 sensor:
-  # --------------------------------------------------------------------------
-  # ESPHome Runtime Diagnostics
-  # --------------------------------------------------------------------------
   - platform: debug
     free:
       name: "Heap Free"
@@ -321,8 +264,6 @@ sensor:
       entity_category: diagnostic
       icon: "mdi:speedometer"
 
-  # --------------------------------------------------------------------------
-  # Controller CPU Temperature
   - platform: internal_temperature
     name: "Controller CPU Temperature"
     id: cpu_temp
@@ -333,17 +274,12 @@ sensor:
     update_interval: 10s
     icon: "mdi:thermometer"
 
-  # --------------------------------------------------------------------------
-  # Controller Uptime
   - platform: uptime
     type: seconds
     name: "Uptime"
     entity_category: diagnostic
-
     icon: "mdi:timer-outline"
 
-  # --------------------------------------------------------------------------
-  # Wi-Fi RSSI
   - platform: wifi_signal
     name: "WiFi RSSI"
     id: wifi_sig
@@ -353,15 +289,6 @@ sensor:
     update_interval: 10s
     icon: "mdi:wifi"
 
-  # --------------------------------------------------------------------------
-  # Rectifier Compartment Temperature and Humidity
-  #
-  # AHT10 sensor installed in the shared rear connection compartment behind
-  # the three rectifier units. The measured air is influenced by the warm
-  # exhaust/airflow from all rectifiers and therefore represents the thermal
-  # conditions inside the rectifier compartment rather than room temperature.
-  #
-  # The AHT10 uses I²C address 0x38.
   - platform: aht10
     variant: AHT10
     i2c_id: i2c_bus
@@ -380,9 +307,6 @@ sensor:
       accuracy_decimals: 1
       icon: "mdi:water-percent"
 
-  # --------------------------------------------------------------------------
-  # local_encoder
-  # Physical local rotary encoder; pins are defined in substitutions. In voltage mode it changes set_dc_voltage_limit and recalculates current to preserve total power; in power mode it changes set_dc_sum_power. Every movement wakes/restarts the backlight timer.
   - platform: rotary_encoder
     id: local_encoder
 
@@ -404,7 +328,6 @@ sensor:
     on_clockwise:
       then:
         - script.execute: display_inactivity_timer
-
         - if:
             condition:
               lambda: 'return id(encoder_mode) == 0;'
@@ -420,7 +343,6 @@ sensor:
     on_anticlockwise:
       then:
         - script.execute: display_inactivity_timer
-
         - if:
             condition:
               lambda: 'return id(encoder_mode) == 0;'
@@ -434,9 +356,6 @@ sensor:
                   id: set_dc_sum_power
                   cycle: false
 
-  # --------------------------------------------------------------------------
-  # Effective DC Current Limit
-  # Runtime hardware/capability ceiling shared by all active-current paths.
   - platform: template
     name: "Effective DC Current Limit"
     id: effective_dc_current_limit_sensor
@@ -447,9 +366,6 @@ sensor:
     update_interval: never
     icon: "mdi:current-dc"
 
-  # --------------------------------------------------------------------------
-  # Thermal / applied current diagnostics
-  # --------------------------------------------------------------------------
   - platform: template
     name: "Thermal DC Current Limit"
     id: thermal_dc_current_limit_sensor
@@ -477,9 +393,6 @@ sensor:
       return applied;
     icon: "mdi:current-dc"
 
-  # --------------------------------------------------------------------------
-  # Combined AC Power All Units
-  # CAN-aware AC-input power total from reachable units with valid telemetry.
   - platform: template
     name: "Combined AC Power All Units"
     id: combined_ac_power
@@ -493,36 +406,13 @@ sensor:
     lambda: |-
       float power = 0.0f;
       int valid_units = 0;
-
-      if (id(can_com_ok_1).state &&
-          !isnan(id(ac_power_1).state)) {
-        power += id(ac_power_1).state;
-        valid_units++;
-      }
-
-      if (id(can_com_ok_2).state &&
-          !isnan(id(ac_power_2).state)) {
-        power += id(ac_power_2).state;
-        valid_units++;
-      }
-
-      if (id(can_com_ok_3).state &&
-          !isnan(id(ac_power_3).state)) {
-        power += id(ac_power_3).state;
-        valid_units++;
-      }
-
-      // No valid CAN data available
-      if (valid_units == 0) {
-        return NAN;
-      }
-
+      if (id(can_com_ok_1).state && !isnan(id(ac_power_1).state)) { power += id(ac_power_1).state; valid_units++; }
+      if (id(can_com_ok_2).state && !isnan(id(ac_power_2).state)) { power += id(ac_power_2).state; valid_units++; }
+      if (id(can_com_ok_3).state && !isnan(id(ac_power_3).state)) { power += id(ac_power_3).state; valid_units++; }
+      if (valid_units == 0) return NAN;
       return power;
     icon: "mdi:flash"
 
-  # --------------------------------------------------------------------------
-  # Combined DC Power All Units
-  # CAN-aware DC power total with the same stale-data protection as the AC total. The lambda sums watts and the multiply filter converts W to kW.
   - platform: template
     name: "Combined DC Power All Units"
     id: combined_dc_power
@@ -536,36 +426,13 @@ sensor:
     lambda: |-
       float power = 0.0f;
       int valid_units = 0;
-
-      if (id(can_com_ok_1).state &&
-          !isnan(id(dc_power_1).state)) {
-        power += id(dc_power_1).state;
-        valid_units++;
-      }
-
-      if (id(can_com_ok_2).state &&
-          !isnan(id(dc_power_2).state)) {
-        power += id(dc_power_2).state;
-        valid_units++;
-      }
-
-      if (id(can_com_ok_3).state &&
-          !isnan(id(dc_power_3).state)) {
-        power += id(dc_power_3).state;
-        valid_units++;
-      }
-
-      // No valid CAN data available
-      if (valid_units == 0) {
-        return NAN;
-      }
-
+      if (id(can_com_ok_1).state && !isnan(id(dc_power_1).state)) { power += id(dc_power_1).state; valid_units++; }
+      if (id(can_com_ok_2).state && !isnan(id(dc_power_2).state)) { power += id(dc_power_2).state; valid_units++; }
+      if (id(can_com_ok_3).state && !isnan(id(dc_power_3).state)) { power += id(dc_power_3).state; valid_units++; }
+      if (valid_units == 0) return NAN;
       return power;
     icon: "mdi:flash"
 
-  # --------------------------------------------------------------------------
-  # Available Units
-  # Number of rectifier units currently providing valid CAN communication.
   - platform: template
     name: "Available Units"
     id: available_units
@@ -574,25 +441,12 @@ sensor:
     update_interval: 1s
     lambda: |-
       int count = 0;
-
-      if (id(can_com_ok_1).state) {
-        count++;
-      }
-
-      if (id(can_com_ok_2).state) {
-        count++;
-      }
-
-      if (id(can_com_ok_3).state) {
-        count++;
-      }
-
+      if (id(can_com_ok_1).state) count++;
+      if (id(can_com_ok_2).state) count++;
+      if (id(can_com_ok_3).state) count++;
       return count;
     icon: "mdi:server-network"
 
-  # --------------------------------------------------------------------------
-  # Combined DC Current All Units
-  # Sum of DC output current from all reachable rectifiers with valid telemetry.
   - platform: template
     name: "Combined DC Current All Units"
     id: combined_dc_current
@@ -604,37 +458,13 @@ sensor:
     lambda: |-
       float current = 0.0f;
       int valid_units = 0;
-
-      if (id(can_com_ok_1).state &&
-          !isnan(id(dc_current_1).state)) {
-        current += id(dc_current_1).state;
-        valid_units++;
-      }
-
-      if (id(can_com_ok_2).state &&
-          !isnan(id(dc_current_2).state)) {
-        current += id(dc_current_2).state;
-        valid_units++;
-      }
-
-      if (id(can_com_ok_3).state &&
-          !isnan(id(dc_current_3).state)) {
-        current += id(dc_current_3).state;
-        valid_units++;
-      }
-
-      if (valid_units == 0) {
-        return NAN;
-      }
-
+      if (id(can_com_ok_1).state && !isnan(id(dc_current_1).state)) { current += id(dc_current_1).state; valid_units++; }
+      if (id(can_com_ok_2).state && !isnan(id(dc_current_2).state)) { current += id(dc_current_2).state; valid_units++; }
+      if (id(can_com_ok_3).state && !isnan(id(dc_current_3).state)) { current += id(dc_current_3).state; valid_units++; }
+      if (valid_units == 0) return NAN;
       return current;
     icon: "mdi:current-dc"
 
-  # --------------------------------------------------------------------------
-  # Average DC Voltage All Units
-  # Average DC output voltage across all reachable rectifiers.
-  # The rectifier outputs are connected in parallel, so their voltages should
-  # normally be nearly identical.
   - platform: template
     name: "Average DC Voltage All Units"
     id: average_dc_voltage
@@ -646,35 +476,13 @@ sensor:
     lambda: |-
       float voltage = 0.0f;
       int valid_units = 0;
-
-      if (id(can_com_ok_1).state &&
-          !isnan(id(dc_voltage_1).state)) {
-        voltage += id(dc_voltage_1).state;
-        valid_units++;
-      }
-
-      if (id(can_com_ok_2).state &&
-          !isnan(id(dc_voltage_2).state)) {
-        voltage += id(dc_voltage_2).state;
-        valid_units++;
-      }
-
-      if (id(can_com_ok_3).state &&
-          !isnan(id(dc_voltage_3).state)) {
-        voltage += id(dc_voltage_3).state;
-        valid_units++;
-      }
-
-      if (valid_units == 0) {
-        return NAN;
-      }
-
+      if (id(can_com_ok_1).state && !isnan(id(dc_voltage_1).state)) { voltage += id(dc_voltage_1).state; valid_units++; }
+      if (id(can_com_ok_2).state && !isnan(id(dc_voltage_2).state)) { voltage += id(dc_voltage_2).state; valid_units++; }
+      if (id(can_com_ok_3).state && !isnan(id(dc_voltage_3).state)) { voltage += id(dc_voltage_3).state; valid_units++; }
+      if (valid_units == 0) return NAN;
       return voltage / valid_units;
     icon: "mdi:current-dc"
 
-  # --------------------------------------------------------------------------
-  # Highest Output Temperature All Units
-  # Reports the hottest currently reachable rectifier.
   - platform: template
     name: "Highest Output Temperature All Units"
     id: highest_output_temperature
@@ -686,45 +494,13 @@ sensor:
     lambda: |-
       float highest = 0.0f;
       bool valid = false;
-
-      if (id(can_com_ok_1).state &&
-          !isnan(id(output_temperature_1).state)) {
-        highest = id(output_temperature_1).state;
-        valid = true;
-      }
-
-      if (id(can_com_ok_2).state &&
-          !isnan(id(output_temperature_2).state)) {
-        if (!valid ||
-            id(output_temperature_2).state > highest) {
-          highest = id(output_temperature_2).state;
-        }
-        valid = true;
-      }
-
-      if (id(can_com_ok_3).state &&
-          !isnan(id(output_temperature_3).state)) {
-        if (!valid ||
-            id(output_temperature_3).state > highest) {
-          highest = id(output_temperature_3).state;
-        }
-        valid = true;
-      }
-
-      if (!valid) {
-        return NAN;
-      }
-
+      if (id(can_com_ok_1).state && !isnan(id(output_temperature_1).state)) { highest = id(output_temperature_1).state; valid = true; }
+      if (id(can_com_ok_2).state && !isnan(id(output_temperature_2).state)) { if (!valid || id(output_temperature_2).state > highest) highest = id(output_temperature_2).state; valid = true; }
+      if (id(can_com_ok_3).state && !isnan(id(output_temperature_3).state)) { if (!valid || id(output_temperature_3).state > highest) highest = id(output_temperature_3).state; valid = true; }
+      if (!valid) return NAN;
       return highest;
     icon: "mdi:thermometer-high"
 
-  # --------------------------------------------------------------------------
-  # Conversion Efficiency All Units
-  # Calculates DC output power divided by AC input power.
-  #
-  # Only units that simultaneously provide valid AC and DC power telemetry are
-  # included. Values below 100 W AC input are ignored because efficiency becomes
-  # meaningless and unstable close to idle operation.
   - platform: template
     name: "Conversion Efficiency All Units"
     id: conversion_efficiency
@@ -736,42 +512,13 @@ sensor:
       float ac_power = 0.0f;
       float dc_power = 0.0f;
       int valid_units = 0;
-
-      if (id(can_com_ok_1).state &&
-          !isnan(id(ac_power_1).state) &&
-          !isnan(id(dc_power_1).state)) {
-        ac_power += id(ac_power_1).state;
-        dc_power += id(dc_power_1).state;
-        valid_units++;
-      }
-
-      if (id(can_com_ok_2).state &&
-          !isnan(id(ac_power_2).state) &&
-          !isnan(id(dc_power_2).state)) {
-        ac_power += id(ac_power_2).state;
-        dc_power += id(dc_power_2).state;
-        valid_units++;
-      }
-
-      if (id(can_com_ok_3).state &&
-          !isnan(id(ac_power_3).state) &&
-          !isnan(id(dc_power_3).state)) {
-        ac_power += id(ac_power_3).state;
-        dc_power += id(dc_power_3).state;
-        valid_units++;
-      }
-
-      if (valid_units == 0 ||
-          ac_power < ${efficiency_min_ac_power_w}f) {
-        return NAN;
-      }
-
+      if (id(can_com_ok_1).state && !isnan(id(ac_power_1).state) && !isnan(id(dc_power_1).state)) { ac_power += id(ac_power_1).state; dc_power += id(dc_power_1).state; valid_units++; }
+      if (id(can_com_ok_2).state && !isnan(id(ac_power_2).state) && !isnan(id(dc_power_2).state)) { ac_power += id(ac_power_2).state; dc_power += id(dc_power_2).state; valid_units++; }
+      if (id(can_com_ok_3).state && !isnan(id(ac_power_3).state) && !isnan(id(dc_power_3).state)) { ac_power += id(ac_power_3).state; dc_power += id(dc_power_3).state; valid_units++; }
+      if (valid_units == 0 || ac_power < ${efficiency_min_ac_power_w}f) return NAN;
       return (dc_power / ac_power) * 100.0f;
     icon: "mdi:gauge"
 
-  # --------------------------------------------------------------------------
-  # AC Energy Today
-  # Daily AC input energy integrated from the CAN-aware combined AC power.
   - platform: total_daily_energy
     name: "AC Energy Today"
     power_id: combined_ac_power
@@ -782,9 +529,6 @@ sensor:
     accuracy_decimals: 3
     icon: "mdi:counter"
 
-  # --------------------------------------------------------------------------
-  # DC Energy Today
-  # Daily DC output energy integrated from the CAN-aware combined DC power.
   - platform: total_daily_energy
     name: "DC Energy Today"
     power_id: combined_dc_power
@@ -795,14 +539,7 @@ sensor:
     accuracy_decimals: 3
     icon: "mdi:counter"
 
-# ==============================================================================
-# PROJECT-WIDE BINARY SENSORS
-# ==============================================================================
-# Local physical push button and charger-wide capability diagnostics.
 binary_sensor:
-  # --------------------------------------------------------------------------
-  # local_encoder_button
-  # Physical encoder push button; pin is defined in substitutions. The internal pull-up makes the input active-low. A 30 ms delayed_on_off filter debounces the switch. on_press wakes the display; short press changes encoder mode; >=3 s long press starts/stops the rectifiers.
   - platform: gpio
     id: local_encoder_button
     internal: true
@@ -817,45 +554,27 @@ binary_sensor:
     filters:
       - delayed_on_off: 30ms
 
-    # Every physical button press wakes the display
-    # and resets the 5-minute inactivity timer.
     on_press:
       then:
         - script.execute: display_inactivity_timer
 
     on_multi_click:
-
-      # Short press:
-      # Toggle encoder editing mode: DC Voltage <-> Total DC Power.
       - timing:
           - ON for 50ms to 2800ms
           - OFF for at least 50ms
         then:
           - lambda: |-
               id(encoder_mode) = !id(encoder_mode);
-
               ESP_LOGI(
                 "encoder",
                 "Selected: %s",
-                id(encoder_mode) == 0
-                  ? "DC Voltage"
-                  : "DC Sum Power"
+                id(encoder_mode) == 0 ? "DC Voltage" : "DC Sum Power"
               );
           - component.update: tft
 
-      # Long press:
-      # Toggle rectifier units ON/OFF for local blackstart control.
-      #
-      # STOP remains unrestricted and therefore takes precedence whenever any
-      # rectifier currently reports ON.
-      #
-      # START is allowed only when at least one rectifier is fully ONLINE and
-      # also has fresh raw CAN communication. blackstart_start performs the
-      # remaining per-unit OFF-state, temperature and lockout checks.
       - timing:
           - ON for at least 3000ms
         then:
-          # STOP always has priority. Sending OFF is intentionally unrestricted.
           - if:
               condition:
                 lambda: |-
@@ -863,53 +582,23 @@ binary_sensor:
                     id(power_state_1).state == "ON" ||
                     id(power_state_2).state == "ON" ||
                     id(power_state_3).state == "ON";
-
               then:
                 - script.execute: blackstart_stop
-
               else:
-                # START requires at least one fully ONLINE rectifier with fresh
-                # raw CAN communication.
                 - if:
                     condition:
                       lambda: |-
                         return
-                          (
-                            id(rectifier_control_state_1) ==
-                              ${rectifier_state_online} &&
-                            id(can_com_ok_1).state
-                          ) ||
-                          (
-                            id(rectifier_control_state_2) ==
-                              ${rectifier_state_online} &&
-                            id(can_com_ok_2).state
-                          ) ||
-                          (
-                            id(rectifier_control_state_3) ==
-                              ${rectifier_state_online} &&
-                            id(can_com_ok_3).state
-                          );
-
+                          (id(rectifier_control_state_1) == ${rectifier_state_online} && id(can_com_ok_1).state) ||
+                          (id(rectifier_control_state_2) == ${rectifier_state_online} && id(can_com_ok_2).state) ||
+                          (id(rectifier_control_state_3) == ${rectifier_state_online} && id(can_com_ok_3).state);
                     then:
                       - script.execute: blackstart_start
-
                     else:
                       - logger.log:
                           level: WARN
                           format: "BLACKSTART: START ignored - no fully ONLINE rectifier with fresh CAN communication is available."
 
-  # --------------------------------------------------------------------------
-  # Rectifier Capability Mismatch
-  # Diagnostic problem indicator comparing the maximum-current capability
-  # reported by all three rectifiers.
-  #
-  # State:
-  #   unknown = not all three current capabilities have been confirmed
-  #   OFF     = all three capabilities match
-  #   ON      = at least one rectifier reports a different capability
-  #
-  # The state is published by evaluate_rectifier_capabilities whenever fresh
-  # capability data is received.
   - platform: template
     name: "Rectifier Capability Mismatch"
     id: rectifier_capability_mismatch
@@ -917,25 +606,17 @@ binary_sensor:
     entity_category: diagnostic
     icon: "mdi:alert-circle-outline"
 
-# ==============================================================================
-# PROJECT-WIDE TEXT / STATUS SENSORS
-# ==============================================================================
-# Network/controller diagnostics that are shared by the assembled device.
 text_sensor:
-  # Network diagnostic used by the TFT footer.
   - platform: wifi_info
     ip_address:
       id: ip_address
       entity_category: diagnostic
 
-  # Running ESPHome firmware version.
   - platform: version
     name: "ESPHome Version"
     entity_category: diagnostic
-
     icon: "mdi:code-tags"
 
-  # ESPHome device information and last reset reason.
   - platform: debug
     device:
       name: "Device Info"
