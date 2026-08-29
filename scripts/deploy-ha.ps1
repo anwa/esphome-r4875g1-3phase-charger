@@ -19,23 +19,6 @@ $Timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
 $BackupDir = "$RemoteDir/.deploy-backups/r4875g1-3phase-charger/$Timestamp"
 $StagingDir = "$RemoteDir/.deploy-staging/r4875g1-3phase-charger-$Timestamp"
 
-$ManagedFiles = @(
-    "packages/core.yaml",
-    "packages/hardware.yaml",
-    "packages/display.yaml",
-    "packages/cooling.yaml",
-    "packages/controls.yaml",
-    "packages/rectifier-shared.yaml",
-    "packages/rectifier-unit.yaml",
-    "packages/README.md",
-    "packages/rectifier-can/property-start.yaml",
-    "packages/rectifier-can/property-end.yaml",
-    "packages/rectifier-can/cyclic-telemetry.yaml",
-    "packages/rectifier-can/fan-telemetry.yaml",
-    "packages/rectifier-can/address-data.yaml",
-    "packages/rectifier-can/power-state.yaml"
-)
-
 function Write-Step([string]$Message) { Write-Host "[DEPLOY] $Message" -ForegroundColor Cyan }
 function Write-Ok([string]$Message)   { Write-Host "[  OK  ] $Message" -ForegroundColor Green }
 function Write-Warn([string]$Message) { Write-Host "[ WARN ] $Message" -ForegroundColor Yellow }
@@ -51,6 +34,21 @@ function Quote-Sh([string]$Value) {
         throw "Remote path must not contain an apostrophe: $Value"
     }
     return "'$Value'"
+}
+
+function Get-ManagedFiles {
+    $packageRoot = Join-Path $RepoRoot "packages"
+    if (-not (Test-Path -LiteralPath $packageRoot -PathType Container)) {
+        throw "Required package directory is missing: packages"
+    }
+
+    return @(
+        Get-ChildItem -LiteralPath $packageRoot -File -Recurse |
+            Sort-Object FullName |
+            ForEach-Object {
+                [System.IO.Path]::GetRelativePath($RepoRoot, $_.FullName).Replace('\', '/')
+            }
+    )
 }
 
 function Get-ESPHomeNodeName {
@@ -71,18 +69,11 @@ function Get-ESPHomeNodeName {
             continue
         }
 
-        if (-not $inESPHomeBlock) {
-            continue
-        }
-
-        if ($line -match '^\s*$' -or $line -match '^\s*#') {
-            continue
-        }
+        if (-not $inESPHomeBlock) { continue }
+        if ($line -match '^\s*$' -or $line -match '^\s*#') { continue }
 
         $indent = ([regex]::Match($line, '^ *')).Value.Length
-        if ($indent -le $esphomeIndent) {
-            break
-        }
+        if ($indent -le $esphomeIndent) { break }
 
         if ($line -match '^\s*name:\s*["'']?([a-zA-Z0-9_-]+)["'']?\s*(?:#.*)?$') {
             $foundNames += $Matches[1]
@@ -105,6 +96,27 @@ function Get-ESPHomeNodeName {
     }
 
     return $nodeName
+}
+
+function Get-ProjectVersion {
+    $yaml = Get-Content -Raw -LiteralPath (Join-Path $RepoRoot $ProjectFile)
+    $match = [regex]::Match(
+        $yaml,
+        '(?ms)^\s*project:\s*\r?\n\s*name:\s*["'']anwa\.3phase-charger["'']\s*\r?\n\s*version:\s*["'']([^"'']+)["'']'
+    )
+    if ($match.Success) { return $match.Groups[1].Value }
+    return "unknown"
+}
+
+function Get-GitInfo {
+    $info = [ordered]@{ Commit = "unknown"; Branch = "unknown"; Dirty = $false }
+    if (-not (Get-Command git -ErrorAction SilentlyContinue)) { return $info }
+    try {
+        $info.Commit = (& git -C $RepoRoot rev-parse --short HEAD 2>$null).Trim()
+        $info.Branch = (& git -C $RepoRoot branch --show-current 2>$null).Trim()
+        $info.Dirty = [bool](& git -C $RepoRoot status --porcelain 2>$null)
+    } catch { }
+    return $info
 }
 
 function Invoke-HaSsh([string]$Command) {
@@ -142,25 +154,26 @@ function Send-HaFile([string]$LocalPath, [string]$RemotePath) {
     }
 }
 
-function Get-ProjectVersion {
-    $yaml = Get-Content -Raw -LiteralPath (Join-Path $RepoRoot $ProjectFile)
-    $match = [regex]::Match(
-        $yaml,
-        '(?ms)^\s*project:\s*\r?\n\s*name:\s*["'']anwa\.3phase-charger["'']\s*\r?\n\s*version:\s*["'']([^"'']+)["'']'
-    )
-    if ($match.Success) { return $match.Groups[1].Value }
-    return "unknown"
+function Get-ParentDirectories([string[]]$RelativePaths) {
+    $dirs = New-Object System.Collections.Generic.HashSet[string]
+    foreach ($relativePath in $RelativePaths) {
+        $normalized = $relativePath.Replace('\', '/')
+        $parent = [System.IO.Path]::GetDirectoryName($normalized)
+        while (-not [string]::IsNullOrWhiteSpace($parent)) {
+            $parent = $parent.Replace('\', '/')
+            [void]$dirs.Add($parent)
+            $parent = [System.IO.Path]::GetDirectoryName($parent)
+        }
+    }
+    return @($dirs | Sort-Object { ($_ -split '/').Count }, $_)
 }
 
-function Get-GitInfo {
-    $info = [ordered]@{ Commit = "unknown"; Branch = "unknown"; Dirty = $false }
-    if (-not (Get-Command git -ErrorAction SilentlyContinue)) { return $info }
-    try {
-        $info.Commit = (& git -C $RepoRoot rev-parse --short HEAD 2>$null).Trim()
-        $info.Branch = (& git -C $RepoRoot branch --show-current 2>$null).Trim()
-        $info.Dirty = [bool](& git -C $RepoRoot status --porcelain 2>$null)
-    } catch { }
-    return $info
+function New-RemoteDirectories([string]$Root, [string[]]$RelativePaths) {
+    $commands = @("set -eu", "mkdir -p $(Quote-Sh $Root)")
+    foreach ($dir in (Get-ParentDirectories $RelativePaths)) {
+        $commands += "mkdir -p $(Quote-Sh "$Root/$dir")"
+    }
+    Invoke-HaSsh ($commands -join "; ") | Out-Null
 }
 
 Write-Host ""
@@ -176,6 +189,8 @@ $projectPath = Join-Path $RepoRoot $ProjectFile
 if (-not (Test-Path -LiteralPath $projectPath -PathType Leaf)) {
     throw "Required deployment file is missing: $ProjectFile"
 }
+
+$ManagedFiles = Get-ManagedFiles
 foreach ($relativePath in $ManagedFiles) {
     if (-not (Test-Path -LiteralPath (Join-Path $RepoRoot $relativePath) -PathType Leaf)) {
         throw "Required deployment file is missing: $relativePath"
@@ -195,6 +210,7 @@ Write-Host "  ESPHome name     : $nodeName"
 Write-Host "  Git branch       : $($gitInfo.Branch)"
 Write-Host "  Git commit       : $($gitInfo.Commit)"
 Write-Host "  Working tree     : $(if ($gitInfo.Dirty) { 'DIRTY' } else { 'clean' })"
+Write-Host "  Package files    : $($ManagedFiles.Count)"
 Write-Host "Target:" -ForegroundColor White
 Write-Host "  SSH              : $HaUser@$HaHost`:$Port"
 Write-Host "  ESPHome directory: $RemoteDir"
@@ -226,12 +242,11 @@ Invoke-HaSsh "true" | Out-Null
 Write-Ok "SSH connection established"
 
 $qStaging = Quote-Sh $StagingDir
-$qRemote = Quote-Sh $RemoteDir
-$qBackup = Quote-Sh $BackupDir
 
 try {
-    Write-Step "Creating remote staging directory"
-    Invoke-HaSsh "set -eu; rm -rf $qStaging; mkdir -p $qStaging/packages/rectifier-can" | Out-Null
+    Write-Step "Creating remote staging directory tree"
+    Invoke-HaSsh "set -eu; rm -rf $qStaging" | Out-Null
+    New-RemoteDirectories $StagingDir $ManagedFiles
 
     Write-Step "Uploading managed ESPHome files"
     Send-HaFile $projectPath "$StagingDir/$RemoteProjectFile"
@@ -247,6 +262,7 @@ try {
     if ($remoteProjectHash -ne $projectHash) {
         throw "Hash mismatch after upload: $ProjectFile -> $RemoteProjectFile"
     }
+
     foreach ($relativePath in $ManagedFiles) {
         $localHash = (Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $RepoRoot $relativePath)).Hash.ToLowerInvariant()
         $qPath = Quote-Sh "$StagingDir/$relativePath"
@@ -259,7 +275,9 @@ try {
 
     if (-not $NoBackup) {
         Write-Step "Backing up currently managed Home Assistant files"
-        $commands = @("set -eu", "mkdir -p $qBackup/packages/rectifier-can")
+        New-RemoteDirectories $BackupDir $ManagedFiles
+
+        $commands = @("set -eu")
         $projectSource = Quote-Sh "$RemoteDir/$RemoteProjectFile"
         $projectDest = Quote-Sh "$BackupDir/$RemoteProjectFile"
         $commands += "if [ -f $projectSource ]; then cp -p $projectSource $projectDest; fi"
@@ -275,7 +293,9 @@ try {
     }
 
     Write-Step "Installing staged files"
-    $commands = @("set -eu", "mkdir -p $qRemote/packages/rectifier-can")
+    New-RemoteDirectories $RemoteDir $ManagedFiles
+
+    $commands = @("set -eu")
     $projectSource = Quote-Sh "$StagingDir/$RemoteProjectFile"
     $projectDest = Quote-Sh "$RemoteDir/$RemoteProjectFile"
     $commands += "cp -p $projectSource $projectDest"
@@ -292,6 +312,7 @@ try {
     if ($installedProjectHash -ne $projectHash) {
         throw "Installed file verification failed: $RemoteProjectFile"
     }
+
     foreach ($relativePath in $ManagedFiles) {
         $localHash = (Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $RepoRoot $relativePath)).Hash.ToLowerInvariant()
         $qPath = Quote-Sh "$RemoteDir/$relativePath"
