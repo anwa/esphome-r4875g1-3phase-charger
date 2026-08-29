@@ -24,10 +24,9 @@ rectifier_unit_1: !include
   file: packages/rectifier-unit.yaml
   vars:
     ru_unit: "1"
-    ru_phase: "L1"
 ```
 
-Units 2 and 3 use the same file with `ru_unit: "2"/"3"` and `ru_phase: "L2"/"L3"`.
+Units 2 and 3 use the same file with `ru_unit: "2"` and `ru_unit: "3"` respectively.
 
 The template intentionally preserves the existing public IDs and entity names after substitution, such as:
 
@@ -107,9 +106,9 @@ For structural refactors, also compare the resolved configuration (`esphome conf
 
 `../r4875g1-3phase-charger.yaml` intentionally retains the project-wide substitutions/package assembly and boot sequence plus cross-package entities such as controller diagnostics, AHT10 compartment data, local encoder input, aggregate charger telemetry, the physical encoder button, capability-mismatch diagnostic and network/device text diagnostics. These are shared assembled-device concerns rather than one rectifier instance.
 
-## Hardware-test status
+## Release status
 
-The current `v3-modularization` branch is a **v3.0.4 hardware-test candidate**. No v3 release tag should be created until hardware regression testing is complete and the branch is explicitly approved for merge/tagging.
+Firmware version **3.0.5** is the current modular baseline on `main`. Release tags are managed separately from normal firmware commits.
 
 
 ## Fan terminology

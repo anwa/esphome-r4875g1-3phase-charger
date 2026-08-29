@@ -212,19 +212,16 @@ packages:
     file: packages/rectifier-unit.yaml
     vars:
       ru_unit: "1"
-      ru_phase: "L1"
 
   rectifier_unit_2: !include
     file: packages/rectifier-unit.yaml
     vars:
       ru_unit: "2"
-      ru_phase: "L2"
 
   rectifier_unit_3: !include
     file: packages/rectifier-unit.yaml
     vars:
       ru_unit: "3"
-      ru_phase: "L3"
 
 esphome:
   name: hg-dg-technik-charger3ph
@@ -233,7 +230,7 @@ esphome:
 
   project:
     name: "anwa.3phase-charger"
-    version: "3.0.4"
+    version: "3.0.5"
 
   on_boot:
     then:

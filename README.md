@@ -113,7 +113,7 @@ CAN uses **125 kbit/s** and **29-bit extended identifiers**.
 
 # Firmware source architecture
 
-Version 3 introduces a modular ESPHome source layout. The refactor preserves public entity IDs/names, CAN protocol values and timing from the v2.2.2 baseline. The v3.0.1 review candidate additionally makes one safety-boundary correction: every START path now requires output temperature to be strictly below the 90 °C hard-trip threshold.
+Version 3 introduces a modular ESPHome source layout. The refactor preserves public entity IDs/names, CAN protocol values and timing from the v2.2.2 baseline. The v3 architecture additionally includes one safety-boundary correction from review: every START path requires output temperature to be strictly below the 90 °C hard-trip threshold.
 
 The source of truth is now:
 
@@ -145,7 +145,7 @@ Responsibilities are deliberately separated:
 - `cooling.yaml` contains the external chassis-fan interface.
 - `controls.yaml` contains charger-wide setpoint numbers plus broadcast/shared control buttons.
 - `rectifier-shared.yaml` contains cross-unit lifecycle/discovery orchestration, thermal/current coordination, blackstart/shared scripts, CAN scheduling/recovery and the single physical CAN controller.
-- `rectifier-unit.yaml` is instantiated three times using `ru_unit`/`ru_phase` and owns per-rectifier state, discovery, telemetry entities, CAN watchdog and individual controls.
+- `rectifier-unit.yaml` is instantiated three times using `ru_unit` and owns per-rectifier state, discovery, telemetry entities, CAN watchdog and individual controls.
 - `rectifier-can/*.yaml` are parameterized `on_frame` mappings included from the single central CAN component for CAN families whose Unit 1/2/3 implementations are genuinely identical.
 
 The three capability handlers (`0x1081507F`, `0x1082507F`, `0x1083507F`) intentionally remain explicit in `rectifier-shared.yaml`: Unit 1 is the canonical source for the shared current-command scaling factor, while Units 2 and 3 provide diagnostic comparison values.
@@ -153,7 +153,7 @@ The three capability handlers (`0x1081507F`, `0x1082507F`, `0x1083507F`) intenti
 See [`packages/README.md`](packages/README.md) for the package ownership rules and maintenance guidance.
 
 > [!IMPORTANT]
-> The `3.0.4` code on the `v3-modularization` branch is a hardware-test candidate. No v3 release tag is final until hardware regression testing is complete and the branch is explicitly approved for merge/tagging.
+> Firmware version `3.0.5` is the current modular baseline on `main`. Release tags are managed separately from normal firmware commits.
 
 ---
 
@@ -165,7 +165,7 @@ The ESPHome firmware publishes project metadata using:
 esphome:
   project:
     name: "anwa.3phase-charger"
-    version: "3.0.4"
+    version: "3.0.5"
 ```
 
 The project uses `MAJOR.MINOR.PATCH` firmware versions:
@@ -1211,7 +1211,7 @@ See `LICENSE` for the complete license text and retained notices.
 
 ## Documentation synchronization
 
-This README and `R4875G1_CONTROL_FLOWS.md` describe the **v3.0.4 hardware-test candidate** on branch `v3-modularization`. They were fully reviewed and resynchronized on **2026-08-29** before hardware regression testing. Previously documented physical CAN disconnect/reconnect behavior and the 52 A current-scaling trace come from the validated v2.2.2 runtime baseline and are intended to remain unchanged by the modular source refactor.
+This README and `R4875G1_CONTROL_FLOWS.md` describe firmware version **3.0.5** on `main`. They were fully reviewed and resynchronized on **2026-08-29**. Previously documented physical CAN disconnect/reconnect behavior and the 52 A current-scaling trace come from the validated v2.2.2 runtime baseline and remain unchanged by the modular source refactor.
 
 
 ---
