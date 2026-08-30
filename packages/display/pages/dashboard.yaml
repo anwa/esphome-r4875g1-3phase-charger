@@ -236,14 +236,112 @@ interval:
           text: !lambda |-
             if (isnan(id(conversion_efficiency).state)) return std::string("Efficiency --.- %");
             return str_sprintf("Efficiency %.1f %%", id(conversion_efficiency).state);
+      # ----------------------------------------------------------------------
+      # DC Voltage SELECT / EDIT presentation
       - lvgl.label.update:
           id: ui_set_voltage
-          text: !lambda 'return str_sprintf("%s Voltage  %.1f V", id(encoder_mode) == 0 ? ">" : " ", id(set_dc_voltage_limit).state);'
-          text_color: !lambda 'return id(encoder_mode) == 0 ? lv_color_hex(0x1769AA) : lv_color_hex(0x182433);'
+
+          text: !lambda |-
+            const bool selected =
+              id(encoder_selection) == 0;
+
+            const bool editing =
+              id(encoder_edit_mode) && selected;
+
+            const float value =
+              editing
+                ? id(encoder_edit_value)
+                : id(set_dc_voltage_limit).state;
+
+            return str_sprintf(
+              "%s Voltage  %.1f V",
+              !id(encoder_edit_mode) && selected
+                ? ">"
+                : " ",
+              value
+            );
+
+          # SELECT:
+          #   selected parameter = blue
+          #
+          # EDIT:
+          #   edited parameter = white text on dark background
+          text_color: !lambda |-
+            if (
+              id(encoder_edit_mode) &&
+              id(encoder_selection) == 0
+            ) {
+              return lv_color_hex(0xFFFFFF);
+            }
+
+            if (
+              !id(encoder_edit_mode) &&
+              id(encoder_selection) == 0
+            ) {
+              return lv_color_hex(0x1769AA);
+            }
+
+            return lv_color_hex(0x182433);
+
+          bg_color: 0x182433
+
+          bg_opa: !lambda |-
+            return
+              id(encoder_edit_mode) &&
+              id(encoder_selection) == 0
+                ? LV_OPA_COVER
+                : LV_OPA_TRANSP;
+
+      # ----------------------------------------------------------------------
+      # DC Sum Power SELECT / EDIT presentation
       - lvgl.label.update:
           id: ui_set_power
-          text: !lambda 'return str_sprintf("%s Power    %.2f kW", id(encoder_mode) == 1 ? ">" : " ", id(set_dc_sum_power).state);'
-          text_color: !lambda 'return id(encoder_mode) == 1 ? lv_color_hex(0x1769AA) : lv_color_hex(0x182433);'
+
+          text: !lambda |-
+            const bool selected =
+              id(encoder_selection) == 1;
+
+            const bool editing =
+              id(encoder_edit_mode) && selected;
+
+            const float value =
+              editing
+                ? id(encoder_edit_value)
+                : id(set_dc_sum_power).state;
+
+            return str_sprintf(
+              "%s Power    %.2f kW",
+              !id(encoder_edit_mode) && selected
+                ? ">"
+                : " ",
+              value
+            );
+
+          text_color: !lambda |-
+            if (
+              id(encoder_edit_mode) &&
+              id(encoder_selection) == 1
+            ) {
+              return lv_color_hex(0xFFFFFF);
+            }
+
+            if (
+              !id(encoder_edit_mode) &&
+              id(encoder_selection) == 1
+            ) {
+              return lv_color_hex(0x1769AA);
+            }
+
+            return lv_color_hex(0x182433);
+
+          bg_color: 0x182433
+
+          bg_opa: !lambda |-
+            return
+              id(encoder_edit_mode) &&
+              id(encoder_selection) == 1
+                ? LV_OPA_COVER
+                : LV_OPA_TRANSP;
       - lvgl.label.update:
           id: ui_set_current
           text: !lambda 'return str_sprintf("Applied %.1f A/unit", id(applied_dc_current_limit_sensor).state);'

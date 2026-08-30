@@ -384,7 +384,18 @@ sensor:
 
   # --------------------------------------------------------------------------
   # local_encoder
-  # Physical local rotary encoder; pins are defined in substitutions. In voltage mode it changes set_dc_voltage_limit and recalculates current to preserve total power; in power mode it changes set_dc_sum_power. Every movement wakes/restarts the backlight timer.
+  #
+  # Global SELECT / EDIT controller.
+  #
+  # SELECT:
+  #   Rotation selects a parameter.
+  #
+  # EDIT:
+  #   Rotation changes only encoder_edit_value. The actual ESPHome number
+  #   entity is not modified until the user confirms with a short press.
+  #
+  # v4.2.1 implements Dashboard Voltage and Power. Page-specific parameter
+  # lists for the other pages will be added in subsequent commits.
   - platform: rotary_encoder
     id: local_encoder
 
@@ -407,34 +418,71 @@ sensor:
       then:
         - script.execute: display_inactivity_timer
 
-        - if:
-            condition:
-              lambda: 'return id(encoder_mode) == 0;'
-            then:
-              - number.increment:
-                  id: set_dc_voltage_limit
-                  cycle: false
-              - script.execute: apply_dc_sum_power
-            else:
-              - number.increment:
-                  id: set_dc_sum_power
-                  cycle: false
+        - lambda: |-
+            // SELECT MODE:
+            // Move to the next selectable parameter.
+            if (!id(encoder_edit_mode)) {
+              id(encoder_selection) =
+                (id(encoder_selection) + 1) % 2;
+
+              ESP_LOGD(
+                "encoder",
+                "SELECT parameter: %d",
+                id(encoder_selection)
+              );
+
+              return;
+            }
+
+            // EDIT MODE:
+            // Change only the temporary value.
+            if (id(encoder_selection) == 0) {
+              id(encoder_edit_value) = std::min(
+                ${dc_voltage_max_v}f,
+                id(encoder_edit_value) + 0.1f
+              );
+            } else {
+              id(encoder_edit_value) = std::min(
+                12.0f,
+                id(encoder_edit_value) + 0.25f
+              );
+            }
+
     on_anticlockwise:
       then:
         - script.execute: display_inactivity_timer
 
-        - if:
-            condition:
-              lambda: 'return id(encoder_mode) == 0;'
-            then:
-              - number.decrement:
-                  id: set_dc_voltage_limit
-                  cycle: false
-              - script.execute: apply_dc_sum_power
-            else:
-              - number.decrement:
-                  id: set_dc_sum_power
-                  cycle: false
+        - lambda: |-
+            // SELECT MODE:
+            // With two parameters, moving in either direction selects the
+            // other one. This becomes directional once more parameters are
+            // introduced.
+            if (!id(encoder_edit_mode)) {
+              id(encoder_selection) =
+                (id(encoder_selection) + 1) % 2;
+
+              ESP_LOGD(
+                "encoder",
+                "SELECT parameter: %d",
+                id(encoder_selection)
+              );
+
+              return;
+            }
+
+            // EDIT MODE:
+            // Change only the temporary value.
+            if (id(encoder_selection) == 0) {
+              id(encoder_edit_value) = std::max(
+                ${dc_voltage_min_v}f,
+                id(encoder_edit_value) - 0.1f
+              );
+            } else {
+              id(encoder_edit_value) = std::max(
+                0.25f,
+                id(encoder_edit_value) - 0.25f
+              );
+            }
 
   # --------------------------------------------------------------------------
   # Effective DC Current Limit
@@ -804,7 +852,16 @@ sensor:
 binary_sensor:
   # --------------------------------------------------------------------------
   # local_encoder_button
-  # Physical encoder push button; pin is defined in substitutions. The internal pull-up makes the input active-low. A 30 ms delayed_on_off filter debounces the switch. on_press wakes the display; short press changes encoder mode; double press advances the LVGL page; >=3 s long press starts/stops the rectifiers.
+  #
+  # SELECT MODE:
+  #   short press  -> enter EDIT
+  #   double press -> next page
+  #   long press   -> toggle all rectifiers ON/OFF
+  #
+  # EDIT MODE:
+  #   short press  -> commit value and return to SELECT
+  #   double press -> disabled
+  #   long press   -> disabled
   - platform: gpio
     id: local_encoder_button
     internal: true
@@ -819,104 +876,209 @@ binary_sensor:
     filters:
       - delayed_on_off: 30ms
 
-    # Every physical button press wakes the display
-    # and resets the 5-minute inactivity timer.
+    # Every physical button press wakes the TFT and restarts the display timer.
     on_press:
       then:
         - script.execute: display_inactivity_timer
 
     on_multi_click:
 
-      # Double press:
-      # Advance to the next LVGL page. The second press must begin within
-      # 350 ms so the action remains distinct from a normal short press.
+      # ----------------------------------------------------------------------
+      # DOUBLE PRESS
+      #
+      # Page navigation is available only in SELECT mode.
       - timing:
           - ON for 50ms to 700ms
           - OFF for 50ms to 350ms
           - ON for 50ms to 700ms
           - OFF for at least 50ms
-        then:
-          - lvgl.page.next:
-              animation: OUT_LEFT
-              time: 180ms
-          - logger.log:
-              level: DEBUG
-              format: "Encoder double-click: switched to next LVGL page."
 
-      # Short press:
-      # Toggle encoder editing mode: DC Voltage <-> Total DC Power.
-      # Waiting at least 350 ms after release prevents the first click of a
-      # double-click from firing the single-click action prematurely.
-      - timing:
-          - ON for 50ms to 700ms
-          - OFF for at least 350ms
         then:
-          - lambda: |-
-              id(encoder_mode) = !id(encoder_mode);
-
-              ESP_LOGI(
-                "encoder",
-                "Selected: %s",
-                id(encoder_mode) == 0
-                  ? "DC Voltage"
-                  : "DC Sum Power"
-              );
-          - component.update: tft
-
-      # Long press:
-      # Toggle rectifier units ON/OFF for local blackstart control.
-      #
-      # STOP remains unrestricted and therefore takes precedence whenever any
-      # rectifier currently reports ON.
-      #
-      # START is allowed only when at least one rectifier is fully ONLINE and
-      # also has fresh raw CAN communication. blackstart_start performs the
-      # remaining per-unit OFF-state, temperature and lockout checks.
-      - timing:
-          - ON for at least 3000ms
-        then:
-          # STOP always has priority. Sending OFF is intentionally unrestricted.
           - if:
               condition:
                 lambda: |-
-                  return
-                    id(power_state_1).state == "ON" ||
-                    id(power_state_2).state == "ON" ||
-                    id(power_state_3).state == "ON";
+                  return !id(encoder_edit_mode);
 
               then:
-                - script.execute: blackstart_stop
+                - lvgl.page.next:
+                    animation: OUT_LEFT
+                    time: 180ms
 
+                # Every page starts with its first selectable parameter.
+                # This becomes page-specific once the additional parameter
+                # lists are implemented.
+                - lambda: |-
+                    id(encoder_selection) = 0;
+
+                    ESP_LOGD(
+                      "encoder",
+                      "Page changed; SELECT reset to parameter 0."
+                    );
+
+      # ----------------------------------------------------------------------
+      # SHORT PRESS
+      #
+      # SELECT -> EDIT:
+      #   Copy the actual entity value into encoder_edit_value.
+      #
+      # EDIT -> SELECT:
+      #   Commit encoder_edit_value to the actual ESPHome entity.
+      - timing:
+          - ON for 50ms to 700ms
+          - OFF for at least 350ms
+
+        then:
+          - if:
+              condition:
+                lambda: |-
+                  return !id(encoder_edit_mode);
+
+              # --------------------------------------------------------------
+              # ENTER EDIT MODE
+              then:
+                - lambda: |-
+                    id(encoder_edit_mode) = true;
+
+                    if (id(encoder_selection) == 0) {
+                      id(encoder_edit_value) =
+                        id(set_dc_voltage_limit).state;
+
+                      ESP_LOGI(
+                        "encoder",
+                        "EDIT entered: DC Voltage %.1f V",
+                        id(encoder_edit_value)
+                      );
+                    } else {
+                      id(encoder_edit_value) =
+                        id(set_dc_sum_power).state;
+
+                      ESP_LOGI(
+                        "encoder",
+                        "EDIT entered: DC Sum Power %.2f kW",
+                        id(encoder_edit_value)
+                      );
+                    }
+
+              # --------------------------------------------------------------
+              # COMMIT EDIT MODE
               else:
-                # START requires at least one fully ONLINE rectifier with fresh
-                # raw CAN communication.
+                - if:
+                    condition:
+                      lambda: |-
+                        return id(encoder_selection) == 0;
+
+                    # --------------------------------------------------------
+                    # Commit DC Voltage
+                    then:
+                      - lambda: |-
+                          const float new_value =
+                            id(encoder_edit_value);
+
+                          ESP_LOGI(
+                            "encoder",
+                            "EDIT commit: DC Voltage %.1f V",
+                            new_value
+                          );
+
+                          auto call =
+                            id(set_dc_voltage_limit).make_call();
+
+                          call.set_value(new_value);
+                          call.perform();
+
+                      # Preserve the nominal total-power target after a voltage
+                      # change by recalculating the corresponding current.
+                      - script.execute: apply_dc_sum_power
+
+                    # --------------------------------------------------------
+                    # Commit DC Sum Power
+                    else:
+                      - lambda: |-
+                          const float new_value =
+                            id(encoder_edit_value);
+
+                          ESP_LOGI(
+                            "encoder",
+                            "EDIT commit: DC Sum Power %.2f kW",
+                            new_value
+                          );
+
+                          auto call =
+                            id(set_dc_sum_power).make_call();
+
+                          call.set_value(new_value);
+                          call.perform();
+
+                - lambda: |-
+                    id(encoder_edit_mode) = false;
+
+                    ESP_LOGI(
+                      "encoder",
+                      "EDIT finished; returning to SELECT."
+                    );
+
+      # ----------------------------------------------------------------------
+      # LONG PRESS
+      #
+      # Global rectifier ON/OFF is available only in SELECT mode.
+      # In EDIT mode this entire action is ignored.
+      - timing:
+          - ON for at least 3000ms
+
+        then:
+          - if:
+              condition:
+                lambda: |-
+                  return !id(encoder_edit_mode);
+
+              then:
+
+                # STOP always has priority.
                 - if:
                     condition:
                       lambda: |-
                         return
-                          (
-                            id(rectifier_control_state_1) ==
-                              ${rectifier_state_online} &&
-                            id(can_com_ok_1).state
-                          ) ||
-                          (
-                            id(rectifier_control_state_2) ==
-                              ${rectifier_state_online} &&
-                            id(can_com_ok_2).state
-                          ) ||
-                          (
-                            id(rectifier_control_state_3) ==
-                              ${rectifier_state_online} &&
-                            id(can_com_ok_3).state
-                          );
+                          id(power_state_1).state == "ON" ||
+                          id(power_state_2).state == "ON" ||
+                          id(power_state_3).state == "ON";
 
                     then:
-                      - script.execute: blackstart_start
+                      - script.execute: blackstart_stop
 
                     else:
-                      - logger.log:
-                          level: WARN
-                          format: "BLACKSTART: START ignored - no fully ONLINE rectifier with fresh CAN communication is available."
+
+                      # START requires at least one fully ONLINE rectifier
+                      # with fresh CAN communication.
+                      - if:
+                          condition:
+                            lambda: |-
+                              return
+                                (
+                                  id(rectifier_control_state_1) ==
+                                    ${rectifier_state_online} &&
+                                  id(can_com_ok_1).state
+                                ) ||
+                                (
+                                  id(rectifier_control_state_2) ==
+                                    ${rectifier_state_online} &&
+                                  id(can_com_ok_2).state
+                                ) ||
+                                (
+                                  id(rectifier_control_state_3) ==
+                                    ${rectifier_state_online} &&
+                                  id(can_com_ok_3).state
+                                );
+
+                          then:
+                            - script.execute: blackstart_start
+
+                          else:
+                            - logger.log:
+                                level: WARN
+                                format: >-
+                                  BLACKSTART: START ignored - no fully ONLINE
+                                  rectifier with fresh CAN communication is
+                                  available.
 
   # --------------------------------------------------------------------------
   # Rectifier Capability Mismatch

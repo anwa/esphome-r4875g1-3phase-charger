@@ -4,13 +4,39 @@
 # Cross-unit runtime state, scripts, CAN protocol handling and periodic schedulers.
 
 globals:
-  # Selects what the rotary encoder edits locally.
-  # 0 = DC voltage, 1 = total DC power. It is not restored so the UI starts in a
-  # known mode after boot.
-  - id: encoder_mode
+  # --------------------------------------------------------------------------
+  # Local encoder UI state
+  # --------------------------------------------------------------------------
+  #
+  # SELECT mode:
+  #   encoder_selection identifies the currently selected parameter.
+  #
+  # EDIT mode:
+  #   encoder_edit_value contains a temporary working copy. Rotating the
+  #   encoder changes only this value. The real ESPHome entity and therefore
+  #   the charger setpoint are changed only after the user confirms with a
+  #   short press.
+  #
+  # v4.2.1 initially implements two selectable Dashboard parameters:
+  #   0 = DC Voltage
+  #   1 = Total DC Power
+  #
+  # Additional page-specific parameter lists will be added later.
+
+  - id: encoder_selection
     type: int
     restore_value: false
     initial_value: "0"
+
+  - id: encoder_edit_mode
+    type: bool
+    restore_value: false
+    initial_value: "false"
+
+  - id: encoder_edit_value
+    type: float
+    restore_value: false
+    initial_value: "0.0f"
 
   # Timestamp (millis) when static property discovery most recently ended.
   # Used for the post-property grace period before connectivity demotion resumes.
