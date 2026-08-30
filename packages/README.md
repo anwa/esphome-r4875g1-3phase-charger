@@ -1,12 +1,16 @@
 # Firmware package architecture
 
-This directory documents development firmware **v4.1.6** on `v4-lvgl-menu`. Stable `main` remains at v4.1.0 until development changes are hardware-tested and promoted.
+This directory documents development firmware **v4.1.7** on `v4-lvgl-menu`. Stable `main` remains at v4.1.0 until development changes are hardware-tested and promoted.
 
 ## Display architecture
 
 The ILI9488 uses ESPHome LVGL with separate hardware, theme, page aggregation and page files. The controller has no touchscreen, so scrolling and scrollbar rendering are disabled globally and explicitly on page/header/card containers.
 
-Current pages are Dashboard, Rectifiers, Cooling and System. The Cooling page now reports automatic/manual state, fan power, commanded PWM, current automatic stage and all three external tachometer speeds.
+All four pages now share the same 64 px header geometry. Dashboard content starts at `y: 72`, matching Rectifiers, Cooling and System. The Dashboard second header line contains date/time, firmware and aggregate charger run state.
+
+The Dashboard run state is intentionally prominent: `OFF`, `1/3 ON` and `2/3 ON` use bold bright red; only `3/3 ON` uses bright green. This makes partial operation an explicit attention state rather than a neutral warning color.
+
+Current pages are Dashboard, Rectifiers, Cooling and System. Cooling reports automatic/manual state, fan power, commanded PWM, current automatic stage and all three external tachometer speeds.
 
 Encoder behavior remains: rotate edits the selected charger setpoint, short press selects Voltage/Power, double press advances the page, and >=3 s performs START/STOP.
 
@@ -18,7 +22,7 @@ Encoder behavior remains: rotate edits the selected charger setpoint, short pres
 
 If compartment temperature is invalid, automatic mode fails safe to fan power ON and 100 % PWM. Disabling automatic mode stops the controller from changing fan power/PWM and leaves `Cooling Fan Power` plus `Cooling Fan PWM` available for manual override. Three-pin fans use only common power; four-pin fans use common power plus the shared 25 kHz PWM signal.
 
-The current automatic stage is held in a non-persistent runtime global; the visible `Cooling Fan PWM` value is updated to the automatic command so Home Assistant and the TFT show the actual requested PWM.
+The AHT10/off-below-30 °C path has been observed on hardware. Full PWM/RPM behavior remains pending installation of the external fans.
 
 ## Package ownership
 
@@ -38,4 +42,4 @@ Validate meaningful changes with `git diff --check`, `esphome config r4875g1-3ph
 
 ## Release status
 
-Firmware **4.1.0** remains stable on `main`. Firmware **4.1.6** on `v4-lvgl-menu` adds automatic external compartment cooling with hysteresis, manual override and sensor-failure full-speed fallback without changing rectifier CAN/discovery/blackstart behavior.
+Firmware **4.1.0** remains stable on `main`. Firmware **4.1.7** on `v4-lvgl-menu` completes the four-page UI consistency pass and retains the v4.1.6 automatic external cooling feature without changing rectifier CAN/discovery/blackstart behavior.

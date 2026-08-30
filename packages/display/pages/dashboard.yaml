@@ -16,7 +16,7 @@ lvgl:
             x: 0
             y: 0
             width: 100%
-            height: 76
+            height: 64
             styles: style_header
             pad_all: 0
             scrollable: false
@@ -24,7 +24,7 @@ lvgl:
             widgets:
               - label:
                   x: 10
-                  y: 6
+                  y: 8
                   width: 300
                   text_align: CENTER
                   text: "R4875G1 Charger"
@@ -32,14 +32,14 @@ lvgl:
               - label:
                   id: ui_clock
                   x: 10
-                  y: 48
+                  y: 42
                   width: 145
                   text: "--.--.---- --:--"
                   text_font: ui_font_14
                   text_color: 0xFFFFFF
               - label:
                   x: 145
-                  y: 48
+                  y: 42
                   width: 70
                   text_align: CENTER
                   text: "v${firmware_version}"
@@ -48,16 +48,16 @@ lvgl:
               - label:
                   id: ui_run_state
                   x: 215
-                  y: 48
+                  y: 40
                   width: 95
                   text_align: RIGHT
                   text: "OFF"
-                  text_font: ui_font_14
-                  text_color: 0xFF7070
+                  text_font: ui_font_18_bold
+                  text_color: 0xFF3030
 
         - obj:
             x: 8
-            y: 84
+            y: 72
             width: 148
             height: 82
             styles: style_card
@@ -84,7 +84,7 @@ lvgl:
 
         - obj:
             x: 164
-            y: 84
+            y: 72
             width: 148
             height: 82
             styles: style_card
@@ -111,7 +111,7 @@ lvgl:
 
         - obj:
             x: 8
-            y: 174
+            y: 162
             width: 304
             height: 78
             styles: style_card
@@ -138,7 +138,7 @@ lvgl:
 
         - obj:
             x: 8
-            y: 260
+            y: 248
             width: 304
             height: 128
             styles: style_card
@@ -224,7 +224,7 @@ interval:
             if (id(can_com_ok_1).state && id(power_state_1).state == "ON") on++;
             if (id(can_com_ok_2).state && id(power_state_2).state == "ON") on++;
             if (id(can_com_ok_3).state && id(power_state_3).state == "ON") on++;
-            return on == 3 ? lv_color_hex(0x6CFF8F) : (on > 0 ? lv_color_hex(0xFFD35A) : lv_color_hex(0xFF7070));
+            return on == 3 ? lv_color_hex(0x5CFF7A) : lv_color_hex(0xFF3030);
       - lvgl.label.update:
           id: ui_dashboard_status
           text: !lambda |-

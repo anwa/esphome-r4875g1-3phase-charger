@@ -2,9 +2,9 @@
 
 ESPHome controller for **three Huawei R4875G1 rectifiers** operated as a coordinated three-phase battery charger with a common parallel DC output.
 
-**Current stable firmware: 4.1.0** on `main`. **Current UI development firmware: 4.1.6** on `v4-lvgl-menu`.
+**Current stable firmware: 4.1.0** on `main`. **Current UI development firmware: 4.1.7** on `v4-lvgl-menu`.
 
-Version 4.1 retains the validated charger, CAN-recovery, thermal-protection and local-blackstart model while adding the four-page LVGL interface. Development v4.1.6 adds automatic external compartment cooling without changing rectifier CAN control.
+Version 4.1 retains the validated charger, CAN-recovery, thermal-protection and local-blackstart model while adding the four-page LVGL interface. Development v4.1.7 completes the menu consistency pass after the automatic external compartment-cooling feature introduced in v4.1.6.
 
 For detailed runtime behavior, see `R4875G1_CONTROL_FLOWS.md`. Package ownership and maintenance rules are documented in `packages/README.md`.
 
@@ -28,6 +28,10 @@ The firmware version has one source of truth in `packages/version.yaml`. `esphom
 ## Four-page UI
 
 The installation has no touchscreen. Scrolling and `scrollbar_mode: OFF` are configured globally in the shared LVGL theme and explicitly once on every page/header/card container.
+
+All four pages now use the same **64 px header geometry**. The Dashboard keeps its charger title plus date/time, firmware and aggregate run state in the second header line. Dashboard content begins at the same `y: 72` position as the other pages.
+
+The Dashboard aggregate run state is deliberately high-contrast: `OFF`, `1/3 ON` and `2/3 ON` are rendered bold in bright red because anything below all three running units is an abnormal/attention state; only `3/3 ON` is rendered bright green.
 
 `Dashboard` provides the compact charger operating overview and local setpoints.
 
@@ -70,7 +74,7 @@ Capability handling is CAN-aware: unknown reachable capability forces the 50 A f
 - Nominal total-power calculation always divides by three.
 - Capability mismatch is diagnostic and does not automatically disable charging.
 - Blackstart still requires power for ESP32/CAN electronics.
-- External fan RPM-failure alarms are not implemented yet.
+- External fan RPM-failure alarms are not implemented yet; full fan hardware testing is pending installation of the external fans.
 - Software does not replace hardware protection.
 
 ## Credits and license
@@ -82,4 +86,4 @@ Additional project development: Copyright (c) 2026 Andreas Wansner
 
 ## Documentation status
 
-Stable `main` remains at **v4.1.0**. This README documents development firmware **v4.1.6** on `v4-lvgl-menu`, including automatic external compartment cooling, manual override and temperature-sensor fail-safe behavior.
+Stable `main` remains at **v4.1.0**. This README documents development firmware **v4.1.7** on `v4-lvgl-menu`, including the completed four-page menu consistency pass, automatic external compartment cooling, manual override and temperature-sensor fail-safe behavior.
