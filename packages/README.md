@@ -1,26 +1,24 @@
 # Firmware package architecture
 
-This directory documents development firmware **v4.1.7** on `v4-lvgl-menu`. Stable `main` remains at v4.1.0 until development changes are hardware-tested and promoted.
+This directory documents stable firmware **v4.2.0**, assembled by `../r4875g1-3phase-charger.yaml`.
 
 ## Display architecture
 
 The ILI9488 uses ESPHome LVGL with separate hardware, theme, page aggregation and page files. The controller has no touchscreen, so scrolling and scrollbar rendering are disabled globally and explicitly on page/header/card containers.
 
-All four pages now share the same 64 px header geometry. Dashboard content starts at `y: 72`, matching Rectifiers, Cooling and System. The Dashboard second header line contains date/time, firmware and aggregate charger run state.
+All four pages share the same 64 px header geometry. Dashboard content starts at `y: 72`, matching Rectifiers, Cooling and System. The Dashboard second header line contains date/time, firmware and aggregate charger run state. `OFF`, `1/3 ON` and `2/3 ON` use bold bright red; only `3/3 ON` uses bright green.
 
-The Dashboard run state is intentionally prominent: `OFF`, `1/3 ON` and `2/3 ON` use bold bright red; only `3/3 ON` uses bright green. This makes partial operation an explicit attention state rather than a neutral warning color.
+Current pages are Dashboard, Rectifiers, Cooling and System. Rectifiers provides complete per-unit operating diagnostics; System provides network/runtime/memory/CAN diagnostics; Cooling reports automatic/manual state, fan power, commanded PWM, current automatic stage and all three external tachometer speeds.
 
-Current pages are Dashboard, Rectifiers, Cooling and System. Cooling reports automatic/manual state, fan power, commanded PWM, current automatic stage and all three external tachometer speeds.
-
-Encoder behavior remains: rotate edits the selected charger setpoint, short press selects Voltage/Power, double press advances the page, and >=3 s performs START/STOP.
+Encoder behavior: rotate edits the selected charger setpoint, short press selects Voltage/Power, double press advances the page, and >=3 s performs START/STOP.
 
 ## External cooling package
 
 `cooling.yaml` owns external/chassis fans only; internal R4875G1 fans remain CAN-controlled/reported separately.
 
-`Cooling Fan Automatic` defaults ON. It evaluates the AHT10 compartment temperature every 5 seconds and applies six stages: OFF below 30 °C, then 35/45/60/80/100 % PWM at 30/35/40/45/50 °C. Downward transitions use 2 °C hysteresis (28/33/38/43/48 °C) to avoid rapid stage oscillation.
+`Cooling Fan Automatic` defaults ON. It evaluates the AHT10 compartment temperature every 5 seconds and applies six stages: OFF below 30 °C, then 35/45/60/80/100 % PWM at 30/35/40/45/50 °C. Downward transitions use 2 °C hysteresis at 28/33/38/43/48 °C.
 
-If compartment temperature is invalid, automatic mode fails safe to fan power ON and 100 % PWM. Disabling automatic mode stops the controller from changing fan power/PWM and leaves `Cooling Fan Power` plus `Cooling Fan PWM` available for manual override. Three-pin fans use only common power; four-pin fans use common power plus the shared 25 kHz PWM signal.
+Invalid compartment temperature fails safe to fan power ON and 100 % PWM. Disabling automatic mode leaves `Cooling Fan Power` and `Cooling Fan PWM` available for manual override. Three-pin fans use common power only; four-pin fans use common power plus shared 25 kHz PWM.
 
 The AHT10/off-below-30 °C path has been observed on hardware. Full PWM/RPM behavior remains pending installation of the external fans.
 
@@ -38,8 +36,8 @@ The normal CAN watchdog is 3 s and extends to 7 s while `DISCOVERING`. Discovery
 
 Every normal commit increments PATCH exactly once; intentional release milestones may advance MAJOR/MINOR. README documentation is synchronized whenever documented behavior, architecture or tooling changes. Commit messages use a concise subject followed by explanatory bullet points.
 
-Validate meaningful changes with `git diff --check`, `esphome config r4875g1-3phase-charger.yaml` and `esphome compile r4875g1-3phase-charger.yaml`. Display and cooling-control changes must also be checked on the physical hardware.
+Validate meaningful changes with `git diff --check`, `esphome config r4875g1-3phase-charger.yaml` and `esphome compile r4875g1-3phase-charger.yaml`. Display and cooling-control changes must also be checked on physical hardware.
 
 ## Release status
 
-Firmware **4.1.0** remains stable on `main`. Firmware **4.1.7** on `v4-lvgl-menu` completes the four-page UI consistency pass and retains the v4.1.6 automatic external cooling feature without changing rectifier CAN/discovery/blackstart behavior.
+Firmware **4.2.0** is the stable baseline on `main`. The four-page menu and AHT10 automatic cooling behavior tested so far are promoted from `v4-lvgl-menu`; full external fan PWM/RPM testing remains intentionally deferred until the fan hardware is installed.

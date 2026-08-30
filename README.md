@@ -2,9 +2,9 @@
 
 ESPHome controller for **three Huawei R4875G1 rectifiers** operated as a coordinated three-phase battery charger with a common parallel DC output.
 
-**Current stable firmware: 4.1.0** on `main`. **Current UI development firmware: 4.1.7** on `v4-lvgl-menu`.
+**Current stable firmware: 4.2.0** on `main`.
 
-Version 4.1 retains the validated charger, CAN-recovery, thermal-protection and local-blackstart model while adding the four-page LVGL interface. Development v4.1.7 completes the menu consistency pass after the automatic external compartment-cooling feature introduced in v4.1.6.
+Version 4.2 promotes the hardware-tested four-page LVGL menu and the current external compartment-cooling controller to the stable baseline while retaining the validated charger, CAN-recovery, thermal-protection and local-blackstart model.
 
 For detailed runtime behavior, see `R4875G1_CONTROL_FLOWS.md`. Package ownership and maintenance rules are documented in `packages/README.md`.
 
@@ -29,9 +29,9 @@ The firmware version has one source of truth in `packages/version.yaml`. `esphom
 
 The installation has no touchscreen. Scrolling and `scrollbar_mode: OFF` are configured globally in the shared LVGL theme and explicitly once on every page/header/card container.
 
-All four pages now use the same **64 px header geometry**. The Dashboard keeps its charger title plus date/time, firmware and aggregate run state in the second header line. Dashboard content begins at the same `y: 72` position as the other pages.
+All four pages use the same **64 px header geometry**. The Dashboard keeps its charger title plus date/time, firmware and aggregate run state in the second header line, with content beginning at `y: 72` like the other pages.
 
-The Dashboard aggregate run state is deliberately high-contrast: `OFF`, `1/3 ON` and `2/3 ON` are rendered bold in bright red because anything below all three running units is an abnormal/attention state; only `3/3 ON` is rendered bright green.
+The Dashboard aggregate run state is high-contrast: `OFF`, `1/3 ON` and `2/3 ON` are bold bright red; only `3/3 ON` is bright green.
 
 `Dashboard` provides the compact charger operating overview and local setpoints.
 
@@ -43,7 +43,7 @@ The Dashboard aggregate run state is deliberately high-contrast: `OFF`, `1/3 ON`
 
 ## Automatic external cooling
 
-`Cooling Fan Automatic` is enabled by default and uses the AHT10 compartment temperature. The upward curve is:
+`Cooling Fan Automatic` is enabled by default and evaluates the AHT10 compartment temperature every five seconds.
 
 | Temperature | External fan command |
 |---|---:|
@@ -54,9 +54,9 @@ The Dashboard aggregate run state is deliberately high-contrast: `OFF`, `1/3 ON`
 | `45–49.9 °C` | 80 % PWM |
 | `>= 50 °C` | 100 % PWM |
 
-Downward transitions use 2 °C hysteresis: 100→80 % below 48 °C, 80→60 % below 43 °C, 60→45 % below 38 °C, 45→35 % below 33 °C, and fan power switches off below 28 °C. Rising temperature always advances immediately to the required higher stage.
+Downward transitions use 2 °C hysteresis at 28/33/38/43/48 °C. If compartment temperature is unavailable or invalid, automatic mode fails safe to fan power ON and 100 % PWM. Disable `Cooling Fan Automatic` for manual `Cooling Fan Power` and `Cooling Fan PWM` control. Three-pin fans follow common power only; four-pin fans additionally follow the shared 25 kHz PWM command.
 
-If the compartment temperature is unavailable or invalid while automatic mode is enabled, the controller fails safe to **fan power ON + 100 % PWM**. Disable `Cooling Fan Automatic` to use `Cooling Fan Power` and `Cooling Fan PWM` manually. Three-pin fans follow the common power switch only; four-pin fans additionally follow PWM.
+The AHT10 automatic OFF-below-30 °C path has been observed on hardware. Full PWM/RPM testing remains pending installation of the external fans.
 
 ## CAN and lifecycle
 
@@ -86,4 +86,4 @@ Additional project development: Copyright (c) 2026 Andreas Wansner
 
 ## Documentation status
 
-Stable `main` remains at **v4.1.0**. This README documents development firmware **v4.1.7** on `v4-lvgl-menu`, including the completed four-page menu consistency pass, automatic external compartment cooling, manual override and temperature-sensor fail-safe behavior.
+This README describes stable firmware **v4.2.0**. The four-page LVGL menu, consistent header layout, completed Rectifiers/System diagnostics, automatic external compartment cooling and AHT10 fail-safe behavior are part of this stable baseline.
