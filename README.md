@@ -6,8 +6,7 @@ The project combines CAN control, live telemetry, Home Assistant, MQTT, a local 
 
 Core charger operation is intentionally local so the system remains usable during a network outage or an off-grid blackstart situation.
 
-**Stable firmware:** `v4.2.0` on `main`  
-**Current development firmware:** `v4.2.2` on `feature/encoder-select-edit`
+**Stable firmware:** `v4.3.0` on `main`  
 
 For detailed state-machine and runtime diagrams, see [`R4875G1_CONTROL_FLOWS.md`](R4875G1_CONTROL_FLOWS.md).
 
@@ -677,13 +676,7 @@ The System page is read-only from the encoder.
 
 # Encoder Select/Edit model
 
-Starting with the `feature/encoder-select-edit` development series, the rotary encoder uses a consistent **SELECT / EDIT** model across the TFT.
-
-Current development implementation:
-
-```text
-v4.2.2
-```
+Starting with v4.3.0 series, the rotary encoder uses a consistent **SELECT / EDIT** model across the TFT.
 
 Two global interaction modes exist:
 
@@ -2200,7 +2193,7 @@ See `LICENSE` for the complete license text and retained notices.
 
 ## Documentation synchronization
 
-This README has been reconstructed from the earlier full project documentation and updated for the current **v4.2.2 `feature/encoder-select-edit`** implementation.
+This README has been reconstructed from the earlier full project documentation and updated for the current **4.3.0** implementation.
 
 It includes the current:
 
@@ -2214,7 +2207,5 @@ It includes the current:
 * automatic compartment cooling,
 * page-aware Encoder SELECT/EDIT model,
 * Windows/Home Assistant deployment workflow.
-
-Stable `main` remains at **v4.2.0** until the current encoder feature branch is promoted.
 
 ```

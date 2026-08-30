@@ -10,14 +10,11 @@ The root configuration:
 
 assembles the packages in this directory into the complete firmware.
 
-Current development firmware:
+Current stable firmware:
 
 ```text
-v4.2.2
-feature/encoder-select-edit
+v4.3.0
 ```
-
-Stable `main` remains at `v4.2.0` until the encoder feature is promoted.
 
 For the complete project documentation, hardware description, CAN protocol information, commissioning and troubleshooting, see:
 
@@ -1030,18 +1027,11 @@ For PowerShell tooling changes, perform at least a parser check or `-DryRun`.
 Stable release:
 
 ```text
-v4.2.0
+v4.3.0
 main
 ```
 
-Current feature implementation:
-
-```text
-v4.2.2
-feature/encoder-select-edit
-```
-
-The v4.2.2 encoder implementation has been hardware-tested for:
+The v4.3.0 encoder implementation has been hardware-tested for:
 
 * Dashboard SELECT
 * Dashboard EDIT
@@ -1073,8 +1063,3 @@ Before promoting the current feature branch to the next stable release:
 7. create the release version commit;
 8. promote the tested feature branch to `main`.
 
-The intended next stable release is:
-
-```text
-v4.3.0
-```
