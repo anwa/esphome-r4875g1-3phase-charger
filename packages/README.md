@@ -1,43 +1,1080 @@
 # Firmware package architecture
 
-This directory documents stable firmware **v4.2.0**, assembled by `../r4875g1-3phase-charger.yaml`.
+This directory contains the modular ESPHome implementation of the three-phase Huawei R4875G1 charger controller.
 
-## Display architecture
+The root configuration:
 
-The ILI9488 uses ESPHome LVGL with separate hardware, theme, page aggregation and page files. The controller has no touchscreen, so scrolling and scrollbar rendering are disabled globally and explicitly on page/header/card containers.
+```text
+../r4875g1-3phase-charger.yaml
+```
 
-All four pages share the same 64 px header geometry. Dashboard content starts at `y: 72`, matching Rectifiers, Cooling and System. The Dashboard second header line contains date/time, firmware and aggregate charger run state. `OFF`, `1/3 ON` and `2/3 ON` use bold bright red; only `3/3 ON` uses bright green.
+assembles the packages in this directory into the complete firmware.
 
-Current pages are Dashboard, Rectifiers, Cooling and System. Rectifiers provides complete per-unit operating diagnostics; System provides network/runtime/memory/CAN diagnostics; Cooling reports automatic/manual state, fan power, commanded PWM, current automatic stage and all three external tachometer speeds.
+Current development firmware:
 
-Encoder behavior: rotate edits the selected charger setpoint, short press selects Voltage/Power, double press advances the page, and >=3 s performs START/STOP.
+```text
+v4.2.2
+feature/encoder-select-edit
+```
 
-## External cooling package
+Stable `main` remains at `v4.2.0` until the encoder feature is promoted.
 
-`cooling.yaml` owns external/chassis fans only; internal R4875G1 fans remain CAN-controlled/reported separately.
+For the complete project documentation, hardware description, CAN protocol information, commissioning and troubleshooting, see:
 
-`Cooling Fan Automatic` defaults ON. It evaluates the AHT10 compartment temperature every 5 seconds and applies six stages: OFF below 30 °C, then 35/45/60/80/100 % PWM at 30/35/40/45/50 °C. Downward transitions use 2 °C hysteresis at 28/33/38/43/48 °C.
+```text
+../README.md
+```
 
-Invalid compartment temperature fails safe to fan power ON and 100 % PWM. Disabling automatic mode leaves `Cooling Fan Power` and `Cooling Fan PWM` available for manual override. Three-pin fans use common power only; four-pin fans use common power plus shared 25 kHz PWM.
+For detailed runtime/state-machine behavior, see:
 
-The AHT10/off-below-30 °C path has been observed on hardware. Full PWM/RPM behavior remains pending installation of the external fans.
+```text
+../R4875G1_CONTROL_FLOWS.md
+```
 
-## Package ownership
+---
 
-`version.yaml` is the single firmware-version source. `display/theme.yaml` owns shared LVGL behavior/styles. `display/ui.yaml` aggregates the four page files. `rectifier-unit.yaml` is instantiated for each rectifier; `rectifier-shared.yaml` owns shared CAN/lifecycle/discovery behavior. `cooling.yaml` owns external fan hardware and automatic cooling logic.
+# Package structure
 
-The normal CAN watchdog is 3 s and extends to 7 s while `DISCOVERING`. Discovery waits for TWAI `RUNNING`; recovery wait time does not consume discovery attempts.
+```text
+packages/
+├── version.yaml
+├── core.yaml
+├── hardware.yaml
+├── display.yaml
+├── cooling.yaml
+├── controls.yaml
+├── rectifier-shared.yaml
+├── rectifier-unit.yaml
+├── README.md
+│
+├── display/
+│   ├── hardware.yaml
+│   ├── theme.yaml
+│   ├── ui.yaml
+│   └── pages/
+│       ├── dashboard.yaml
+│       ├── rectifiers.yaml
+│       ├── cooling.yaml
+│       └── system.yaml
+│
+└── rectifier-can/
+    ├── property-start.yaml
+    ├── property-end.yaml
+    ├── cyclic-telemetry.yaml
+    ├── fan-telemetry.yaml
+    ├── address-data.yaml
+    └── power-state.yaml
+```
 
-## Deployment
+---
 
-`scripts/deploy-ha.ps1` deploys the root project YAML plus only `packages/**/*.yaml`. Non-YAML documentation is not copied to Home Assistant. The script uses staging, SHA-256 verification and optional backups.
+# Package ownership
 
-## Change discipline
+## `version.yaml`
 
-Every normal commit increments PATCH exactly once; intentional release milestones may advance MAJOR/MINOR. README documentation is synchronized whenever documented behavior, architecture or tooling changes. Commit messages use a concise subject followed by explanatory bullet points.
+Single source of truth for the firmware version.
 
-Validate meaningful changes with `git diff --check`, `esphome config r4875g1-3phase-charger.yaml` and `esphome compile r4875g1-3phase-charger.yaml`. Display and cooling-control changes must also be checked on physical hardware.
+Example:
 
-## Release status
+```yaml
+substitutions:
+  firmware_version: "4.2.2"
+```
 
-Firmware **4.2.0** is the stable baseline on `main`. The four-page menu and AHT10 automatic cooling behavior tested so far are promoted from `v4-lvgl-menu`; full external fan PWM/RPM testing remains intentionally deferred until the fan hardware is installed.
+The value is consumed by:
+
+* `esphome.project.version`
+* the TFT
+* deployment tooling
+* project documentation
+
+Normal program commits increment PATCH exactly once.
+
+Pure documentation or repository-cleanup commits do not require a firmware-version change.
+
+Intentional releases may advance MINOR or MAJOR and reset PATCH.
+
+---
+
+## `core.yaml`
+
+Owns controller-wide ESPHome infrastructure including:
+
+* ESP32-S3 platform/framework configuration
+* flash configuration
+* PSRAM configuration
+* Wi-Fi
+* API
+* MQTT
+* web server
+* OTA
+* SNTP/time services
+* general controller services
+
+Hardware-specific charger logic should not be placed here.
+
+---
+
+## `hardware.yaml`
+
+Owns shared hardware buses used by multiple packages.
+
+Current shared buses include:
+
+```text
+I2C
+SPI
+```
+
+Current I2C allocation:
+
+```text
+SDA GPIO8
+SCL GPIO9
+```
+
+The AHT10 uses the shared I2C bus.
+
+---
+
+# Display architecture
+
+The display stack is intentionally separated into transport, shared presentation and page-specific content.
+
+```text
+display.yaml
+    ↓
+display/hardware.yaml
+display/theme.yaml
+display/ui.yaml
+    ↓
+display/pages/dashboard.yaml
+display/pages/rectifiers.yaml
+display/pages/cooling.yaml
+display/pages/system.yaml
+```
+
+---
+
+## `display.yaml`
+
+Display package aggregator.
+
+It defines display-related substitutions and includes the actual display subpackages.
+
+---
+
+## `display/hardware.yaml`
+
+Owns the physical ILI9488 interface:
+
+* SPI transport
+* display dimensions
+* panel orientation
+* display transform
+* TFT backlight
+
+Current display:
+
+```text
+ILI9488
+480 × 320
+RGB565
+landscape
+```
+
+---
+
+## `display/theme.yaml`
+
+Owns:
+
+* LVGL configuration
+* framebuffer configuration
+* fonts
+* reusable styles
+* common visual defaults
+
+The controller has no touchscreen.
+
+Therefore scrolling is not part of the UI concept.
+
+Generic LVGL containers have scrolling and scrollbar rendering disabled.
+
+Page/header/card containers additionally define the same policy explicitly:
+
+```yaml
+scrollable: false
+scrollbar_mode: "OFF"
+```
+
+This avoids LVGL scrollbar inheritance differences and prevents unusable horizontal or vertical scrollbars.
+
+---
+
+## `display/ui.yaml`
+
+Aggregates the four LVGL pages.
+
+Page order:
+
+```text
+0 Dashboard
+1 Rectifiers
+2 Cooling
+3 System
+```
+
+Page wrapping is enabled:
+
+```text
+Dashboard
+  ↓
+Rectifiers
+  ↓
+Cooling
+  ↓
+System
+  ↓
+Dashboard
+```
+
+The encoder state machine uses the same page numbering through `encoder_page`.
+
+---
+
+# Display pages
+
+## `display/pages/dashboard.yaml`
+
+Main charger operating page.
+
+Displays:
+
+* date/time
+* firmware version
+* aggregate charger ON/OFF state
+* combined AC power
+* combined DC power
+* AC voltage/current summary
+* DC voltage/current summary
+* available rectifier count
+* highest output temperature
+* conversion efficiency
+* DC Voltage setpoint
+* nominal three-unit DC Power setpoint
+* applied current per unit
+
+Run-state colors:
+
+```text
+OFF      red
+1/3 ON   red
+2/3 ON   red
+3/3 ON   green
+```
+
+Partial operation is intentionally treated as an attention state.
+
+Editable encoder parameters:
+
+```text
+0 DC Voltage
+1 DC Power
+```
+
+---
+
+## `display/pages/rectifiers.yaml`
+
+Per-unit diagnostic page.
+
+Contains one card for each rectifier:
+
+```text
+L1
+L2
+L3
+```
+
+Each card displays:
+
+* power state
+* CAN communication state
+* lifecycle state
+* DC voltage
+* DC current
+* DC power
+* input temperature
+* output temperature
+* internal rectifier fan RPM
+* detected maximum-current capability
+
+Status colors:
+
+```text
+CAN fault      red
+DISCOVERING    amber
+ONLINE         green
+OFFLINE        muted
+```
+
+Unreachable units use placeholders instead of stale live telemetry.
+
+This page is read-only.
+
+There are no selectable encoder parameters.
+
+---
+
+## `display/pages/cooling.yaml`
+
+External compartment-cooling page.
+
+Displays:
+
+* AHT10 compartment temperature
+* AHT10 relative humidity
+* automatic cooling state
+* external fan power state
+* PWM command
+* automatic cooling stage
+* Fan 1 RPM
+* Fan 2 RPM
+* Fan 3 RPM
+
+Editable encoder parameters:
+
+```text
+0 Automatic
+1 Fan Power
+2 PWM
+```
+
+When automatic cooling is enabled:
+
+```text
+Automatic   selectable
+Fan Power   disabled / muted
+PWM         disabled / muted
+```
+
+When automatic cooling is disabled, all three parameters are selectable.
+
+---
+
+## `display/pages/system.yaml`
+
+Controller diagnostic page.
+
+Displays:
+
+* firmware
+* IP address
+* Wi-Fi RSSI
+* uptime
+* CPU temperature
+* free internal heap
+* free PSRAM
+* L1/L2/L3 CAN status
+
+This page is read-only.
+
+There are no selectable encoder parameters.
+
+---
+
+# Encoder SELECT / EDIT architecture
+
+The local encoder uses one page-aware state machine instead of page-specific button behavior.
+
+Runtime state is stored in `rectifier-shared.yaml`.
+
+Current globals:
+
+```text
+encoder_page
+encoder_selection
+encoder_edit_mode
+encoder_edit_value
+```
+
+---
+
+## `encoder_page`
+
+Current LVGL page:
+
+```text
+0 Dashboard
+1 Rectifiers
+2 Cooling
+3 System
+```
+
+A successful page change resets:
+
+```text
+encoder_selection = 0
+```
+
+---
+
+## `encoder_selection`
+
+Identifies the selected parameter on the current page.
+
+The meaning is page-specific.
+
+Dashboard:
+
+```text
+0 Voltage
+1 Power
+```
+
+Cooling:
+
+```text
+0 Automatic
+1 Fan Power
+2 PWM
+```
+
+Rectifiers and System do not use selections because they are read-only.
+
+---
+
+## `encoder_edit_mode`
+
+Boolean UI state:
+
+```text
+false = SELECT
+true  = EDIT
+```
+
+The state is not restored across controller reboot.
+
+The UI therefore always starts in a known SELECT state.
+
+---
+
+## `encoder_edit_value`
+
+Temporary floating-point edit buffer.
+
+When EDIT begins, the real value is copied into this buffer.
+
+Encoder rotation changes only the buffer.
+
+The actual ESPHome entity is not changed until the user confirms with a short press.
+
+This prevents intermediate encoder steps from immediately transmitting changing charger setpoints.
+
+---
+
+# SELECT mode
+
+Controls:
+
+```text
+Rotate        select parameter
+Short press   enter EDIT
+Double press  next page
+Long press    global rectifier ON/OFF
+```
+
+The currently selected parameter is indicated by:
+
+```text
+>
+```
+
+Example:
+
+```text
+> Voltage  53.0 V
+  Power     3.00 kW
+```
+
+On read-only pages, rotation and short press intentionally do nothing.
+
+Double-click page navigation and long-press START/STOP remain available.
+
+---
+
+# EDIT mode
+
+Controls:
+
+```text
+Rotate        modify temporary value
+Short press   commit value and return to SELECT
+Double press  disabled
+Long press    disabled
+```
+
+The active parameter uses inverted presentation:
+
+```text
+dark background
+white text
+```
+
+The normal `>` SELECT marker is removed.
+
+The footer changes to:
+
+```text
+EDIT: Turn adjust | Press save
+```
+
+This provides both behavioral and visual separation between SELECT and EDIT.
+
+---
+
+# Editable parameter behavior
+
+## Dashboard Voltage
+
+```text
+Range 49.0–58.0 V
+Step  0.1 V
+```
+
+During EDIT, only `encoder_edit_value` changes.
+
+On confirmation:
+
+1. the new voltage is written to `set_dc_voltage_limit`;
+2. the nominal total-power target is reapplied;
+3. corresponding per-unit current is recalculated.
+
+---
+
+## Dashboard Power
+
+```text
+Range 0.25–12.0 kW
+Step  0.25 kW
+```
+
+During EDIT, only the temporary buffer changes.
+
+The actual power target changes only after confirmation.
+
+---
+
+## Cooling Automatic
+
+Boolean:
+
+```text
+ON
+OFF
+```
+
+Either encoder direction toggles the temporary Boolean value while editing.
+
+After confirmation:
+
+* ON enables automatic temperature control;
+* OFF enables manual Fan Power/PWM selection.
+
+---
+
+## Cooling Fan Power
+
+Boolean:
+
+```text
+ON
+OFF
+```
+
+Selectable only when automatic cooling is OFF.
+
+The actual GPIO power switch is changed only after confirmation.
+
+---
+
+## Cooling PWM
+
+```text
+Range 0–100 %
+Step  1 %
+```
+
+Selectable only when automatic cooling is OFF.
+
+The actual PWM number/output is updated only after confirmation.
+
+---
+
+# `cooling.yaml`
+
+Owns the external/chassis cooling system.
+
+This is separate from the internal R4875G1 fan CAN telemetry/control.
+
+External hardware:
+
+```text
+common fan power enable
+shared 25 kHz PWM
+Fan 1 tachometer
+Fan 2 tachometer
+Fan 3 tachometer
+AHT10 compartment sensor
+```
+
+Three-pin fans use:
+
+```text
+power
+tachometer
+```
+
+Four-pin fans use:
+
+```text
+power
+PWM
+tachometer
+```
+
+---
+
+# Automatic cooling
+
+`Cooling Fan Automatic` defaults to enabled.
+
+Control interval:
+
+```text
+5 seconds
+```
+
+Temperature curve:
+
+| Temperature  |   Command |
+| ------------ | --------: |
+| `<30 °C`     | OFF / 0 % |
+| `30–34.9 °C` |      35 % |
+| `35–39.9 °C` |      45 % |
+| `40–44.9 °C` |      60 % |
+| `45–49.9 °C` |      80 % |
+| `>=50 °C`    |     100 % |
+
+Downward hysteresis:
+
+```text
+48 °C
+43 °C
+38 °C
+33 °C
+28 °C
+```
+
+A rising temperature immediately selects the required higher stage.
+
+If compartment temperature is invalid:
+
+```text
+Fan Power ON
+PWM 100 %
+```
+
+This is the intentional cooling fail-safe.
+
+The AHT10 automatic OFF-below-30 °C path has been observed on hardware.
+
+Full external fan PWM/RPM testing remains pending installation of the fans.
+
+---
+
+# `controls.yaml`
+
+Owns charger-wide setpoints and controls.
+
+Responsibilities include:
+
+* requested DC voltage
+* requested DC current
+* nominal three-unit DC power
+* fallback settings
+* shared/broadcast control entities
+
+The requested current remains conceptually separate from:
+
+```text
+effective hardware limit
+thermal limit
+applied current
+```
+
+---
+
+# `rectifier-unit.yaml`
+
+Parameterized implementation of one R4875G1.
+
+The root configuration includes this package three times for:
+
+```text
+Unit 1
+Unit 2
+Unit 3
+```
+
+Per-unit public IDs and Home Assistant entity names should remain stable unless a change explicitly requires otherwise.
+
+The package owns per-unit:
+
+* telemetry
+* discovery state
+* static properties
+* capability
+* power state
+* thermal state
+* lifecycle-related helpers
+
+---
+
+# `rectifier-shared.yaml`
+
+Owns cross-unit charger state and orchestration.
+
+Responsibilities include:
+
+* encoder UI state
+* per-unit lifecycle
+* discovery queue
+* discovery serialization
+* effective current capability
+* current scaling
+* thermal derating
+* blackstart scripts
+* polling schedulers
+* reconnect probing
+* TWAI recovery
+* aggregate/shared control logic
+
+---
+
+# Rectifier lifecycle
+
+Per-unit lifecycle:
+
+```text
+OFFLINE
+DISCOVERING
+ONLINE
+```
+
+Normal connectivity timeout:
+
+```text
+3 seconds
+```
+
+During `DISCOVERING`:
+
+```text
+7 seconds
+```
+
+The longer discovery watchdog accommodates the intentional 5-second stabilization period.
+
+Discovery waits for TWAI:
+
+```text
+RUNNING
+```
+
+Time spent in BUS_OFF/recovery does not consume normal discovery attempts.
+
+---
+
+# Discovery sequence
+
+Per unit:
+
+```text
+CAN detected
+    ↓
+DISCOVERING
+    ↓
+stabilization
+    ↓
+static properties
+    ↓
+maximum-current capability
+    ↓
+address/shelf information
+    ↓
+verification
+    ↓
+targeted active-setpoint restore
+    ↓
+ONLINE
+```
+
+The static property response can contain many frames.
+
+TWAI RX queue:
+
+```text
+64 frames
+```
+
+A physically observed property response contained:
+
+```text
+56 frames
+```
+
+---
+
+# Current capability
+
+Absolute project ceiling:
+
+```text
+75 A
+```
+
+If a reachable rectifier has unknown capability:
+
+```text
+effective current limit = 50 A
+```
+
+Once all reachable capabilities are known:
+
+```text
+effective current limit
+    =
+min(
+    75 A,
+    lowest reachable capability
+)
+```
+
+Command scaling uses the highest known reachable capability once all reachable capabilities are available.
+
+Current limiting and command scaling are intentionally separate concepts.
+
+---
+
+# Thermal protection
+
+Applied current:
+
+```text
+min(
+    requested current,
+    hardware capability,
+    thermal limit
+)
+```
+
+Thermal states:
+
+| State     |     Enter | Recovery |                Current |
+| --------- | --------: | -------: | ---------------------: |
+| NORMAL    |  `<70 °C` |        — | hardware/project limit |
+| WARNING_1 | `>=70 °C` | `<65 °C` |                   50 A |
+| WARNING_2 | `>=80 °C` | `<75 °C` |                   30 A |
+| LOCKOUT   | `>=90 °C` | `<80 °C` |         individual OFF |
+
+Stale temperature data never relaxes thermal protection.
+
+Recovery from lockout never automatically turns the rectifier back on.
+
+---
+
+# `rectifier-can/`
+
+Contains parameterized CAN receive handlers.
+
+## `property-start.yaml`
+
+Handles the start of the multi-frame static property response.
+
+## `property-end.yaml`
+
+Handles property completion and reconstructed property parsing.
+
+## `cyclic-telemetry.yaml`
+
+Decodes normal cyclic rectifier telemetry.
+
+## `fan-telemetry.yaml`
+
+Decodes internal R4875G1 fan telemetry.
+
+## `address-data.yaml`
+
+Handles capability/address-related discovery data.
+
+## `power-state.yaml`
+
+Handles rectifier power-state/status frames.
+
+---
+
+# CAN transmission policy
+
+Normal ESPHome CAN transmission is used for:
+
+* online telemetry polling
+* internal fan polling
+* property discovery
+* capability/address discovery
+* active setpoints
+* reconnect setpoint restore
+* ON/OFF control
+
+TWAI Single-Shot is reserved for:
+
+```text
+slow OFFLINE reconnect probes
+```
+
+This prevents absent rectifiers from causing repeated automatic retransmission of unacknowledged probe frames.
+
+---
+
+# Deployment boundary
+
+`scripts/deploy-ha.ps1` manages:
+
+```text
+r4875g1-3phase-charger.yaml
+packages/**/*.yaml
+```
+
+It intentionally does **not** deploy:
+
+```text
+packages/README.md
+README.md
+other non-YAML files
+```
+
+The deployment process uses:
+
+* remote staging
+* SHA-256 verification
+* optional backups
+* installed-file verification
+* staging cleanup
+
+---
+
+# Change discipline
+
+Preserve unless explicitly changing them:
+
+* public ESPHome IDs
+* Home Assistant entity names
+* CAN identifiers
+* CAN payload formats
+* protocol scaling
+* timing/order requirements
+* lifecycle transitions
+* requested/applied-current semantics
+* thermal thresholds
+* blackstart safety behavior
+
+Firmware version convention:
+
+```text
+normal program commit -> PATCH +1
+documentation-only commit -> version unchanged
+repository cleanup only -> version unchanged
+release -> MINOR/MAJOR may advance
+```
+
+README documentation must remain synchronized with documented software behavior.
+
+Commit messages should contain:
+
+1. concise descriptive subject;
+2. detailed bullet list of important changes and effects.
+
+---
+
+# Validation
+
+Before committing meaningful firmware changes:
+
+```text
+git diff --check
+esphome config r4875g1-3phase-charger.yaml
+esphome compile r4875g1-3phase-charger.yaml
+```
+
+For display/encoder changes, also verify the physical TFT.
+
+For cooling changes, verify physical fan behavior when the external fan hardware is installed.
+
+For PowerShell tooling changes, perform at least a parser check or `-DryRun`.
+
+---
+
+# Current development status
+
+Stable release:
+
+```text
+v4.2.0
+main
+```
+
+Current feature implementation:
+
+```text
+v4.2.2
+feature/encoder-select-edit
+```
+
+The v4.2.2 encoder implementation has been hardware-tested for:
+
+* Dashboard SELECT
+* Dashboard EDIT
+* temporary value buffering
+* confirmation/commit
+* double-click suppression in EDIT
+* long-press suppression in EDIT
+* Cooling Automatic selection/edit
+* Cooling manual Fan Power
+* Cooling manual PWM
+* automatic-mode restriction of manual Cooling parameters
+* page-aware footer behavior
+* read-only Rectifiers/System behavior
+
+The current feature branch is therefore functionally ready for release after repository cleanup and documentation synchronization.
+
+---
+
+# Release preparation
+
+Before promoting the current feature branch to the next stable release:
+
+1. remove obsolete temporary GitHub Actions workflows;
+2. verify `README.md` and `packages/README.md`;
+3. run `git diff --check`;
+4. validate the ESPHome configuration;
+5. compile the complete firmware;
+6. optionally perform one final physical TFT smoke test;
+7. create the release version commit;
+8. promote the tested feature branch to `main`.
+
+The intended next stable release is:
+
+```text
+v4.3.0
+```
