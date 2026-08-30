@@ -1,0 +1,42 @@
+name: Repair and retry encoder Select/Edit v4.2.1
+
+on:
+  push:
+    branches:
+      - feature/encoder-select-edit
+    paths:
+      - .github/workflows/retry-encoder-select-edit-v4.2.1.yml
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: feature/encoder-select-edit
+          fetch-depth: 0
+
+      - name: Repair original patch workflow
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path('.github/workflows/apply-encoder-select-edit-v4.2.1.yml')
+          text = path.read_text(encoding='utf-8')
+          text = text.replace('actions/checkout@v4', 'actions/checkout@v5')
+          text = text.replace("""LV_OPA_TRANSP;' ")""", """LV_OPA_TRANSP;'")""")
+          path.write_text(text, encoding='utf-8')
+
+      - name: Commit repaired workflow
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/workflows/apply-encoder-select-edit-v4.2.1.yml
+          git diff --check --cached
+          git commit -m "Repair encoder v4.2.1 patch workflow" -m "- remove trailing whitespace generated in Dashboard EDIT-mode bg_opa lines
+          - update actions/checkout from v4 to v5 to avoid the deprecated Node.js 20 runtime warning
+          - allow the original one-shot workflow to rerun and create the clean v4.2.1 feature commit"
+          git push origin HEAD:feature/encoder-select-edit
