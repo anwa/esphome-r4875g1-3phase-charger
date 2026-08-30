@@ -63,23 +63,46 @@ lvgl:
             x: 8
             y: 184
             width: 304
-            height: 96
+            height: 120
             styles: style_card
             widgets:
               - label:
                   text: "EXTERNAL FAN CONTROL"
                   text_font: ui_font_14
                   text_color: 0x657080
+
               - label:
-                  id: ui_cooling_control
+                  id: ui_cooling_auto
                   x: 0
-                  y: 27
-                  text: "AUTO -- | Power -- | PWM -- %"
+                  y: 23
+                  width: 280
+                  text: "> Automatic   --"
                   text_font: ui_font_18_bold
+                  bg_color: 0x182433
+
+              - label:
+                  id: ui_cooling_power
+                  x: 0
+                  y: 49
+                  width: 280
+                  text: "  Fan Power   --"
+                  text_font: ui_font_18_bold
+                  bg_color: 0x182433
+
+              - label:
+                  id: ui_cooling_pwm
+                  x: 0
+                  y: 75
+                  width: 280
+                  text: "  PWM         -- %"
+                  text_font: ui_font_18_bold
+                  bg_color: 0x182433
+
               - label:
                   id: ui_cooling_curve
                   x: 0
-                  y: 61
+                  y: 99
+                  width: 280
                   text: "Auto: <30 OFF ... >=50 100%"
                   text_font: ui_font_14
                   text_color: 0x657080
@@ -87,7 +110,7 @@ lvgl:
             scrollable: false
             scrollbar_mode: "OFF"
             x: 8
-            y: 288
+            y: 312
             width: 304
             height: 132
             styles: style_card
@@ -115,11 +138,12 @@ lvgl:
                   text: "Fan 3  ---- RPM"
                   text_font: ui_font_18_bold
         - label:
+            id: ui_cooling_footer
             x: 8
             y: 448
             width: 304
             text_align: CENTER
-            text: "Double page | Hold START/STOP"
+            text: "Turn select | Press edit | Double page | Hold ON/OFF"
             text_font: ui_font_14
             text_color: 0x657080
 interval:
@@ -135,10 +159,182 @@ interval:
           text: !lambda |-
             if (isnan(id(rectifier_compartment_humidity).state)) return std::string("Humidity --.- %");
             return str_sprintf("Humidity %.1f %%", id(rectifier_compartment_humidity).state);
+      # ----------------------------------------------------------------------
+      # Automatic
       - lvgl.label.update:
-          id: ui_cooling_control
+          id: ui_cooling_auto
+
           text: !lambda |-
-            return str_sprintf("AUTO %s | Power %s | PWM %.0f %%", id(cooling_fan_auto).state ? "ON" : "OFF", id(cooling_fan_enable).state ? "ON" : "OFF", id(cooling_fan_pwm_percent).state);
+            const bool selected =
+              id(encoder_page) == 2 &&
+              id(encoder_selection) == 0;
+
+            const bool editing =
+              id(encoder_edit_mode) && selected;
+
+            const bool value =
+              editing
+                ? id(encoder_edit_value) >= 0.5f
+                : id(cooling_fan_auto).state;
+
+            return str_sprintf(
+              "%s Automatic   %s",
+              !id(encoder_edit_mode) && selected
+                ? ">"
+                : " ",
+              value ? "ON" : "OFF"
+            );
+
+          text_color: !lambda |-
+            if (
+              id(encoder_edit_mode) &&
+              id(encoder_page) == 2 &&
+              id(encoder_selection) == 0
+            ) {
+              return lv_color_hex(0xFFFFFF);
+            }
+
+            if (
+              !id(encoder_edit_mode) &&
+              id(encoder_page) == 2 &&
+              id(encoder_selection) == 0
+            ) {
+              return lv_color_hex(0x1769AA);
+            }
+
+            return lv_color_hex(0x182433);
+
+          bg_opa: !lambda |-
+            return
+              id(encoder_edit_mode) &&
+              id(encoder_page) == 2 &&
+              id(encoder_selection) == 0
+                ? LV_OPA_COVER
+                : LV_OPA_TRANSP;
+
+      # ----------------------------------------------------------------------
+      # Fan Power
+      - lvgl.label.update:
+          id: ui_cooling_power
+
+          text: !lambda |-
+            const bool selected =
+              id(encoder_page) == 2 &&
+              id(encoder_selection) == 1;
+
+            const bool editing =
+              id(encoder_edit_mode) && selected;
+
+            const bool value =
+              editing
+                ? id(encoder_edit_value) >= 0.5f
+                : id(cooling_fan_enable).state;
+
+            return str_sprintf(
+              "%s Fan Power   %s",
+              !id(encoder_edit_mode) &&
+              selected &&
+              !id(cooling_fan_auto).state
+                ? ">"
+                : " ",
+              value ? "ON" : "OFF"
+            );
+
+          text_color: !lambda |-
+            if (
+              id(cooling_fan_auto).state &&
+              !id(encoder_edit_mode)
+            ) {
+              return lv_color_hex(0x9AA1AA);
+            }
+
+            if (
+              id(encoder_edit_mode) &&
+              id(encoder_page) == 2 &&
+              id(encoder_selection) == 1
+            ) {
+              return lv_color_hex(0xFFFFFF);
+            }
+
+            if (
+              !id(encoder_edit_mode) &&
+              id(encoder_page) == 2 &&
+              id(encoder_selection) == 1
+            ) {
+              return lv_color_hex(0x1769AA);
+            }
+
+            return lv_color_hex(0x182433);
+
+          bg_opa: !lambda |-
+            return
+              id(encoder_edit_mode) &&
+              id(encoder_page) == 2 &&
+              id(encoder_selection) == 1
+                ? LV_OPA_COVER
+                : LV_OPA_TRANSP;
+
+      # ----------------------------------------------------------------------
+      # PWM
+      - lvgl.label.update:
+          id: ui_cooling_pwm
+
+          text: !lambda |-
+            const bool selected =
+              id(encoder_page) == 2 &&
+              id(encoder_selection) == 2;
+
+            const bool editing =
+              id(encoder_edit_mode) && selected;
+
+            const float value =
+              editing
+                ? id(encoder_edit_value)
+                : id(cooling_fan_pwm_percent).state;
+
+            return str_sprintf(
+              "%s PWM         %.0f %%",
+              !id(encoder_edit_mode) &&
+              selected &&
+              !id(cooling_fan_auto).state
+                ? ">"
+                : " ",
+              value
+            );
+
+          text_color: !lambda |-
+            if (
+              id(cooling_fan_auto).state &&
+              !id(encoder_edit_mode)
+            ) {
+              return lv_color_hex(0x9AA1AA);
+            }
+
+            if (
+              id(encoder_edit_mode) &&
+              id(encoder_page) == 2 &&
+              id(encoder_selection) == 2
+            ) {
+              return lv_color_hex(0xFFFFFF);
+            }
+
+            if (
+              !id(encoder_edit_mode) &&
+              id(encoder_page) == 2 &&
+              id(encoder_selection) == 2
+            ) {
+              return lv_color_hex(0x1769AA);
+            }
+
+            return lv_color_hex(0x182433);
+
+          bg_opa: !lambda |-
+            return
+              id(encoder_edit_mode) &&
+              id(encoder_page) == 2 &&
+              id(encoder_selection) == 2
+                ? LV_OPA_COVER
+                : LV_OPA_TRANSP;
       - lvgl.label.update:
           id: ui_cooling_curve
           text: !lambda |-
@@ -155,3 +351,27 @@ interval:
       - lvgl.label.update:
           id: ui_cooling_fan3
           text: !lambda 'return str_sprintf("Fan 3  %.0f RPM", id(cooling_fan_3_rpm).state);'
+      - lvgl.label.update:
+          id: ui_cooling_footer
+
+          text: !lambda |-
+            if (id(encoder_edit_mode)) {
+              return std::string(
+                "EDIT: Turn adjust | Press save"
+              );
+            }
+
+            if (id(cooling_fan_auto).state) {
+              return std::string(
+                "Auto only | Press edit | Double page | Hold ON/OFF"
+              );
+            }
+
+            return std::string(
+              "Turn select | Press edit | Double page | Hold ON/OFF"
+            );
+
+          text_color: !lambda |-
+            return id(encoder_edit_mode)
+              ? lv_color_hex(0x1769AA)
+              : lv_color_hex(0x657080);

@@ -8,20 +8,42 @@ globals:
   # Local encoder UI state
   # --------------------------------------------------------------------------
   #
+  # Pages:
+  #   0 = Dashboard
+  #   1 = Rectifiers
+  #   2 = Cooling
+  #   3 = System
+  #
   # SELECT mode:
-  #   encoder_selection identifies the currently selected parameter.
+  #   encoder_selection identifies the selected editable parameter on the
+  #   current page.
   #
   # EDIT mode:
-  #   encoder_edit_value contains a temporary working copy. Rotating the
-  #   encoder changes only this value. The real ESPHome entity and therefore
-  #   the charger setpoint are changed only after the user confirms with a
-  #   short press.
+  #   encoder_edit_value contains a temporary working copy. Rotation changes
+  #   only this value. The real ESPHome entity is updated only after a short
+  #   confirmation press.
   #
-  # v4.2.1 initially implements two selectable Dashboard parameters:
+  # Editable parameters:
+  #
+  # Dashboard:
   #   0 = DC Voltage
   #   1 = Total DC Power
   #
-  # Additional page-specific parameter lists will be added later.
+  # Rectifiers:
+  #   none
+  #
+  # Cooling:
+  #   0 = Automatic
+  #   1 = Fan Power   (manual mode only)
+  #   2 = Fan PWM     (manual mode only)
+  #
+  # System:
+  #   none
+
+  - id: encoder_page
+    type: int
+    restore_value: false
+    initial_value: "0"
 
   - id: encoder_selection
     type: int

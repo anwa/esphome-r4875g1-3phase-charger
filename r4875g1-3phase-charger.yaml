@@ -385,17 +385,17 @@ sensor:
   # --------------------------------------------------------------------------
   # local_encoder
   #
-  # Global SELECT / EDIT controller.
+  # Page-aware SELECT / EDIT controller.
   #
   # SELECT:
-  #   Rotation selects a parameter.
+  #   Dashboard  -> select Voltage / Power
+  #   Rectifiers -> no selectable parameters
+  #   Cooling    -> select Automatic and, in manual mode, Power / PWM
+  #   System     -> no selectable parameters
   #
   # EDIT:
-  #   Rotation changes only encoder_edit_value. The actual ESPHome number
-  #   entity is not modified until the user confirms with a short press.
-  #
-  # v4.2.1 implements Dashboard Voltage and Power. Page-specific parameter
-  # lists for the other pages will be added in subsequent commits.
+  #   Rotation changes only encoder_edit_value.
+  #   No real entity is changed until the confirming short press.
   - platform: rotary_encoder
     id: local_encoder
 
@@ -414,74 +414,201 @@ sensor:
     resolution: 1
     internal: true
 
+    # ========================================================================
+    # CLOCKWISE
+    # ========================================================================
     on_clockwise:
       then:
         - script.execute: display_inactivity_timer
 
         - lambda: |-
-            // SELECT MODE:
-            // Move to the next selectable parameter.
+            // ----------------------------------------------------------------
+            // SELECT MODE
+            // ----------------------------------------------------------------
             if (!id(encoder_edit_mode)) {
-              id(encoder_selection) =
-                (id(encoder_selection) + 1) % 2;
 
-              ESP_LOGD(
-                "encoder",
-                "SELECT parameter: %d",
-                id(encoder_selection)
-              );
+              // Dashboard: Voltage / Power
+              if (id(encoder_page) == 0) {
+                id(encoder_selection) =
+                  (id(encoder_selection) + 1) % 2;
+                return;
+              }
+
+              // Rectifiers: read-only page
+              if (id(encoder_page) == 1) {
+                return;
+              }
+
+              // Cooling
+              if (id(encoder_page) == 2) {
+
+                // Automatic mode:
+                // only the Automatic parameter is selectable.
+                if (id(cooling_fan_auto).state) {
+                  id(encoder_selection) = 0;
+                  return;
+                }
+
+                // Manual mode:
+                // Automatic -> Fan Power -> PWM -> Automatic
+                id(encoder_selection) =
+                  (id(encoder_selection) + 1) % 3;
+
+                return;
+              }
+
+              // System: read-only page
+              return;
+            }
+
+            // ----------------------------------------------------------------
+            // EDIT MODE
+            // ----------------------------------------------------------------
+
+            // Dashboard
+            if (id(encoder_page) == 0) {
+
+              if (id(encoder_selection) == 0) {
+                id(encoder_edit_value) = std::min(
+                  ${dc_voltage_max_v}f,
+                  id(encoder_edit_value) + 0.1f
+                );
+              } else {
+                id(encoder_edit_value) = std::min(
+                  12.0f,
+                  id(encoder_edit_value) + 0.25f
+                );
+              }
 
               return;
             }
 
-            // EDIT MODE:
-            // Change only the temporary value.
-            if (id(encoder_selection) == 0) {
-              id(encoder_edit_value) = std::min(
-                ${dc_voltage_max_v}f,
-                id(encoder_edit_value) + 0.1f
-              );
-            } else {
-              id(encoder_edit_value) = std::min(
-                12.0f,
-                id(encoder_edit_value) + 0.25f
-              );
+            // Cooling
+            if (id(encoder_page) == 2) {
+
+              // Automatic ON/OFF
+              if (id(encoder_selection) == 0) {
+                id(encoder_edit_value) =
+                  id(encoder_edit_value) >= 0.5f
+                    ? 0.0f
+                    : 1.0f;
+
+                return;
+              }
+
+              // Manual Fan Power ON/OFF
+              if (id(encoder_selection) == 1) {
+                id(encoder_edit_value) =
+                  id(encoder_edit_value) >= 0.5f
+                    ? 0.0f
+                    : 1.0f;
+
+                return;
+              }
+
+              // Manual PWM
+              if (id(encoder_selection) == 2) {
+                id(encoder_edit_value) = std::min(
+                  100.0f,
+                  id(encoder_edit_value) + 1.0f
+                );
+
+                return;
+              }
             }
 
+    # ========================================================================
+    # ANTICLOCKWISE
+    # ========================================================================
     on_anticlockwise:
       then:
         - script.execute: display_inactivity_timer
 
         - lambda: |-
-            // SELECT MODE:
-            // With two parameters, moving in either direction selects the
-            // other one. This becomes directional once more parameters are
-            // introduced.
+            // ----------------------------------------------------------------
+            // SELECT MODE
+            // ----------------------------------------------------------------
             if (!id(encoder_edit_mode)) {
-              id(encoder_selection) =
-                (id(encoder_selection) + 1) % 2;
 
-              ESP_LOGD(
-                "encoder",
-                "SELECT parameter: %d",
-                id(encoder_selection)
-              );
+              // Dashboard
+              if (id(encoder_page) == 0) {
+                id(encoder_selection) =
+                  (id(encoder_selection) + 1) % 2;
+
+                return;
+              }
+
+              // Rectifiers
+              if (id(encoder_page) == 1) {
+                return;
+              }
+
+              // Cooling
+              if (id(encoder_page) == 2) {
+
+                if (id(cooling_fan_auto).state) {
+                  id(encoder_selection) = 0;
+                  return;
+                }
+
+                // Reverse:
+                // Automatic <- Fan Power <- PWM <- Automatic
+                id(encoder_selection) =
+                  (id(encoder_selection) + 2) % 3;
+
+                return;
+              }
+
+              // System
+              return;
+            }
+
+            // ----------------------------------------------------------------
+            // EDIT MODE
+            // ----------------------------------------------------------------
+
+            // Dashboard
+            if (id(encoder_page) == 0) {
+
+              if (id(encoder_selection) == 0) {
+                id(encoder_edit_value) = std::max(
+                  ${dc_voltage_min_v}f,
+                  id(encoder_edit_value) - 0.1f
+                );
+              } else {
+                id(encoder_edit_value) = std::max(
+                  0.25f,
+                  id(encoder_edit_value) - 0.25f
+                );
+              }
 
               return;
             }
 
-            // EDIT MODE:
-            // Change only the temporary value.
-            if (id(encoder_selection) == 0) {
-              id(encoder_edit_value) = std::max(
-                ${dc_voltage_min_v}f,
-                id(encoder_edit_value) - 0.1f
-              );
-            } else {
-              id(encoder_edit_value) = std::max(
-                0.25f,
-                id(encoder_edit_value) - 0.25f
-              );
+            // Cooling
+            if (id(encoder_page) == 2) {
+
+              // For Boolean values either rotation direction toggles ON/OFF.
+              if (
+                id(encoder_selection) == 0 ||
+                id(encoder_selection) == 1
+              ) {
+                id(encoder_edit_value) =
+                  id(encoder_edit_value) >= 0.5f
+                    ? 0.0f
+                    : 1.0f;
+
+                return;
+              }
+
+              if (id(encoder_selection) == 2) {
+                id(encoder_edit_value) = std::max(
+                  0.0f,
+                  id(encoder_edit_value) - 1.0f
+                );
+
+                return;
+              }
             }
 
   # --------------------------------------------------------------------------
@@ -854,12 +981,12 @@ binary_sensor:
   # local_encoder_button
   #
   # SELECT MODE:
-  #   short press  -> enter EDIT
+  #   short press  -> enter EDIT if the page has an editable parameter
   #   double press -> next page
   #   long press   -> toggle all rectifiers ON/OFF
   #
   # EDIT MODE:
-  #   short press  -> commit value and return to SELECT
+  #   short press  -> commit and return to SELECT
   #   double press -> disabled
   #   long press   -> disabled
   - platform: gpio
@@ -876,17 +1003,15 @@ binary_sensor:
     filters:
       - delayed_on_off: 30ms
 
-    # Every physical button press wakes the TFT and restarts the display timer.
     on_press:
       then:
         - script.execute: display_inactivity_timer
 
     on_multi_click:
 
-      # ----------------------------------------------------------------------
+      # ======================================================================
       # DOUBLE PRESS
-      #
-      # Page navigation is available only in SELECT mode.
+      # ======================================================================
       - timing:
           - ON for 50ms to 700ms
           - OFF for 50ms to 350ms
@@ -904,124 +1029,289 @@ binary_sensor:
                     animation: OUT_LEFT
                     time: 180ms
 
-                # Every page starts with its first selectable parameter.
-                # This becomes page-specific once the additional parameter
-                # lists are implemented.
                 - lambda: |-
+                    id(encoder_page) =
+                      (id(encoder_page) + 1) % 4;
+
                     id(encoder_selection) = 0;
 
                     ESP_LOGD(
                       "encoder",
-                      "Page changed; SELECT reset to parameter 0."
+                      "Page changed: page=%d, selection=0",
+                      id(encoder_page)
                     );
 
-      # ----------------------------------------------------------------------
+      # ======================================================================
       # SHORT PRESS
-      #
-      # SELECT -> EDIT:
-      #   Copy the actual entity value into encoder_edit_value.
-      #
-      # EDIT -> SELECT:
-      #   Commit encoder_edit_value to the actual ESPHome entity.
+      # ======================================================================
       - timing:
           - ON for 50ms to 700ms
           - OFF for at least 350ms
 
         then:
+
+          # ------------------------------------------------------------------
+          # SELECT -> EDIT
+          # ------------------------------------------------------------------
           - if:
               condition:
                 lambda: |-
                   return !id(encoder_edit_mode);
 
-              # --------------------------------------------------------------
-              # ENTER EDIT MODE
               then:
-                - lambda: |-
-                    id(encoder_edit_mode) = true;
 
-                    if (id(encoder_selection) == 0) {
-                      id(encoder_edit_value) =
-                        id(set_dc_voltage_limit).state;
-
-                      ESP_LOGI(
-                        "encoder",
-                        "EDIT entered: DC Voltage %.1f V",
-                        id(encoder_edit_value)
-                      );
-                    } else {
-                      id(encoder_edit_value) =
-                        id(set_dc_sum_power).state;
-
-                      ESP_LOGI(
-                        "encoder",
-                        "EDIT entered: DC Sum Power %.2f kW",
-                        id(encoder_edit_value)
-                      );
-                    }
-
-              # --------------------------------------------------------------
-              # COMMIT EDIT MODE
-              else:
+                # Dashboard
                 - if:
                     condition:
                       lambda: |-
-                        return id(encoder_selection) == 0;
+                        return id(encoder_page) == 0;
 
-                    # --------------------------------------------------------
-                    # Commit DC Voltage
                     then:
                       - lambda: |-
-                          const float new_value =
-                            id(encoder_edit_value);
+                          id(encoder_edit_mode) = true;
 
-                          ESP_LOGI(
-                            "encoder",
-                            "EDIT commit: DC Voltage %.1f V",
-                            new_value
-                          );
+                          if (id(encoder_selection) == 0) {
+                            id(encoder_edit_value) =
+                              id(set_dc_voltage_limit).state;
 
-                          auto call =
-                            id(set_dc_voltage_limit).make_call();
+                            ESP_LOGI(
+                              "encoder",
+                              "EDIT entered: DC Voltage %.1f V",
+                              id(encoder_edit_value)
+                            );
+                          } else {
+                            id(encoder_edit_value) =
+                              id(set_dc_sum_power).state;
 
-                          call.set_value(new_value);
-                          call.perform();
+                            ESP_LOGI(
+                              "encoder",
+                              "EDIT entered: DC Sum Power %.2f kW",
+                              id(encoder_edit_value)
+                            );
+                          }
 
-                      # Preserve the nominal total-power target after a voltage
-                      # change by recalculating the corresponding current.
-                      - script.execute: apply_dc_sum_power
+                # Cooling
+                - if:
+                    condition:
+                      lambda: |-
+                        return id(encoder_page) == 2;
 
-                    # --------------------------------------------------------
-                    # Commit DC Sum Power
-                    else:
+                    then:
                       - lambda: |-
-                          const float new_value =
-                            id(encoder_edit_value);
+                          // In automatic mode only Automatic itself may be
+                          // edited. This also protects against an invalid stale
+                          // selection if automatic mode was enabled externally.
+                          if (
+                            id(cooling_fan_auto).state &&
+                            id(encoder_selection) != 0
+                          ) {
+                            id(encoder_selection) = 0;
+                          }
+
+                          id(encoder_edit_mode) = true;
+
+                          if (id(encoder_selection) == 0) {
+                            id(encoder_edit_value) =
+                              id(cooling_fan_auto).state
+                                ? 1.0f
+                                : 0.0f;
+
+                            ESP_LOGI(
+                              "encoder",
+                              "EDIT entered: Cooling Automatic %s",
+                              id(cooling_fan_auto).state
+                                ? "ON"
+                                : "OFF"
+                            );
+
+                            return;
+                          }
+
+                          if (id(encoder_selection) == 1) {
+                            id(encoder_edit_value) =
+                              id(cooling_fan_enable).state
+                                ? 1.0f
+                                : 0.0f;
+
+                            ESP_LOGI(
+                              "encoder",
+                              "EDIT entered: Cooling Fan Power %s",
+                              id(cooling_fan_enable).state
+                                ? "ON"
+                                : "OFF"
+                            );
+
+                            return;
+                          }
+
+                          id(encoder_edit_value) =
+                            id(cooling_fan_pwm_percent).state;
 
                           ESP_LOGI(
                             "encoder",
-                            "EDIT commit: DC Sum Power %.2f kW",
-                            new_value
+                            "EDIT entered: Cooling Fan PWM %.0f %%",
+                            id(encoder_edit_value)
                           );
 
-                          auto call =
-                            id(set_dc_sum_power).make_call();
+                # Rectifiers/System intentionally do nothing on short press.
 
-                          call.set_value(new_value);
-                          call.perform();
+              # ----------------------------------------------------------------
+              # EDIT -> COMMIT -> SELECT
+              # ----------------------------------------------------------------
+              else:
 
+                # =============================================================
+                # DASHBOARD COMMIT
+                # =============================================================
+                - if:
+                    condition:
+                      lambda: |-
+                        return id(encoder_page) == 0;
+
+                    then:
+
+                      - if:
+                          condition:
+                            lambda: |-
+                              return id(encoder_selection) == 0;
+
+                          # DC Voltage
+                          then:
+                            - lambda: |-
+                                const float new_value =
+                                  id(encoder_edit_value);
+
+                                auto call =
+                                  id(set_dc_voltage_limit).make_call();
+
+                                call.set_value(new_value);
+                                call.perform();
+
+                                ESP_LOGI(
+                                  "encoder",
+                                  "EDIT commit: DC Voltage %.1f V",
+                                  new_value
+                                );
+
+                            - script.execute: apply_dc_sum_power
+
+                          # DC Sum Power
+                          else:
+                            - lambda: |-
+                                const float new_value =
+                                  id(encoder_edit_value);
+
+                                auto call =
+                                  id(set_dc_sum_power).make_call();
+
+                                call.set_value(new_value);
+                                call.perform();
+
+                                ESP_LOGI(
+                                  "encoder",
+                                  "EDIT commit: DC Sum Power %.2f kW",
+                                  new_value
+                                );
+
+                # =============================================================
+                # COOLING COMMIT
+                # =============================================================
+                - if:
+                    condition:
+                      lambda: |-
+                        return id(encoder_page) == 2;
+
+                    then:
+
+                      # --------------------------------------------------------
+                      # Automatic
+                      - if:
+                          condition:
+                            lambda: |-
+                              return id(encoder_selection) == 0;
+
+                          then:
+                            - if:
+                                condition:
+                                  lambda: |-
+                                    return
+                                      id(encoder_edit_value) >= 0.5f;
+
+                                then:
+                                  - switch.turn_on:
+                                      id: cooling_fan_auto
+
+                                else:
+                                  - switch.turn_off:
+                                      id: cooling_fan_auto
+
+                      # --------------------------------------------------------
+                      # Fan Power
+                      - if:
+                          condition:
+                            lambda: |-
+                              return id(encoder_selection) == 1;
+
+                          then:
+                            - if:
+                                condition:
+                                  lambda: |-
+                                    return
+                                      id(encoder_edit_value) >= 0.5f;
+
+                                then:
+                                  - switch.turn_on:
+                                      id: cooling_fan_enable
+
+                                else:
+                                  - switch.turn_off:
+                                      id: cooling_fan_enable
+
+                      # --------------------------------------------------------
+                      # PWM
+                      - if:
+                          condition:
+                            lambda: |-
+                              return id(encoder_selection) == 2;
+
+                          then:
+                            - lambda: |-
+                                auto call =
+                                  id(cooling_fan_pwm_percent).make_call();
+
+                                call.set_value(
+                                  id(encoder_edit_value)
+                                );
+
+                                call.perform();
+
+                                ESP_LOGI(
+                                  "encoder",
+                                  "EDIT commit: Cooling Fan PWM %.0f %%",
+                                  id(encoder_edit_value)
+                                );
+
+                # Always leave EDIT after a successful commit.
                 - lambda: |-
                     id(encoder_edit_mode) = false;
+
+                    // If Automatic was enabled, manual parameters are no
+                    // longer selectable.
+                    if (
+                      id(encoder_page) == 2 &&
+                      id(cooling_fan_auto).state
+                    ) {
+                      id(encoder_selection) = 0;
+                    }
 
                     ESP_LOGI(
                       "encoder",
                       "EDIT finished; returning to SELECT."
                     );
 
-      # ----------------------------------------------------------------------
+      # ======================================================================
       # LONG PRESS
-      #
-      # Global rectifier ON/OFF is available only in SELECT mode.
-      # In EDIT mode this entire action is ignored.
+      # ======================================================================
       - timing:
           - ON for at least 3000ms
 
@@ -1047,8 +1337,6 @@ binary_sensor:
 
                     else:
 
-                      # START requires at least one fully ONLINE rectifier
-                      # with fresh CAN communication.
                       - if:
                           condition:
                             lambda: |-

@@ -170,11 +170,12 @@ lvgl:
                   text_color: 0x657080
 
         - label:
+            id: ui_dashboard_footer
             x: 8
             y: 448
             width: 304
             text_align: CENTER
-            text: "Press select | Double page | Hold START/STOP"
+            text: "Turn select | Press edit | Double page | Hold ON/OFF"
             text_font: ui_font_14
             text_color: 0x657080
 
@@ -345,3 +346,20 @@ interval:
       - lvgl.label.update:
           id: ui_set_current
           text: !lambda 'return str_sprintf("Applied %.1f A/unit", id(applied_dc_current_limit_sensor).state);'
+      - lvgl.label.update:
+          id: ui_dashboard_footer
+          text: !lambda |-
+            if (id(encoder_edit_mode)) {
+              return std::string(
+                "EDIT: Turn adjust | Press save"
+              );
+            }
+
+            return std::string(
+              "Turn select | Press edit | Double page | Hold ON/OFF"
+            );
+
+          text_color: !lambda |-
+            return id(encoder_edit_mode)
+              ? lv_color_hex(0x1769AA)
+              : lv_color_hex(0x657080);
