@@ -13,6 +13,7 @@ globals:
   #   1 = Rectifiers
   #   2 = Cooling
   #   3 = System
+  #   4 = Trends
   #
   # SELECT mode:
   #   encoder_selection identifies the selected editable parameter on the
@@ -75,6 +76,71 @@ globals:
     type: float
     restore_value: false
     initial_value: "0.0f"
+
+  # --------------------------------------------------------------------------
+  # Trends page
+  # --------------------------------------------------------------------------
+  #
+  # Five independent 120-sample ring buffers are recorded continuously.
+  #
+  # Sampling interval:
+  #   5 seconds
+  #
+  # History:
+  #   120 × 5 s = 600 s = 10 minutes
+  #
+  # Buffers:
+  #   0 = Combined DC Power [kW]
+  #   1 = Combined DC Current [A]
+  #   2 = Average DC Voltage [V]
+  #   3 = Highest Rectifier Output Temperature [C]
+  #   4 = Rectifier Compartment Temperature [C]
+  #
+  # Invalid source values are stored as NAN so the renderer can represent
+  # missing telemetry as a gap instead of an artificial zero.
+
+  - id: trend_selection
+    type: int
+    restore_value: false
+    initial_value: "0"
+
+  - id: trend_buffer_dc_power
+    type: std::vector<float>
+    restore_value: false
+    initial_value: "std::vector<float>(120, NAN)"
+
+  - id: trend_buffer_dc_current
+    type: std::vector<float>
+    restore_value: false
+    initial_value: "std::vector<float>(120, NAN)"
+
+  - id: trend_buffer_dc_voltage
+    type: std::vector<float>
+    restore_value: false
+    initial_value: "std::vector<float>(120, NAN)"
+
+  - id: trend_buffer_output_temp
+    type: std::vector<float>
+    restore_value: false
+    initial_value: "std::vector<float>(120, NAN)"
+
+  - id: trend_buffer_compartment_temp
+    type: std::vector<float>
+    restore_value: false
+    initial_value: "std::vector<float>(120, NAN)"
+
+  # Index receiving the next five-second sample.
+  - id: trend_write_index
+    type: uint16_t
+    restore_value: false
+    initial_value: "0"
+
+  # Number of samples that have actually been recorded.
+  # Saturates at 120 once the ring buffer is full.
+  - id: trend_sample_count
+    type: uint16_t
+    restore_value: false
+    initial_value: "0"
 
   # Timestamp (millis) when static property discovery most recently ended.
   # Used for the post-property grace period before connectivity demotion resumes.
@@ -2450,6 +2516,45 @@ canbus:
 # polling and periodic active-setpoint refresh.
 
 interval:
+  # --------------------------------------------------------------------------
+  # Periodic task: local TFT trend sampling
+  # --------------------------------------------------------------------------
+  #
+  # Store one sample for all five trends every five seconds.
+  #
+  # The source sensors already perform their own availability/staleness
+  # handling. NAN values are intentionally retained in the buffer so the
+  # chart can later render telemetry gaps instead of false zero values.
+  - interval: 5s
+    then:
+      - lambda: |-
+          constexpr uint16_t TREND_POINTS = 120;
+
+          const uint16_t index =
+            id(trend_write_index);
+
+          id(trend_buffer_dc_power)[index] =
+            id(combined_dc_power).state;
+
+          id(trend_buffer_dc_current)[index] =
+            id(combined_dc_current).state;
+
+          id(trend_buffer_dc_voltage)[index] =
+            id(average_dc_voltage).state;
+
+          id(trend_buffer_output_temp)[index] =
+            id(highest_output_temperature).state;
+
+          id(trend_buffer_compartment_temp)[index] =
+            id(rectifier_compartment_temperature).state;
+
+          id(trend_write_index) =
+            (index + 1) % TREND_POINTS;
+
+          if (id(trend_sample_count) < TREND_POINTS) {
+            id(trend_sample_count)++;
+          }
+
   # --------------------------------------------------------------------------
   # Periodic task: reconcile raw CAN connectivity with lifecycle state
   # --------------------------------------------------------------------------

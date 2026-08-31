@@ -15,3 +15,4 @@ packages:
   page_rectifier_detail: !include pages/rectifier-detail.yaml
   page_cooling: !include pages/cooling.yaml
   page_system: !include pages/system.yaml
+  page_trends: !include pages/trends.yaml

@@ -39,18 +39,43 @@ function Quote-Sh([string]$Value) {
 
 function Get-ManagedFiles {
     $packageRoot = Join-Path $RepoRoot "packages"
+
     if (-not (Test-Path -LiteralPath $packageRoot -PathType Container)) {
         throw "Required package directory is missing: packages"
     }
 
-    # Home Assistant only needs ESPHome configuration. Keep documentation and
-    # any future non-YAML repository files out of /config/esphome/packages.
-    return @(
+    $managedFiles = @()
+
+    # Home Assistant needs the ESPHome YAML package tree.
+    $managedFiles += @(
         Get-ChildItem -LiteralPath $packageRoot -File -Recurse -Filter "*.yaml" |
             Sort-Object FullName |
             ForEach-Object {
-                [System.IO.Path]::GetRelativePath($RepoRoot, $_.FullName).Replace('\', '/')
+                [System.IO.Path]::GetRelativePath(
+                    $RepoRoot,
+                    $_.FullName
+                ).Replace('\', '/')
             }
+    )
+
+    # Additional ESPHome source/include files required by the main YAML.
+    $extraFiles = @(
+        "trend_helpers.h"
+    )
+
+    foreach ($relativePath in $extraFiles) {
+        $fullPath = Join-Path $RepoRoot $relativePath
+
+        if (-not (Test-Path -LiteralPath $fullPath -PathType Leaf)) {
+            throw "Required deployment file is missing: $relativePath"
+        }
+
+        $managedFiles += $relativePath
+    }
+
+    return @(
+        $managedFiles |
+            Sort-Object -Unique
     )
 }
 

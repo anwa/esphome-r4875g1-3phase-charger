@@ -238,6 +238,13 @@ esphome:
     name: "anwa.3phase-charger"
     version: "${firmware_version}"
 
+  includes:
+    - trend_helpers.h
+
+  platformio_options:
+    build_flags:
+      - -D LV_USE_CHART=1
+
   on_boot:
     then:
       # Until valid rectifier status frames have been received, the actual
@@ -389,9 +396,10 @@ sensor:
   #
   # SELECT:
   #   Dashboard  -> select Voltage / Power
-  #   Rectifiers -> no selectable parameters
+  #   Rectifiers -> select L1 / L2 / L3 and open detail with short press
   #   Cooling    -> select Automatic and, in manual mode, Power / PWM
   #   System     -> no selectable parameters
+  #   Trends     -> select displayed trend
   #
   # EDIT:
   #   Rotation changes only encoder_edit_value.
@@ -476,6 +484,25 @@ sensor:
               }
 
               // System: read-only page
+              if (id(encoder_page) == 3) {
+                return;
+              }
+
+              // Trends:
+              // Rotate through the five available trend sources.
+              if (id(encoder_page) == 4) {
+                id(trend_selection) =
+                  (id(trend_selection) + 1) % 5;
+
+                ESP_LOGD(
+                  "encoder",
+                  "Trend SELECT: %d",
+                  id(trend_selection)
+                );
+
+                return;
+              }
+
               return;
             }
 
@@ -592,6 +619,24 @@ sensor:
               }
 
               // System
+              if (id(encoder_page) == 3) {
+                return;
+              }
+
+              // Trends
+              if (id(encoder_page) == 4) {
+                id(trend_selection) =
+                  (id(trend_selection) + 4) % 5;
+
+                ESP_LOGD(
+                  "encoder",
+                  "Trend SELECT: %d",
+                  id(trend_selection)
+                );
+
+                return;
+              }
+
               return;
             }
 
@@ -1101,7 +1146,7 @@ binary_sensor:
 
                       - lambda: |-
                           id(encoder_page) =
-                            (id(encoder_page) + 1) % 4;
+                            (id(encoder_page) + 1) % 5;
 
                           id(encoder_selection) = 0;
                           id(rectifier_detail_unit) = 0;
