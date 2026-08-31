@@ -281,7 +281,7 @@ Example:
 
 ```yaml
 substitutions:
-  firmware_version: "4.2.2"
+  firmware_version: "4.3.2"
 ```
 
 The same value is consumed by:
@@ -297,9 +297,9 @@ Repository convention:
 Examples:
 
 ```text
-4.2.0
-4.2.1
-4.2.2
+4.3.0
+4.3.1
+4.3.2
 ```
 
 Intentional release milestones may advance MINOR or MAJOR and reset PATCH.
@@ -623,7 +623,73 @@ OFFLINE       -> muted
 
 When CAN communication is unavailable, live telemetry is replaced by placeholders rather than leaving stale values visible.
 
-The page is currently read-only from the encoder.
+The Rectifiers overview participates in the encoder SELECT model.
+
+Encoder rotation selects:
+
+```text
+L1
+L2
+L3
+```
+
+The selected rectifier is marked with `>`.
+
+A short press opens the hierarchical detail view for the selected unit.
+
+### Rectifier detail view
+
+Each L1/L2/L3 entry opens one shared hierarchical detail page. The physical
+LVGL page is reused for all three units and obtains its content from
+`rectifier_detail_unit`.
+
+```text
+1 = L1 / Unit 1
+2 = L2 / Unit 2
+3 = L3 / Unit 3
+```
+
+The detail page displays values exclusively for the selected rectifier:
+
+* Power State,
+* CAN communication state,
+* lifecycle state,
+* AC input voltage,
+* AC input current,
+* AC input power,
+* AC frequency,
+* DC output voltage,
+* DC output current,
+* DC output power,
+* active maximum-current setpoint reported by the rectifier,
+* input temperature,
+* output temperature,
+* internal fan RPM,
+* internal fan target duty,
+* internal fan minimum duty,
+* detected maximum-current capability,
+* lifetime operating hours.
+
+The detail view remains read-only.
+
+Encoder behavior inside a Rectifier detail view:
+
+```text
+Rotate        -> no action
+Short press   -> no action
+Double press  -> return to Rectifiers overview
+Long press    -> global rectifier START/STOP
+```
+
+The detail page is excluded from normal main-page rotation. A double press
+therefore acts as **Back** rather than advancing to Cooling.
+
+Returning from a detail page preserves the previously selected L1/L2/L3 entry
+on the Rectifiers overview.
+
+Telemetry is checked for validity before being rendered. If CAN communication
+is unavailable or a required live telemetry value has expired, the affected
+display block uses placeholders instead of displaying stale values or `nan`.
 
 ---
 

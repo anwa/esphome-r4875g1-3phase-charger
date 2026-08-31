@@ -51,6 +51,7 @@ packages/
 │   └── pages/
 │       ├── dashboard.yaml
 │       ├── rectifiers.yaml
+│       ├── rectifier-detail.yaml
 │       ├── cooling.yaml
 │       └── system.yaml
 │
@@ -75,7 +76,7 @@ Example:
 
 ```yaml
 substitutions:
-  firmware_version: "4.2.2"
+  firmware_version: "4.3.2"
 ```
 
 The value is consumed by:
@@ -147,6 +148,7 @@ display/ui.yaml
     ↓
 display/pages/dashboard.yaml
 display/pages/rectifiers.yaml
+display/pages/rectifier-detail.yaml
 display/pages/cooling.yaml
 display/pages/system.yaml
 ```
@@ -318,9 +320,92 @@ OFFLINE        muted
 
 Unreachable units use placeholders instead of stale live telemetry.
 
-This page is read-only.
+The overview is read-only with respect to charger parameters, but it
+participates in hierarchical navigation.
 
-There are no selectable encoder parameters.
+Encoder selection values:
+
+```text
+0 = L1 / Unit 1
+1 = L2 / Unit 2
+2 = L3 / Unit 3
+```
+
+Rotation changes the selected unit and the currently selected card is marked
+with `>`.
+
+A short press opens `rectifier-detail.yaml` for the selected unit.
+
+---
+
+## `display/pages/rectifier-detail.yaml`
+
+Shared hierarchical detail view for all three R4875G1 units.
+
+The selected unit is stored in:
+
+```text
+rectifier_detail_unit
+```
+
+Values:
+
+```text
+0 = no detail page / Rectifiers overview
+1 = L1 / Unit 1
+2 = L2 / Unit 2
+3 = L3 / Unit 3
+```
+
+One shared LVGL page is used instead of maintaining three nearly identical
+page definitions.
+
+The LVGL page uses:
+
+```yaml
+skip: true
+```
+
+so it is excluded from normal `lvgl.page.next` main-page navigation.
+
+The detail page displays per-unit:
+
+* Power State,
+* CAN communication,
+* lifecycle,
+* AC input voltage,
+* AC input current,
+* AC input power,
+* AC frequency,
+* DC output voltage,
+* DC output current,
+* DC output power,
+* rectifier-reported active maximum-current setpoint,
+* input temperature,
+* output temperature,
+* internal fan RPM,
+* internal fan target duty,
+* internal fan minimum duty,
+* maximum-current capability,
+* operating hours.
+
+The detail view contains no editable parameters.
+
+Encoder behavior:
+
+```text
+Rotate        no action
+Short press   no action
+Double press  return to Rectifiers overview
+Long press    global rectifier ON/OFF
+```
+
+Returning to the Rectifiers overview restores the L1/L2/L3 selection to the
+unit whose detail page was just closed.
+
+Live telemetry is validated before formatting. If CAN communication is
+unavailable or one of the values required by an information block is `NAN`,
+that block displays placeholders instead of stale or `nan` text.
 
 ---
 
@@ -394,6 +479,7 @@ encoder_page
 encoder_selection
 encoder_edit_mode
 encoder_edit_value
+rectifier_detail_unit
 ```
 
 ---
@@ -414,6 +500,32 @@ A successful page change resets:
 ```text
 encoder_selection = 0
 ```
+
+---
+
+## `rectifier_detail_unit`
+
+Tracks hierarchical navigation below the Rectifiers main page.
+
+```text
+0 = Rectifiers overview
+1 = Unit 1 / L1 detail
+2 = Unit 2 / L2 detail
+3 = Unit 3 / L3 detail
+```
+
+This state is deliberately separate from `encoder_page`.
+
+While a detail view is open:
+
+```text
+encoder_page = 1
+```
+
+still identifies the logical main section as Rectifiers.
+
+This allows the detail page to behave as a true child view rather than as
+another main-menu page.
 
 ---
 
