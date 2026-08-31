@@ -1,8 +1,10 @@
 # ==============================================================================
 # LVGL UI PACKAGE AGGREGATOR
 # ==============================================================================
-# Screen definitions are split by page. This keeps layout and update logic local
-# to each view while display hardware and styling remain separate packages.
+# Main pages use the normal wrapped page sequence.
+#
+# Rectifier detail is a hierarchical child view. Its page is marked skip:true
+# so lvgl.page.next / previous never includes it in the main-menu cycle.
 
 lvgl:
   page_wrap: true
@@ -10,5 +12,6 @@ lvgl:
 packages:
   page_dashboard: !include pages/dashboard.yaml
   page_rectifiers: !include pages/rectifiers.yaml
+  page_rectifier_detail: !include pages/rectifier-detail.yaml
   page_cooling: !include pages/cooling.yaml
   page_system: !include pages/system.yaml

@@ -43,21 +43,22 @@ lvgl:
             styles: style_card
             widgets:
               - label:
-                  text: "L1"
+                  id: ui_rectifier_title_1
+                  text: "> L1"
                   text_font: ui_font_18_bold
                   text_color: 0x1769AA
               - label:
                   id: ui_rectifier_status_1
-                  x: 35
+                  x: 45
                   y: 0
-                  width: 255
+                  width: 245
                   text: "PWR -- | CAN -- | --"
                   text_font: ui_font_14
               - label:
                   id: ui_rectifier_1
-                  x: 35
+                  x: 45
                   y: 23
-                  width: 255
+                  width: 245
                   text: "DC    --.- V   --.- A   ---- W\nTemp  IN --.-   OUT --.- C\nFan   ---- RPM   Cap --.- A"
                   text_font: ui_font_14
 
@@ -71,21 +72,22 @@ lvgl:
             styles: style_card
             widgets:
               - label:
-                  text: "L2"
+                  id: ui_rectifier_title_2
+                  text: "> L2"
                   text_font: ui_font_18_bold
                   text_color: 0x1769AA
               - label:
                   id: ui_rectifier_status_2
-                  x: 35
+                  x: 45
                   y: 0
-                  width: 255
+                  width: 245
                   text: "PWR -- | CAN -- | --"
                   text_font: ui_font_14
               - label:
                   id: ui_rectifier_2
-                  x: 35
+                  x: 45
                   y: 23
-                  width: 255
+                  width: 245
                   text: "DC    --.- V   --.- A   ---- W\nTemp  IN --.-   OUT --.- C\nFan   ---- RPM   Cap --.- A"
                   text_font: ui_font_14
 
@@ -99,36 +101,95 @@ lvgl:
             styles: style_card
             widgets:
               - label:
-                  text: "L3"
+                  id: ui_rectifier_title_3
+                  text: "> L3"
                   text_font: ui_font_18_bold
                   text_color: 0x1769AA
               - label:
                   id: ui_rectifier_status_3
-                  x: 35
+                  x: 45
                   y: 0
-                  width: 255
+                  width: 245
                   text: "PWR -- | CAN -- | --"
                   text_font: ui_font_14
               - label:
                   id: ui_rectifier_3
-                  x: 35
+                  x: 45
                   y: 23
-                  width: 255
+                  width: 245
                   text: "DC    --.- V   --.- A   ---- W\nTemp  IN --.-   OUT --.- C\nFan   ---- RPM   Cap --.- A"
                   text_font: ui_font_14
 
         - label:
+            id: ui_rectifiers_footer
             x: 8
             y: 448
             width: 304
             text_align: CENTER
-            text: "Double page | Hold START/STOP"
+            text: "Turn select | Press details | Double page | Hold ON/OFF"
             text_font: ui_font_14
             text_color: 0x657080
 
 interval:
   - interval: 500ms
     then:
+      # ----------------------------------------------------------------------
+      # Rectifier SELECT indication
+      # ----------------------------------------------------------------------
+      - lvgl.label.update:
+          id: ui_rectifier_title_1
+          text: !lambda |-
+            return
+              id(encoder_page) == 1 &&
+              id(rectifier_detail_unit) == 0 &&
+              id(encoder_selection) == 0
+                ? std::string("> L1")
+                : std::string("  L1");
+
+          text_color: !lambda |-
+            return
+              id(encoder_page) == 1 &&
+              id(rectifier_detail_unit) == 0 &&
+              id(encoder_selection) == 0
+                ? lv_color_hex(0x1769AA)
+                : lv_color_hex(0x657080);
+
+      - lvgl.label.update:
+          id: ui_rectifier_title_2
+          text: !lambda |-
+            return
+              id(encoder_page) == 1 &&
+              id(rectifier_detail_unit) == 0 &&
+              id(encoder_selection) == 1
+                ? std::string("> L2")
+                : std::string("  L2");
+
+          text_color: !lambda |-
+            return
+              id(encoder_page) == 1 &&
+              id(rectifier_detail_unit) == 0 &&
+              id(encoder_selection) == 1
+                ? lv_color_hex(0x1769AA)
+                : lv_color_hex(0x657080);
+
+      - lvgl.label.update:
+          id: ui_rectifier_title_3
+          text: !lambda |-
+            return
+              id(encoder_page) == 1 &&
+              id(rectifier_detail_unit) == 0 &&
+              id(encoder_selection) == 2
+                ? std::string("> L3")
+                : std::string("  L3");
+
+          text_color: !lambda |-
+            return
+              id(encoder_page) == 1 &&
+              id(rectifier_detail_unit) == 0 &&
+              id(encoder_selection) == 2
+                ? lv_color_hex(0x1769AA)
+                : lv_color_hex(0x657080);
+
       - lvgl.label.update:
           id: ui_rectifier_status_1
           text: !lambda |-

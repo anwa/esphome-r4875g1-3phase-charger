@@ -29,8 +29,12 @@ globals:
   #   0 = DC Voltage
   #   1 = Total DC Power
   #
-  # Rectifiers:
-  #   none
+  # Rectifiers overview:
+  #   0 = Unit 1 / L1
+  #   1 = Unit 2 / L2
+  #   2 = Unit 3 / L3
+  #
+  # A short press opens the selected rectifier detail view.
   #
   # Cooling:
   #   0 = Automatic
@@ -41,6 +45,18 @@ globals:
   #   none
 
   - id: encoder_page
+    type: int
+    restore_value: false
+    initial_value: "0"
+
+  # Selected/open Rectifier detail view:
+  #   0 = Rectifiers overview
+  #   1 = Unit 1 / L1 detail
+  #   2 = Unit 2 / L2 detail
+  #   3 = Unit 3 / L3 detail
+  #
+  # Detail pages are navigation views, not additional main-menu pages.
+  - id: rectifier_detail_unit
     type: int
     restore_value: false
     initial_value: "0"
