@@ -10,11 +10,13 @@ The root configuration:
 
 assembles the packages in this directory into the complete firmware.
 
-Current stable firmware:
+Current stable firmware on `main`:
 
 ```text
 v4.3.0
 ```
+
+Feature branches may contain newer development versions.
 
 For the complete project documentation, hardware description, CAN protocol information, commissioning and troubleshooting, see:
 
@@ -53,7 +55,8 @@ packages/
 │       ├── rectifiers.yaml
 │       ├── rectifier-detail.yaml
 │       ├── cooling.yaml
-│       └── system.yaml
+│       ├── system.yaml
+│       └── trends.yaml
 │
 └── rectifier-can/
     ├── property-start.yaml
@@ -151,6 +154,7 @@ display/pages/rectifiers.yaml
 display/pages/rectifier-detail.yaml
 display/pages/cooling.yaml
 display/pages/system.yaml
+display/pages/trends.yaml
 ```
 
 ---
@@ -213,7 +217,7 @@ This avoids LVGL scrollbar inheritance differences and prevents unusable horizon
 
 ## `display/ui.yaml`
 
-Aggregates the four LVGL pages.
+Aggregates the five LVGL main pages plus the hierarchical Rectifier detail page.
 
 Page order:
 
@@ -222,6 +226,7 @@ Page order:
 1 Rectifiers
 2 Cooling
 3 System
+4 Trends
 ```
 
 Page wrapping is enabled:
@@ -234,6 +239,8 @@ Rectifiers
 Cooling
   ↓
 System
+  ↓
+Trends
   ↓
 Dashboard
 ```
@@ -466,6 +473,58 @@ There are no selectable encoder parameters.
 
 ---
 
+## `display/pages/trends.yaml`
+
+Owns the local ten-minute trend display.
+
+Five telemetry sources are recorded continuously:
+
+```text
+0 Combined DC Power
+1 Combined DC Current
+2 Average DC Voltage
+3 Highest Rectifier Output Temperature
+4 Rectifier Compartment Temperature
+```
+
+Sampling:
+
+```text
+5 seconds
+120 samples
+10 minutes
+```
+
+Each telemetry source has its own ring buffer, so changing the selected trend
+does not reset or restart its history.
+
+The page displays:
+
+```text
+selected trend
+line chart
+Current
+Min
+Max
+```
+
+Min and Max are calculated from the valid samples currently retained in the
+selected 120-point ring buffer.
+
+`NAN` values are preserved and displayed as chart gaps.
+
+The current chart implementation directly uses native LVGL because the stable
+ESPHome release does not yet expose the chart widget through its LVGL YAML
+integration.
+
+`LV_USE_CHART=1` is enabled by the root configuration and `trend_helpers.h`
+provides the local LVGL include support.
+
+This implementation is intended to be replaced by native ESPHome chart support
+when it becomes available in a stable release.
+
+---
+
 # Encoder SELECT / EDIT architecture
 
 The local encoder uses one page-aware state machine instead of page-specific button behavior.
@@ -480,6 +539,14 @@ encoder_selection
 encoder_edit_mode
 encoder_edit_value
 rectifier_detail_unit
+trend_selection
+trend_buffer_dc_power
+trend_buffer_dc_current
+trend_buffer_dc_voltage
+trend_buffer_output_temp
+trend_buffer_compartment_temp
+trend_write_index
+trend_sample_count
 ```
 
 ---
@@ -493,6 +560,7 @@ Current LVGL page:
 1 Rectifiers
 2 Cooling
 3 System
+4 Trends
 ```
 
 A successful page change resets:
@@ -550,7 +618,27 @@ Cooling:
 2 PWM
 ```
 
-Rectifiers and System do not use selections because they are read-only.
+Selection meaning is page-specific.
+
+Rectifiers:
+
+```text
+0 L1 / Unit 1
+1 L2 / Unit 2
+2 L3 / Unit 3
+````
+
+System has no selectable parameters.
+
+Trends uses `trend_selection` rather than `encoder_selection`:
+
+```text
+0 DC Power
+1 DC Current
+2 DC Voltage
+3 Output Temperature
+4 Compartment Temperature
+```
 
 ---
 
