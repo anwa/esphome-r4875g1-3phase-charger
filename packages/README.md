@@ -10,11 +10,13 @@ The root configuration:
 
 assembles the packages in this directory into the complete firmware.
 
-Current stable firmware:
+Current stable firmware on `main`:
 
 ```text
 v4.3.0
 ```
+
+Feature branches may contain newer development versions.
 
 For the complete project documentation, hardware description, CAN protocol information, commissioning and troubleshooting, see:
 
@@ -51,8 +53,10 @@ packages/
 │   └── pages/
 │       ├── dashboard.yaml
 │       ├── rectifiers.yaml
+│       ├── rectifier-detail.yaml
 │       ├── cooling.yaml
-│       └── system.yaml
+│       ├── system.yaml
+│       └── trends.yaml
 │
 └── rectifier-can/
     ├── property-start.yaml
@@ -75,7 +79,7 @@ Example:
 
 ```yaml
 substitutions:
-  firmware_version: "4.2.2"
+  firmware_version: "4.3.2"
 ```
 
 The value is consumed by:
@@ -147,8 +151,10 @@ display/ui.yaml
     ↓
 display/pages/dashboard.yaml
 display/pages/rectifiers.yaml
+display/pages/rectifier-detail.yaml
 display/pages/cooling.yaml
 display/pages/system.yaml
+display/pages/trends.yaml
 ```
 
 ---
@@ -211,7 +217,7 @@ This avoids LVGL scrollbar inheritance differences and prevents unusable horizon
 
 ## `display/ui.yaml`
 
-Aggregates the four LVGL pages.
+Aggregates the five LVGL main pages plus the hierarchical Rectifier detail page.
 
 Page order:
 
@@ -220,6 +226,7 @@ Page order:
 1 Rectifiers
 2 Cooling
 3 System
+4 Trends
 ```
 
 Page wrapping is enabled:
@@ -232,6 +239,8 @@ Rectifiers
 Cooling
   ↓
 System
+  ↓
+Trends
   ↓
 Dashboard
 ```
@@ -318,9 +327,92 @@ OFFLINE        muted
 
 Unreachable units use placeholders instead of stale live telemetry.
 
-This page is read-only.
+The overview is read-only with respect to charger parameters, but it
+participates in hierarchical navigation.
 
-There are no selectable encoder parameters.
+Encoder selection values:
+
+```text
+0 = L1 / Unit 1
+1 = L2 / Unit 2
+2 = L3 / Unit 3
+```
+
+Rotation changes the selected unit and the currently selected card is marked
+with `>`.
+
+A short press opens `rectifier-detail.yaml` for the selected unit.
+
+---
+
+## `display/pages/rectifier-detail.yaml`
+
+Shared hierarchical detail view for all three R4875G1 units.
+
+The selected unit is stored in:
+
+```text
+rectifier_detail_unit
+```
+
+Values:
+
+```text
+0 = no detail page / Rectifiers overview
+1 = L1 / Unit 1
+2 = L2 / Unit 2
+3 = L3 / Unit 3
+```
+
+One shared LVGL page is used instead of maintaining three nearly identical
+page definitions.
+
+The LVGL page uses:
+
+```yaml
+skip: true
+```
+
+so it is excluded from normal `lvgl.page.next` main-page navigation.
+
+The detail page displays per-unit:
+
+* Power State,
+* CAN communication,
+* lifecycle,
+* AC input voltage,
+* AC input current,
+* AC input power,
+* AC frequency,
+* DC output voltage,
+* DC output current,
+* DC output power,
+* rectifier-reported active maximum-current setpoint,
+* input temperature,
+* output temperature,
+* internal fan RPM,
+* internal fan target duty,
+* internal fan minimum duty,
+* maximum-current capability,
+* operating hours.
+
+The detail view contains no editable parameters.
+
+Encoder behavior:
+
+```text
+Rotate        no action
+Short press   no action
+Double press  return to Rectifiers overview
+Long press    global rectifier ON/OFF
+```
+
+Returning to the Rectifiers overview restores the L1/L2/L3 selection to the
+unit whose detail page was just closed.
+
+Live telemetry is validated before formatting. If CAN communication is
+unavailable or one of the values required by an information block is `NAN`,
+that block displays placeholders instead of stale or `nan` text.
 
 ---
 
@@ -381,6 +473,58 @@ There are no selectable encoder parameters.
 
 ---
 
+## `display/pages/trends.yaml`
+
+Owns the local ten-minute trend display.
+
+Five telemetry sources are recorded continuously:
+
+```text
+0 Combined DC Power
+1 Combined DC Current
+2 Average DC Voltage
+3 Highest Rectifier Output Temperature
+4 Rectifier Compartment Temperature
+```
+
+Sampling:
+
+```text
+5 seconds
+120 samples
+10 minutes
+```
+
+Each telemetry source has its own ring buffer, so changing the selected trend
+does not reset or restart its history.
+
+The page displays:
+
+```text
+selected trend
+line chart
+Current
+Min
+Max
+```
+
+Min and Max are calculated from the valid samples currently retained in the
+selected 120-point ring buffer.
+
+`NAN` values are preserved and displayed as chart gaps.
+
+The current chart implementation directly uses native LVGL because the stable
+ESPHome release does not yet expose the chart widget through its LVGL YAML
+integration.
+
+`LV_USE_CHART=1` is enabled by the root configuration and `trend_helpers.h`
+provides the local LVGL include support.
+
+This implementation is intended to be replaced by native ESPHome chart support
+when it becomes available in a stable release.
+
+---
+
 # Encoder SELECT / EDIT architecture
 
 The local encoder uses one page-aware state machine instead of page-specific button behavior.
@@ -394,6 +538,15 @@ encoder_page
 encoder_selection
 encoder_edit_mode
 encoder_edit_value
+rectifier_detail_unit
+trend_selection
+trend_buffer_dc_power
+trend_buffer_dc_current
+trend_buffer_dc_voltage
+trend_buffer_output_temp
+trend_buffer_compartment_temp
+trend_write_index
+trend_sample_count
 ```
 
 ---
@@ -407,6 +560,7 @@ Current LVGL page:
 1 Rectifiers
 2 Cooling
 3 System
+4 Trends
 ```
 
 A successful page change resets:
@@ -414,6 +568,32 @@ A successful page change resets:
 ```text
 encoder_selection = 0
 ```
+
+---
+
+## `rectifier_detail_unit`
+
+Tracks hierarchical navigation below the Rectifiers main page.
+
+```text
+0 = Rectifiers overview
+1 = Unit 1 / L1 detail
+2 = Unit 2 / L2 detail
+3 = Unit 3 / L3 detail
+```
+
+This state is deliberately separate from `encoder_page`.
+
+While a detail view is open:
+
+```text
+encoder_page = 1
+```
+
+still identifies the logical main section as Rectifiers.
+
+This allows the detail page to behave as a true child view rather than as
+another main-menu page.
 
 ---
 
@@ -438,7 +618,27 @@ Cooling:
 2 PWM
 ```
 
-Rectifiers and System do not use selections because they are read-only.
+Selection meaning is page-specific.
+
+Rectifiers:
+
+```text
+0 L1 / Unit 1
+1 L2 / Unit 2
+2 L3 / Unit 3
+````
+
+System has no selectable parameters.
+
+Trends uses `trend_selection` rather than `encoder_selection`:
+
+```text
+0 DC Power
+1 DC Current
+2 DC Voltage
+3 Output Temperature
+4 Compartment Temperature
+```
 
 ---
 

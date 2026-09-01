@@ -1,0 +1,688 @@
+# ==============================================================================
+# LVGL PAGE: RECTIFIER DETAIL
+# ==============================================================================
+# Shared hierarchical child page of the Rectifiers overview.
+#
+# rectifier_detail_unit:
+#   1 = L1 / Unit 1
+#   2 = L2 / Unit 2
+#   3 = L3 / Unit 3
+#
+# One shared LVGL page is used for all three rectifiers.
+#
+# skip:true excludes this child view from the normal wrapped main-page sequence.
+#
+# All live telemetry is validated before formatting. If CAN communication is
+# unavailable or one of the values required by a display block is NAN, that
+# complete block shows placeholders rather than stale values or "nan".
+
+lvgl:
+  pages:
+    - id: rectifier_detail_page
+      skip: true
+      bg_color: 0xF3F5F8
+      bg_opa: COVER
+      scrollable: false
+      scrollbar_mode: "OFF"
+
+      widgets:
+
+        # ====================================================================
+        # HEADER
+        # ====================================================================
+        - obj:
+            x: 0
+            y: 0
+            width: 100%
+            height: 64
+            styles: style_header
+            pad_all: 0
+            scrollable: false
+            scrollbar_mode: "OFF"
+
+            widgets:
+              - label:
+                  id: ui_rectifier_detail_title
+                  x: 10
+                  y: 8
+                  width: 300
+                  text_align: CENTER
+                  text: "RECTIFIER L-"
+                  text_font: ui_font_26_bold
+
+              - label:
+                  id: ui_rectifier_detail_status
+                  x: 10
+                  y: 42
+                  width: 300
+                  text_align: CENTER
+                  text: "PWR -- | CAN -- | --"
+                  text_font: ui_font_14
+                  text_color: 0xFFFFFF
+
+
+        # ====================================================================
+        # AC INPUT
+        # ====================================================================
+        - obj:
+            x: 8
+            y: 72
+            width: 304
+            height: 78
+            styles: style_card
+            scrollable: false
+            scrollbar_mode: "OFF"
+
+            widgets:
+              - label:
+                  text: "AC INPUT"
+                  text_font: ui_font_14
+                  text_color: 0x657080
+
+              - label:
+                  id: ui_rectifier_detail_ac
+                  x: 0
+                  y: 23
+                  width: 280
+                  text: "--.- V    --.- A\n---- W     --.-- Hz"
+                  text_font: ui_font_18_bold
+
+
+        # ====================================================================
+        # DC OUTPUT
+        # ====================================================================
+        - obj:
+            x: 8
+            y: 158
+            width: 304
+            height: 78
+            styles: style_card
+            scrollable: false
+            scrollbar_mode: "OFF"
+
+            widgets:
+              - label:
+                  text: "DC OUTPUT"
+                  text_font: ui_font_14
+                  text_color: 0x657080
+
+              - label:
+                  id: ui_rectifier_detail_dc
+                  x: 0
+                  y: 23
+                  width: 280
+                  text: "--.- V    --.- A\n---- W     Set --.- A"
+                  text_font: ui_font_18_bold
+
+
+        # ====================================================================
+        # THERMAL / INTERNAL FAN
+        # ====================================================================
+        - obj:
+            x: 8
+            y: 244
+            width: 304
+            height: 116
+            styles: style_card
+            scrollable: false
+            scrollbar_mode: "OFF"
+
+            widgets:
+              - label:
+                  text: "THERMAL / INTERNAL FAN"
+                  text_font: ui_font_14
+                  text_color: 0x657080
+
+              - label:
+                  id: ui_rectifier_detail_thermal
+                  x: 0
+                  y: 23
+                  width: 280
+                  text: "IN --.- C    OUT --.- C\nFan ---- RPM  Duty --.- %\nMin --.- %     Cap --.- A"
+                  text_font: ui_font_18_bold
+
+
+        # ====================================================================
+        # RUNTIME
+        # ====================================================================
+        - obj:
+            x: 8
+            y: 368
+            width: 304
+            height: 60
+            styles: style_card
+            scrollable: false
+            scrollbar_mode: "OFF"
+
+            widgets:
+              - label:
+                  text: "RUNTIME"
+                  text_font: ui_font_14
+                  text_color: 0x657080
+
+              - label:
+                  id: ui_rectifier_detail_runtime
+                  x: 0
+                  y: 23
+                  width: 280
+                  text: "Operating ---- h"
+                  text_font: ui_font_18_bold
+
+
+        # ====================================================================
+        # FOOTER
+        # ====================================================================
+        - label:
+            x: 8
+            y: 448
+            width: 304
+            text_align: CENTER
+            text: "Double back | Hold ON/OFF"
+            text_font: ui_font_14
+            text_color: 0x657080
+
+# ==============================================================================
+# LIVE DETAIL UPDATE
+# ==============================================================================
+interval:
+  - interval: 500ms
+    then:
+
+      # ======================================================================
+      # HEADER TITLE
+      # ======================================================================
+      - lvgl.label.update:
+          id: ui_rectifier_detail_title
+
+          text: !lambda |-
+            switch (id(rectifier_detail_unit)) {
+              case 1:
+                return std::string("RECTIFIER L1");
+              case 2:
+                return std::string("RECTIFIER L2");
+              case 3:
+                return std::string("RECTIFIER L3");
+              default:
+                return std::string("RECTIFIER");
+            }
+
+
+      # ======================================================================
+      # PWR / CAN / LIFECYCLE
+      # ======================================================================
+      - lvgl.label.update:
+          id: ui_rectifier_detail_status
+
+          text: !lambda |-
+            const int unit = id(rectifier_detail_unit);
+
+            if (unit == 1) {
+              const std::string lifecycle =
+                id(rectifier_control_state_text_1).state.empty()
+                  ? "--"
+                  : id(rectifier_control_state_text_1).state;
+
+              const std::string power =
+                id(power_state_1).state == "UNKNOWN"
+                  ? "?"
+                  : (
+                      id(power_state_1).state.empty()
+                        ? "--"
+                        : id(power_state_1).state
+                    );
+
+              return str_sprintf(
+                "PWR %s | CAN %s | %s",
+                power.c_str(),
+                id(can_com_ok_1).state ? "OK" : "FAULT",
+                lifecycle.c_str()
+              );
+            }
+
+            if (unit == 2) {
+              const std::string lifecycle =
+                id(rectifier_control_state_text_2).state.empty()
+                  ? "--"
+                  : id(rectifier_control_state_text_2).state;
+
+              const std::string power =
+                id(power_state_2).state == "UNKNOWN"
+                  ? "?"
+                  : (
+                      id(power_state_2).state.empty()
+                        ? "--"
+                        : id(power_state_2).state
+                    );
+
+              return str_sprintf(
+                "PWR %s | CAN %s | %s",
+                power.c_str(),
+                id(can_com_ok_2).state ? "OK" : "FAULT",
+                lifecycle.c_str()
+              );
+            }
+
+            if (unit == 3) {
+              const std::string lifecycle =
+                id(rectifier_control_state_text_3).state.empty()
+                  ? "--"
+                  : id(rectifier_control_state_text_3).state;
+
+              const std::string power =
+                id(power_state_3).state == "UNKNOWN"
+                  ? "?"
+                  : (
+                      id(power_state_3).state.empty()
+                        ? "--"
+                        : id(power_state_3).state
+                    );
+
+              return str_sprintf(
+                "PWR %s | CAN %s | %s",
+                power.c_str(),
+                id(can_com_ok_3).state ? "OK" : "FAULT",
+                lifecycle.c_str()
+              );
+            }
+
+            return std::string(
+              "PWR -- | CAN -- | --"
+            );
+
+          text_color: !lambda |-
+            const int unit = id(rectifier_detail_unit);
+
+            if (unit == 1) {
+              if (!id(can_com_ok_1).state)
+                return lv_color_hex(0xFF3030);
+
+              if (
+                id(rectifier_control_state_1) ==
+                ${rectifier_state_discovering}
+              )
+                return lv_color_hex(0xFFC04A);
+
+              if (
+                id(rectifier_control_state_1) ==
+                ${rectifier_state_online}
+              )
+                return lv_color_hex(0x5CFF7A);
+            }
+
+            if (unit == 2) {
+              if (!id(can_com_ok_2).state)
+                return lv_color_hex(0xFF3030);
+
+              if (
+                id(rectifier_control_state_2) ==
+                ${rectifier_state_discovering}
+              )
+                return lv_color_hex(0xFFC04A);
+
+              if (
+                id(rectifier_control_state_2) ==
+                ${rectifier_state_online}
+              )
+                return lv_color_hex(0x5CFF7A);
+            }
+
+            if (unit == 3) {
+              if (!id(can_com_ok_3).state)
+                return lv_color_hex(0xFF3030);
+
+              if (
+                id(rectifier_control_state_3) ==
+                ${rectifier_state_discovering}
+              )
+                return lv_color_hex(0xFFC04A);
+
+              if (
+                id(rectifier_control_state_3) ==
+                ${rectifier_state_online}
+              )
+                return lv_color_hex(0x5CFF7A);
+            }
+
+            return lv_color_hex(0xFFFFFF);
+
+
+      # ======================================================================
+      # AC INPUT
+      # ======================================================================
+      - lvgl.label.update:
+          id: ui_rectifier_detail_ac
+
+          text: !lambda |-
+            const int unit = id(rectifier_detail_unit);
+
+            if (unit == 1) {
+              if (
+                !id(can_com_ok_1).state ||
+                isnan(id(ac_voltage_1).state) ||
+                isnan(id(ac_current_1).state) ||
+                isnan(id(ac_power_1).state) ||
+                isnan(id(ac_frequency_1).state)
+              ) {
+                return std::string(
+                  "--.- V    --.- A\n"
+                  "---- W     --.-- Hz"
+                );
+              }
+
+              return str_sprintf(
+                "%.1f V    %.1f A\n"
+                "%.0f W     %.2f Hz",
+                id(ac_voltage_1).state,
+                id(ac_current_1).state,
+                id(ac_power_1).state,
+                id(ac_frequency_1).state
+              );
+            }
+
+            if (unit == 2) {
+              if (
+                !id(can_com_ok_2).state ||
+                isnan(id(ac_voltage_2).state) ||
+                isnan(id(ac_current_2).state) ||
+                isnan(id(ac_power_2).state) ||
+                isnan(id(ac_frequency_2).state)
+              ) {
+                return std::string(
+                  "--.- V    --.- A\n"
+                  "---- W     --.-- Hz"
+                );
+              }
+
+              return str_sprintf(
+                "%.1f V    %.1f A\n"
+                "%.0f W     %.2f Hz",
+                id(ac_voltage_2).state,
+                id(ac_current_2).state,
+                id(ac_power_2).state,
+                id(ac_frequency_2).state
+              );
+            }
+
+            if (unit == 3) {
+              if (
+                !id(can_com_ok_3).state ||
+                isnan(id(ac_voltage_3).state) ||
+                isnan(id(ac_current_3).state) ||
+                isnan(id(ac_power_3).state) ||
+                isnan(id(ac_frequency_3).state)
+              ) {
+                return std::string(
+                  "--.- V    --.- A\n"
+                  "---- W     --.-- Hz"
+                );
+              }
+
+              return str_sprintf(
+                "%.1f V    %.1f A\n"
+                "%.0f W     %.2f Hz",
+                id(ac_voltage_3).state,
+                id(ac_current_3).state,
+                id(ac_power_3).state,
+                id(ac_frequency_3).state
+              );
+            }
+
+            return std::string(
+              "--.- V    --.- A\n"
+              "---- W     --.-- Hz"
+            );
+
+
+      # ======================================================================
+      # DC OUTPUT
+      # ======================================================================
+      - lvgl.label.update:
+          id: ui_rectifier_detail_dc
+
+          text: !lambda |-
+            const int unit = id(rectifier_detail_unit);
+
+            if (unit == 1) {
+              if (
+                !id(can_com_ok_1).state ||
+                isnan(id(dc_voltage_1).state) ||
+                isnan(id(dc_current_1).state) ||
+                isnan(id(dc_power_1).state) ||
+                isnan(id(max_dc_current_setpoint_1).state)
+              ) {
+                return std::string(
+                  "--.- V    --.- A\n"
+                  "---- W     Set --.- A"
+                );
+              }
+
+              return str_sprintf(
+                "%.1f V    %.1f A\n"
+                "%.0f W     Set %.1f A",
+                id(dc_voltage_1).state,
+                id(dc_current_1).state,
+                id(dc_power_1).state,
+                id(max_dc_current_setpoint_1).state
+              );
+            }
+
+            if (unit == 2) {
+              if (
+                !id(can_com_ok_2).state ||
+                isnan(id(dc_voltage_2).state) ||
+                isnan(id(dc_current_2).state) ||
+                isnan(id(dc_power_2).state) ||
+                isnan(id(max_dc_current_setpoint_2).state)
+              ) {
+                return std::string(
+                  "--.- V    --.- A\n"
+                  "---- W     Set --.- A"
+                );
+              }
+
+              return str_sprintf(
+                "%.1f V    %.1f A\n"
+                "%.0f W     Set %.1f A",
+                id(dc_voltage_2).state,
+                id(dc_current_2).state,
+                id(dc_power_2).state,
+                id(max_dc_current_setpoint_2).state
+              );
+            }
+
+            if (unit == 3) {
+              if (
+                !id(can_com_ok_3).state ||
+                isnan(id(dc_voltage_3).state) ||
+                isnan(id(dc_current_3).state) ||
+                isnan(id(dc_power_3).state) ||
+                isnan(id(max_dc_current_setpoint_3).state)
+              ) {
+                return std::string(
+                  "--.- V    --.- A\n"
+                  "---- W     Set --.- A"
+                );
+              }
+
+              return str_sprintf(
+                "%.1f V    %.1f A\n"
+                "%.0f W     Set %.1f A",
+                id(dc_voltage_3).state,
+                id(dc_current_3).state,
+                id(dc_power_3).state,
+                id(max_dc_current_setpoint_3).state
+              );
+            }
+
+            return std::string(
+              "--.- V    --.- A\n"
+              "---- W     Set --.- A"
+            );
+
+
+      # ======================================================================
+      # THERMAL / INTERNAL FAN / CAPABILITY
+      # ======================================================================
+      - lvgl.label.update:
+          id: ui_rectifier_detail_thermal
+
+          text: !lambda |-
+            const int unit = id(rectifier_detail_unit);
+
+            if (unit == 1) {
+              if (
+                !id(can_com_ok_1).state ||
+                isnan(id(input_temperature_1).state) ||
+                isnan(id(output_temperature_1).state) ||
+                isnan(id(fan_rpm_1).state) ||
+                isnan(id(fan_duty_setpoint_1).state) ||
+                isnan(id(fan_duty_1).state) ||
+                isnan(id(max_dc_current_1).state)
+              ) {
+                return std::string(
+                  "IN --.- C    OUT --.- C\n"
+                  "Fan ---- RPM  Duty --.- %\n"
+                  "Min --.- %     Cap --.- A"
+                );
+              }
+
+              return str_sprintf(
+                "IN %.1f C    OUT %.1f C\n"
+                "Fan %.0f RPM  Duty %.1f %%\n"
+                "Min %.1f %%     Cap %.1f A",
+                id(input_temperature_1).state,
+                id(output_temperature_1).state,
+                id(fan_rpm_1).state,
+                id(fan_duty_setpoint_1).state,
+                id(fan_duty_1).state,
+                id(max_dc_current_1).state
+              );
+            }
+
+            if (unit == 2) {
+              if (
+                !id(can_com_ok_2).state ||
+                isnan(id(input_temperature_2).state) ||
+                isnan(id(output_temperature_2).state) ||
+                isnan(id(fan_rpm_2).state) ||
+                isnan(id(fan_duty_setpoint_2).state) ||
+                isnan(id(fan_duty_2).state) ||
+                isnan(id(max_dc_current_2).state)
+              ) {
+                return std::string(
+                  "IN --.- C    OUT --.- C\n"
+                  "Fan ---- RPM  Duty --.- %\n"
+                  "Min --.- %     Cap --.- A"
+                );
+              }
+
+              return str_sprintf(
+                "IN %.1f C    OUT %.1f C\n"
+                "Fan %.0f RPM  Duty %.1f %%\n"
+                "Min %.1f %%     Cap %.1f A",
+                id(input_temperature_2).state,
+                id(output_temperature_2).state,
+                id(fan_rpm_2).state,
+                id(fan_duty_setpoint_2).state,
+                id(fan_duty_2).state,
+                id(max_dc_current_2).state
+              );
+            }
+
+            if (unit == 3) {
+              if (
+                !id(can_com_ok_3).state ||
+                isnan(id(input_temperature_3).state) ||
+                isnan(id(output_temperature_3).state) ||
+                isnan(id(fan_rpm_3).state) ||
+                isnan(id(fan_duty_setpoint_3).state) ||
+                isnan(id(fan_duty_3).state) ||
+                isnan(id(max_dc_current_3).state)
+              ) {
+                return std::string(
+                  "IN --.- C    OUT --.- C\n"
+                  "Fan ---- RPM  Duty --.- %\n"
+                  "Min --.- %     Cap --.- A"
+                );
+              }
+
+              return str_sprintf(
+                "IN %.1f C    OUT %.1f C\n"
+                "Fan %.0f RPM  Duty %.1f %%\n"
+                "Min %.1f %%     Cap %.1f A",
+                id(input_temperature_3).state,
+                id(output_temperature_3).state,
+                id(fan_rpm_3).state,
+                id(fan_duty_setpoint_3).state,
+                id(fan_duty_3).state,
+                id(max_dc_current_3).state
+              );
+            }
+
+            return std::string(
+              "IN --.- C    OUT --.- C\n"
+              "Fan ---- RPM  Duty --.- %\n"
+              "Min --.- %     Cap --.- A"
+            );
+
+
+      # ======================================================================
+      # OPERATING HOURS
+      # ======================================================================
+      - lvgl.label.update:
+          id: ui_rectifier_detail_runtime
+
+          text: !lambda |-
+            const int unit = id(rectifier_detail_unit);
+
+            if (unit == 1) {
+              if (
+                !id(can_com_ok_1).state ||
+                isnan(id(operating_hours_1).state)
+              ) {
+                return std::string(
+                  "Operating ---- h"
+                );
+              }
+
+              return str_sprintf(
+                "Operating %.0f h",
+                id(operating_hours_1).state
+              );
+            }
+
+            if (unit == 2) {
+              if (
+                !id(can_com_ok_2).state ||
+                isnan(id(operating_hours_2).state)
+              ) {
+                return std::string(
+                  "Operating ---- h"
+                );
+              }
+
+              return str_sprintf(
+                "Operating %.0f h",
+                id(operating_hours_2).state
+              );
+            }
+
+            if (unit == 3) {
+              if (
+                !id(can_com_ok_3).state ||
+                isnan(id(operating_hours_3).state)
+              ) {
+                return std::string(
+                  "Operating ---- h"
+                );
+              }
+
+              return str_sprintf(
+                "Operating %.0f h",
+                id(operating_hours_3).state
+              );
+            }
+
+            return std::string(
+              "Operating ---- h"
+            );

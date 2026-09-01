@@ -6,7 +6,9 @@ The project combines CAN control, live telemetry, Home Assistant, MQTT, a local 
 
 Core charger operation is intentionally local so the system remains usable during a network outage or an off-grid blackstart situation.
 
-**Stable firmware:** `v4.3.0` on `main`  
+**Stable firmware:** `v4.3.0` on `main`
+
+Feature branches may contain newer development versions.
 
 For detailed state-machine and runtime diagrams, see [`R4875G1_CONTROL_FLOWS.md`](R4875G1_CONTROL_FLOWS.md).
 
@@ -198,14 +200,18 @@ Temperature protection includes:
 
 ## Local TFT
 
-Four LVGL pages:
+Five LVGL main pages:
 
 ```text
 Dashboard
 Rectifiers
 Cooling
 System
+Trends
 ```
+
+The Rectifiers main page additionally provides hierarchical per-unit detail
+views for L1, L2 and L3.
 
 All pages use a common 64 px header layout.
 
@@ -219,6 +225,7 @@ The firmware is split into modular ESPHome packages.
 
 ```text
 r4875g1-3phase-charger.yaml
+trend_helpers.h
 
 packages/
 ├── version.yaml
@@ -238,7 +245,8 @@ packages/
 │       ├── dashboard.yaml
 │       ├── rectifiers.yaml
 │       ├── cooling.yaml
-│       └── system.yaml
+│       ├── system.yaml
+│       └── trends.yaml
 │
 └── rectifier-can/
     ├── property-start.yaml
@@ -261,11 +269,13 @@ Main responsibilities:
 | `display/theme.yaml`    | LVGL fonts, styles and shared theme                |
 | `display/ui.yaml`       | page aggregation and wrapping                      |
 | `display/pages/*.yaml`  | individual TFT pages                               |
+| `trends.yaml`           | local 10-minute trend display                      |
 | `cooling.yaml`          | external fan power, PWM, RPM and automatic cooling |
 | `controls.yaml`         | charger-wide setpoints and controls                |
 | `rectifier-unit.yaml`   | parameterized per-unit implementation              |
 | `rectifier-shared.yaml` | lifecycle, discovery, limits and shared control    |
 | `rectifier-can/*.yaml`  | CAN receive handlers                               |
+| `trend_helpers.h`       | temporary native LVGL chart support                |
 
 ---
 
@@ -281,7 +291,7 @@ Example:
 
 ```yaml
 substitutions:
-  firmware_version: "4.2.2"
+  firmware_version: "4.3.3"
 ```
 
 The same value is consumed by:
@@ -297,9 +307,9 @@ Repository convention:
 Examples:
 
 ```text
-4.2.0
-4.2.1
-4.2.2
+4.3.1
+4.3.2
+4.3.3
 ```
 
 Intentional release milestones may advance MINOR or MAJOR and reset PATCH.
@@ -508,15 +518,16 @@ The three tachometer inputs are independent.
 
 ---
 
-# Four-page LVGL user interface
+# LVGL user interface
 
-The local display consists of four pages:
+The local display consists of five main pages:
 
 ```text
 Dashboard
 Rectifiers
 Cooling
 System
+Trends
 ```
 
 Page wrapping is enabled:
@@ -529,6 +540,8 @@ Rectifiers
 Cooling
    ↓
 System
+   ↓
+Trends
    ↓
 Dashboard
 ```
@@ -623,7 +636,73 @@ OFFLINE       -> muted
 
 When CAN communication is unavailable, live telemetry is replaced by placeholders rather than leaving stale values visible.
 
-The page is currently read-only from the encoder.
+The Rectifiers overview participates in the encoder SELECT model.
+
+Encoder rotation selects:
+
+```text
+L1
+L2
+L3
+```
+
+The selected rectifier is marked with `>`.
+
+A short press opens the hierarchical detail view for the selected unit.
+
+### Rectifier detail view
+
+Each L1/L2/L3 entry opens one shared hierarchical detail page. The physical
+LVGL page is reused for all three units and obtains its content from
+`rectifier_detail_unit`.
+
+```text
+1 = L1 / Unit 1
+2 = L2 / Unit 2
+3 = L3 / Unit 3
+```
+
+The detail page displays values exclusively for the selected rectifier:
+
+* Power State,
+* CAN communication state,
+* lifecycle state,
+* AC input voltage,
+* AC input current,
+* AC input power,
+* AC frequency,
+* DC output voltage,
+* DC output current,
+* DC output power,
+* active maximum-current setpoint reported by the rectifier,
+* input temperature,
+* output temperature,
+* internal fan RPM,
+* internal fan target duty,
+* internal fan minimum duty,
+* detected maximum-current capability,
+* lifetime operating hours.
+
+The detail view remains read-only.
+
+Encoder behavior inside a Rectifier detail view:
+
+```text
+Rotate        -> no action
+Short press   -> no action
+Double press  -> return to Rectifiers overview
+Long press    -> global rectifier START/STOP
+```
+
+The detail page is excluded from normal main-page rotation. A double press
+therefore acts as **Back** rather than advancing to Cooling.
+
+Returning from a detail page preserves the previously selected L1/L2/L3 entry
+on the Rectifiers overview.
+
+Telemetry is checked for validity before being rendered. If CAN communication
+is unavailable or a required live telemetry value has expired, the affected
+display block uses placeholders instead of displaying stale values or `nan`.
 
 ---
 
@@ -671,6 +750,73 @@ The System page displays:
 Runtime values such as uptime, heap and PSRAM are obtained locally without creating duplicate TFT-only Home Assistant entities.
 
 The System page is read-only from the encoder.
+
+---
+
+## Trends
+
+The Trends page provides a local rolling telemetry history without requiring
+Home Assistant, MQTT or Grafana.
+
+Five trend sources are currently available:
+
+```text
+Combined DC Power
+Combined DC Current
+Average DC Voltage
+Highest Rectifier Output Temperature
+Rectifier Compartment Temperature
+```
+
+All five sources are sampled continuously every 5 seconds.
+
+Each source uses a 120-point ring buffer:
+
+```text
+120 samples × 5 seconds = 600 seconds = 10 minutes
+```
+
+History collection continues while other TFT pages are displayed.
+
+Encoder rotation selects the displayed trend.
+
+The current implementation displays one native LVGL line chart together with:
+
+```text
+Current
+Min
+Max
+```
+
+Min and Max are calculated from the valid samples currently contained in the
+10-minute history window.
+
+Invalid telemetry is retained as `NAN` in the ring buffers and rendered as
+gaps rather than false zero values.
+
+The native LVGL chart is currently enabled through:
+
+```text
+LV_USE_CHART=1
+```
+
+and uses the local:
+
+```text
+trend_helpers.h
+```
+
+This is an interim implementation until native ESPHome LVGL chart support is
+available in a stable release.
+
+Encoder behavior:
+
+```text
+Rotate        select trend
+Short press   no action
+Double press  next main page
+Long press    global rectifier ON/OFF
+```
 
 ---
 

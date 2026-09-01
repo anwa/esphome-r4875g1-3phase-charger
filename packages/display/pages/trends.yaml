@@ -1,0 +1,892 @@
+# ==============================================================================
+# LVGL PAGE: TRENDS
+# ==============================================================================
+# Local 10-minute trend display.
+#
+# Five trends are sampled continuously every 5 seconds in rectifier-shared.yaml:
+#
+#   0 = Combined DC Power
+#   1 = Combined DC Current
+#   2 = Average DC Voltage
+#   3 = Highest Rectifier Output Temperature
+#   4 = Rectifier Compartment Temperature
+#
+# 120 samples × 5 seconds = 10 minutes.
+#
+# ESPHome does not yet provide the LVGL chart widget in the stable release.
+# Therefore the chart itself is created and maintained through the native
+# LVGL C API.
+#
+# TODO:
+# Replace the direct LVGL implementation with ESPHome's native chart widget
+# once esphome/esphome#13987 has reached a stable ESPHome release.
+
+lvgl:
+  pages:
+    - id: trends_page
+      bg_color: 0xF3F5F8
+      bg_opa: COVER
+      scrollable: false
+      scrollbar_mode: "OFF"
+
+      widgets:
+
+        # ====================================================================
+        # HEADER
+        # ====================================================================
+        - obj:
+            x: 0
+            y: 0
+            width: 100%
+            height: 64
+            styles: style_header
+            pad_all: 0
+            scrollable: false
+            scrollbar_mode: "OFF"
+
+            widgets:
+              - label:
+                  x: 10
+                  y: 8
+                  width: 300
+                  text_align: CENTER
+                  text: "TRENDS"
+                  text_font: ui_font_26_bold
+
+              - label:
+                  id: ui_trend_subtitle
+                  x: 10
+                  y: 42
+                  width: 300
+                  text_align: CENTER
+                  text: "> DC POWER | 10 MIN"
+                  text_font: ui_font_14
+                  text_color: 0xFFFFFF
+
+
+        # ====================================================================
+        # CHART CARD
+        # ====================================================================
+        #
+        # ui_trend_chart_host is a normal ESPHome LVGL object.
+        #
+        # The native lv_chart object is created as a child of this container
+        # from trend_chart_refresh below.
+        - obj:
+            id: ui_trend_chart_host
+            x: 8
+            y: 72
+            width: 304
+            height: 276
+            styles: style_card
+            pad_all: 0
+            scrollable: false
+            scrollbar_mode: "OFF"
+
+            widgets:
+
+              # --------------------------------------------------------------
+              # Dynamic Y-axis labels
+              # --------------------------------------------------------------
+              - label:
+                  id: ui_trend_y_max
+                  x: 2
+                  y: 8
+                  width: 46
+                  text_align: RIGHT
+                  text: "--"
+                  text_font: ui_font_14
+                  text_color: 0x657080
+
+              - label:
+                  id: ui_trend_y_mid
+                  x: 2
+                  y: 110
+                  width: 46
+                  text_align: RIGHT
+                  text: "--"
+                  text_font: ui_font_14
+                  text_color: 0x657080
+
+              - label:
+                  id: ui_trend_y_min
+                  x: 2
+                  y: 212
+                  width: 46
+                  text_align: RIGHT
+                  text: "--"
+                  text_font: ui_font_14
+                  text_color: 0x657080
+
+              # --------------------------------------------------------------
+              # Fixed X-axis labels
+              # --------------------------------------------------------------
+              - label:
+                  x: 52
+                  y: 254
+                  width: 55
+                  text_align: LEFT
+                  text: "-10m"
+                  text_font: ui_font_14
+                  text_color: 0x657080
+
+              - label:
+                  x: 145
+                  y: 254
+                  width: 55
+                  text_align: CENTER
+                  text: "-5m"
+                  text_font: ui_font_14
+                  text_color: 0x657080
+
+              - label:
+                  x: 239
+                  y: 254
+                  width: 55
+                  text_align: RIGHT
+                  text: "now"
+                  text_font: ui_font_14
+                  text_color: 0x657080
+
+        # ====================================================================
+        # CURRENT / MIN / MAX
+        # ====================================================================
+        - obj:
+            x: 8
+            y: 356
+            width: 304
+            height: 72
+            styles: style_card
+            pad_all: 4
+            scrollable: false
+            scrollbar_mode: "OFF"
+
+            widgets:
+
+              - label:
+                  id: ui_trend_current
+                  x: 0
+                  y: 7
+                  width: 96
+                  text_align: CENTER
+                  text: "CURRENT\n--.-- kW"
+                  text_font: ui_font_14
+
+              - label:
+                  id: ui_trend_min
+                  x: 96
+                  y: 7
+                  width: 96
+                  text_align: CENTER
+                  text: "MIN\n--.-- kW"
+                  text_font: ui_font_14
+
+              - label:
+                  id: ui_trend_max
+                  x: 192
+                  y: 7
+                  width: 96
+                  text_align: CENTER
+                  text: "MAX\n--.-- kW"
+                  text_font: ui_font_14
+
+        # ====================================================================
+        # FOOTER
+        # ====================================================================
+        - label:
+            x: 8
+            y: 448
+            width: 304
+            text_align: CENTER
+            text: "Turn trend | Double page | Hold ON/OFF"
+            text_font: ui_font_14
+            text_color: 0x657080
+
+
+# ==============================================================================
+# NATIVE LVGL CHART UPDATE
+# ==============================================================================
+#
+# The script owns the native LVGL pointers as function-static variables.
+#
+# This avoids storing LVGL pointer types in ESPHome globals and keeps all
+# temporary chart implementation details local to this page.
+script:
+  - id: trend_chart_refresh
+    mode: restart
+
+    then:
+      - lambda: |-
+          constexpr uint16_t TREND_POINTS = 120;
+
+          // ------------------------------------------------------------------
+          // Native LVGL objects
+          // ------------------------------------------------------------------
+          //
+          // These survive between script calls. The actual LVGL page/host
+          // objects live for the entire UI lifetime, so one chart instance is
+          // sufficient.
+          static lv_obj_t *chart = nullptr;
+          static lv_chart_series_t *series = nullptr;
+
+          // Remember what was last rendered so the complete 120-point series
+          // is rewritten only when something actually changes.
+          static int last_selection = -1;
+          static uint16_t last_write_index = 0xFFFF;
+          static uint16_t last_sample_count = 0xFFFF;
+
+
+          // ==================================================================
+          // CREATE CHART ON FIRST USE
+          // ==================================================================
+          if (chart == nullptr) {
+
+            chart = lv_chart_create(
+              id(ui_trend_chart_host)
+            );
+
+            lv_obj_set_size(
+              chart,
+              238,
+              224
+            );
+
+            lv_obj_set_pos(
+              chart,
+              54,
+              8
+            );
+
+            //lv_obj_center(chart);
+
+            lv_chart_set_type(
+              chart,
+              LV_CHART_TYPE_LINE
+            );
+
+            lv_chart_set_point_count(
+              chart,
+              TREND_POINTS
+            );
+
+            lv_chart_set_update_mode(
+              chart,
+              LV_CHART_UPDATE_MODE_SHIFT
+            );
+
+            // Horizontal / vertical helper grid.
+            lv_chart_set_div_line_count(
+              chart,
+              5,
+              6
+            );
+
+            // Remove the normal object border. The surrounding style_card
+            // already provides the visible card boundary.
+            lv_obj_set_style_border_width(
+              chart,
+              0,
+              LV_PART_MAIN
+            );
+
+            lv_obj_set_style_bg_color(
+              chart,
+              lv_color_hex(0xFFFFFF),
+              LV_PART_MAIN
+            );
+
+            lv_obj_set_style_bg_opa(
+              chart,
+              LV_OPA_COVER,
+              LV_PART_MAIN
+            );
+
+            // Grid/division lines.
+            lv_obj_set_style_line_color(
+              chart,
+              lv_color_hex(0xD8DEE8),
+              LV_PART_MAIN
+            );
+
+            lv_obj_set_style_line_opa(
+              chart,
+              LV_OPA_COVER,
+              LV_PART_MAIN
+            );
+
+            // One visible series. When trend_selection changes its complete
+            // contents are rewritten from the corresponding ring buffer.
+            series = lv_chart_add_series(
+              chart,
+              lv_color_hex(0x1769AA),
+              LV_CHART_AXIS_PRIMARY_Y
+            );
+
+            // Initial range until valid samples exist.
+            lv_chart_set_range(
+              chart,
+              LV_CHART_AXIS_PRIMARY_Y,
+              0,
+              100
+            );
+
+            ESP_LOGI(
+              "trend",
+              "Native LVGL trend chart created with %u points.",
+              TREND_POINTS
+            );
+          }
+
+
+          // ==================================================================
+          // NOTHING CHANGED?
+          // ==================================================================
+          const int selection = id(trend_selection);
+          const uint16_t write_index =
+            id(trend_write_index);
+          const uint16_t sample_count =
+            std::min<uint16_t>(
+              id(trend_sample_count),
+              TREND_POINTS
+            );
+
+          if (
+            selection == last_selection &&
+            write_index == last_write_index &&
+            sample_count == last_sample_count
+          ) {
+            return;
+          }
+
+          last_selection = selection;
+          last_write_index = write_index;
+          last_sample_count = sample_count;
+
+
+          // ==================================================================
+          // SELECT SOURCE BUFFER / DISPLAY FORMAT
+          // ==================================================================
+          const std::vector<float> *buffer = nullptr;
+
+          const char *title = "DC POWER";
+          const char *unit = "kW";
+
+          // Chart values are integer internally. scale converts the original
+          // float values to useful fixed-point chart coordinates.
+          float scale = 100.0f;
+
+          // Smallest useful Y span in engineering units.
+          float minimum_span = 1.0f;
+
+          // Whether the calculated Y-axis may be clamped at zero.
+          bool zero_floor = true;
+
+          switch (selection) {
+
+            // Combined DC Power [kW]
+            case 0:
+              buffer = &id(trend_buffer_dc_power);
+              title = "DC POWER";
+              unit = "kW";
+              scale = 100.0f;
+              minimum_span = 1.0f;
+              zero_floor = true;
+              break;
+
+            // Combined DC Current [A]
+            case 1:
+              buffer = &id(trend_buffer_dc_current);
+              title = "DC CURRENT";
+              unit = "A";
+              scale = 10.0f;
+              minimum_span = 10.0f;
+              zero_floor = true;
+              break;
+
+            // Average DC Voltage [V]
+            case 2:
+              buffer = &id(trend_buffer_dc_voltage);
+              title = "DC VOLTAGE";
+              unit = "V";
+              scale = 100.0f;
+              minimum_span = 1.0f;
+              zero_floor = false;
+              break;
+
+            // Highest rectifier output temperature [C]
+            case 3:
+              buffer = &id(trend_buffer_output_temp);
+              title = "OUTPUT TEMP";
+              unit = "C";
+              scale = 10.0f;
+              minimum_span = 10.0f;
+              zero_floor = true;
+              break;
+
+            // Shared compartment temperature [C]
+            case 4:
+              buffer = &id(trend_buffer_compartment_temp);
+              title = "COMPARTMENT";
+              unit = "C";
+              scale = 10.0f;
+              minimum_span = 10.0f;
+              zero_floor = true;
+              break;
+
+            default:
+              return;
+          }
+
+
+          // ==================================================================
+          // HEADER
+          // ==================================================================
+          const std::string subtitle =
+            str_sprintf(
+              "> %s | 10 MIN",
+              title
+            );
+
+          lv_label_set_text(
+            id(ui_trend_subtitle),
+            subtitle.c_str()
+          );
+
+
+          // ==================================================================
+          // SCAN THE CURRENT 10-MINUTE WINDOW
+          // ==================================================================
+          float minimum = NAN;
+          float maximum = NAN;
+
+          // Current is deliberately taken from the actual source sensor rather
+          // than from the last buffer sample. The stats therefore reflect the
+          // current live value even between five-second sampling ticks.
+          float current = NAN;
+
+          switch (selection) {
+            case 0:
+              current = id(combined_dc_power).state;
+              break;
+
+            case 1:
+              current = id(combined_dc_current).state;
+              break;
+
+            case 2:
+              current = id(average_dc_voltage).state;
+              break;
+
+            case 3:
+              current = id(highest_output_temperature).state;
+              break;
+
+            case 4:
+              current =
+                id(rectifier_compartment_temperature).state;
+              break;
+          }
+
+
+          // ==================================================================
+          // REWRITE CHART SERIES IN CHRONOLOGICAL ORDER
+          // ==================================================================
+          //
+          // Before the buffer is full:
+          //
+          //   empty empty ... oldest ... newest
+          //
+          // so "now" remains at the right edge.
+          //
+          // Once full, trend_write_index points at the oldest element.
+
+          const uint16_t leading_empty =
+            TREND_POINTS - sample_count;
+
+          for (
+            uint16_t chart_index = 0;
+            chart_index < TREND_POINTS;
+            chart_index++
+          ) {
+
+            // --------------------------------------------------------------
+            // No sample exists for this left-hand position yet.
+            // --------------------------------------------------------------
+            if (chart_index < leading_empty) {
+
+              lv_chart_set_value_by_id(
+                chart,
+                series,
+                chart_index,
+                LV_CHART_POINT_NONE
+              );
+
+              continue;
+            }
+
+
+            // --------------------------------------------------------------
+            // Convert visible chart position into ring-buffer index.
+            // --------------------------------------------------------------
+            const uint16_t sample_offset =
+              chart_index - leading_empty;
+
+            uint16_t buffer_index;
+
+            if (sample_count < TREND_POINTS) {
+
+              // Buffer has never wrapped.
+              buffer_index = sample_offset;
+
+            } else {
+
+              // Buffer full:
+              // trend_write_index is the next write slot and therefore also
+              // the oldest currently retained sample.
+              buffer_index =
+                (
+                  write_index +
+                  sample_offset
+                ) % TREND_POINTS;
+            }
+
+            const float value =
+              (*buffer)[buffer_index];
+
+
+            // --------------------------------------------------------------
+            // Missing telemetry becomes a real graph gap.
+            // --------------------------------------------------------------
+            if (isnan(value)) {
+
+              lv_chart_set_value_by_id(
+                chart,
+                series,
+                chart_index,
+                LV_CHART_POINT_NONE
+              );
+
+              continue;
+            }
+
+
+            // --------------------------------------------------------------
+            // Min / max for the actual visible ten-minute data.
+            // --------------------------------------------------------------
+            if (isnan(minimum) || value < minimum) {
+              minimum = value;
+            }
+
+            if (isnan(maximum) || value > maximum) {
+              maximum = value;
+            }
+
+
+            // --------------------------------------------------------------
+            // Float engineering value -> fixed-point chart coordinate.
+            // --------------------------------------------------------------
+            const int32_t chart_value =
+              static_cast<int32_t>(
+                lroundf(value * scale)
+              );
+
+            lv_chart_set_value_by_id(
+              chart,
+              series,
+              chart_index,
+              chart_value
+            );
+          }
+
+          int32_t display_axis_min = 0;
+          int32_t display_axis_max = 100;
+
+          // ==================================================================
+          // Y AXIS
+          // ==================================================================
+          if (!isnan(minimum) && !isnan(maximum)) {
+
+            float low = minimum;
+            float high = maximum;
+
+            float span = high - low;
+
+            // A nearly constant value still needs enough visual Y range to
+            // make small changes readable.
+            if (span < minimum_span) {
+
+              const float center =
+                (low + high) * 0.5f;
+
+              low =
+                center - minimum_span * 0.5f;
+
+              high =
+                center + minimum_span * 0.5f;
+
+              span = minimum_span;
+            }
+
+            // Ten-percent visual breathing room.
+            const float padding =
+              span * 0.10f;
+
+            low -= padding;
+            high += padding;
+
+            if (zero_floor && low < 0.0f) {
+              low = 0.0f;
+            }
+
+            int32_t axis_min =
+              static_cast<int32_t>(
+                floorf(low * scale)
+              );
+
+            int32_t axis_max =
+              static_cast<int32_t>(
+                ceilf(high * scale)
+              );
+
+            if (axis_max <= axis_min) {
+              axis_max = axis_min + 1;
+            }
+
+            display_axis_min = axis_min;
+            display_axis_max = axis_max;
+
+            lv_chart_set_range(
+              chart,
+              LV_CHART_AXIS_PRIMARY_Y,
+              axis_min,
+              axis_max
+            );
+
+          } else {
+
+            // --------------------------------------------------------------
+            // Default ranges when no valid history exists.
+            // --------------------------------------------------------------
+            int32_t axis_min = 0;
+            int32_t axis_max = 100;
+
+            switch (selection) {
+
+              // 0..12 kW
+              case 0:
+                axis_min = 0;
+                axis_max = 1200;
+                break;
+
+              // 0..225 A combined
+              case 1:
+                axis_min = 0;
+                axis_max = 2250;
+                break;
+
+              // 49..58 V
+              case 2:
+                axis_min = 4900;
+                axis_max = 5800;
+                break;
+
+              // 0..100 C
+              case 3:
+              case 4:
+                axis_min = 0;
+                axis_max = 1000;
+                break;
+            }
+
+            lv_chart_set_range(
+              chart,
+              LV_CHART_AXIS_PRIMARY_Y,
+              axis_min,
+              axis_max
+            );
+          }
+
+          // ==================================================================
+          // Y AXIS LABELS
+          // ==================================================================
+          const float display_min =
+            static_cast<float>(display_axis_min) / scale;
+
+          const float display_max =
+            static_cast<float>(display_axis_max) / scale;
+
+          const float display_mid =
+            (display_min + display_max) * 0.5f;
+
+
+          auto format_axis_value =
+            [selection](float value) {
+
+              switch (selection) {
+
+                // DC Power
+                case 0:
+                  return str_sprintf(
+                    "%.1f",
+                    value
+                  );
+
+                // DC Current
+                case 1:
+                  return str_sprintf(
+                    "%.0f",
+                    value
+                  );
+
+                // DC Voltage
+                case 2:
+                  return str_sprintf(
+                    "%.1f",
+                    value
+                  );
+
+                // Temperatures
+                case 3:
+                case 4:
+                  return str_sprintf(
+                    "%.0f",
+                    value
+                  );
+
+                default:
+                  return std::string("--");
+              }
+            };
+
+
+          const std::string y_max_text =
+            format_axis_value(display_max);
+
+          const std::string y_mid_text =
+            format_axis_value(display_mid);
+
+          const std::string y_min_text =
+            format_axis_value(display_min);
+
+
+          lv_label_set_text(
+            id(ui_trend_y_max),
+            y_max_text.c_str()
+          );
+
+          lv_label_set_text(
+            id(ui_trend_y_mid),
+            y_mid_text.c_str()
+          );
+
+          lv_label_set_text(
+            id(ui_trend_y_min),
+            y_min_text.c_str()
+          );
+
+          // ==================================================================
+          // STAT LABELS
+          // ==================================================================
+          auto format_value =
+            [unit, selection](const char *caption, float value) {
+
+              if (isnan(value)) {
+                return str_sprintf(
+                  "%s\n-- %s",
+                  caption,
+                  unit
+                );
+              }
+
+              switch (selection) {
+
+                // Power
+                case 0:
+                  return str_sprintf(
+                    "%s\n%.2f %s",
+                    caption,
+                    value,
+                    unit
+                  );
+
+                // Current / temperatures
+                case 1:
+                case 3:
+                case 4:
+                  return str_sprintf(
+                    "%s\n%.1f %s",
+                    caption,
+                    value,
+                    unit
+                  );
+
+                // Voltage
+                case 2:
+                  return str_sprintf(
+                    "%s\n%.2f %s",
+                    caption,
+                    value,
+                    unit
+                  );
+
+                default:
+                  return str_sprintf(
+                    "%s\n--",
+                    caption
+                  );
+              }
+            };
+
+
+          const std::string current_text =
+            format_value(
+              "CURRENT",
+              current
+            );
+
+          const std::string minimum_text =
+            format_value(
+              "MIN",
+              minimum
+            );
+
+          const std::string maximum_text =
+            format_value(
+              "MAX",
+              maximum
+            );
+
+          lv_label_set_text(
+            id(ui_trend_current),
+            current_text.c_str()
+          );
+
+          lv_label_set_text(
+            id(ui_trend_min),
+            minimum_text.c_str()
+          );
+
+          lv_label_set_text(
+            id(ui_trend_max),
+            maximum_text.c_str()
+          );
+
+
+          // ==================================================================
+          // REDRAW
+          // ==================================================================
+          lv_chart_refresh(chart);
+
+
+# ==============================================================================
+# PAGE REFRESH
+# ==============================================================================
+#
+# 500 ms is only used to notice encoder-selection changes quickly.
+#
+# trend_chart_refresh itself skips the expensive 120-point rewrite unless
+# trend_selection or the five-second ring-buffer position actually changed.
+interval:
+  - interval: 500ms
+    then:
+      - script.execute: trend_chart_refresh

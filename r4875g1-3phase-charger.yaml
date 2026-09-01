@@ -238,6 +238,13 @@ esphome:
     name: "anwa.3phase-charger"
     version: "${firmware_version}"
 
+  includes:
+    - trend_helpers.h
+
+  platformio_options:
+    build_flags:
+      - -D LV_USE_CHART=1
+
   on_boot:
     then:
       # Until valid rectifier status frames have been received, the actual
@@ -389,9 +396,10 @@ sensor:
   #
   # SELECT:
   #   Dashboard  -> select Voltage / Power
-  #   Rectifiers -> no selectable parameters
+  #   Rectifiers -> select L1 / L2 / L3 and open detail with short press
   #   Cooling    -> select Automatic and, in manual mode, Power / PWM
   #   System     -> no selectable parameters
+  #   Trends     -> select displayed trend
   #
   # EDIT:
   #   Rotation changes only encoder_edit_value.
@@ -434,8 +442,26 @@ sensor:
                 return;
               }
 
-              // Rectifiers: read-only page
+              // Rectifiers overview:
+              // select Unit 1 / Unit 2 / Unit 3.
+              //
+              // While a detail page is open the encoder has no selection
+              // function yet; v4.3.1 keeps detail pages read-only.
               if (id(encoder_page) == 1) {
+
+                if (id(rectifier_detail_unit) != 0) {
+                  return;
+                }
+
+                id(encoder_selection) =
+                  (id(encoder_selection) + 1) % 3;
+
+                ESP_LOGD(
+                  "encoder",
+                  "Rectifier SELECT: Unit %d",
+                  id(encoder_selection) + 1
+                );
+
                 return;
               }
 
@@ -458,6 +484,25 @@ sensor:
               }
 
               // System: read-only page
+              if (id(encoder_page) == 3) {
+                return;
+              }
+
+              // Trends:
+              // Rotate through the five available trend sources.
+              if (id(encoder_page) == 4) {
+                id(trend_selection) =
+                  (id(trend_selection) + 1) % 5;
+
+                ESP_LOGD(
+                  "encoder",
+                  "Trend SELECT: %d",
+                  id(trend_selection)
+                );
+
+                return;
+              }
+
               return;
             }
 
@@ -538,8 +583,22 @@ sensor:
                 return;
               }
 
-              // Rectifiers
+              // Rectifiers overview
               if (id(encoder_page) == 1) {
+
+                if (id(rectifier_detail_unit) != 0) {
+                  return;
+                }
+
+                id(encoder_selection) =
+                  (id(encoder_selection) + 2) % 3;
+
+                ESP_LOGD(
+                  "encoder",
+                  "Rectifier SELECT: Unit %d",
+                  id(encoder_selection) + 1
+                );
+
                 return;
               }
 
@@ -560,6 +619,24 @@ sensor:
               }
 
               // System
+              if (id(encoder_page) == 3) {
+                return;
+              }
+
+              // Trends
+              if (id(encoder_page) == 4) {
+                id(trend_selection) =
+                  (id(trend_selection) + 4) % 5;
+
+                ESP_LOGD(
+                  "encoder",
+                  "Trend SELECT: %d",
+                  id(trend_selection)
+                );
+
+                return;
+              }
+
               return;
             }
 
@@ -1025,21 +1102,61 @@ binary_sensor:
                   return !id(encoder_edit_mode);
 
               then:
-                - lvgl.page.next:
-                    animation: OUT_LEFT
-                    time: 180ms
 
-                - lambda: |-
-                    id(encoder_page) =
-                      (id(encoder_page) + 1) % 4;
+                # ------------------------------------------------------------
+                # RECTIFIER DETAIL -> RECTIFIERS OVERVIEW
+                #
+                # A double click inside a child view means BACK rather than
+                # next main page.
+                # ------------------------------------------------------------
+                - if:
+                    condition:
+                      lambda: |-
+                        return
+                          id(encoder_page) == 1 &&
+                          id(rectifier_detail_unit) != 0;
 
-                    id(encoder_selection) = 0;
+                    then:
+                      - lvgl.page.show:
+                          id: rectifiers_page
+                          animation: OUT_RIGHT
+                          time: 180ms
 
-                    ESP_LOGD(
-                      "encoder",
-                      "Page changed: page=%d, selection=0",
-                      id(encoder_page)
-                    );
+                      - lambda: |-
+                          ESP_LOGD(
+                            "encoder",
+                            "Leaving Rectifier Unit %d detail.",
+                            id(rectifier_detail_unit)
+                          );
+
+                          // Keep selection on the unit we just left.
+                          id(encoder_selection) =
+                            id(rectifier_detail_unit) - 1;
+
+                          id(rectifier_detail_unit) = 0;
+
+                    else:
+
+                      # ------------------------------------------------------
+                      # NORMAL MAIN-PAGE NAVIGATION
+                      # ------------------------------------------------------
+                      - lvgl.page.next:
+                          animation: OUT_LEFT
+                          time: 180ms
+
+                      - lambda: |-
+                          id(encoder_page) =
+                            (id(encoder_page) + 1) % 5;
+
+                          id(encoder_selection) = 0;
+                          id(rectifier_detail_unit) = 0;
+
+                          ESP_LOGD(
+                            "encoder",
+                            "Page changed: page=%d, selection=0",
+                            id(encoder_page)
+                          );
+
 
       # ======================================================================
       # SHORT PRESS
@@ -1153,7 +1270,80 @@ binary_sensor:
                             id(encoder_edit_value)
                           );
 
-                # Rectifiers/System intentionally do nothing on short press.
+                # ============================================================
+                # Rectifiers overview
+                #
+                # Rectifiers is not an EDIT page. A short press drills into
+                # the selected unit instead.
+                # ============================================================
+                - if:
+                    condition:
+                      lambda: |-
+                        return
+                          id(encoder_page) == 1 &&
+                          id(rectifier_detail_unit) == 0;
+
+                    then:
+
+                      # Unit 1 / L1
+                      - if:
+                          condition:
+                            lambda: |-
+                              return id(encoder_selection) == 0;
+
+                          then:
+                            - lambda: |-
+                                id(rectifier_detail_unit) = 1;
+
+                                ESP_LOGI(
+                                  "encoder",
+                                  "Opening Rectifier Unit 1 detail."
+                                );
+
+                            - lvgl.page.show:
+                                id: rectifier_detail_page
+                                animation: OUT_LEFT
+                                time: 180ms
+
+                      # Unit 2 / L2
+                      - if:
+                          condition:
+                            lambda: |-
+                              return id(encoder_selection) == 1;
+
+                          then:
+                            - lambda: |-
+                                id(rectifier_detail_unit) = 2;
+
+                                ESP_LOGI(
+                                  "encoder",
+                                  "Opening Rectifier Unit 2 detail."
+                                );
+
+                            - lvgl.page.show:
+                                id: rectifier_detail_page
+                                animation: OUT_LEFT
+                                time: 180ms
+
+                      # Unit 3 / L3
+                      - if:
+                          condition:
+                            lambda: |-
+                              return id(encoder_selection) == 2;
+
+                          then:
+                            - lambda: |-
+                                id(rectifier_detail_unit) = 3;
+
+                                ESP_LOGI(
+                                  "encoder",
+                                  "Opening Rectifier Unit 3 detail."
+                                );
+
+                            - lvgl.page.show:
+                                id: rectifier_detail_page
+                                animation: OUT_LEFT
+                                time: 180ms
 
               # ----------------------------------------------------------------
               # EDIT -> COMMIT -> SELECT
