@@ -47,6 +47,42 @@ display:
         "800 x 480 RGB DISPLAY OK"
       );
 
+      it.printf(
+        20,
+        20,
+        id(display_font_medium),
+        Color(255, 255, 255),
+        TextAlign::TOP_LEFT,
+        "0,0"
+      );
+
+      it.printf(
+        780,
+        20,
+        id(display_font_medium),
+        Color(255, 255, 255),
+        TextAlign::TOP_RIGHT,
+        "800,0"
+      );
+
+      it.printf(
+        20,
+        460,
+        id(display_font_medium),
+        Color(255, 255, 255),
+        TextAlign::BOTTOM_LEFT,
+        "0,480"
+      );
+
+      it.printf(
+        780,
+        460,
+        id(display_font_medium),
+        Color(255, 255, 255),
+        TextAlign::BOTTOM_RIGHT,
+        "800,480"
+      );
+
 font:
   - file: "gfonts://Roboto"
     id: display_font_large

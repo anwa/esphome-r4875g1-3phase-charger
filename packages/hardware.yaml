@@ -12,3 +12,38 @@ i2c:
 ch422g:
   - id: io_expander
     i2c_id: i2c_bus
+
+# ==============================================================================
+# GT911 TOUCH CONTROLLER
+# ==============================================================================
+# Onboard capacitive touchscreen.
+#
+# Wiring:
+#   SDA   -> GPIO8
+#   SCL   -> GPIO9
+#   IRQ   -> GPIO4
+#   RESET -> CH422G EXIO1
+
+touchscreen:
+  - platform: gt911
+    id: charger_touchscreen
+    i2c_id: i2c_bus
+
+    interrupt_pin:
+      number: GPIO4
+      mode:
+        input: true
+
+    reset_pin:
+      ch422g: io_expander
+      number: 1
+      mode:
+        output: true
+
+    on_touch:
+      - logger.log:
+          format: "Touch x=%d y=%d"
+          args:
+            - touch.x
+            - touch.y
+          level: INFO
