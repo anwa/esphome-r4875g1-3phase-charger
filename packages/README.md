@@ -1,3 +1,10 @@
+> **v5 migration:** `main` targets the Waveshare ESP32-S3-Touch-LCD-7.
+> The stable v4 package architecture remains available on `v4-maintenance`
+> and as tag `v4.4.0`.
+>
+> Legacy v4 hardware definitions are temporarily retained where required by
+> packages that have not yet been migrated.
+
 # Firmware package architecture
 
 This directory contains the modular ESPHome implementation of the three-phase Huawei R4875G1 charger controller.

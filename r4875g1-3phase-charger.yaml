@@ -1,7 +1,35 @@
-# Board: Espressif ESP32-S3-DevKitC-1
-# Module: ESP32-S3-WROOM-1-N16R8
-# Flash: 16 MB Quad SPI
-# PSRAM: 8 MB Octal SPI
+# ==============================================================================
+# HARDWARE GENERATION: V5
+# ==============================================================================
+# Board: Waveshare ESP32-S3-Touch-LCD-7
+# Module: ESP32-S3 N16R8
+# Flash: 16 MB
+# PSRAM: 8 MB
+#
+# Integrated hardware:
+#   - 7-inch 800x480 RGB IPS display
+#   - GT911 capacitive touch controller
+#   - CH422G I/O expander
+#   - onboard CAN transceiver
+#   - onboard RS485
+#   - TF card interface
+#   - native USB and USB-to-UART
+#
+# Planned external hardware:
+#   - TCA9548A I2C multiplexer
+#   - AHT10 compartment temperature/humidity sensor behind TCA9548A
+#
+# Deferred hardware:
+#   - rotary encoder
+#   - physical blackstart button
+#   - external cooling fan PWM
+#   - external cooling fan tachometer inputs
+#
+# V5 migration strategy:
+#   Port the proven v4 charger functionality to the new hardware first.
+#   Preserve the existing five-page UI functionality before redesigning it
+#   for the larger 800x480 touch display.
+# ==============================================================================
 
 # ==============================================================================
 # THREE-PHASE R4875G1 CHARGER CONTROLLER - ARCHITECTURE OVERVIEW
@@ -75,10 +103,16 @@ substitutions:
   mqtt_command_prefix: "HG/DG/Technik/Charger"
 
   # --------------------------------------------------------------------------
-  # ESP32-S3-DevKitC-1 GPIO map
+  # LEGACY V4 GPIO MAP - TEMPORARY DURING V5 MIGRATION
   # --------------------------------------------------------------------------
-  # Keep every hardware pin assignment centralized here so firmware, docs and
-  # KiCad can be compared against one authoritative map.
+  # These assignments belong to the former ESP32-S3-DevKitC-1 hardware.
+  #
+  # They are intentionally retained during the first v5 migration commits so
+  # existing package references remain resolvable while the new Waveshare
+  # hardware layer is introduced incrementally.
+  #
+  # Do NOT use these assignments as the v5 hardware definition.
+  # Each legacy pin will be removed or replaced as its subsystem is migrated.
   pin_encoder_button: "GPIO2"
   pin_tft_backlight: "GPIO4"
   pin_tft_cs: "GPIO5"
@@ -98,6 +132,60 @@ substitutions:
   pin_fan2_tach: "GPIO40"
   pin_fan1_tach: "GPIO41"
   pin_fan_pwm: "GPIO42"
+
+  # --------------------------------------------------------------------------
+  # V5 WAVESHARE BOARD GPIO MAP
+  # --------------------------------------------------------------------------
+  #
+  # RGB LCD - reserved by onboard display:
+  #   GPIO0   LCD G3
+  #   GPIO1   LCD R3
+  #   GPIO2   LCD R4
+  #   GPIO3   LCD VSYNC
+  #   GPIO5   LCD DE
+  #   GPIO7   LCD PCLK
+  #   GPIO10  LCD B7
+  #   GPIO14  LCD B3
+  #   GPIO17  LCD B6
+  #   GPIO18  LCD B5
+  #   GPIO21  LCD G7
+  #   GPIO38  LCD B4
+  #   GPIO39  LCD G2
+  #   GPIO40  LCD R7
+  #   GPIO41  LCD R6
+  #   GPIO42  LCD R5
+  #   GPIO45  LCD G4
+  #   GPIO46  LCD HSYNC
+  #   GPIO47  LCD G6
+  #   GPIO48  LCD G5
+  #
+  # Touch / shared I2C:
+  #   GPIO4   GT911 interrupt
+  #   GPIO8   I2C SDA
+  #   GPIO9   I2C SCL
+  #
+  # CAN / native USB shared pins:
+  #   GPIO19  CAN RX / USB D-
+  #   GPIO20  CAN TX / USB D+
+  #
+  # TF card:
+  #   GPIO11  MOSI
+  #   GPIO12  SCK
+  #   GPIO13  MISO
+  #
+  # RS485:
+  #   GPIO15  TX
+  #   GPIO16  RX
+  #
+  # CH422G:
+  #   EXIO1   GT911 reset
+  #   EXIO2   display/backlight enable
+  #   EXIO4   TF card CS
+  #   EXIO5   USB/CAN selection
+  #
+  # External I2C expansion:
+  #   TCA9548A @ 0x70
+  #     Channel 0 -> AHT10 @ 0x38
 
   # --------------------------------------------------------------------------
   # External cooling-fan defaults
