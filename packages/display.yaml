@@ -1,93 +1,159 @@
 # ==============================================================================
-# V5 DISPLAY BRING-UP
+# V5 LVGL DISPLAY BRING-UP
 # ==============================================================================
 # Waveshare ESP32-S3-Touch-LCD-7
-# 800x480 RGB565
+# 800x480 RGB display
 #
-# This first v5 display stage deliberately uses the native ESPHome display
-# component only. LVGL and touch input will be added after basic panel operation
-# has been verified on real hardware.
+# This stage verifies the complete input/output chain:
+#
+#   GT911 -> ESPHome touchscreen -> LVGL -> RGB display
+#
+# Charger UI pages are intentionally not included yet.
 
 display:
   - platform: mipi_rgb
     model: ESP32-S3-TOUCH-LCD-7-800X480
     id: charger_display
 
-    update_interval: 1s
-    auto_clear_enabled: true
+    auto_clear_enabled: false
+    update_interval: never
 
-    lambda: |-
-      it.fill(Color(0, 0, 0));
 
-      it.printf(
-        400,
-        190,
-        id(display_font_large),
-        Color(255, 255, 255),
-        TextAlign::CENTER,
-        "R4875G1 CHARGER"
-      );
+# ==============================================================================
+# LVGL
+# ==============================================================================
 
-      it.printf(
-        400,
-        245,
-        id(display_font_medium),
-        Color(0, 200, 0),
-        TextAlign::CENTER,
-        "v%s",
-        "${firmware_version}"
-      );
+lvgl:
+  displays:
+    - charger_display
 
-      it.printf(
-        400,
-        295,
-        id(display_font_medium),
-        Color(255, 255, 255),
-        TextAlign::CENTER,
-        "800 x 480 RGB DISPLAY OK"
-      );
+  touchscreens:
+    - touchscreen_id: charger_touchscreen
 
-      it.printf(
-        20,
-        20,
-        id(display_font_medium),
-        Color(255, 255, 255),
-        TextAlign::TOP_LEFT,
-        "0,0"
-      );
+  buffer_size: 100%
+  color_depth: 16
+  log_level: WARN
 
-      it.printf(
-        780,
-        20,
-        id(display_font_medium),
-        Color(255, 255, 255),
-        TextAlign::TOP_RIGHT,
-        "800,0"
-      );
+  pages:
+    - id: page_touch_test
+      bg_color: 0x101418
 
-      it.printf(
-        20,
-        460,
-        id(display_font_medium),
-        Color(255, 255, 255),
-        TextAlign::BOTTOM_LEFT,
-        "0,480"
-      );
+      widgets:
 
-      it.printf(
-        780,
-        460,
-        id(display_font_medium),
-        Color(255, 255, 255),
-        TextAlign::BOTTOM_RIGHT,
-        "800,480"
-      );
+        # ----------------------------------------------------------------------
+        # Header
+        # ----------------------------------------------------------------------
+        - label:
+            x: 0
+            y: 30
+            width: 800
+            text_align: CENTER
+            text: "R4875G1 CHARGER v5"
+            text_font: montserrat_32
+            text_color: 0xFFFFFF
 
-font:
-  - file: "gfonts://Roboto"
-    id: display_font_large
-    size: 38
+        - label:
+            x: 0
+            y: 78
+            width: 800
+            text_align: CENTER
+            text: "LVGL + GT911 TOUCH TEST"
+            text_font: montserrat_24
+            text_color: 0xA0A8B0
 
-  - file: "gfonts://Roboto"
-    id: display_font_medium
-    size: 24
+
+        # ----------------------------------------------------------------------
+        # Touch buttons
+        # ----------------------------------------------------------------------
+        - button:
+            id: touch_test_left
+            x: 55
+            y: 155
+            width: 210
+            height: 150
+
+            widgets:
+              - label:
+                  align: CENTER
+                  text: "LEFT"
+                  text_font: montserrat_28
+
+            on_press:
+              - lvgl.label.update:
+                  id: touch_test_status
+                  text: "LEFT pressed"
+
+            on_release:
+              - lvgl.label.update:
+                  id: touch_test_status
+                  text: "Touch ready"
+
+
+        - button:
+            id: touch_test_center
+            x: 295
+            y: 155
+            width: 210
+            height: 150
+
+            widgets:
+              - label:
+                  align: CENTER
+                  text: "CENTER"
+                  text_font: montserrat_28
+
+            on_press:
+              - lvgl.label.update:
+                  id: touch_test_status
+                  text: "CENTER pressed"
+
+            on_release:
+              - lvgl.label.update:
+                  id: touch_test_status
+                  text: "Touch ready"
+
+
+        - button:
+            id: touch_test_right
+            x: 535
+            y: 155
+            width: 210
+            height: 150
+
+            widgets:
+              - label:
+                  align: CENTER
+                  text: "RIGHT"
+                  text_font: montserrat_28
+
+            on_press:
+              - lvgl.label.update:
+                  id: touch_test_status
+                  text: "RIGHT pressed"
+
+            on_release:
+              - lvgl.label.update:
+                  id: touch_test_status
+                  text: "Touch ready"
+
+
+        # ----------------------------------------------------------------------
+        # Status
+        # ----------------------------------------------------------------------
+        - obj:
+            x: 155
+            y: 350
+            width: 490
+            height: 80
+            radius: 12
+            bg_color: 0x202830
+            border_width: 1
+            border_color: 0x505860
+
+            widgets:
+              - label:
+                  id: touch_test_status
+                  align: CENTER
+                  text: "Touch ready"
+                  text_font: montserrat_24
+                  text_color: 0xFFFFFF
