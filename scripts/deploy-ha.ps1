@@ -17,8 +17,7 @@ $ProjectFile = "r4875g1-3phase-charger.yaml"
 $VersionFile = "packages/version.yaml"
 $RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $Timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
-$BackupDir = "$RemoteDir/.deploy-backups/r4875g1-3phase-charger/$Timestamp"
-$StagingDir = "$RemoteDir/.deploy-staging/r4875g1-3phase-charger-$Timestamp"
+$DeploymentProjectPath = $null
 
 function Write-Step([string]$Message) { Write-Host "[DEPLOY] $Message" -ForegroundColor Cyan }
 function Write-Ok([string]$Message)   { Write-Host "[  OK  ] $Message" -ForegroundColor Green }
@@ -77,6 +76,101 @@ function Get-ManagedFiles {
         $managedFiles |
             Sort-Object -Unique
     )
+}
+
+function Get-RemoteManagedPath([string]$RelativePath, [string]$NodeName) {
+    $normalized = $RelativePath.Replace('\', '/')
+
+    # Repository package files:
+    #
+    #   packages/version.yaml
+    #       ->
+    #   packages/<node-name>/version.yaml
+    #
+    if ($normalized.StartsWith("packages/")) {
+        $packageRelativePath =
+            $normalized.Substring("packages/".Length)
+
+        return "packages/$NodeName/$packageRelativePath"
+    }
+
+    # Repository root include files:
+    #
+    #   trend_helpers.h
+    #       ->
+    #   packages/<node-name>/trend_helpers.h
+    #
+    return "packages/$NodeName/$normalized"
+}
+
+function New-DeploymentProjectFile(
+    [string]$SourcePath,
+    [string]$NodeName
+) {
+    $content = Get-Content -Raw -LiteralPath $SourcePath
+
+    # Rewrite root package includes only in the temporary deployment copy:
+    #
+    #   !include packages/version.yaml
+    #       ->
+    #   !include packages/<node-name>/version.yaml
+    #
+    # This also covers parameterized package includes such as:
+    #
+    #   file: packages/rectifier-unit.yaml
+    #
+    # because the repository source remains unchanged and only the generated
+    # Home Assistant copy receives the node-specific package namespace.
+    $content = [regex]::Replace(
+        $content,
+        '(?m)(!include\s+)packages/',
+        "`$1packages/$NodeName/"
+    )
+
+    $content = [regex]::Replace(
+        $content,
+        '(?m)(file:\s*)packages/',
+        "`$1packages/$NodeName/"
+    )
+
+    # Root-level ESPHome include files are deployed into the same node-specific
+    # package namespace.
+    #
+    #   - trend_helpers.h
+    #       ->
+    #   - packages/<node-name>/trend_helpers.h
+    #
+    $content = [regex]::Replace(
+        $content,
+        '(?m)^(\s*-\s*)trend_helpers\.h(\s*(?:#.*)?)$',
+        "`${1}packages/$NodeName/trend_helpers.h`${2}"
+    )
+
+    $tempPath = Join-Path `
+        ([System.IO.Path]::GetTempPath()) `
+        "$NodeName-$Timestamp-deploy.yaml"
+
+    Set-Content `
+        -LiteralPath $tempPath `
+        -Value $content `
+        -Encoding utf8 `
+        -NoNewline
+
+    return $tempPath
+}
+
+function Remove-DeploymentProjectFile {
+    if (
+        $null -ne $script:DeploymentProjectPath -and
+        (Test-Path -LiteralPath $script:DeploymentProjectPath)
+    ) {
+        Remove-Item `
+            -LiteralPath $script:DeploymentProjectPath `
+            -Force `
+            -ErrorAction SilentlyContinue
+
+        $script:DeploymentProjectPath = $null
+    }
 }
 
 function Get-ESPHomeNodeName {
@@ -223,8 +317,8 @@ function New-RemoteDirectories([string]$Root, [string[]]$RelativePaths) {
 }
 
 Write-Host ""
-Write-Host "R4875G1 3-Phase Charger - Home Assistant Deployment" -ForegroundColor White
-Write-Host "======================================================" -ForegroundColor White
+Write-Host "ESPHome - Home Assistant Deployment" -ForegroundColor White
+Write-Host "===================================" -ForegroundColor White
 Write-Host ""
 
 Write-Step "Checking local source"
@@ -246,7 +340,17 @@ Write-Ok "$($ManagedFiles.Count + 1) managed files found"
 
 $nodeName = Get-ESPHomeNodeName
 $RemoteProjectFile = "$nodeName.yaml"
+$RemotePackageRoot = "packages/$nodeName"
+$RemoteManagedFiles = @{}
+foreach ($relativePath in $ManagedFiles) {
+    $RemoteManagedFiles[$relativePath] =
+        Get-RemoteManagedPath $relativePath $nodeName
+}
 $version = Get-ProjectVersion
+$BackupDir =
+    "$RemoteDir/.deploy-backups/$nodeName/$Timestamp"
+$StagingDir =
+    "$RemoteDir/.deploy-staging/$nodeName-$Timestamp"
 $gitInfo = Get-GitInfo
 
 Write-Host ""
@@ -258,9 +362,10 @@ Write-Host "  Git commit       : $($gitInfo.Commit)"
 Write-Host "  Working tree     : $(if ($gitInfo.Dirty) { 'DIRTY' } else { 'clean' })"
 Write-Host "  Package files    : $($ManagedFiles.Count)"
 Write-Host "Target:" -ForegroundColor White
-Write-Host "  SSH              : $HaUser@$HaHost`:$Port"
 Write-Host "  ESPHome directory: $RemoteDir"
 Write-Host "  Main YAML remote : $RemoteProjectFile"
+Write-Host "  Package namespace: $RemotePackageRoot"
+Write-Host "  SSH              : $HaUser@$HaHost`:$Port"
 Write-Host "  SSH key          : $KeyPath"
 Write-Host "  SSH MAC          : $MacAlgorithm"
 Write-Host ""
@@ -270,11 +375,41 @@ if ($gitInfo.Dirty) {
 }
 
 if ($DryRun) {
+    $DeploymentProjectPath =
+        New-DeploymentProjectFile $projectPath $nodeName
+
     Write-Step "Dry run - no network connection and no remote changes"
+
     Write-Host "  $ProjectFile -> $RemoteDir/$RemoteProjectFile"
+
     foreach ($relativePath in $ManagedFiles) {
-        Write-Host "  $relativePath -> $RemoteDir/$relativePath"
+        $remoteRelativePath =
+            $RemoteManagedFiles[$relativePath]
+
+        Write-Host "  $relativePath -> $RemoteDir/$remoteRelativePath"
     }
+
+    Write-Host ""
+    Write-Host "Generated main YAML references:" -ForegroundColor White
+
+    $deploymentContent =
+        Get-Content -Raw -LiteralPath $DeploymentProjectPath
+
+    $deploymentContent -split "`r?`n" |
+        Where-Object {
+            $_ -match 'packages/' -and
+            (
+                $_ -match '!include' -or
+                $_ -match 'file:' -or
+                $_ -match 'trend_helpers'
+            )
+        } |
+        ForEach-Object {
+            Write-Host "  $($_.Trim())"
+        }
+
+    Remove-DeploymentProjectFile
+
     Write-Ok "Dry run complete"
     return
 }
@@ -282,6 +417,9 @@ if ($DryRun) {
 if (-not (Test-Path -LiteralPath $KeyPath -PathType Leaf)) {
     throw "SSH private key not found: $KeyPath`nRun .\scripts\setup-ha-ssh.ps1 first."
 }
+
+$DeploymentProjectPath =
+    New-DeploymentProjectFile $projectPath $nodeName
 
 Write-Step "Checking SSH connection"
 Invoke-HaSsh "true" | Out-Null
@@ -292,17 +430,38 @@ $qStaging = Quote-Sh $StagingDir
 try {
     Write-Step "Creating remote staging directory tree"
     Invoke-HaSsh "set -eu; rm -rf $qStaging" | Out-Null
-    New-RemoteDirectories $StagingDir $ManagedFiles
+    New-RemoteDirectories `
+        $StagingDir `
+        @($RemoteManagedFiles.Values)
+    Write-Host "  $ProjectFile -> $RemoteProjectFile"
 
-    Write-Step "Uploading managed ESPHome YAML files"
-    Send-HaFile $projectPath "$StagingDir/$RemoteProjectFile"
     foreach ($relativePath in $ManagedFiles) {
-        Send-HaFile (Join-Path $RepoRoot $relativePath) "$StagingDir/$relativePath"
+        $remoteRelativePath =
+            $RemoteManagedFiles[$relativePath]
+
+        Write-Host "  $relativePath -> $remoteRelativePath"
+    }
+    Write-Step "Uploading managed ESPHome files"
+    Send-HaFile `
+        $DeploymentProjectPath `
+        "$StagingDir/$RemoteProjectFile"
+    foreach ($relativePath in $ManagedFiles) {
+        $remoteRelativePath =
+            $RemoteManagedFiles[$relativePath]
+
+        Send-HaFile `
+            (Join-Path $RepoRoot $relativePath) `
+            "$StagingDir/$remoteRelativePath"
     }
     Write-Ok "Upload complete"
 
     Write-Step "Verifying staged SHA-256 hashes"
-    $projectHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $projectPath).Hash.ToLowerInvariant()
+    $projectHash =
+        (
+            Get-FileHash `
+                -Algorithm SHA256 `
+                -LiteralPath $DeploymentProjectPath
+        ).Hash.ToLowerInvariant()
     $qProjectStaged = Quote-Sh "$StagingDir/$RemoteProjectFile"
     $remoteProjectHash = ((Invoke-HaSsh "sha256sum $qProjectStaged | cut -d ' ' -f 1") | Out-String).Trim().ToLowerInvariant()
     if ($remoteProjectHash -ne $projectHash) {
@@ -310,27 +469,56 @@ try {
     }
 
     foreach ($relativePath in $ManagedFiles) {
-        $localHash = (Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $RepoRoot $relativePath)).Hash.ToLowerInvariant()
-        $qPath = Quote-Sh "$StagingDir/$relativePath"
-        $remoteHash = ((Invoke-HaSsh "sha256sum $qPath | cut -d ' ' -f 1") | Out-String).Trim().ToLowerInvariant()
+        $localHash =
+            (
+                Get-FileHash `
+                    -Algorithm SHA256 `
+                    -LiteralPath (Join-Path $RepoRoot $relativePath)
+            ).Hash.ToLowerInvariant()
+
+        $remoteRelativePath =
+            $RemoteManagedFiles[$relativePath]
+
+        $qPath =
+            Quote-Sh "$StagingDir/$remoteRelativePath"
+
+        $remoteHash =
+            (
+                (
+                    Invoke-HaSsh `
+                        "sha256sum $qPath | cut -d ' ' -f 1"
+                ) |
+                Out-String
+            ).Trim().ToLowerInvariant()
+
         if ($remoteHash -ne $localHash) {
-            throw "Hash mismatch after upload: $relativePath"
+            throw "Hash mismatch after upload: $relativePath -> $remoteRelativePath"
         }
     }
     Write-Ok "Staged files match local source"
 
     if (-not $NoBackup) {
         Write-Step "Backing up currently managed Home Assistant files"
-        New-RemoteDirectories $BackupDir $ManagedFiles
+        New-RemoteDirectories `
+            $BackupDir `
+            @($RemoteManagedFiles.Values)
 
         $commands = @("set -eu")
         $projectSource = Quote-Sh "$RemoteDir/$RemoteProjectFile"
         $projectDest = Quote-Sh "$BackupDir/$RemoteProjectFile"
         $commands += "if [ -f $projectSource ]; then cp -p $projectSource $projectDest; fi"
         foreach ($relativePath in $ManagedFiles) {
-            $source = Quote-Sh "$RemoteDir/$relativePath"
-            $dest = Quote-Sh "$BackupDir/$relativePath"
-            $commands += "if [ -f $source ]; then cp -p $source $dest; fi"
+            $remoteRelativePath =
+                $RemoteManagedFiles[$relativePath]
+
+            $source =
+                Quote-Sh "$RemoteDir/$remoteRelativePath"
+
+            $dest =
+                Quote-Sh "$BackupDir/$remoteRelativePath"
+
+            $commands +=
+                "if [ -f $source ]; then cp -p $source $dest; fi"
         }
         Invoke-HaSsh ($commands -join "; ") | Out-Null
         Write-Ok "Backup created: $BackupDir"
@@ -339,16 +527,26 @@ try {
     }
 
     Write-Step "Installing staged files"
-    New-RemoteDirectories $RemoteDir $ManagedFiles
+    New-RemoteDirectories `
+        $RemoteDir `
+        @($RemoteManagedFiles.Values)
 
     $commands = @("set -eu")
     $projectSource = Quote-Sh "$StagingDir/$RemoteProjectFile"
     $projectDest = Quote-Sh "$RemoteDir/$RemoteProjectFile"
     $commands += "cp -p $projectSource $projectDest"
     foreach ($relativePath in $ManagedFiles) {
-        $source = Quote-Sh "$StagingDir/$relativePath"
-        $dest = Quote-Sh "$RemoteDir/$relativePath"
-        $commands += "cp -p $source $dest"
+        $remoteRelativePath =
+            $RemoteManagedFiles[$relativePath]
+
+        $source =
+            Quote-Sh "$StagingDir/$remoteRelativePath"
+
+        $dest =
+            Quote-Sh "$RemoteDir/$remoteRelativePath"
+
+        $commands +=
+            "cp -p $source $dest"
     }
     Invoke-HaSsh ($commands -join "; ") | Out-Null
 
@@ -358,13 +556,31 @@ try {
     if ($installedProjectHash -ne $projectHash) {
         throw "Installed file verification failed: $RemoteProjectFile"
     }
-
     foreach ($relativePath in $ManagedFiles) {
-        $localHash = (Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $RepoRoot $relativePath)).Hash.ToLowerInvariant()
-        $qPath = Quote-Sh "$RemoteDir/$relativePath"
-        $remoteHash = ((Invoke-HaSsh "sha256sum $qPath | cut -d ' ' -f 1") | Out-String).Trim().ToLowerInvariant()
+        $localHash =
+            (
+                Get-FileHash `
+                    -Algorithm SHA256 `
+                    -LiteralPath (Join-Path $RepoRoot $relativePath)
+            ).Hash.ToLowerInvariant()
+
+        $remoteRelativePath =
+            $RemoteManagedFiles[$relativePath]
+
+        $qPath =
+            Quote-Sh "$RemoteDir/$remoteRelativePath"
+
+        $remoteHash =
+            (
+                (
+                    Invoke-HaSsh `
+                        "sha256sum $qPath | cut -d ' ' -f 1"
+                ) |
+                Out-String
+            ).Trim().ToLowerInvariant()
+
         if ($remoteHash -ne $localHash) {
-            throw "Installed file verification failed: $relativePath"
+            throw "Installed file verification failed: $relativePath -> $remoteRelativePath"
         }
     }
     Write-Ok "Installed files match local source"
@@ -372,6 +588,7 @@ try {
 finally {
     try { Invoke-HaSsh "rm -rf $qStaging" | Out-Null }
     catch { Write-Warn "Could not remove staging directory: $StagingDir" }
+    Remove-DeploymentProjectFile
 }
 
 Write-Host ""
