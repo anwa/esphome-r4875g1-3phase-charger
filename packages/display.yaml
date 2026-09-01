@@ -1,21 +1,57 @@
 # ==============================================================================
-# LOCAL DISPLAY PACKAGE AGGREGATOR
+# V5 DISPLAY BRING-UP
 # ==============================================================================
-# v4 display implementation. The LVGL UI is deliberately split into three
-# focused packages so hardware transport, visual styling and screen logic can
-# evolve independently.
+# Waveshare ESP32-S3-Touch-LCD-7
+# 800x480 RGB565
 #
-# The proven v3 display configuration exposes a 480x320 landscape canvas.
-# LVGL rotates that canvas by 90 degrees for the default 320x480 portrait UI.
-# Set display_rotation to 0 to use landscape orientation instead.
-#
-# Include paths in this file are resolved relative to packages/display.yaml,
-# i.e. relative to the packages directory.
+# This first v5 display stage deliberately uses the native ESPHome display
+# component only. LVGL and touch input will be added after basic panel operation
+# has been verified on real hardware.
 
-substitutions:
-  display_rotation: "90"
+display:
+  - platform: mipi_rgb
+    model: ESP32-S3-TOUCH-LCD-7-800X480
+    id: charger_display
 
-packages:
-  display_hardware: !include display/hardware.yaml
-  display_theme: !include display/theme.yaml
-  display_ui: !include display/ui.yaml
+    update_interval: 1s
+    auto_clear_enabled: true
+
+    lambda: |-
+      it.fill(Color(0, 0, 0));
+
+      it.printf(
+        400,
+        190,
+        id(display_font_large),
+        Color(255, 255, 255),
+        TextAlign::CENTER,
+        "R4875G1 CHARGER"
+      );
+
+      it.printf(
+        400,
+        245,
+        id(display_font_medium),
+        Color(0, 200, 0),
+        TextAlign::CENTER,
+        "v%s",
+        "${firmware_version}"
+      );
+
+      it.printf(
+        400,
+        295,
+        id(display_font_medium),
+        Color(255, 255, 255),
+        TextAlign::CENTER,
+        "800 x 480 RGB DISPLAY OK"
+      );
+
+font:
+  - file: "gfonts://Roboto"
+    id: display_font_large
+    size: 38
+
+  - file: "gfonts://Roboto"
+    id: display_font_medium
+    size: 24

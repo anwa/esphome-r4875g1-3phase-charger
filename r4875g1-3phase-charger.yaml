@@ -296,6 +296,8 @@ substitutions:
 packages:
   version: !include packages/version.yaml
   core: !include packages/core.yaml
+  hardware: !include packages/hardware.yaml
+  display: !include packages/display.yaml
 
 esphome:
   name: hg-dg-technik-charger

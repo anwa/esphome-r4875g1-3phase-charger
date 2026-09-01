@@ -1,22 +1,14 @@
 # ==============================================================================
-# HARDWARE BUS PACKAGE
+# V5 HARDWARE BUS PACKAGE
 # ==============================================================================
-# Extracted from the monolithic configuration without functional changes.
-# Project-wide substitutions remain defined in the main YAML.
 
 i2c:
   - id: i2c_bus
-    sda: ${pin_i2c_sda}
-    scl: ${pin_i2c_scl}
+    sda: GPIO8
+    scl: GPIO9
     scan: true
+    frequency: 400kHz
 
-# ==============================================================================
-# SPI BUS
-# ==============================================================================
-# Hardware SPI bus used by the ILI9488 TFT display.
-
-spi:
-  id: spi_bus
-  clk_pin: ${pin_spi_clk}
-  mosi_pin: ${pin_spi_mosi}
-  miso_pin: ${pin_spi_miso}
+ch422g:
+  - id: io_expander
+    i2c_id: i2c_bus
