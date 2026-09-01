@@ -23,8 +23,9 @@ esp32:
 # ==============================================================================
 # EXTERNAL PSRAM
 # ==============================================================================
-# Explicitly enables the unit's 8 MB Octal PSRAM at 80 MHz. The large TFT
-# framebuffer and Wi-Fi allocations benefit significantly from this memory.
+# Explicitly enables the ESP32-S3 N16R8 module's 8 MB Octal PSRAM at 80 MHz.
+# The future 800x480 RGB framebuffer and Wi-Fi allocations will make extensive
+# use of this memory.
 
 psram:
   mode: octal
@@ -34,15 +35,12 @@ psram:
 # ==============================================================================
 # LOGGING
 # ==============================================================================
-# Keep ESPHome logging available through the API/network, but disable the
-# hardware UART logger. GPIO43/GPIO44 therefore remain electrically unused and
-# available as service/reserve pins rather than carrying continuous debug data.
+# Keep verbose serial logging enabled during the initial Waveshare board
+# bring-up. Logging can be reduced again once the v5 hardware baseline is
+# proven stable.
 
 logger:
-  level: INFO
-  baud_rate: 0
-  logs:
-    canbus: WARN
+  level: DEBUG
 
 # ==============================================================================
 # LOCAL ESPHOME WEB SERVER
@@ -110,7 +108,7 @@ wifi:
   reboot_timeout: 0s
 
   ap:
-    ssid: 3PhCharger Fallback Hotspot
+    ssid: Charger Fallback Hotspot
     password: !secret fallback_ap_password
 
 # ==============================================================================
