@@ -47,3 +47,26 @@ touchscreen:
             - touch.x
             - touch.y
           level: INFO
+
+switch:
+  - platform: gpio
+    id: can_mode_select
+    internal: true
+    restore_mode: ALWAYS_ON
+
+    pin:
+      ch422g: io_expander
+      number: 5
+      mode:
+        output: true
+
+canbus:
+  - platform: esp32_can
+    id: charger_can
+
+    tx_pin: GPIO20
+    rx_pin: GPIO19
+    bit_rate: 125kbps
+
+    can_id: 0x00000001
+    use_extended_id: true

@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [string]$DeviceHost = "hg-dg-technik-charger3ph.local",
+    [string]$DeviceHost = "hg-dg-technik-charger.local",
     [int]$Port = 80,
     [string]$Username = "",
     [string]$OutputDirectory = "",
