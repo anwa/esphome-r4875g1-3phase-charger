@@ -1,14 +1,11 @@
 # ==============================================================================
-# V5 LVGL DISPLAY BRING-UP
+# V5 DISPLAY / LVGL UI SKELETON
 # ==============================================================================
 # Waveshare ESP32-S3-Touch-LCD-7
 # 800x480 RGB display
 #
-# This stage verifies the complete input/output chain:
-#
-#   GT911 -> ESPHome touchscreen -> LVGL -> RGB display
-#
-# Charger UI pages are intentionally not included yet.
+# v5.0.5 establishes the permanent five-page UI structure and touch navigation.
+# Charger telemetry and controls are intentionally added in later commits.
 
 display:
   - platform: mipi_rgb
@@ -33,127 +30,296 @@ lvgl:
   buffer_size: 100%
   color_depth: 16
   log_level: WARN
+  page_wrap: true
+
+  # ---------------------------------------------------------------------------
+  # Shared styles
+  # ---------------------------------------------------------------------------
+
+  style_definitions:
+    - id: style_page
+      bg_color: 0x101418
+      bg_opa: COVER
+      border_width: 0
+      pad_all: 0
+
+    - id: style_header
+      bg_color: 0x171D23
+      bg_opa: COVER
+      border_width: 0
+      radius: 0
+      pad_all: 0
+
+    - id: style_nav_button
+      bg_color: 0x202830
+      bg_opa: COVER
+      border_color: 0x3B4652
+      border_width: 1
+      radius: 8
+      text_color: 0xDDE3E8
+
+    - id: style_placeholder
+      bg_color: 0x171D23
+      bg_opa: COVER
+      border_color: 0x303A44
+      border_width: 1
+      radius: 12
+
+
+  # ===========================================================================
+  # MAIN PAGES
+  # ===========================================================================
 
   pages:
-    - id: page_touch_test
-      bg_color: 0x101418
+
+    # -------------------------------------------------------------------------
+    # DASHBOARD
+    # -------------------------------------------------------------------------
+    - id: page_dashboard
+      styles: style_page
 
       widgets:
-
-        # ----------------------------------------------------------------------
-        # Header
-        # ----------------------------------------------------------------------
-        - label:
-            x: 0
-            y: 30
-            width: 800
-            text_align: CENTER
-            text: "R4875G1 CHARGER v5"
-            text_font: montserrat_32
-            text_color: 0xFFFFFF
-
-        - label:
-            x: 0
-            y: 78
-            width: 800
-            text_align: CENTER
-            text: "LVGL + GT911 TOUCH TEST"
-            text_font: montserrat_24
-            text_color: 0xA0A8B0
-
-
-        # ----------------------------------------------------------------------
-        # Touch buttons
-        # ----------------------------------------------------------------------
-        - button:
-            id: touch_test_left
-            x: 55
-            y: 155
-            width: 210
-            height: 150
-
-            widgets:
-              - label:
-                  align: CENTER
-                  text: "LEFT"
-                  text_font: montserrat_28
-
-            on_press:
-              - lvgl.label.update:
-                  id: touch_test_status
-                  text: "LEFT pressed"
-
-            on_release:
-              - lvgl.label.update:
-                  id: touch_test_status
-                  text: "Touch ready"
-
-
-        - button:
-            id: touch_test_center
-            x: 295
-            y: 155
-            width: 210
-            height: 150
-
-            widgets:
-              - label:
-                  align: CENTER
-                  text: "CENTER"
-                  text_font: montserrat_28
-
-            on_press:
-              - lvgl.label.update:
-                  id: touch_test_status
-                  text: "CENTER pressed"
-
-            on_release:
-              - lvgl.label.update:
-                  id: touch_test_status
-                  text: "Touch ready"
-
-
-        - button:
-            id: touch_test_right
-            x: 535
-            y: 155
-            width: 210
-            height: 150
-
-            widgets:
-              - label:
-                  align: CENTER
-                  text: "RIGHT"
-                  text_font: montserrat_28
-
-            on_press:
-              - lvgl.label.update:
-                  id: touch_test_status
-                  text: "RIGHT pressed"
-
-            on_release:
-              - lvgl.label.update:
-                  id: touch_test_status
-                  text: "Touch ready"
-
-
-        # ----------------------------------------------------------------------
-        # Status
-        # ----------------------------------------------------------------------
         - obj:
-            x: 155
-            y: 350
-            width: 490
-            height: 80
-            radius: 12
-            bg_color: 0x202830
-            border_width: 1
-            border_color: 0x505860
+            x: 20
+            y: 75
+            width: 760
+            height: 320
+            styles: style_placeholder
 
             widgets:
               - label:
-                  id: touch_test_status
                   align: CENTER
-                  text: "Touch ready"
-                  text_font: montserrat_24
+                  text: "DASHBOARD"
+                  text_font: montserrat_32
                   text_color: 0xFFFFFF
+
+              - label:
+                  align: CENTER
+                  y: 48
+                  text: "v5 UI migration"
+                  text_font: montserrat_20
+                  text_color: 0x78838E
+
+
+    # -------------------------------------------------------------------------
+    # RECTIFIERS
+    # -------------------------------------------------------------------------
+    - id: page_rectifiers
+      styles: style_page
+
+      widgets:
+        - obj:
+            x: 20
+            y: 75
+            width: 760
+            height: 320
+            styles: style_placeholder
+
+            widgets:
+              - label:
+                  align: CENTER
+                  text: "RECTIFIERS"
+                  text_font: montserrat_32
+                  text_color: 0xFFFFFF
+
+
+    # -------------------------------------------------------------------------
+    # COOLING
+    # -------------------------------------------------------------------------
+    - id: page_cooling
+      styles: style_page
+
+      widgets:
+        - obj:
+            x: 20
+            y: 75
+            width: 760
+            height: 320
+            styles: style_placeholder
+
+            widgets:
+              - label:
+                  align: CENTER
+                  text: "COOLING"
+                  text_font: montserrat_32
+                  text_color: 0xFFFFFF
+
+
+    # -------------------------------------------------------------------------
+    # SYSTEM
+    # -------------------------------------------------------------------------
+    - id: page_system
+      styles: style_page
+
+      widgets:
+        - obj:
+            x: 20
+            y: 75
+            width: 760
+            height: 320
+            styles: style_placeholder
+
+            widgets:
+              - label:
+                  align: CENTER
+                  text: "SYSTEM"
+                  text_font: montserrat_32
+                  text_color: 0xFFFFFF
+
+
+    # -------------------------------------------------------------------------
+    # TRENDS
+    # -------------------------------------------------------------------------
+    - id: page_trends
+      styles: style_page
+
+      widgets:
+        - obj:
+            x: 20
+            y: 75
+            width: 760
+            height: 320
+            styles: style_placeholder
+
+            widgets:
+              - label:
+                  align: CENTER
+                  text: "TRENDS"
+                  text_font: montserrat_32
+                  text_color: 0xFFFFFF
+
+
+  # ===========================================================================
+  # ALWAYS-VISIBLE HEADER + NAVIGATION
+  # ===========================================================================
+
+  top_layer:
+    widgets:
+
+      # -----------------------------------------------------------------------
+      # Header
+      # -----------------------------------------------------------------------
+      - obj:
+          x: 0
+          y: 0
+          width: 800
+          height: 58
+          styles: style_header
+
+          widgets:
+            - label:
+                x: 20
+                align: LEFT_MID
+                text: "R4875G1 CHARGER"
+                text_font: montserrat_24
+                text_color: 0xFFFFFF
+
+            - label:
+                x: -20
+                align: RIGHT_MID
+                text: "v${firmware_version}"
+                text_font: montserrat_18
+                text_color: 0x8B96A0
+
+
+      # -----------------------------------------------------------------------
+      # Bottom navigation
+      # -----------------------------------------------------------------------
+
+      - button:
+          x: 10
+          y: 410
+          width: 148
+          height: 58
+          styles: style_nav_button
+
+          pressed:
+            bg_color: 0x3A4652
+
+          widgets:
+            - label:
+                align: CENTER
+                text: "Dashboard"
+                text_font: montserrat_18
+
+          on_short_click:
+            - lvgl.page.show: page_dashboard
+
+      - button:
+          x: 168
+          y: 410
+          width: 148
+          height: 58
+          styles: style_nav_button
+
+          pressed:
+            bg_color: 0x3A4652
+
+          widgets:
+            - label:
+                align: CENTER
+                text: "Rectifiers"
+                text_font: montserrat_18
+
+          on_short_click:
+            - lvgl.page.show: page_rectifiers
+
+
+      - button:
+          x: 326
+          y: 410
+          width: 148
+          height: 58
+          styles: style_nav_button
+
+          pressed:
+            bg_color: 0x3A4652
+
+          widgets:
+            - label:
+                align: CENTER
+                text: "Cooling"
+                text_font: montserrat_18
+
+          on_short_click:
+            - lvgl.page.show: page_cooling
+
+
+      - button:
+          x: 484
+          y: 410
+          width: 148
+          height: 58
+          styles: style_nav_button
+
+          pressed:
+            bg_color: 0x3A4652
+
+          widgets:
+            - label:
+                align: CENTER
+                text: "System"
+                text_font: montserrat_18
+
+          on_short_click:
+            - lvgl.page.show: page_system
+
+
+      - button:
+          x: 642
+          y: 410
+          width: 148
+          height: 58
+          styles: style_nav_button
+
+          pressed:
+            bg_color: 0x3A4652
+
+          widgets:
+            - label:
+                align: CENTER
+                text: "Trends"
+                text_font: montserrat_18
+
+          on_short_click:
+            - lvgl.page.show: page_trends
