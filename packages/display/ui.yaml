@@ -75,24 +75,7 @@ lvgl:
     # --------------------------------------------------------------------------
     # Cooling
     # --------------------------------------------------------------------------
-    - id: page_cooling
-      styles: style_page
-
-      widgets:
-        - obj:
-            x: 20
-            y: 75
-            width: 760
-            height: 320
-            styles: style_placeholder
-
-            widgets:
-              - label:
-                  align: CENTER
-                  text: "COOLING"
-                  text_font: montserrat_32
-                  text_color: 0xFFFFFF
-
+    - !include pages/cooling.yaml
 
     # --------------------------------------------------------------------------
     # System
@@ -1821,3 +1804,390 @@ interval:
           else:
             - lvgl.widget.disable:
                 id: ui_rectifier_3_power_button
+
+      # ========================================================================
+      # COOLING PAGE
+      # ========================================================================
+
+      # ------------------------------------------------------------------------
+      # Compartment environment
+      # ------------------------------------------------------------------------
+      - lvgl.label.update:
+          id: ui_cooling_compartment_temperature
+          text: !lambda |-
+            if (isnan(id(rectifier_compartment_temperature).state)) {
+              return std::string("--.- °C");
+            }
+
+            return str_sprintf(
+              "%.1f °C",
+              id(rectifier_compartment_temperature).state
+            );
+
+      - lvgl.label.update:
+          id: ui_cooling_compartment_humidity
+          text: !lambda |-
+            if (isnan(id(rectifier_compartment_humidity).state)) {
+              return std::string("--.- %%");
+            }
+
+            return str_sprintf(
+              "%.1f %%",
+              id(rectifier_compartment_humidity).state
+            );
+
+
+      # ------------------------------------------------------------------------
+      # Rectifier 1
+      # ------------------------------------------------------------------------
+      - lvgl.label.update:
+          id: ui_cooling_r1_state
+          text: !lambda |-
+            if (!id(can_com_ok_1).state) {
+              return std::string("OFFLINE");
+            }
+
+            return id(rectifier_control_state_text_1).state;
+
+          text_color: !lambda |-
+            if (!id(can_com_ok_1).state) {
+              return lv_color_hex(0x8B96A0);
+            }
+
+            if (
+              id(rectifier_control_state_1) ==
+                ${rectifier_state_online}
+            ) {
+              return lv_color_hex(0x5CFF7A);
+            }
+
+            if (
+              id(rectifier_control_state_1) ==
+                ${rectifier_state_discovering}
+            ) {
+              return lv_color_hex(0xFFC857);
+            }
+
+            return lv_color_hex(0x8B96A0);
+
+      - lvgl.label.update:
+          id: ui_cooling_r1_rpm
+          text: !lambda |-
+            if (
+              !id(can_com_ok_1).state ||
+              isnan(id(fan_rpm_1).state)
+            ) {
+              return std::string("---- RPM");
+            }
+
+            return str_sprintf(
+              "%.0f RPM",
+              id(fan_rpm_1).state
+            );
+
+      - lvgl.label.update:
+          id: ui_cooling_r1_min_duty
+          text: !lambda |-
+            if (
+              !id(can_com_ok_1).state ||
+              isnan(id(fan_duty_1).state)
+            ) {
+              return std::string("--.- %");
+            }
+
+            return str_sprintf(
+              "%.1f %%",
+              id(fan_duty_1).state
+            );
+
+      - lvgl.label.update:
+          id: ui_cooling_r1_target_duty
+          text: !lambda |-
+            if (
+              !id(can_com_ok_1).state ||
+              isnan(id(fan_duty_setpoint_1).state)
+            ) {
+              return std::string("--.- %");
+            }
+
+            return str_sprintf(
+              "%.1f %%",
+              id(fan_duty_setpoint_1).state
+            );
+
+      - lvgl.label.update:
+          id: ui_cooling_r1_temperature
+          text: !lambda |-
+            if (
+              !id(can_com_ok_1).state ||
+              isnan(id(output_temperature_1).state)
+            ) {
+              return std::string("--.- °C");
+            }
+
+            return str_sprintf(
+              "%.1f °C",
+              id(output_temperature_1).state
+            );
+
+      - lvgl.label.update:
+          id: ui_cooling_r1_thermal
+          text: !lambda |-
+            if (!id(can_com_ok_1).state) {
+              return std::string("--");
+            }
+
+            return id(thermal_state_text_1).state;
+
+      - if:
+          condition:
+            lambda: |-
+              return
+                id(can_com_ok_1).state &&
+                id(rectifier_control_state_1) ==
+                  ${rectifier_state_online};
+
+          then:
+            - lvgl.widget.enable:
+                id: ui_cooling_r1_auto_button
+            - lvgl.widget.enable:
+                id: ui_cooling_r1_full_button
+
+          else:
+            - lvgl.widget.disable:
+                id: ui_cooling_r1_auto_button
+            - lvgl.widget.disable:
+                id: ui_cooling_r1_full_button
+
+      # ------------------------------------------------------------------------
+      # Rectifier 2
+      # ------------------------------------------------------------------------
+      - lvgl.label.update:
+          id: ui_cooling_r2_state
+          text: !lambda |-
+            if (!id(can_com_ok_2).state) {
+              return std::string("OFFLINE");
+            }
+
+            return id(rectifier_control_state_text_2).state;
+
+          text_color: !lambda |-
+            if (!id(can_com_ok_2).state) {
+              return lv_color_hex(0x8B96A0);
+            }
+
+            if (
+              id(rectifier_control_state_2) ==
+                ${rectifier_state_online}
+            ) {
+              return lv_color_hex(0x5CFF7A);
+            }
+
+            if (
+              id(rectifier_control_state_2) ==
+                ${rectifier_state_discovering}
+            ) {
+              return lv_color_hex(0xFFC857);
+            }
+
+            return lv_color_hex(0x8B96A0);
+
+      - lvgl.label.update:
+          id: ui_cooling_r2_rpm
+          text: !lambda |-
+            if (
+              !id(can_com_ok_2).state ||
+              isnan(id(fan_rpm_2).state)
+            ) {
+              return std::string("---- RPM");
+            }
+
+            return str_sprintf("%.0f RPM", id(fan_rpm_2).state);
+
+      - lvgl.label.update:
+          id: ui_cooling_r2_min_duty
+          text: !lambda |-
+            if (
+              !id(can_com_ok_2).state ||
+              isnan(id(fan_duty_2).state)
+            ) {
+              return std::string("--.- %");
+            }
+
+            return str_sprintf("%.1f %%", id(fan_duty_2).state);
+
+      - lvgl.label.update:
+          id: ui_cooling_r2_target_duty
+          text: !lambda |-
+            if (
+              !id(can_com_ok_2).state ||
+              isnan(id(fan_duty_setpoint_2).state)
+            ) {
+              return std::string("--.- %");
+            }
+
+            return str_sprintf(
+              "%.1f %%",
+              id(fan_duty_setpoint_2).state
+            );
+
+      - lvgl.label.update:
+          id: ui_cooling_r2_temperature
+          text: !lambda |-
+            if (
+              !id(can_com_ok_2).state ||
+              isnan(id(output_temperature_2).state)
+            ) {
+              return std::string("--.- °C");
+            }
+
+            return str_sprintf(
+              "%.1f °C",
+              id(output_temperature_2).state
+            );
+
+      - lvgl.label.update:
+          id: ui_cooling_r2_thermal
+          text: !lambda |-
+            if (!id(can_com_ok_2).state) {
+              return std::string("--");
+            }
+
+            return id(thermal_state_text_2).state;
+
+      - if:
+          condition:
+            lambda: |-
+              return
+                id(can_com_ok_2).state &&
+                id(rectifier_control_state_2) ==
+                  ${rectifier_state_online};
+
+          then:
+            - lvgl.widget.enable:
+                id: ui_cooling_r2_auto_button
+            - lvgl.widget.enable:
+                id: ui_cooling_r2_full_button
+
+          else:
+            - lvgl.widget.disable:
+                id: ui_cooling_r2_auto_button
+            - lvgl.widget.disable:
+                id: ui_cooling_r2_full_button
+
+      # ------------------------------------------------------------------------
+      # Rectifier 3
+      # ------------------------------------------------------------------------
+      - lvgl.label.update:
+          id: ui_cooling_r3_state
+          text: !lambda |-
+            if (!id(can_com_ok_3).state) {
+              return std::string("OFFLINE");
+            }
+
+            return id(rectifier_control_state_text_3).state;
+
+          text_color: !lambda |-
+            if (!id(can_com_ok_3).state) {
+              return lv_color_hex(0x8B96A0);
+            }
+
+            if (
+              id(rectifier_control_state_3) ==
+                ${rectifier_state_online}
+            ) {
+              return lv_color_hex(0x5CFF7A);
+            }
+
+            if (
+              id(rectifier_control_state_3) ==
+                ${rectifier_state_discovering}
+            ) {
+              return lv_color_hex(0xFFC857);
+            }
+
+            return lv_color_hex(0x8B96A0);
+
+      - lvgl.label.update:
+          id: ui_cooling_r3_rpm
+          text: !lambda |-
+            if (
+              !id(can_com_ok_3).state ||
+              isnan(id(fan_rpm_3).state)
+            ) {
+              return std::string("---- RPM");
+            }
+
+            return str_sprintf("%.0f RPM", id(fan_rpm_3).state);
+
+      - lvgl.label.update:
+          id: ui_cooling_r3_min_duty
+          text: !lambda |-
+            if (
+              !id(can_com_ok_3).state ||
+              isnan(id(fan_duty_3).state)
+            ) {
+              return std::string("--.- %");
+            }
+
+            return str_sprintf("%.1f %%", id(fan_duty_3).state);
+
+      - lvgl.label.update:
+          id: ui_cooling_r3_target_duty
+          text: !lambda |-
+            if (
+              !id(can_com_ok_3).state ||
+              isnan(id(fan_duty_setpoint_3).state)
+            ) {
+              return std::string("--.- %");
+            }
+
+            return str_sprintf(
+              "%.1f %%",
+              id(fan_duty_setpoint_3).state
+            );
+
+      - lvgl.label.update:
+          id: ui_cooling_r3_temperature
+          text: !lambda |-
+            if (
+              !id(can_com_ok_3).state ||
+              isnan(id(output_temperature_3).state)
+            ) {
+              return std::string("--.- °C");
+            }
+
+            return str_sprintf(
+              "%.1f °C",
+              id(output_temperature_3).state
+            );
+
+      - lvgl.label.update:
+          id: ui_cooling_r3_thermal
+          text: !lambda |-
+            if (!id(can_com_ok_3).state) {
+              return std::string("--");
+            }
+
+            return id(thermal_state_text_3).state;
+
+      - if:
+          condition:
+            lambda: |-
+              return
+                id(can_com_ok_3).state &&
+                id(rectifier_control_state_3) ==
+                  ${rectifier_state_online};
+
+          then:
+            - lvgl.widget.enable:
+                id: ui_cooling_r3_auto_button
+            - lvgl.widget.enable:
+                id: ui_cooling_r3_full_button
+
+          else:
+            - lvgl.widget.disable:
+                id: ui_cooling_r3_auto_button
+            - lvgl.widget.disable:
+                id: ui_cooling_r3_full_button
+
