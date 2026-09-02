@@ -1,84 +1,62 @@
 # ==============================================================================
-# LVGL THEME / FONTS
+# V5 LVGL THEME
 # ==============================================================================
-
-font:
-  - file:
-      type: gfonts
-      family: Roboto
-    id: ui_font_14
-    size: 14
-    glyphs: "äöüÄÖÜßabcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!§$%&=?<> .,:-_/()°µ@€²³+|"
-
-  - file:
-      type: gfonts
-      family: Roboto
-    id: ui_font_18
-    size: 18
-    glyphs: "äöüÄÖÜßabcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!§$%&=?<> .,:-_/()°µ@€²³+|"
-
-  - file:
-      type: gfonts
-      family: Roboto
-      weight: bold
-    id: ui_font_18_bold
-    size: 18
-    glyphs: "äöüÄÖÜßabcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!§$%&=?<> .,:-_/()°µ@€²³+|"
-
-  - file:
-      type: gfonts
-      family: Roboto
-      weight: bold
-    id: ui_font_26_bold
-    size: 26
-    glyphs: "äöüÄÖÜßabcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!§$%&=?<> .,:-_/()°µ@€²³+|"
+# Shared visual styles used across all charger pages.
 
 lvgl:
-  displays: tft
-  rotation: ${display_rotation}
-  # The ESP32-S3 has 8 MB PSRAM, so keep a complete RGB565 framebuffer.
-  # ESPHome LVGL currently supports 16-bit RGB565 output only.
-  color_depth: 16
-  buffer_size: 100%
-  default_font: ui_font_18
-  log_level: WARN
-
-  # This installation has no touchscreen. Disable scrolling and scrollbars for
-  # all generic container objects globally so cards never show unusable bars,
-  # even when a child temporarily exceeds its content area.
-  theme:
-    obj:
-      scrollable: false
-      scrollbar_mode: "OFF"
-
   style_definitions:
-    - id: style_card
-      bg_color: 0xFFFFFF
-      bg_opa: COVER
-      border_color: 0xD8DEE8
-      border_width: 1
-      radius: 10
-      pad_all: 8
 
+    # --------------------------------------------------------------------------
+    # Main page background
+    # --------------------------------------------------------------------------
+    - id: style_page
+      bg_color: 0x101418
+      bg_opa: COVER
+      border_width: 0
+      pad_all: 0
+
+
+    # --------------------------------------------------------------------------
+    # Persistent top header
+    # --------------------------------------------------------------------------
     - id: style_header
-      bg_color: 0x182433
+      bg_color: 0x171D23
       bg_opa: COVER
       border_width: 0
       radius: 0
-      text_color: 0xFFFFFF
+      pad_all: 0
 
-    - id: style_muted
-      text_color: 0x657080
-      text_font: ui_font_14
 
-    - id: style_good
-      text_color: 0x198754
+    # --------------------------------------------------------------------------
+    # Bottom navigation buttons
+    # --------------------------------------------------------------------------
+    - id: style_nav_button
+      bg_color: 0x202830
+      bg_opa: COVER
+      border_color: 0x3B4652
+      border_width: 1
+      radius: 8
+      text_color: 0xDDE3E8
 
-    - id: style_warn
-      text_color: 0xC27A00
 
-    - id: style_fault
-      text_color: 0xC62828
+    # --------------------------------------------------------------------------
+    # Generic content card
+    # --------------------------------------------------------------------------
+    - id: style_card
+      bg_color: 0x171D23
+      bg_opa: COVER
+      border_color: 0x303A44
+      border_width: 1
+      radius: 12
+      pad_all: 0
 
-    - id: style_accent
-      text_color: 0x1769AA
+
+    # --------------------------------------------------------------------------
+    # Temporary placeholder card
+    # --------------------------------------------------------------------------
+    - id: style_placeholder
+      bg_color: 0x171D23
+      bg_opa: COVER
+      border_color: 0x303A44
+      border_width: 1
+      radius: 12
