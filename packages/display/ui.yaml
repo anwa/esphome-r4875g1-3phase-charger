@@ -3,6 +3,58 @@
 # ==============================================================================
 # Main pages plus persistent header and bottom navigation.
 
+# ==============================================================================
+# V5 UI COMMAND STATE
+# ==============================================================================
+# Prevent repeated START/STOP commands while a rectifier state transition is
+# still in progress.
+#
+# pending:
+#   0 = idle
+#   1 = starting
+#   2 = stopping
+
+globals:
+  - id: ui_charger_power_pending
+    type: uint8_t
+    restore_value: false
+    initial_value: "0"
+
+  - id: ui_charger_power_pending_since
+    type: uint32_t
+    restore_value: false
+    initial_value: "0"
+
+  - id: ui_rectifier_1_power_pending
+    type: uint8_t
+    restore_value: false
+    initial_value: "0"
+
+  - id: ui_rectifier_1_power_pending_since
+    type: uint32_t
+    restore_value: false
+    initial_value: "0"
+
+  - id: ui_rectifier_2_power_pending
+    type: uint8_t
+    restore_value: false
+    initial_value: "0"
+
+  - id: ui_rectifier_2_power_pending_since
+    type: uint32_t
+    restore_value: false
+    initial_value: "0"
+
+  - id: ui_rectifier_3_power_pending
+    type: uint8_t
+    restore_value: false
+    initial_value: "0"
+
+  - id: ui_rectifier_3_power_pending_since
+    type: uint32_t
+    restore_value: false
+    initial_value: "0"
+
 lvgl:
 
   # ============================================================================
@@ -269,8 +321,19 @@ lvgl:
 
           on_click:
             - lvgl.widget.hide: ui_start_charger_dialog
-            - button.press: on_button_all
 
+            - lambda: |-
+                id(ui_charger_power_pending) = 1;
+                id(ui_charger_power_pending_since) = millis();
+
+            - lvgl.widget.disable:
+                id: ui_dashboard_power_button
+
+            - lvgl.label.update:
+                id: ui_dashboard_power_button_label
+                text: "STARTING..."
+
+            - button.press: on_button_all
 
     # --------------------------------------------------------------------------
     # STOP confirmation
@@ -295,6 +358,18 @@ lvgl:
 
           on_click:
             - lvgl.widget.hide: ui_stop_charger_dialog
+
+            - lambda: |-
+                id(ui_charger_power_pending) = 2;
+                id(ui_charger_power_pending_since) = millis();
+
+            - lvgl.widget.disable:
+                id: ui_dashboard_power_button
+
+            - lvgl.label.update:
+                id: ui_dashboard_power_button_label
+                text: "STOPPING..."
+
             - button.press: off_button_all
 
     # --------------------------------------------------------------------------
@@ -316,8 +391,19 @@ lvgl:
         - text: "START"
           on_click:
             - lvgl.widget.hide: ui_start_rectifier_1_dialog
-            - button.press: on_button_1
 
+            - lambda: |-
+                id(ui_rectifier_1_power_pending) = 1;
+                id(ui_rectifier_1_power_pending_since) = millis();
+
+            - lvgl.widget.disable:
+                id: ui_rectifier_1_power_button
+
+            - lvgl.label.update:
+                id: ui_rectifier_1_power_button_label
+                text: "STARTING..."
+
+            - button.press: on_button_1
 
     # --------------------------------------------------------------------------
     # RECTIFIER 1 STOP
@@ -338,8 +424,19 @@ lvgl:
         - text: "STOP"
           on_click:
             - lvgl.widget.hide: ui_stop_rectifier_1_dialog
-            - button.press: off_button_1
 
+            - lambda: |-
+                id(ui_rectifier_1_power_pending) = 2;
+                id(ui_rectifier_1_power_pending_since) = millis();
+
+            - lvgl.widget.disable:
+                id: ui_rectifier_1_power_button
+
+            - lvgl.label.update:
+                id: ui_rectifier_1_power_button_label
+                text: "STOPPING..."
+
+            - button.press: off_button_1
 
     # --------------------------------------------------------------------------
     # RECTIFIER 2 START
@@ -360,8 +457,19 @@ lvgl:
         - text: "START"
           on_click:
             - lvgl.widget.hide: ui_start_rectifier_2_dialog
-            - button.press: on_button_2
 
+            - lambda: |-
+                id(ui_rectifier_2_power_pending) = 1;
+                id(ui_rectifier_2_power_pending_since) = millis();
+
+            - lvgl.widget.disable:
+                id: ui_rectifier_2_power_button
+
+            - lvgl.label.update:
+                id: ui_rectifier_2_power_button_label
+                text: "STARTING..."
+
+            - button.press: on_button_2
 
     # --------------------------------------------------------------------------
     # RECTIFIER 2 STOP
@@ -382,8 +490,19 @@ lvgl:
         - text: "STOP"
           on_click:
             - lvgl.widget.hide: ui_stop_rectifier_2_dialog
-            - button.press: off_button_2
 
+            - lambda: |-
+                id(ui_rectifier_2_power_pending) = 2;
+                id(ui_rectifier_2_power_pending_since) = millis();
+
+            - lvgl.widget.disable:
+                id: ui_rectifier_2_power_button
+
+            - lvgl.label.update:
+                id: ui_rectifier_2_power_button_label
+                text: "STOPPING..."
+
+            - button.press: off_button_2
 
     # --------------------------------------------------------------------------
     # RECTIFIER 3 START
@@ -404,8 +523,19 @@ lvgl:
         - text: "START"
           on_click:
             - lvgl.widget.hide: ui_start_rectifier_3_dialog
-            - button.press: on_button_3
 
+            - lambda: |-
+                id(ui_rectifier_3_power_pending) = 1;
+                id(ui_rectifier_3_power_pending_since) = millis();
+
+            - lvgl.widget.disable:
+                id: ui_rectifier_3_power_button
+
+            - lvgl.label.update:
+                id: ui_rectifier_3_power_button_label
+                text: "STARTING..."
+
+            - button.press: on_button_3
 
     # --------------------------------------------------------------------------
     # RECTIFIER 3 STOP
@@ -426,6 +556,18 @@ lvgl:
         - text: "STOP"
           on_click:
             - lvgl.widget.hide: ui_stop_rectifier_3_dialog
+
+            - lambda: |-
+                id(ui_rectifier_3_power_pending) = 2;
+                id(ui_rectifier_3_power_pending_since) = millis();
+
+            - lvgl.widget.disable:
+                id: ui_rectifier_3_power_button
+
+            - lvgl.label.update:
+                id: ui_rectifier_3_power_button_label
+                text: "STOPPING..."
+
             - button.press: off_button_3
 
 # ==============================================================================
@@ -777,12 +919,91 @@ interval:
               : lv_color_hex(0xFF3030);
 
       # ------------------------------------------------------------------------
+      # Charger power command transition
+      # ------------------------------------------------------------------------
+      - lambda: |-
+          const uint32_t now = millis();
+          const uint8_t pending = id(ui_charger_power_pending);
+
+          if (pending == 0) {
+            return;
+          }
+
+          bool any_on = false;
+          bool all_available_on = true;
+          int available = 0;
+
+          if (id(can_com_ok_1).state) {
+            available++;
+            if (id(power_state_1).state == "ON") {
+              any_on = true;
+            } else {
+              all_available_on = false;
+            }
+          }
+
+          if (id(can_com_ok_2).state) {
+            available++;
+            if (id(power_state_2).state == "ON") {
+              any_on = true;
+            } else {
+              all_available_on = false;
+            }
+          }
+
+          if (id(can_com_ok_3).state) {
+            available++;
+            if (id(power_state_3).state == "ON") {
+              any_on = true;
+            } else {
+              all_available_on = false;
+            }
+          }
+
+          bool completed = false;
+
+          if (pending == 1) {
+            completed =
+              available > 0 &&
+              all_available_on;
+          } else if (pending == 2) {
+            completed = !any_on;
+          }
+
+          const bool timed_out =
+            static_cast<uint32_t>(
+              now - id(ui_charger_power_pending_since)
+            ) >= 10000UL;
+
+          if (completed || timed_out) {
+            if (timed_out && !completed) {
+              ESP_LOGW(
+                "ui",
+                "Charger power command UI timeout."
+              );
+            }
+
+            id(ui_charger_power_pending) = 0;
+          }
+
+      # ------------------------------------------------------------------------
       # Charger power button
       # ------------------------------------------------------------------------
       - lvgl.label.update:
           id: ui_dashboard_power_button_label
           text: !lambda |-
-            if (id(available_units).state < 1) {
+            if (id(ui_charger_power_pending) == 1) {
+              return std::string("STARTING...");
+            }
+
+            if (id(ui_charger_power_pending) == 2) {
+              return std::string("STOPPING...");
+            }
+
+            if (
+              isnan(id(available_units).state) ||
+              id(available_units).state < 1
+            ) {
               return std::string("NO RECTIFIERS");
             }
 
@@ -804,13 +1025,21 @@ interval:
       - if:
           condition:
             lambda: |-
-              return id(available_units).state > 0;
+              return
+                id(ui_charger_power_pending) == 0 &&
+                id(ui_rectifier_1_power_pending) == 0 &&
+                id(ui_rectifier_2_power_pending) == 0 &&
+                id(ui_rectifier_3_power_pending) == 0 &&
+                !isnan(id(available_units).state) &&
+                id(available_units).state > 0;
 
           then:
-            - lvgl.widget.enable: ui_dashboard_power_button
+            - lvgl.widget.enable:
+                id: ui_dashboard_power_button
 
           else:
-            - lvgl.widget.disable: ui_dashboard_power_button
+            - lvgl.widget.disable:
+                id: ui_dashboard_power_button
 
       # ========================================================================
       # RECTIFIER 1 PAGE
@@ -1016,6 +1245,39 @@ interval:
               id(output_temperature_1).state
             );
 
+      # ------------------------------------------------------------------------
+      # Power command transition
+      # ------------------------------------------------------------------------
+      - lambda: |-
+          const uint8_t pending =
+            id(ui_rectifier_1_power_pending);
+
+          if (pending == 0) {
+            return;
+          }
+
+          const bool completed =
+            (pending == 1 &&
+             id(power_state_1).state == "ON") ||
+            (pending == 2 &&
+             id(power_state_1).state == "OFF");
+
+          const bool timed_out =
+            static_cast<uint32_t>(
+              millis() -
+              id(ui_rectifier_1_power_pending_since)
+            ) >= 10000UL;
+
+          if (completed || timed_out) {
+            if (timed_out && !completed) {
+              ESP_LOGW(
+                "ui",
+                "Rectifier 1 power command UI timeout."
+              );
+            }
+
+            id(ui_rectifier_1_power_pending) = 0;
+          }
 
       # ------------------------------------------------------------------------
       # Power button label
@@ -1024,6 +1286,14 @@ interval:
           id: ui_rectifier_1_power_button_label
 
           text: !lambda |-
+            if (id(ui_rectifier_1_power_pending) == 1) {
+              return std::string("STARTING...");
+            }
+
+            if (id(ui_rectifier_1_power_pending) == 2) {
+              return std::string("STOPPING...");
+            }
+
             if (
               !id(can_com_ok_1).state ||
               id(rectifier_control_state_1) !=
@@ -1037,7 +1307,6 @@ interval:
                 ? std::string("STOP")
                 : std::string("START");
 
-
       # ------------------------------------------------------------------------
       # Power button availability
       # ------------------------------------------------------------------------
@@ -1045,6 +1314,8 @@ interval:
           condition:
             lambda: |-
               return
+                id(ui_charger_power_pending) == 0 &&
+                id(ui_rectifier_1_power_pending) == 0 &&
                 id(can_com_ok_1).state &&
                 id(rectifier_control_state_1) ==
                   ${rectifier_state_online};
@@ -1229,10 +1500,48 @@ interval:
               id(output_temperature_2).state
             );
 
+      - lambda: |-
+          const uint8_t pending =
+            id(ui_rectifier_2_power_pending);
+
+          if (pending == 0) {
+            return;
+          }
+
+          const bool completed =
+            (pending == 1 &&
+             id(power_state_2).state == "ON") ||
+            (pending == 2 &&
+             id(power_state_2).state == "OFF");
+
+          const bool timed_out =
+            static_cast<uint32_t>(
+              millis() -
+              id(ui_rectifier_2_power_pending_since)
+            ) >= 10000UL;
+
+          if (completed || timed_out) {
+            if (timed_out && !completed) {
+              ESP_LOGW(
+                "ui",
+                "Rectifier 2 power command UI timeout."
+              );
+            }
+
+            id(ui_rectifier_2_power_pending) = 0;
+          }
 
       - lvgl.label.update:
           id: ui_rectifier_2_power_button_label
           text: !lambda |-
+            if (id(ui_rectifier_2_power_pending) == 1) {
+              return std::string("STARTING...");
+            }
+
+            if (id(ui_rectifier_2_power_pending) == 2) {
+              return std::string("STOPPING...");
+            }
+
             if (
               !id(can_com_ok_2).state ||
               id(rectifier_control_state_2) !=
@@ -1246,11 +1555,12 @@ interval:
                 ? std::string("STOP")
                 : std::string("START");
 
-
       - if:
           condition:
             lambda: |-
               return
+                id(ui_charger_power_pending) == 0 &&
+                id(ui_rectifier_2_power_pending) == 0 &&
                 id(can_com_ok_2).state &&
                 id(rectifier_control_state_2) ==
                   ${rectifier_state_online};
@@ -1262,7 +1572,6 @@ interval:
           else:
             - lvgl.widget.disable:
                 id: ui_rectifier_2_power_button
-
 
       # ========================================================================
       # RECTIFIER 3 PAGE
@@ -1436,10 +1745,52 @@ interval:
               id(output_temperature_3).state
             );
 
+      # ------------------------------------------------------------------------
+      # Rectifier 3 power command transition
+      # ------------------------------------------------------------------------
+      - lambda: |-
+          const uint8_t pending =
+            id(ui_rectifier_3_power_pending);
+
+          if (pending == 0) {
+            return;
+          }
+
+          const bool completed =
+            (pending == 1 &&
+             id(power_state_3).state == "ON") ||
+            (pending == 2 &&
+             id(power_state_3).state == "OFF");
+
+          const bool timed_out =
+            static_cast<uint32_t>(
+              millis() -
+              id(ui_rectifier_3_power_pending_since)
+            ) >= 10000UL;
+
+          if (completed || timed_out) {
+            if (timed_out && !completed) {
+              ESP_LOGW(
+                "ui",
+                "Rectifier 3 power command UI timeout."
+              );
+            }
+
+            id(ui_rectifier_3_power_pending) = 0;
+          }
 
       - lvgl.label.update:
           id: ui_rectifier_3_power_button_label
+
           text: !lambda |-
+            if (id(ui_rectifier_3_power_pending) == 1) {
+              return std::string("STARTING...");
+            }
+
+            if (id(ui_rectifier_3_power_pending) == 2) {
+              return std::string("STOPPING...");
+            }
+
             if (
               !id(can_com_ok_3).state ||
               id(rectifier_control_state_3) !=
@@ -1453,11 +1804,12 @@ interval:
                 ? std::string("STOP")
                 : std::string("START");
 
-
       - if:
           condition:
             lambda: |-
               return
+                id(ui_charger_power_pending) == 0 &&
+                id(ui_rectifier_3_power_pending) == 0 &&
                 id(can_com_ok_3).state &&
                 id(rectifier_control_state_3) ==
                   ${rectifier_state_online};
