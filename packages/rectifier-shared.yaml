@@ -2152,22 +2152,6 @@ script:
   # Restartable inactivity timer. Any encoder movement or
   # button press restarts it and wakes the backlight. After five minutes without
   # input, the backlight fades out over ten seconds.
-  - id: display_inactivity_timer
-    mode: restart
-    then:
-      # Wake display / keep backlight on
-      - light.turn_on:
-          id: back_light
-          brightness: 100%
-          transition_length: 200ms
-
-      # Wait for 5 minutes without user input
-      - delay: 5min
-
-      # Slowly fade out backlight
-      - light.turn_off:
-          id: back_light
-          transition_length: 10s
 
 
 # ==============================================================================
@@ -2185,13 +2169,7 @@ script:
 # CAN-L         -> CAN-L bus
 
 canbus:
-  - platform: esp32_can
-    tx_pin: ${pin_can_tx}
-    rx_pin: ${pin_can_rx}
-    can_id: 0xE5F32E5
-    bit_rate: 125kbps
-    use_extended_id: true
-    rx_queue_len: ${can_rx_queue_len}
+  - id: !extend charger_can
     on_frame:
       # ----------------------------------------------------------------------
       # Static property START/DATA handlers for Units 1..3 (0x108xD27F).

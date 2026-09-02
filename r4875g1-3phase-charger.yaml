@@ -118,13 +118,14 @@ substitutions:
   pin_tft_cs: "GPIO5"
   pin_tft_reset: "GPIO6"
   pin_tft_dc: "GPIO7"
+  pin_touch_irq: "GPIO4"
   pin_i2c_sda: "GPIO8"
   pin_i2c_scl: "GPIO9"
   pin_spi_mosi: "GPIO11"
   pin_spi_miso: "GPIO12"
   pin_spi_clk: "GPIO13"
-  pin_can_tx: "GPIO15"
-  pin_can_rx: "GPIO16"
+  pin_can_tx: "GPIO20"
+  pin_can_rx: "GPIO19"
   pin_encoder_a: "GPIO17"
   pin_encoder_b: "GPIO18"
   pin_fan_enable: "GPIO21"
@@ -299,6 +300,24 @@ packages:
   hardware: !include packages/hardware.yaml
   display: !include packages/display.yaml
 
+  controls: !include packages/controls.yaml
+  rectifier_shared: !include packages/rectifier-shared.yaml
+
+  rectifier_unit_1: !include
+    file: packages/rectifier-unit.yaml
+    vars:
+      ru_unit: "1"
+
+  rectifier_unit_2: !include
+    file: packages/rectifier-unit.yaml
+    vars:
+      ru_unit: "2"
+
+  rectifier_unit_3: !include
+    file: packages/rectifier-unit.yaml
+    vars:
+      ru_unit: "3"
+
 esphome:
   name: hg-dg-technik-charger
   friendly_name: HG|DG|Technik|Charger
@@ -308,19 +327,569 @@ esphome:
     name: "anwa.r4875-charger"
     version: "${firmware_version}"
 
+  on_boot:
+    then:
+      # Until valid rectifier status frames have been received, the actual
+      # power state of each unit is unknown.
+      - lambda: |-
+          id(power_state_1).publish_state("UNKNOWN");
+          id(power_state_2).publish_state("UNKNOWN");
+          id(power_state_3).publish_state("UNKNOWN");
+
+          id(thermal_state_text_1).publish_state("NORMAL");
+          id(thermal_state_text_2).publish_state("NORMAL");
+          id(thermal_state_text_3).publish_state("NORMAL");
+
+          // Publish the conservative 50 A failsafe ceiling until the
+          // capabilities of all currently reachable rectifiers are known.
+          id(effective_dc_current_limit_sensor).publish_state(
+            id(effective_dc_current_limit)
+          );
+
+      # Every rectifier starts in OFFLINE control state after an ESP reboot.
+      # A unit must be detected and successfully discovered before it can later
+      # transition to ONLINE.
+      - script.execute:
+          id: set_rectifier_control_state
+          unit: 1
+          state: ${rectifier_state_offline}
+
+      - script.execute:
+          id: set_rectifier_control_state
+          unit: 2
+          state: ${rectifier_state_offline}
+
+      - script.execute:
+          id: set_rectifier_control_state
+          unit: 3
+          state: ${rectifier_state_offline}
+
 # ==============================================================================
 # PROJECT-WIDE / AGGREGATE SENSORS
 # ==============================================================================
 # Controller diagnostics, shared compartment/environment input, local encoder
 # input and charger-wide aggregate telemetry that do not belong to one package
 # or one parameterized rectifier instance.
+sensor:
+  # --------------------------------------------------------------------------
+  # ESPHome Runtime Diagnostics
+  # --------------------------------------------------------------------------
+  - platform: debug
+    free:
+      name: "Heap Free"
+      entity_category: diagnostic
+      icon: "mdi:memory"
+
+    block:
+      name: "Heap Max Block"
+      entity_category: diagnostic
+      icon: "mdi:memory"
+
+    loop_time:
+      name: "Loop Time"
+      entity_category: diagnostic
+      icon: "mdi:timer-outline"
+
+    psram:
+      name: "Free PSRAM"
+      entity_category: diagnostic
+      icon: "mdi:memory"
+
+    cpu_frequency:
+      name: "CPU Frequency"
+      entity_category: diagnostic
+      icon: "mdi:speedometer"
+
+  # --------------------------------------------------------------------------
+  # Controller CPU Temperature
+  - platform: internal_temperature
+    name: "Controller CPU Temperature"
+    id: cpu_temp
+    device_class: temperature
+    state_class: measurement
+    entity_category: diagnostic
+    accuracy_decimals: 1
+    update_interval: 10s
+    icon: "mdi:thermometer"
+
+  # --------------------------------------------------------------------------
+  # Controller Uptime
+  - platform: uptime
+    type: seconds
+    name: "Uptime"
+    entity_category: diagnostic
+
+    icon: "mdi:timer-outline"
+
+  # --------------------------------------------------------------------------
+  # Wi-Fi RSSI
+  - platform: wifi_signal
+    name: "WiFi RSSI"
+    id: wifi_sig
+    unit_of_measurement: "dBm"
+    device_class: signal_strength
+    entity_category: diagnostic
+    update_interval: 10s
+    icon: "mdi:wifi"
+
+  # --------------------------------------------------------------------------
+  # Rectifier Compartment Temperature and Humidity
+  #
+  # AHT10 sensor installed in the shared rear connection compartment behind
+  # the three rectifier units. The measured air is influenced by the warm
+  # exhaust/airflow from all rectifiers and therefore represents the thermal
+  # conditions inside the rectifier compartment rather than room temperature.
+  #
+  # The AHT10 uses I²C address 0x38.
+  - platform: template
+    update_interval: 60s
+    name: "Rectifier Compartment Temperature"
+    id: rectifier_compartment_temperature
+    accuracy_decimals: 1
+    icon: "mdi:thermometer"
+
+
+  # --------------------------------------------------------------------------
+  # local_encoder
+  #
+  # Page-aware SELECT / EDIT controller.
+  #
+  # SELECT:
+  #   Dashboard  -> select Voltage / Power
+  #   Rectifiers -> select L1 / L2 / L3 and open detail with short press
+  #   Cooling    -> select Automatic and, in manual mode, Power / PWM
+  #   System     -> no selectable parameters
+  #   Trends     -> select displayed trend
+  #
+  # EDIT:
+  #   Rotation changes only encoder_edit_value.
+  #   No real entity is changed until the confirming short press.
+
+
+  # --------------------------------------------------------------------------
+  # Effective DC Current Limit
+  # Runtime hardware/capability ceiling shared by all active-current paths.
+  - platform: template
+    name: "Effective DC Current Limit"
+    id: effective_dc_current_limit_sensor
+    unit_of_measurement: "A"
+    device_class: current
+    entity_category: diagnostic
+    accuracy_decimals: 1
+    update_interval: never
+    icon: "mdi:current-dc"
+
+  # --------------------------------------------------------------------------
+  # Thermal / applied current diagnostics
+  # --------------------------------------------------------------------------
+  - platform: template
+    name: "Thermal DC Current Limit"
+    id: thermal_dc_current_limit_sensor
+    unit_of_measurement: "A"
+    device_class: current
+    entity_category: diagnostic
+    accuracy_decimals: 1
+    update_interval: 1s
+    lambda: 'return id(thermal_dc_current_limit);'
+    icon: "mdi:thermometer-alert"
+
+  - platform: template
+    name: "Applied DC Current Limit"
+    id: applied_dc_current_limit_sensor
+    unit_of_measurement: "A"
+    device_class: current
+    state_class: measurement
+    accuracy_decimals: 1
+    update_interval: 1s
+    lambda: |-
+      const float requested = id(set_dc_current_limit).state;
+      if (isnan(requested)) return NAN;
+      float applied = std::min(requested, id(effective_dc_current_limit));
+      applied = std::min(applied, id(thermal_dc_current_limit));
+      return applied;
+    icon: "mdi:current-dc"
+
+  # --------------------------------------------------------------------------
+  # Combined AC Power All Units
+  # CAN-aware AC-input power total from reachable units with valid telemetry.
+  - platform: template
+    name: "Combined AC Power All Units"
+    id: combined_ac_power
+    unit_of_measurement: "kW"
+    device_class: power
+    state_class: measurement
+    accuracy_decimals: 3
+    update_interval: 1s
+    filters:
+      - multiply: 0.001
+    lambda: |-
+      float power = 0.0f;
+      int valid_units = 0;
+
+      if (id(can_com_ok_1).state &&
+          !isnan(id(ac_power_1).state)) {
+        power += id(ac_power_1).state;
+        valid_units++;
+      }
+
+      if (id(can_com_ok_2).state &&
+          !isnan(id(ac_power_2).state)) {
+        power += id(ac_power_2).state;
+        valid_units++;
+      }
+
+      if (id(can_com_ok_3).state &&
+          !isnan(id(ac_power_3).state)) {
+        power += id(ac_power_3).state;
+        valid_units++;
+      }
+
+      // No valid CAN data available
+      if (valid_units == 0) {
+        return NAN;
+      }
+
+      return power;
+    icon: "mdi:flash"
+
+  # --------------------------------------------------------------------------
+  # Combined DC Power All Units
+  # CAN-aware DC power total with the same stale-data protection as the AC total. The lambda sums watts and the multiply filter converts W to kW.
+  - platform: template
+    name: "Combined DC Power All Units"
+    id: combined_dc_power
+    unit_of_measurement: "kW"
+    device_class: power
+    state_class: measurement
+    accuracy_decimals: 3
+    update_interval: 1s
+    filters:
+      - multiply: 0.001
+    lambda: |-
+      float power = 0.0f;
+      int valid_units = 0;
+
+      if (id(can_com_ok_1).state &&
+          !isnan(id(dc_power_1).state)) {
+        power += id(dc_power_1).state;
+        valid_units++;
+      }
+
+      if (id(can_com_ok_2).state &&
+          !isnan(id(dc_power_2).state)) {
+        power += id(dc_power_2).state;
+        valid_units++;
+      }
+
+      if (id(can_com_ok_3).state &&
+          !isnan(id(dc_power_3).state)) {
+        power += id(dc_power_3).state;
+        valid_units++;
+      }
+
+      // No valid CAN data available
+      if (valid_units == 0) {
+        return NAN;
+      }
+
+      return power;
+    icon: "mdi:flash"
+
+  # --------------------------------------------------------------------------
+  # Available Units
+  # Number of rectifier units currently providing valid CAN communication.
+  - platform: template
+    name: "Available Units"
+    id: available_units
+    state_class: measurement
+    accuracy_decimals: 0
+    update_interval: 1s
+    lambda: |-
+      int count = 0;
+
+      if (id(can_com_ok_1).state) {
+        count++;
+      }
+
+      if (id(can_com_ok_2).state) {
+        count++;
+      }
+
+      if (id(can_com_ok_3).state) {
+        count++;
+      }
+
+      return count;
+    icon: "mdi:server-network"
+
+  # --------------------------------------------------------------------------
+  # Combined DC Current All Units
+  # Sum of DC output current from all reachable rectifiers with valid telemetry.
+  - platform: template
+    name: "Combined DC Current All Units"
+    id: combined_dc_current
+    unit_of_measurement: "A"
+    device_class: current
+    state_class: measurement
+    accuracy_decimals: 2
+    update_interval: 1s
+    lambda: |-
+      float current = 0.0f;
+      int valid_units = 0;
+
+      if (id(can_com_ok_1).state &&
+          !isnan(id(dc_current_1).state)) {
+        current += id(dc_current_1).state;
+        valid_units++;
+      }
+
+      if (id(can_com_ok_2).state &&
+          !isnan(id(dc_current_2).state)) {
+        current += id(dc_current_2).state;
+        valid_units++;
+      }
+
+      if (id(can_com_ok_3).state &&
+          !isnan(id(dc_current_3).state)) {
+        current += id(dc_current_3).state;
+        valid_units++;
+      }
+
+      if (valid_units == 0) {
+        return NAN;
+      }
+
+      return current;
+    icon: "mdi:current-dc"
+
+  # --------------------------------------------------------------------------
+  # Average DC Voltage All Units
+  # Average DC output voltage across all reachable rectifiers.
+  # The rectifier outputs are connected in parallel, so their voltages should
+  # normally be nearly identical.
+  - platform: template
+    name: "Average DC Voltage All Units"
+    id: average_dc_voltage
+    unit_of_measurement: "V"
+    device_class: voltage
+    state_class: measurement
+    accuracy_decimals: 2
+    update_interval: 1s
+    lambda: |-
+      float voltage = 0.0f;
+      int valid_units = 0;
+
+      if (id(can_com_ok_1).state &&
+          !isnan(id(dc_voltage_1).state)) {
+        voltage += id(dc_voltage_1).state;
+        valid_units++;
+      }
+
+      if (id(can_com_ok_2).state &&
+          !isnan(id(dc_voltage_2).state)) {
+        voltage += id(dc_voltage_2).state;
+        valid_units++;
+      }
+
+      if (id(can_com_ok_3).state &&
+          !isnan(id(dc_voltage_3).state)) {
+        voltage += id(dc_voltage_3).state;
+        valid_units++;
+      }
+
+      if (valid_units == 0) {
+        return NAN;
+      }
+
+      return voltage / valid_units;
+    icon: "mdi:current-dc"
+
+  # --------------------------------------------------------------------------
+  # Highest Output Temperature All Units
+  # Reports the hottest currently reachable rectifier.
+  - platform: template
+    name: "Highest Output Temperature All Units"
+    id: highest_output_temperature
+    unit_of_measurement: "°C"
+    device_class: temperature
+    state_class: measurement
+    accuracy_decimals: 1
+    update_interval: 1s
+    lambda: |-
+      float highest = 0.0f;
+      bool valid = false;
+
+      if (id(can_com_ok_1).state &&
+          !isnan(id(output_temperature_1).state)) {
+        highest = id(output_temperature_1).state;
+        valid = true;
+      }
+
+      if (id(can_com_ok_2).state &&
+          !isnan(id(output_temperature_2).state)) {
+        if (!valid ||
+            id(output_temperature_2).state > highest) {
+          highest = id(output_temperature_2).state;
+        }
+        valid = true;
+      }
+
+      if (id(can_com_ok_3).state &&
+          !isnan(id(output_temperature_3).state)) {
+        if (!valid ||
+            id(output_temperature_3).state > highest) {
+          highest = id(output_temperature_3).state;
+        }
+        valid = true;
+      }
+
+      if (!valid) {
+        return NAN;
+      }
+
+      return highest;
+    icon: "mdi:thermometer-high"
+
+  # --------------------------------------------------------------------------
+  # Conversion Efficiency All Units
+  # Calculates DC output power divided by AC input power.
+  #
+  # Only units that simultaneously provide valid AC and DC power telemetry are
+  # included. Values below 100 W AC input are ignored because efficiency becomes
+  # meaningless and unstable close to idle operation.
+  - platform: template
+    name: "Conversion Efficiency All Units"
+    id: conversion_efficiency
+    unit_of_measurement: "%"
+    state_class: measurement
+    accuracy_decimals: 1
+    update_interval: 1s
+    lambda: |-
+      float ac_power = 0.0f;
+      float dc_power = 0.0f;
+      int valid_units = 0;
+
+      if (id(can_com_ok_1).state &&
+          !isnan(id(ac_power_1).state) &&
+          !isnan(id(dc_power_1).state)) {
+        ac_power += id(ac_power_1).state;
+        dc_power += id(dc_power_1).state;
+        valid_units++;
+      }
+
+      if (id(can_com_ok_2).state &&
+          !isnan(id(ac_power_2).state) &&
+          !isnan(id(dc_power_2).state)) {
+        ac_power += id(ac_power_2).state;
+        dc_power += id(dc_power_2).state;
+        valid_units++;
+      }
+
+      if (id(can_com_ok_3).state &&
+          !isnan(id(ac_power_3).state) &&
+          !isnan(id(dc_power_3).state)) {
+        ac_power += id(ac_power_3).state;
+        dc_power += id(dc_power_3).state;
+        valid_units++;
+      }
+
+      if (valid_units == 0 ||
+          ac_power < ${efficiency_min_ac_power_w}f) {
+        return NAN;
+      }
+
+      return (dc_power / ac_power) * 100.0f;
+    icon: "mdi:gauge"
+
+  # --------------------------------------------------------------------------
+  # AC Energy Today
+  # Daily AC input energy integrated from the CAN-aware combined AC power.
+  - platform: total_daily_energy
+    name: "AC Energy Today"
+    power_id: combined_ac_power
+    time_id: sntp_time
+    unit_of_measurement: "kWh"
+    device_class: energy
+    state_class: total_increasing
+    accuracy_decimals: 3
+    icon: "mdi:counter"
+
+  # --------------------------------------------------------------------------
+  # DC Energy Today
+  # Daily DC output energy integrated from the CAN-aware combined DC power.
+  - platform: total_daily_energy
+    name: "DC Energy Today"
+    power_id: combined_dc_power
+    time_id: sntp_time
+    unit_of_measurement: "kWh"
+    device_class: energy
+    state_class: total_increasing
+    accuracy_decimals: 3
+    icon: "mdi:counter"
 
 # ==============================================================================
 # PROJECT-WIDE BINARY SENSORS
 # ==============================================================================
 # Local physical push button and charger-wide capability diagnostics.
+binary_sensor:
+  # --------------------------------------------------------------------------
+  # local_encoder_button
+  #
+  # SELECT MODE:
+  #   short press  -> enter EDIT if the page has an editable parameter
+  #   double press -> next page
+  #   long press   -> toggle all rectifiers ON/OFF
+  #
+  # EDIT MODE:
+  #   short press  -> commit and return to SELECT
+  #   double press -> disabled
+  #   long press   -> disabled
+
+  # --------------------------------------------------------------------------
+  # Rectifier Capability Mismatch
+  # Diagnostic problem indicator comparing the maximum-current capability
+  # reported by all three rectifiers.
+  #
+  # State:
+  #   unknown = not all three current capabilities have been confirmed
+  #   OFF     = all three capabilities match
+  #   ON      = at least one rectifier reports a different capability
+  #
+  # The state is published by evaluate_rectifier_capabilities whenever fresh
+  # capability data is received.
+  - platform: template
+    name: "Rectifier Capability Mismatch"
+    id: rectifier_capability_mismatch
+    device_class: problem
+    entity_category: diagnostic
+    icon: "mdi:alert-circle-outline"
 
 # ==============================================================================
 # PROJECT-WIDE TEXT / STATUS SENSORS
 # ==============================================================================
 # Network/controller diagnostics that are shared by the assembled device.
+text_sensor:
+  # Network diagnostic used by the TFT footer.
+  - platform: wifi_info
+    ip_address:
+      id: ip_address
+      entity_category: diagnostic
+
+  # Running ESPHome firmware version.
+  - platform: version
+    name: "ESPHome Version"
+    entity_category: diagnostic
+
+    icon: "mdi:code-tags"
+
+  # ESPHome device information and last reset reason.
+  - platform: debug
+    device:
+      name: "Device Info"
+      entity_category: diagnostic
+      icon: "mdi:information-outline"
+
+    reset_reason:
+      name: "Reset Reason"
+      entity_category: diagnostic
+      icon: "mdi:restart-alert"

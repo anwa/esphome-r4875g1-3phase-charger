@@ -1,2 +1,4 @@
 substitutions:
-  firmware_version: "5.0.6"
+  # Single source of truth for the firmware release version.
+  # Every firmware commit increments PATCH by one.
+  firmware_version: "5.0.7"

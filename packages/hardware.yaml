@@ -4,8 +4,8 @@
 
 i2c:
   - id: i2c_bus
-    sda: GPIO8
-    scl: GPIO9
+    sda: ${pin_i2c_sda}
+    scl: ${pin_i2c_scl}
     scan: true
     frequency: 400kHz
 
@@ -30,7 +30,7 @@ touchscreen:
     i2c_id: i2c_bus
 
     interrupt_pin:
-      number: GPIO4
+      number: ${pin_touch_irq}
       mode:
         input: true
 
@@ -63,10 +63,9 @@ switch:
 canbus:
   - platform: esp32_can
     id: charger_can
-
-    tx_pin: GPIO20
-    rx_pin: GPIO19
+    tx_pin: ${pin_can_tx}
+    rx_pin: ${pin_can_rx}
     bit_rate: 125kbps
-
-    can_id: 0x00000001
+    can_id: 0xE5F32E5
     use_extended_id: true
+    rx_queue_len: ${can_rx_queue_len}
