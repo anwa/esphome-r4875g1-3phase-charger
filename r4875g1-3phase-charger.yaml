@@ -15,12 +15,12 @@
 #   - TF card interface
 #   - native USB and USB-to-UART
 #
-# Planned external hardware:
-#   - TCA9548A I2C multiplexer
-#   - AHT10 compartment temperature/humidity sensor behind TCA9548A
+# External I2C hardware:
+#   - TCA9548A I2C multiplexer @ 0x70
+#   - MCP23017 I/O expander @ 0x20 on TCA channel 0
+#   - AHT10 compartment temperature/humidity sensor @ 0x38 on TCA channel 1
 #
 # Deferred hardware:
-#   - rotary encoder
 #   - physical blackstart button
 #   - external cooling fan PWM
 #   - external cooling fan tachometer inputs
@@ -105,10 +105,8 @@ substitutions:
   pin_i2c_scl: "GPIO9"
   pin_can_tx: "GPIO20"
   pin_can_rx: "GPIO19"
+  pin_mcp_interrupt: "GPIO6"
 
-  pin_encoder_a: "GPIO17"
-  pin_encoder_b: "GPIO18"
-  pin_encoder_button: "GPIO2"
   pin_fan_enable: "GPIO21"
   pin_fan3_tach: "GPIO39"
   pin_fan2_tach: "GPIO40"
@@ -167,7 +165,14 @@ substitutions:
   #
   # External I2C expansion:
   #   TCA9548A @ 0x70
-  #     Channel 0 -> AHT10 @ 0x38
+  #     Channel 0 -> MCP23017 @ 0x20
+  #       GPA0 -> rotary encoder A
+  #       GPA1 -> rotary encoder B
+  #       GPA2 -> rotary encoder button
+  #     Channel 1 -> AHT10 @ 0x38
+  #
+  # External GPIO:
+  #   GPIO6 -> reserved for optional MCP23017 interrupt input
 
   # --------------------------------------------------------------------------
   # External cooling-fan defaults
@@ -421,19 +426,32 @@ sensor:
   # --------------------------------------------------------------------------
   # Rectifier Compartment Temperature and Humidity
   #
-  # AHT10 sensor installed in the shared rear connection compartment behind
-  # the three rectifier units. The measured air is influenced by the warm
-  # exhaust/airflow from all rectifiers and therefore represents the thermal
-  # conditions inside the rectifier compartment rather than room temperature.
+  # AHT10 installed in the shared rear connection compartment behind the
+  # three rectifier units.
   #
-  # The AHT10 uses I²C address 0x38.
-  - platform: template
+  # Connected through:
+  #   main I2C -> TCA9548A channel 1 -> AHT10 @ 0x38
+  # --------------------------------------------------------------------------
+  - platform: aht10
+    variant: AHT10
+    i2c_id: external_i2c_ch1
     update_interval: 60s
-    name: "Rectifier Compartment Temperature"
-    id: rectifier_compartment_temperature
-    accuracy_decimals: 1
-    icon: "mdi:thermometer"
 
+    temperature:
+      name: "Rectifier Compartment Temperature"
+      id: rectifier_compartment_temperature
+      device_class: temperature
+      state_class: measurement
+      accuracy_decimals: 1
+      icon: "mdi:thermometer"
+
+    humidity:
+      name: "Rectifier Compartment Humidity"
+      id: rectifier_compartment_humidity
+      device_class: humidity
+      state_class: measurement
+      accuracy_decimals: 1
+      icon: "mdi:water-percent"
 
   # --------------------------------------------------------------------------
   # local_encoder

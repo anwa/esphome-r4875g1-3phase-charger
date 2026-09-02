@@ -9,6 +9,110 @@ i2c:
     scan: true
     frequency: 400kHz
 
+# ==============================================================================
+# EXTERNAL I2C MULTIPLEXER
+# ==============================================================================
+# TCA9548A on the shared onboard I2C bus.
+#
+# Channel allocation:
+#   CH0 -> MCP23017 external I/O expander
+#   CH1 -> AHT10 rectifier compartment temperature/humidity
+#
+# Remaining channels are reserved for future external I2C devices.
+
+tca9548a:
+  - id: external_i2c_mux
+    i2c_id: i2c_bus
+    address: 0x70
+
+    channels:
+      - bus_id: external_i2c_ch0
+        channel: 0
+
+      - bus_id: external_i2c_ch1
+        channel: 1
+
+
+# ==============================================================================
+# EXTERNAL I/O EXPANDER
+# ==============================================================================
+# MCP23017 on TCA9548A channel 0.
+#
+# Planned allocation:
+#   GPA0 / pin 0 -> rotary encoder A
+#   GPA1 / pin 1 -> rotary encoder B
+#   GPA2 / pin 2 -> rotary encoder button
+#
+# GPIO6 is reserved as a possible future MCP23017 interrupt input.
+# No interrupt is configured yet.
+
+mcp23017:
+  - id: external_io_expander
+    i2c_id: external_i2c_ch0
+    address: 0x20
+
+# ==============================================================================
+# BACKUP ROTARY ENCODER INPUTS
+# ==============================================================================
+# Mechanical rotary encoder connected to the MCP23017 on TCA9548A channel 0.
+#
+# Pin allocation:
+#   GPA0 / pin 0 -> Encoder A
+#   GPA1 / pin 1 -> Encoder B
+#   GPA2 / pin 2 -> Encoder push button
+#
+# All inputs use the MCP23017 internal pull-ups. The mechanical encoder
+# therefore switches the inputs to GND.
+#
+# GPIO6 remains reserved for a possible future MCP23017 interrupt input.
+# Encoder decoding and button actions will be implemented separately.
+
+binary_sensor:
+  - platform: gpio
+    id: backup_encoder_a
+    internal: true
+
+    pin:
+      mcp23xxx: external_io_expander
+      number: 0
+      mode:
+        input: true
+        pullup: true
+      inverted: true
+
+
+  - platform: gpio
+    id: backup_encoder_b
+    internal: true
+
+    pin:
+      mcp23xxx: external_io_expander
+      number: 1
+      mode:
+        input: true
+        pullup: true
+      inverted: true
+
+
+  - platform: gpio
+    id: backup_encoder_button
+    internal: true
+
+    pin:
+      mcp23xxx: external_io_expander
+      number: 2
+      mode:
+        input: true
+        pullup: true
+      inverted: true
+
+    filters:
+      - delayed_on_off: 20ms
+
+# ==============================================================================
+# INTERNAL I/O EXPANDER
+# ==============================================================================
+
 ch422g:
   - id: io_expander
     i2c_id: i2c_bus
