@@ -363,7 +363,8 @@ number:
 # Charger-wide ON/OFF, internal R4875G1 fan-mode overrides and manual discovery.
 
 button:
-  # Broadcast ON command to all three rectifiers.
+  # Start all currently available rectifiers individually.
+  # Each per-unit ON button performs its own complete safety validation.
   - platform: template
     name: "Turn On All Units"
     id: on_button_all
