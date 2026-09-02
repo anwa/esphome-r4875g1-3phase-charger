@@ -85,24 +85,7 @@ lvgl:
     # --------------------------------------------------------------------------
     # Trends
     # --------------------------------------------------------------------------
-    - id: page_trends
-      styles: style_page
-
-      widgets:
-        - obj:
-            x: 20
-            y: 75
-            width: 760
-            height: 320
-            styles: style_placeholder
-
-            widgets:
-              - label:
-                  align: CENTER
-                  text: "TRENDS"
-                  text_font: montserrat_32
-                  text_color: 0xFFFFFF
-
+    - !include pages/trends.yaml
 
   # ============================================================================
   # PERSISTENT HEADER + NAVIGATION
