@@ -92,42 +92,23 @@
 # can_com_ok_x becomes false. Display and aggregate logic then ignore stale
 # values from that unit.
 # ==============================================================================
-# ==============================================================================
-# ESPHOME DEVICE IDENTITY AND BOOT ACTIONS
-# ==============================================================================
-# Defines the device identity used by ESPHome/Home Assistant. The boot hook
-# starts the display inactivity timer so the backlight will eventually switch off
-# even if the user never touches the encoder after power-up.
+
 substitutions:
   # Firmware version is defined once in packages/version.yaml.
   mqtt_command_prefix: "HG/DG/Technik/Charger"
 
   # --------------------------------------------------------------------------
-  # LEGACY V4 GPIO MAP - TEMPORARY DURING V5 MIGRATION
+  # V5 ACTIVE GPIO MAP
   # --------------------------------------------------------------------------
-  # These assignments belong to the former ESP32-S3-DevKitC-1 hardware.
-  #
-  # They are intentionally retained during the first v5 migration commits so
-  # existing package references remain resolvable while the new Waveshare
-  # hardware layer is introduced incrementally.
-  #
-  # Do NOT use these assignments as the v5 hardware definition.
-  # Each legacy pin will be removed or replaced as its subsystem is migrated.
-  pin_encoder_button: "GPIO2"
-  pin_tft_backlight: "GPIO4"
-  pin_tft_cs: "GPIO5"
-  pin_tft_reset: "GPIO6"
-  pin_tft_dc: "GPIO7"
   pin_touch_irq: "GPIO4"
   pin_i2c_sda: "GPIO8"
   pin_i2c_scl: "GPIO9"
-  pin_spi_mosi: "GPIO11"
-  pin_spi_miso: "GPIO12"
-  pin_spi_clk: "GPIO13"
   pin_can_tx: "GPIO20"
   pin_can_rx: "GPIO19"
+
   pin_encoder_a: "GPIO17"
   pin_encoder_b: "GPIO18"
+  pin_encoder_button: "GPIO2"
   pin_fan_enable: "GPIO21"
   pin_fan3_tach: "GPIO39"
   pin_fan2_tach: "GPIO40"
@@ -318,6 +299,11 @@ packages:
     vars:
       ru_unit: "3"
 
+# ==============================================================================
+# ESPHOME DEVICE IDENTITY AND BOOT ACTIONS
+# ==============================================================================
+# Defines the device identity used by ESPHome/Home Assistant.
+# The boot hook initializes rectifier lifecycle and shared diagnostic states.
 esphome:
   name: hg-dg-technik-charger
   friendly_name: HG|DG|Technik|Charger
