@@ -163,6 +163,53 @@ widgets:
             text_font: montserrat_20
             text_color: 0xFFFFFF
 
+        # ----------------------------------------------------------------------
+        # Charger ON/OFF
+        # ----------------------------------------------------------------------
+
+        - button:
+            id: ui_dashboard_power_button
+            x: 16
+            y: 162
+            width: 228
+            height: 34
+            bg_color: 0x202830
+            border_color: 0x3B4652
+            border_width: 1
+            radius: 8
+            disabled:
+              bg_color: 0x30343A
+              border_color: 0x44484E
+              text_color: 0x777C82
+
+            pressed:
+              bg_color: 0x3A4652
+
+            widgets:
+              - label:
+                  id: ui_dashboard_power_button_label
+                  align: CENTER
+                  text: "START CHARGER"
+                  text_font: montserrat_16
+                  text_color: 0xFFFFFF
+
+            on_short_click:
+              - if:
+                  condition:
+                    lambda: |-
+                      return
+                        (id(can_com_ok_1).state &&
+                         id(power_state_1).state == "ON") ||
+                        (id(can_com_ok_2).state &&
+                         id(power_state_2).state == "ON") ||
+                        (id(can_com_ok_3).state &&
+                         id(power_state_3).state == "ON");
+
+                  then:
+                    - lvgl.widget.show: ui_stop_charger_dialog
+
+                  else:
+                    - lvgl.widget.show: ui_start_charger_dialog
 
   # ============================================================================
   # SETPOINTS
@@ -178,52 +225,140 @@ widgets:
       widgets:
         - label:
             x: 16
-            y: 10
+            y: 8
             text: "SETPOINTS"
             text_font: montserrat_18
             text_color: 0x8B96A0
 
+        # ----------------------------------------------------------------------
+        # Voltage
+        # ----------------------------------------------------------------------
+
         - label:
             x: 35
-            y: 48
+            y: 45
             text: "Voltage"
             text_font: montserrat_18
             text_color: 0x8B96A0
 
+        - button:
+            x: 115
+            y: 31
+            width: 48
+            height: 48
+
+            widgets:
+              - label:
+                  align: CENTER
+                  text: "-"
+                  text_font: montserrat_24
+
+            on_short_click:
+              - number.decrement:
+                  id: set_dc_voltage_limit
+                  cycle: false
+
         - label:
             id: ui_dashboard_set_voltage
-            x: 115
-            y: 46
+            x: 170
+            y: 44
+            width: 85
+            text_align: CENTER
             text: "--.- V"
             text_font: montserrat_20
             text_color: 0xFFFFFF
 
+        - button:
+            x: 260
+            y: 31
+            width: 48
+            height: 48
+
+            widgets:
+              - label:
+                  align: CENTER
+                  text: "+"
+                  text_font: montserrat_24
+
+            on_short_click:
+              - number.increment:
+                  id: set_dc_voltage_limit
+                  cycle: false
+
+
+        # ----------------------------------------------------------------------
+        # Total power
+        # ----------------------------------------------------------------------
+
         - label:
-            x: 280
-            y: 48
+            x: 335
+            y: 45
             text: "Power"
             text_font: montserrat_18
             text_color: 0x8B96A0
 
+        - button:
+            x: 395
+            y: 31
+            width: 48
+            height: 48
+
+            widgets:
+              - label:
+                  align: CENTER
+                  text: "-"
+                  text_font: montserrat_24
+
+            on_short_click:
+              - number.decrement:
+                  id: set_dc_sum_power
+                  cycle: false
+
         - label:
             id: ui_dashboard_set_power
-            x: 345
-            y: 46
+            x: 450
+            y: 44
+            width: 95
+            text_align: CENTER
             text: "--.-- kW"
             text_font: montserrat_20
             text_color: 0xFFFFFF
 
+        - button:
+            x: 550
+            y: 31
+            width: 48
+            height: 48
+
+            widgets:
+              - label:
+                  align: CENTER
+                  text: "+"
+                  text_font: montserrat_24
+
+            on_short_click:
+              - number.increment:
+                  id: set_dc_sum_power
+                  cycle: false
+
+
+        # ----------------------------------------------------------------------
+        # Applied per-unit current
+        # ----------------------------------------------------------------------
+
         - label:
-            x: 510
-            y: 48
+            x: 625
+            y: 25
             text: "Applied"
-            text_font: montserrat_18
+            text_font: montserrat_16
             text_color: 0x8B96A0
 
         - label:
             id: ui_dashboard_set_current
-            x: 585
-            y: 46
+            x: 615
+            y: 52
+            width: 120
+            text_align: CENTER
             text: "--.- A"
             text_font: montserrat_20
             text_color: 0xFFFFFF

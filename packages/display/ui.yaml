@@ -259,6 +259,63 @@ lvgl:
           on_short_click:
             - lvgl.page.show: page_trends
 
+  # ============================================================================
+  # CHARGER CONFIRMATION DIALOGS
+  # ============================================================================
+
+  msgboxes:
+
+    # --------------------------------------------------------------------------
+    # START confirmation
+    # --------------------------------------------------------------------------
+    - id: ui_start_charger_dialog
+      close_button: false
+      title: "Start charger?"
+
+      body:
+        text: "Start all available and ready rectifier units?\n\nSafety checks are applied individually before startup."
+        text_font: montserrat_18
+
+      buttons:
+        - id: ui_start_cancel_button
+          text: "CANCEL"
+
+          on_click:
+            - lvgl.widget.hide: ui_start_charger_dialog
+
+        - id: ui_start_confirm_button
+          text: "START"
+
+          on_click:
+            - lvgl.widget.hide: ui_start_charger_dialog
+            - button.press: on_button_all
+
+
+    # --------------------------------------------------------------------------
+    # STOP confirmation
+    # --------------------------------------------------------------------------
+    - id: ui_stop_charger_dialog
+      close_button: false
+      title: "Stop charger?"
+
+      body:
+        text: "Stop all rectifier units?"
+        text_font: montserrat_18
+
+      buttons:
+        - id: ui_stop_cancel_button
+          text: "CANCEL"
+
+          on_click:
+            - lvgl.widget.hide: ui_stop_charger_dialog
+
+        - id: ui_stop_confirm_button
+          text: "STOP"
+
+          on_click:
+            - lvgl.widget.hide: ui_stop_charger_dialog
+            - button.press: off_button_all
+
 # ==============================================================================
 # V5 DISPLAY RUNTIME UPDATES
 # ==============================================================================
@@ -606,3 +663,39 @@ interval:
             return online == 3
               ? lv_color_hex(0x5CFF7A)
               : lv_color_hex(0xFF3030);
+
+      # ------------------------------------------------------------------------
+      # Charger power button
+      # ------------------------------------------------------------------------
+      - lvgl.label.update:
+          id: ui_dashboard_power_button_label
+          text: !lambda |-
+            if (id(available_units).state < 1) {
+              return std::string("NO RECTIFIERS");
+            }
+
+            const bool running =
+              (id(can_com_ok_1).state &&
+               id(power_state_1).state == "ON") ||
+              (id(can_com_ok_2).state &&
+               id(power_state_2).state == "ON") ||
+              (id(can_com_ok_3).state &&
+               id(power_state_3).state == "ON");
+
+            return running
+              ? std::string("STOP CHARGER")
+              : std::string("START CHARGER");
+
+      # ------------------------------------------------------------------------
+      # Charger power button availability
+      # ------------------------------------------------------------------------
+      - if:
+          condition:
+            lambda: |-
+              return id(available_units).state > 0;
+
+          then:
+            - lvgl.widget.enable: ui_dashboard_power_button
+
+          else:
+            - lvgl.widget.disable: ui_dashboard_power_button
