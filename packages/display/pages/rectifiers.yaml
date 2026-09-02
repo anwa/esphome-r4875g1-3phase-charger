@@ -136,6 +136,20 @@ widgets:
                   text_font: montserrat_18
                   text_color: 0xFFFFFF
 
+            on_short_click:
+              - if:
+                  condition:
+                    lambda: |-
+                      return
+                        id(can_com_ok_1).state &&
+                        id(power_state_1).state == "ON";
+
+                  then:
+                    - lvgl.widget.show: ui_stop_rectifier_1_dialog
+
+                  else:
+                    - lvgl.widget.show: ui_start_rectifier_1_dialog
+
   # ============================================================================
   # RECTIFIER 2
   # ============================================================================
@@ -261,6 +275,20 @@ widgets:
                   text_font: montserrat_18
                   text_color: 0xFFFFFF
 
+            on_short_click:
+              - if:
+                  condition:
+                    lambda: |-
+                      return
+                        id(can_com_ok_2).state &&
+                        id(power_state_2).state == "ON";
+
+                  then:
+                    - lvgl.widget.show: ui_stop_rectifier_2_dialog
+
+                  else:
+                    - lvgl.widget.show: ui_start_rectifier_2_dialog
+
   # ============================================================================
   # RECTIFIER 3
   # ============================================================================
@@ -385,3 +413,17 @@ widgets:
                   text: "UNAVAILABLE"
                   text_font: montserrat_18
                   text_color: 0xFFFFFF
+
+            on_short_click:
+              - if:
+                  condition:
+                    lambda: |-
+                      return
+                        id(can_com_ok_3).state &&
+                        id(power_state_3).state == "ON";
+
+                  then:
+                    - lvgl.widget.show: ui_stop_rectifier_3_dialog
+
+                  else:
+                    - lvgl.widget.show: ui_start_rectifier_3_dialog

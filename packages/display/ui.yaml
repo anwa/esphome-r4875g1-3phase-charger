@@ -297,6 +297,137 @@ lvgl:
             - lvgl.widget.hide: ui_stop_charger_dialog
             - button.press: off_button_all
 
+    # --------------------------------------------------------------------------
+    # RECTIFIER 1 START
+    # --------------------------------------------------------------------------
+    - id: ui_start_rectifier_1_dialog
+      close_button: false
+      title: "Start Rectifier 1?"
+
+      body:
+        text: "Start Rectifier 1?\n\nAll individual safety checks will be applied."
+        text_font: montserrat_18
+
+      buttons:
+        - text: "CANCEL"
+          on_click:
+            - lvgl.widget.hide: ui_start_rectifier_1_dialog
+
+        - text: "START"
+          on_click:
+            - lvgl.widget.hide: ui_start_rectifier_1_dialog
+            - button.press: on_button_1
+
+
+    # --------------------------------------------------------------------------
+    # RECTIFIER 1 STOP
+    # --------------------------------------------------------------------------
+    - id: ui_stop_rectifier_1_dialog
+      close_button: false
+      title: "Stop Rectifier 1?"
+
+      body:
+        text: "Stop Rectifier 1?"
+        text_font: montserrat_18
+
+      buttons:
+        - text: "CANCEL"
+          on_click:
+            - lvgl.widget.hide: ui_stop_rectifier_1_dialog
+
+        - text: "STOP"
+          on_click:
+            - lvgl.widget.hide: ui_stop_rectifier_1_dialog
+            - button.press: off_button_1
+
+
+    # --------------------------------------------------------------------------
+    # RECTIFIER 2 START
+    # --------------------------------------------------------------------------
+    - id: ui_start_rectifier_2_dialog
+      close_button: false
+      title: "Start Rectifier 2?"
+
+      body:
+        text: "Start Rectifier 2?\n\nAll individual safety checks will be applied."
+        text_font: montserrat_18
+
+      buttons:
+        - text: "CANCEL"
+          on_click:
+            - lvgl.widget.hide: ui_start_rectifier_2_dialog
+
+        - text: "START"
+          on_click:
+            - lvgl.widget.hide: ui_start_rectifier_2_dialog
+            - button.press: on_button_2
+
+
+    # --------------------------------------------------------------------------
+    # RECTIFIER 2 STOP
+    # --------------------------------------------------------------------------
+    - id: ui_stop_rectifier_2_dialog
+      close_button: false
+      title: "Stop Rectifier 2?"
+
+      body:
+        text: "Stop Rectifier 2?"
+        text_font: montserrat_18
+
+      buttons:
+        - text: "CANCEL"
+          on_click:
+            - lvgl.widget.hide: ui_stop_rectifier_2_dialog
+
+        - text: "STOP"
+          on_click:
+            - lvgl.widget.hide: ui_stop_rectifier_2_dialog
+            - button.press: off_button_2
+
+
+    # --------------------------------------------------------------------------
+    # RECTIFIER 3 START
+    # --------------------------------------------------------------------------
+    - id: ui_start_rectifier_3_dialog
+      close_button: false
+      title: "Start Rectifier 3?"
+
+      body:
+        text: "Start Rectifier 3?\n\nAll individual safety checks will be applied."
+        text_font: montserrat_18
+
+      buttons:
+        - text: "CANCEL"
+          on_click:
+            - lvgl.widget.hide: ui_start_rectifier_3_dialog
+
+        - text: "START"
+          on_click:
+            - lvgl.widget.hide: ui_start_rectifier_3_dialog
+            - button.press: on_button_3
+
+
+    # --------------------------------------------------------------------------
+    # RECTIFIER 3 STOP
+    # --------------------------------------------------------------------------
+    - id: ui_stop_rectifier_3_dialog
+      close_button: false
+      title: "Stop Rectifier 3?"
+
+      body:
+        text: "Stop Rectifier 3?"
+        text_font: montserrat_18
+
+      buttons:
+        - text: "CANCEL"
+          on_click:
+            - lvgl.widget.hide: ui_stop_rectifier_3_dialog
+
+        - text: "STOP"
+          on_click:
+            - lvgl.widget.hide: ui_stop_rectifier_3_dialog
+            - button.press: off_button_3
+
 # ==============================================================================
 # V5 DISPLAY RUNTIME UPDATES
 # ==============================================================================
