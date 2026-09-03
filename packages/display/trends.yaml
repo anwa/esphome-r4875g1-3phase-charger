@@ -1,0 +1,639 @@
+# ==============================================================================
+# V5 TRENDS RUNTIME
+# ==============================================================================
+#
+# Native LVGL chart support for the Trends page.
+#
+# The page itself is defined in:
+#   display/pages/trends.yaml
+#
+# Trend acquisition and the five 120-sample ring buffers remain in:
+#   rectifier-shared.yaml
+#
+# trend_helpers.h exposes the native LVGL chart API.
+# ==============================================================================
+
+script:
+  - id: trend_chart_refresh
+    mode: restart
+
+    then:
+      - lambda: |-
+          constexpr uint16_t TREND_POINTS = 120;
+
+          static lv_obj_t *chart = nullptr;
+          static lv_chart_series_t *series = nullptr;
+
+          static int last_selection = -1;
+          static uint16_t last_write_index = 0xFFFF;
+          static uint16_t last_sample_count = 0xFFFF;
+
+
+          // ====================================================================
+          // CREATE CHART ON FIRST USE
+          // ====================================================================
+          if (chart == nullptr) {
+
+            chart = lv_chart_create(
+              id(ui_trend_chart_host)
+            );
+
+            lv_obj_set_size(
+              chart,
+              680,
+              180
+            );
+
+            lv_obj_set_pos(
+              chart,
+              65,
+              8
+            );
+
+            lv_chart_set_type(
+              chart,
+              LV_CHART_TYPE_LINE
+            );
+
+            lv_chart_set_point_count(
+              chart,
+              TREND_POINTS
+            );
+
+            lv_chart_set_update_mode(
+              chart,
+              LV_CHART_UPDATE_MODE_SHIFT
+            );
+
+            lv_chart_set_div_line_count(
+              chart,
+              5,
+              6
+            );
+
+            lv_obj_set_style_border_width(
+              chart,
+              0,
+              LV_PART_MAIN
+            );
+
+            lv_obj_set_style_bg_color(
+              chart,
+              lv_color_hex(0x11171C),
+              LV_PART_MAIN
+            );
+
+            lv_obj_set_style_bg_opa(
+              chart,
+              LV_OPA_COVER,
+              LV_PART_MAIN
+            );
+
+            lv_obj_set_style_line_color(
+              chart,
+              lv_color_hex(0x3B4652),
+              LV_PART_MAIN
+            );
+
+            lv_obj_set_style_line_opa(
+              chart,
+              LV_OPA_COVER,
+              LV_PART_MAIN
+            );
+
+            series = lv_chart_add_series(
+              chart,
+              lv_color_hex(0x5CFF7A),
+              LV_CHART_AXIS_PRIMARY_Y
+            );
+
+            lv_obj_set_style_line_width(
+              chart,
+              2,
+              LV_PART_ITEMS
+            );
+
+            lv_obj_set_style_size(
+              chart,
+              0,
+              0,
+              LV_PART_INDICATOR
+            );
+
+            lv_chart_set_range(
+              chart,
+              LV_CHART_AXIS_PRIMARY_Y,
+              0,
+              100
+            );
+
+            ESP_LOGI(
+              "trend",
+              "V5 native LVGL trend chart created with %u points.",
+              TREND_POINTS
+            );
+          }
+
+
+          // ====================================================================
+          // CURRENT BUFFER STATE
+          // ====================================================================
+          const int selection =
+            id(trend_selection);
+
+          const uint16_t write_index =
+            id(trend_write_index);
+
+          const uint16_t sample_count =
+            std::min<uint16_t>(
+              id(trend_sample_count),
+              TREND_POINTS
+            );
+
+
+          // ====================================================================
+          // SELECT SOURCE
+          // ====================================================================
+          const std::vector<float> *buffer = nullptr;
+
+          const char *title = "DC POWER";
+          const char *unit = "kW";
+
+          float scale = 100.0f;
+          float minimum_span = 1.0f;
+          bool zero_floor = true;
+          int decimals = 2;
+
+          float current = NAN;
+
+          switch (selection) {
+
+            case 0:
+              buffer = &id(trend_buffer_dc_power);
+              title = "DC POWER";
+              unit = "kW";
+              scale = 100.0f;
+              minimum_span = 1.0f;
+              zero_floor = true;
+              decimals = 2;
+              current = id(combined_dc_power).state;
+              break;
+
+            case 1:
+              buffer = &id(trend_buffer_dc_current);
+              title = "DC CURRENT";
+              unit = "A";
+              scale = 10.0f;
+              minimum_span = 10.0f;
+              zero_floor = true;
+              decimals = 1;
+              current = id(combined_dc_current).state;
+              break;
+
+            case 2:
+              buffer = &id(trend_buffer_dc_voltage);
+              title = "DC VOLTAGE";
+              unit = "V";
+              scale = 100.0f;
+              minimum_span = 1.0f;
+              zero_floor = false;
+              decimals = 1;
+              current = id(average_dc_voltage).state;
+              break;
+
+            case 3:
+              buffer = &id(trend_buffer_output_temp);
+              title = "OUTPUT TEMP";
+              unit = "C";
+              scale = 10.0f;
+              minimum_span = 10.0f;
+              zero_floor = true;
+              decimals = 1;
+              current = id(highest_output_temperature).state;
+              break;
+
+            case 4:
+              buffer = &id(trend_buffer_compartment_temp);
+              title = "COMPARTMENT";
+              unit = "C";
+              scale = 10.0f;
+              minimum_span = 10.0f;
+              zero_floor = true;
+              decimals = 1;
+              current =
+                id(rectifier_compartment_temperature).state;
+              break;
+
+            default:
+              return;
+          }
+
+
+          // ====================================================================
+          // SELECTOR / TITLE
+          // ====================================================================
+          const lv_color_t normal =
+            lv_color_hex(0x202830);
+
+          const lv_color_t active =
+            lv_color_hex(0x36505A);
+
+          const lv_color_t normal_text =
+            lv_color_hex(0xDDE3E8);
+
+          const lv_color_t active_text =
+            lv_color_hex(0x5CFF7A);
+
+          lv_obj_set_style_text_color(
+            id(ui_trend_tab_voltage),
+            selection == 2 ? active_text : normal_text,
+            LV_PART_MAIN
+          );
+
+          lv_obj_set_style_text_color(
+            id(ui_trend_tab_output_temp),
+            selection == 3 ? active_text : normal_text,
+            LV_PART_MAIN
+          );
+
+          lv_obj_set_style_text_color(
+            id(ui_trend_tab_compartment),
+            selection == 4 ? active_text : normal_text,
+            LV_PART_MAIN
+          );
+
+          // ====================================================================
+          // CURRENT VALUE
+          // ====================================================================
+          std::string current_text;
+
+          if (isnan(current)) {
+
+            current_text =
+              "CURRENT --";
+
+          } else if (decimals == 2) {
+
+            current_text =
+              str_sprintf(
+                "CURRENT %.2f %s",
+                current,
+                unit
+              );
+
+          } else {
+
+            current_text =
+              str_sprintf(
+                "CURREN %.2f %s",
+                current,
+                unit
+              );
+          }
+
+          lv_label_set_text(
+            id(ui_trend_current),
+            current_text.c_str()
+          );
+
+
+          // ====================================================================
+          // NOTHING NEW FOR GRAPH?
+          // ====================================================================
+          if (
+            selection == last_selection &&
+            write_index == last_write_index &&
+            sample_count == last_sample_count
+          ) {
+            return;
+          }
+
+          last_selection = selection;
+          last_write_index = write_index;
+          last_sample_count = sample_count;
+
+
+          // ====================================================================
+          // REWRITE 120-POINT SERIES
+          // ====================================================================
+          float minimum = NAN;
+          float maximum = NAN;
+
+          const uint16_t leading_empty =
+            TREND_POINTS - sample_count;
+
+          for (
+            uint16_t chart_index = 0;
+            chart_index < TREND_POINTS;
+            chart_index++
+          ) {
+
+            if (chart_index < leading_empty) {
+
+              lv_chart_set_value_by_id(
+                chart,
+                series,
+                chart_index,
+                LV_CHART_POINT_NONE
+              );
+
+              continue;
+            }
+
+            const uint16_t sample_offset =
+              chart_index - leading_empty;
+
+            uint16_t buffer_index;
+
+            if (sample_count < TREND_POINTS) {
+
+              buffer_index =
+                sample_offset;
+
+            } else {
+
+              buffer_index =
+                (
+                  write_index +
+                  sample_offset
+                ) % TREND_POINTS;
+            }
+
+            const float value =
+              (*buffer)[buffer_index];
+
+            if (isnan(value)) {
+
+              lv_chart_set_value_by_id(
+                chart,
+                series,
+                chart_index,
+                LV_CHART_POINT_NONE
+              );
+
+              continue;
+            }
+
+            if (
+              isnan(minimum) ||
+              value < minimum
+            ) {
+              minimum = value;
+            }
+
+            if (
+              isnan(maximum) ||
+              value > maximum
+            ) {
+              maximum = value;
+            }
+
+            lv_chart_set_value_by_id(
+              chart,
+              series,
+              chart_index,
+              static_cast<int32_t>(
+                lroundf(value * scale)
+              )
+            );
+          }
+
+
+          // ============================================================================
+          // DYNAMIC Y RANGE
+          // ============================================================================
+          float axis_low = 0.0f;
+          float axis_high = minimum_span;
+
+          if (
+            !isnan(minimum) &&
+            !isnan(maximum)
+          ) {
+
+            axis_low = minimum;
+            axis_high = maximum;
+
+            float span =
+              axis_high - axis_low;
+
+            if (span < minimum_span) {
+
+              const float center =
+                (
+                  axis_low +
+                  axis_high
+                ) * 0.5f;
+
+              axis_low =
+                center -
+                minimum_span * 0.5f;
+
+              axis_high =
+                center +
+                minimum_span * 0.5f;
+
+              span = minimum_span;
+            }
+
+            const float padding =
+              span * 0.10f;
+
+            axis_low -= padding;
+            axis_high += padding;
+
+            if (
+              zero_floor &&
+              axis_low < 0.0f
+            ) {
+              axis_low = 0.0f;
+            }
+          }
+
+          int32_t chart_axis_low =
+            static_cast<int32_t>(
+              floorf(
+                axis_low * scale
+              )
+            );
+
+          int32_t chart_axis_high =
+            static_cast<int32_t>(
+              ceilf(
+                axis_high * scale
+              )
+            );
+
+          if (
+            chart_axis_high <=
+            chart_axis_low
+          ) {
+            chart_axis_high =
+              chart_axis_low + 1;
+          }
+
+          lv_chart_set_range(
+            chart,
+            LV_CHART_AXIS_PRIMARY_Y,
+            chart_axis_low,
+            chart_axis_high
+          );
+
+
+          // ============================================================================
+          // Y-AXIS LABELS
+          // ============================================================================
+          const float axis_mid =
+            (
+              axis_low +
+              axis_high
+            ) * 0.5f;
+
+          std::string y_max;
+          std::string y_mid;
+          std::string y_min;
+
+          if (
+            isnan(minimum) ||
+            isnan(maximum)
+          ) {
+
+            y_max = "--";
+            y_mid = "--";
+            y_min = "--";
+
+          } else if (decimals == 2) {
+
+            y_max =
+              str_sprintf(
+                "%.2f",
+                axis_high
+              );
+
+            y_mid =
+              str_sprintf(
+                "%.2f",
+                axis_mid
+              );
+
+            y_min =
+              str_sprintf(
+                "%.2f",
+                axis_low
+              );
+
+          } else {
+
+            y_max =
+              str_sprintf(
+                "%.1f",
+                axis_high
+              );
+
+            y_mid =
+              str_sprintf(
+                "%.1f",
+                axis_mid
+              );
+
+            y_min =
+              str_sprintf(
+                "%.1f",
+                axis_low
+              );
+          }
+
+          lv_label_set_text(
+            id(ui_trend_y_max),
+            y_max.c_str()
+          );
+
+          lv_label_set_text(
+            id(ui_trend_y_mid),
+            y_mid.c_str()
+          );
+
+          lv_label_set_text(
+            id(ui_trend_y_min),
+            y_min.c_str()
+          );
+
+
+          // ============================================================================
+          // MIN / MAX LABELS
+          // ============================================================================
+          std::string minimum_text;
+          std::string maximum_text;
+
+          if (isnan(minimum)) {
+
+            minimum_text =
+              "MIN --";
+
+          } else if (decimals == 2) {
+
+            minimum_text =
+              str_sprintf(
+                "MIN %.2f %s",
+                minimum,
+                unit
+              );
+
+          } else {
+
+            minimum_text =
+              str_sprintf(
+                "MIN %.2f %s",
+                minimum,
+                unit
+              );
+          }
+
+          if (isnan(maximum)) {
+
+            maximum_text =
+              "MAX --";
+
+          } else if (decimals == 2) {
+
+            maximum_text =
+              str_sprintf(
+                "MAX %.2f %s",
+                maximum,
+                unit
+              );
+
+          } else {
+
+            maximum_text =
+              str_sprintf(
+                "MAX %.2f %s",
+                maximum,
+                unit
+              );
+          }
+
+          lv_label_set_text(
+            id(ui_trend_min),
+            minimum_text.c_str()
+          );
+
+          lv_label_set_text(
+            id(ui_trend_max),
+            maximum_text.c_str()
+          );
+
+
+          // ============================================================================
+          // FINAL CHART REFRESH
+          // ============================================================================
+          lv_chart_refresh(chart);
+
+
+# ==============================================================================
+# PERIODIC DISPLAY REFRESH
+# ==============================================================================
+
+interval:
+  - interval: 1s
+    then:
+      - script.execute: trend_chart_refresh

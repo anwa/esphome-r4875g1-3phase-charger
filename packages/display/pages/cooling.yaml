@@ -1,377 +1,449 @@
-# LVGL PAGE: COOLING
-lvgl:
-  pages:
-    - id: cooling_page
-      bg_color: 0xF3F5F8
-      bg_opa: COVER
-      scrollable: false
-      scrollbar_mode: "OFF"
+# ==============================================================================
+# V5 LVGL PAGE: COOLING
+# ==============================================================================
+#
+# Real cooling telemetry from the three Huawei R4875G1 rectifiers plus the
+# shared compartment AHT10 sensor.
+#
+# External chassis-fan hardware is intentionally not shown here until the
+# corresponding v5 hardware has been implemented.
+
+id: page_cooling
+styles: style_page
+
+widgets:
+
+  # ============================================================================
+  # COMPARTMENT ENVIRONMENT
+  # ============================================================================
+
+  - obj:
+      x: 20
+      y: 75
+      width: 760
+      height: 75
+      styles: style_card
+
       widgets:
-        - obj:
-            scrollable: false
-            scrollbar_mode: "OFF"
-            x: 0
-            y: 0
-            width: 100%
-            height: 64
-            styles: style_header
-            pad_all: 0
-            widgets:
-              - label:
-                  x: 10
-                  y: 8
-                  width: 300
-                  text_align: CENTER
-                  text: "COOLING"
-                  text_font: ui_font_26_bold
-              - label:
-                  x: 10
-                  y: 42
-                  width: 300
-                  text_align: CENTER
-                  text: "Compartment and external fans"
-                  text_font: ui_font_14
-                  text_color: 0xFFFFFF
-        - obj:
-            scrollable: false
-            scrollbar_mode: "OFF"
-            x: 8
-            y: 72
-            width: 304
-            height: 104
-            styles: style_card
-            widgets:
-              - label:
-                  text: "COMPARTMENT"
-                  text_font: ui_font_14
-                  text_color: 0x657080
-              - label:
-                  id: ui_cooling_environment
-                  x: 0
-                  y: 28
-                  text: "Temperature --.- C"
-                  text_font: ui_font_18_bold
-              - label:
-                  id: ui_cooling_humidity
-                  x: 0
-                  y: 60
-                  text: "Humidity --.- %"
-                  text_font: ui_font_18_bold
-        - obj:
-            scrollable: false
-            scrollbar_mode: "OFF"
-            x: 8
-            y: 184
-            width: 304
-            height: 120
-            styles: style_card
-            widgets:
-              - label:
-                  text: "EXTERNAL FAN CONTROL"
-                  text_font: ui_font_14
-                  text_color: 0x657080
-
-              - label:
-                  id: ui_cooling_auto
-                  x: 0
-                  y: 23
-                  width: 280
-                  text: "> Automatic   --"
-                  text_font: ui_font_18_bold
-                  bg_color: 0x182433
-
-              - label:
-                  id: ui_cooling_power
-                  x: 0
-                  y: 49
-                  width: 280
-                  text: "  Fan Power   --"
-                  text_font: ui_font_18_bold
-                  bg_color: 0x182433
-
-              - label:
-                  id: ui_cooling_pwm
-                  x: 0
-                  y: 75
-                  width: 280
-                  text: "  PWM         -- %"
-                  text_font: ui_font_18_bold
-                  bg_color: 0x182433
-
-              - label:
-                  id: ui_cooling_curve
-                  x: 0
-                  y: 99
-                  width: 280
-                  text: "Auto: <30 OFF ... >=50 100%"
-                  text_font: ui_font_14
-                  text_color: 0x657080
-        - obj:
-            scrollable: false
-            scrollbar_mode: "OFF"
-            x: 8
-            y: 312
-            width: 304
-            height: 132
-            styles: style_card
-            widgets:
-              - label:
-                  text: "EXTERNAL FAN SPEED"
-                  text_font: ui_font_14
-                  text_color: 0x657080
-              - label:
-                  id: ui_cooling_fan1
-                  x: 0
-                  y: 28
-                  text: "Fan 1  ---- RPM"
-                  text_font: ui_font_18_bold
-              - label:
-                  id: ui_cooling_fan2
-                  x: 0
-                  y: 58
-                  text: "Fan 2  ---- RPM"
-                  text_font: ui_font_18_bold
-              - label:
-                  id: ui_cooling_fan3
-                  x: 0
-                  y: 88
-                  text: "Fan 3  ---- RPM"
-                  text_font: ui_font_18_bold
         - label:
-            id: ui_cooling_footer
-            x: 8
-            y: 448
-            width: 304
+            x: 16
+            y: 10
+            text: "RECTIFIER COMPARTMENT"
+            text_font: montserrat_18
+            text_color: 0x8B96A0
+
+        - label:
+            id: ui_cooling_compartment_temperature
+            x: 260
+            y: 21
+            width: 180
             text_align: CENTER
-            text: "Turn select | Press edit | Double page | Hold ON/OFF"
-            text_font: ui_font_14
-            text_color: 0x657080
-interval:
-  - interval: 1s
-    then:
-      - lvgl.label.update:
-          id: ui_cooling_environment
-          text: !lambda |-
-            if (isnan(id(rectifier_compartment_temperature).state)) return std::string("Temperature --.- C");
-            return str_sprintf("Temperature %.1f C", id(rectifier_compartment_temperature).state);
-      - lvgl.label.update:
-          id: ui_cooling_humidity
-          text: !lambda |-
-            if (isnan(id(rectifier_compartment_humidity).state)) return std::string("Humidity --.- %");
-            return str_sprintf("Humidity %.1f %%", id(rectifier_compartment_humidity).state);
-      # ----------------------------------------------------------------------
-      # Automatic
-      - lvgl.label.update:
-          id: ui_cooling_auto
+            text: "--.- °C"
+            text_font: montserrat_24
+            text_color: 0xFFFFFF
 
-          text: !lambda |-
-            const bool selected =
-              id(encoder_page) == 2 &&
-              id(encoder_selection) == 0;
+        - label:
+            id: ui_cooling_compartment_humidity
+            x: 520
+            y: 21
+            width: 180
+            text_align: CENTER
+            text: "--.- %"
+            text_font: montserrat_24
+            text_color: 0xFFFFFF
 
-            const bool editing =
-              id(encoder_edit_mode) && selected;
 
-            const bool value =
-              editing
-                ? id(encoder_edit_value) >= 0.5f
-                : id(cooling_fan_auto).state;
+  # ============================================================================
+  # RECTIFIER 1 FAN
+  # ============================================================================
 
-            return str_sprintf(
-              "%s Automatic   %s",
-              !id(encoder_edit_mode) && selected
-                ? ">"
-                : " ",
-              value ? "ON" : "OFF"
-            );
+  - obj:
+      x: 20
+      y: 165
+      width: 235
+      height: 230
+      styles: style_card
 
-          text_color: !lambda |-
-            if (
-              id(encoder_edit_mode) &&
-              id(encoder_page) == 2 &&
-              id(encoder_selection) == 0
-            ) {
-              return lv_color_hex(0xFFFFFF);
-            }
+      widgets:
+        - label:
+            x: 16
+            y: 10
+            text: "RECTIFIER 1 FAN"
+            text_font: montserrat_18
+            text_color: 0xFFFFFF
 
-            if (
-              !id(encoder_edit_mode) &&
-              id(encoder_page) == 2 &&
-              id(encoder_selection) == 0
-            ) {
-              return lv_color_hex(0x1769AA);
-            }
+        - label:
+            id: ui_cooling_r1_state
+            x: 16
+            y: 38
+            width: 203
+            text: "OFFLINE"
+            text_font: montserrat_14
+            text_color: 0x8B96A0
 
-            return lv_color_hex(0x182433);
+        - label:
+            id: ui_cooling_r1_rpm
+            x: 16
+            y: 68
+            width: 203
+            text_align: CENTER
+            text: "---- RPM"
+            text_font: montserrat_24
+            text_color: 0xFFFFFF
 
-          bg_opa: !lambda |-
-            return
-              id(encoder_edit_mode) &&
-              id(encoder_page) == 2 &&
-              id(encoder_selection) == 0
-                ? LV_OPA_COVER
-                : LV_OPA_TRANSP;
+        - label:
+            x: 16
+            y: 108
+            text: "Minimum"
+            text_font: montserrat_14
+            text_color: 0x8B96A0
 
-      # ----------------------------------------------------------------------
-      # Fan Power
-      - lvgl.label.update:
-          id: ui_cooling_power
+        - label:
+            id: ui_cooling_r1_min_duty
+            x: 115
+            y: 106
+            width: 100
+            text_align: RIGHT
+            text: "--.- %"
+            text_font: montserrat_16
+            text_color: 0xDDE3E8
 
-          text: !lambda |-
-            const bool selected =
-              id(encoder_page) == 2 &&
-              id(encoder_selection) == 1;
+        - label:
+            x: 16
+            y: 134
+            text: "Target"
+            text_font: montserrat_14
+            text_color: 0x8B96A0
 
-            const bool editing =
-              id(encoder_edit_mode) && selected;
+        - label:
+            id: ui_cooling_r1_target_duty
+            x: 115
+            y: 132
+            width: 100
+            text_align: RIGHT
+            text: "--.- %"
+            text_font: montserrat_16
+            text_color: 0xDDE3E8
 
-            const bool value =
-              editing
-                ? id(encoder_edit_value) >= 0.5f
-                : id(cooling_fan_enable).state;
+        - label:
+            id: ui_cooling_r1_temperature
+            x: 16
+            y: 160
+            width: 95
+            text: "--.- °C"
+            text_font: montserrat_16
+            text_color: 0xDDE3E8
 
-            return str_sprintf(
-              "%s Fan Power   %s",
-              !id(encoder_edit_mode) &&
-              selected &&
-              !id(cooling_fan_auto).state
-                ? ">"
-                : " ",
-              value ? "ON" : "OFF"
-            );
+        - label:
+            id: ui_cooling_r1_thermal
+            x: 115
+            y: 160
+            width: 100
+            text_align: RIGHT
+            text: "--"
+            text_font: montserrat_14
+            text_color: 0x8B96A0
 
-          text_color: !lambda |-
-            if (
-              id(cooling_fan_auto).state &&
-              !id(encoder_edit_mode)
-            ) {
-              return lv_color_hex(0x9AA1AA);
-            }
+        - button:
+            id: ui_cooling_r1_auto_button
+            x: 16
+            y: 188
+            width: 94
+            height: 32
 
-            if (
-              id(encoder_edit_mode) &&
-              id(encoder_page) == 2 &&
-              id(encoder_selection) == 1
-            ) {
-              return lv_color_hex(0xFFFFFF);
-            }
+            disabled:
+              bg_color: 0x30343A
+              border_color: 0x44484E
 
-            if (
-              !id(encoder_edit_mode) &&
-              id(encoder_page) == 2 &&
-              id(encoder_selection) == 1
-            ) {
-              return lv_color_hex(0x1769AA);
-            }
+            widgets:
+              - label:
+                  align: CENTER
+                  text: "AUTO"
+                  text_font: montserrat_14
 
-            return lv_color_hex(0x182433);
+            on_short_click:
+              - button.press: fan_auto_mode_button_1
 
-          bg_opa: !lambda |-
-            return
-              id(encoder_edit_mode) &&
-              id(encoder_page) == 2 &&
-              id(encoder_selection) == 1
-                ? LV_OPA_COVER
-                : LV_OPA_TRANSP;
+        - button:
+            id: ui_cooling_r1_full_button
+            x: 125
+            y: 188
+            width: 94
+            height: 32
 
-      # ----------------------------------------------------------------------
-      # PWM
-      - lvgl.label.update:
-          id: ui_cooling_pwm
+            disabled:
+              bg_color: 0x30343A
+              border_color: 0x44484E
 
-          text: !lambda |-
-            const bool selected =
-              id(encoder_page) == 2 &&
-              id(encoder_selection) == 2;
+            widgets:
+              - label:
+                  align: CENTER
+                  text: "FULL"
+                  text_font: montserrat_14
 
-            const bool editing =
-              id(encoder_edit_mode) && selected;
+            on_short_click:
+              - button.press: fan_full_speed_button_1
 
-            const float value =
-              editing
-                ? id(encoder_edit_value)
-                : id(cooling_fan_pwm_percent).state;
 
-            return str_sprintf(
-              "%s PWM         %.0f %%",
-              !id(encoder_edit_mode) &&
-              selected &&
-              !id(cooling_fan_auto).state
-                ? ">"
-                : " ",
-              value
-            );
+  # ============================================================================
+  # RECTIFIER 2 FAN
+  # ============================================================================
 
-          text_color: !lambda |-
-            if (
-              id(cooling_fan_auto).state &&
-              !id(encoder_edit_mode)
-            ) {
-              return lv_color_hex(0x9AA1AA);
-            }
+  - obj:
+      x: 270
+      y: 165
+      width: 235
+      height: 230
+      styles: style_card
 
-            if (
-              id(encoder_edit_mode) &&
-              id(encoder_page) == 2 &&
-              id(encoder_selection) == 2
-            ) {
-              return lv_color_hex(0xFFFFFF);
-            }
+      widgets:
+        - label:
+            x: 16
+            y: 10
+            text: "RECTIFIER 2 FAN"
+            text_font: montserrat_18
+            text_color: 0xFFFFFF
 
-            if (
-              !id(encoder_edit_mode) &&
-              id(encoder_page) == 2 &&
-              id(encoder_selection) == 2
-            ) {
-              return lv_color_hex(0x1769AA);
-            }
+        - label:
+            id: ui_cooling_r2_state
+            x: 16
+            y: 38
+            width: 203
+            text: "OFFLINE"
+            text_font: montserrat_14
+            text_color: 0x8B96A0
 
-            return lv_color_hex(0x182433);
+        - label:
+            id: ui_cooling_r2_rpm
+            x: 16
+            y: 68
+            width: 203
+            text_align: CENTER
+            text: "---- RPM"
+            text_font: montserrat_24
+            text_color: 0xFFFFFF
 
-          bg_opa: !lambda |-
-            return
-              id(encoder_edit_mode) &&
-              id(encoder_page) == 2 &&
-              id(encoder_selection) == 2
-                ? LV_OPA_COVER
-                : LV_OPA_TRANSP;
-      - lvgl.label.update:
-          id: ui_cooling_curve
-          text: !lambda |-
-            if (!id(cooling_fan_auto).state) return std::string("Manual override active");
-            if (isnan(id(rectifier_compartment_temperature).state)) return std::string("Sensor fault: fail-safe 100%");
-            static const char *stage_text[] = {"<30 C: OFF", "30 C: 35%", "35 C: 45%", "40 C: 60%", "45 C: 80%", ">=50 C: 100%"};
-            return std::string(stage_text[std::max(0, std::min(5, id(cooling_fan_auto_stage)))]);
-      - lvgl.label.update:
-          id: ui_cooling_fan1
-          text: !lambda 'return str_sprintf("Fan 1  %.0f RPM", id(cooling_fan_1_rpm).state);'
-      - lvgl.label.update:
-          id: ui_cooling_fan2
-          text: !lambda 'return str_sprintf("Fan 2  %.0f RPM", id(cooling_fan_2_rpm).state);'
-      - lvgl.label.update:
-          id: ui_cooling_fan3
-          text: !lambda 'return str_sprintf("Fan 3  %.0f RPM", id(cooling_fan_3_rpm).state);'
-      - lvgl.label.update:
-          id: ui_cooling_footer
+        - label:
+            x: 16
+            y: 108
+            text: "Minimum"
+            text_font: montserrat_14
+            text_color: 0x8B96A0
 
-          text: !lambda |-
-            if (id(encoder_edit_mode)) {
-              return std::string(
-                "EDIT: Turn adjust | Press save"
-              );
-            }
+        - label:
+            id: ui_cooling_r2_min_duty
+            x: 115
+            y: 106
+            width: 100
+            text_align: RIGHT
+            text: "--.- %"
+            text_font: montserrat_16
+            text_color: 0xDDE3E8
 
-            if (id(cooling_fan_auto).state) {
-              return std::string(
-                "Auto only | Press edit | Double page | Hold ON/OFF"
-              );
-            }
+        - label:
+            x: 16
+            y: 134
+            text: "Target"
+            text_font: montserrat_14
+            text_color: 0x8B96A0
 
-            return std::string(
-              "Turn select | Press edit | Double page | Hold ON/OFF"
-            );
+        - label:
+            id: ui_cooling_r2_target_duty
+            x: 115
+            y: 132
+            width: 100
+            text_align: RIGHT
+            text: "--.- %"
+            text_font: montserrat_16
+            text_color: 0xDDE3E8
 
-          text_color: !lambda |-
-            return id(encoder_edit_mode)
-              ? lv_color_hex(0x1769AA)
-              : lv_color_hex(0x657080);
+        - label:
+            id: ui_cooling_r2_temperature
+            x: 16
+            y: 160
+            width: 95
+            text: "--.- °C"
+            text_font: montserrat_16
+            text_color: 0xDDE3E8
+
+        - label:
+            id: ui_cooling_r2_thermal
+            x: 115
+            y: 160
+            width: 100
+            text_align: RIGHT
+            text: "--"
+            text_font: montserrat_14
+            text_color: 0x8B96A0
+
+        - button:
+            id: ui_cooling_r2_auto_button
+            x: 16
+            y: 188
+            width: 94
+            height: 32
+
+            disabled:
+              bg_color: 0x30343A
+              border_color: 0x44484E
+
+            widgets:
+              - label:
+                  align: CENTER
+                  text: "AUTO"
+                  text_font: montserrat_14
+
+            on_short_click:
+              - button.press: fan_auto_mode_button_2
+
+        - button:
+            id: ui_cooling_r2_full_button
+            x: 125
+            y: 188
+            width: 94
+            height: 32
+
+            disabled:
+              bg_color: 0x30343A
+              border_color: 0x44484E
+
+            widgets:
+              - label:
+                  align: CENTER
+                  text: "FULL"
+                  text_font: montserrat_14
+
+            on_short_click:
+              - button.press: fan_full_speed_button_2
+
+
+  # ============================================================================
+  # RECTIFIER 3 FAN
+  # ============================================================================
+
+  - obj:
+      x: 520
+      y: 165
+      width: 260
+      height: 230
+      styles: style_card
+
+      widgets:
+        - label:
+            x: 16
+            y: 10
+            text: "RECTIFIER 3 FAN"
+            text_font: montserrat_18
+            text_color: 0xFFFFFF
+
+        - label:
+            id: ui_cooling_r3_state
+            x: 16
+            y: 38
+            width: 228
+            text: "OFFLINE"
+            text_font: montserrat_14
+            text_color: 0x8B96A0
+
+        - label:
+            id: ui_cooling_r3_rpm
+            x: 16
+            y: 68
+            width: 228
+            text_align: CENTER
+            text: "---- RPM"
+            text_font: montserrat_24
+            text_color: 0xFFFFFF
+
+        - label:
+            x: 16
+            y: 108
+            text: "Minimum"
+            text_font: montserrat_14
+            text_color: 0x8B96A0
+
+        - label:
+            id: ui_cooling_r3_min_duty
+            x: 130
+            y: 106
+            width: 110
+            text_align: RIGHT
+            text: "--.- %"
+            text_font: montserrat_16
+            text_color: 0xDDE3E8
+
+        - label:
+            x: 16
+            y: 134
+            text: "Target"
+            text_font: montserrat_14
+            text_color: 0x8B96A0
+
+        - label:
+            id: ui_cooling_r3_target_duty
+            x: 130
+            y: 132
+            width: 110
+            text_align: RIGHT
+            text: "--.- %"
+            text_font: montserrat_16
+            text_color: 0xDDE3E8
+
+        - label:
+            id: ui_cooling_r3_temperature
+            x: 16
+            y: 160
+            width: 105
+            text: "--.- °C"
+            text_font: montserrat_16
+            text_color: 0xDDE3E8
+
+        - label:
+            id: ui_cooling_r3_thermal
+            x: 125
+            y: 160
+            width: 115
+            text_align: RIGHT
+            text: "--"
+            text_font: montserrat_14
+            text_color: 0x8B96A0
+
+        - button:
+            id: ui_cooling_r3_auto_button
+            x: 16
+            y: 188
+            width: 106
+            height: 32
+
+            disabled:
+              bg_color: 0x30343A
+              border_color: 0x44484E
+
+            widgets:
+              - label:
+                  align: CENTER
+                  text: "AUTO"
+                  text_font: montserrat_14
+
+            on_short_click:
+              - button.press: fan_auto_mode_button_3
+
+        - button:
+            id: ui_cooling_r3_full_button
+            x: 138
+            y: 188
+            width: 106
+            height: 32
+
+            disabled:
+              bg_color: 0x30343A
+              border_color: 0x44484E
+
+            widgets:
+              - label:
+                  align: CENTER
+                  text: "FULL"
+                  text_font: montserrat_14
+
+            on_short_click:
+              - button.press: fan_full_speed_button_3

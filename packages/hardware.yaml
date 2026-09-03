@@ -1,22 +1,175 @@
 # ==============================================================================
-# HARDWARE BUS PACKAGE
+# V5 HARDWARE BUS PACKAGE
 # ==============================================================================
-# Extracted from the monolithic configuration without functional changes.
-# Project-wide substitutions remain defined in the main YAML.
 
 i2c:
   - id: i2c_bus
     sda: ${pin_i2c_sda}
     scl: ${pin_i2c_scl}
     scan: true
+    frequency: 400kHz
 
 # ==============================================================================
-# SPI BUS
+# EXTERNAL I2C MULTIPLEXER
 # ==============================================================================
-# Hardware SPI bus used by the ILI9488 TFT display.
+# TCA9548A on the shared onboard I2C bus.
+#
+# Channel allocation:
+#   CH0 -> MCP23017 external I/O expander
+#   CH1 -> AHT10 rectifier compartment temperature/humidity
+#
+# Remaining channels are reserved for future external I2C devices.
 
-spi:
-  id: spi_bus
-  clk_pin: ${pin_spi_clk}
-  mosi_pin: ${pin_spi_mosi}
-  miso_pin: ${pin_spi_miso}
+tca9548a:
+  - id: external_i2c_mux
+    i2c_id: i2c_bus
+    address: 0x70
+
+    channels:
+      - bus_id: external_i2c_ch0
+        channel: 0
+
+      - bus_id: external_i2c_ch1
+        channel: 1
+
+
+# ==============================================================================
+# EXTERNAL I/O EXPANDER
+# ==============================================================================
+# MCP23017 on TCA9548A channel 0.
+#
+# Planned allocation:
+#   GPA0 / pin 0 -> rotary encoder A
+#   GPA1 / pin 1 -> rotary encoder B
+#   GPA2 / pin 2 -> rotary encoder button
+#
+# GPIO6 is reserved as a possible future MCP23017 interrupt input.
+# No interrupt is configured yet.
+
+mcp23017:
+  - id: external_io_expander
+    i2c_id: external_i2c_ch0
+    address: 0x20
+
+# ==============================================================================
+# BACKUP ROTARY ENCODER INPUTS
+# ==============================================================================
+# Mechanical rotary encoder connected to the MCP23017 on TCA9548A channel 0.
+#
+# Pin allocation:
+#   GPA0 / pin 0 -> Encoder A
+#   GPA1 / pin 1 -> Encoder B
+#   GPA2 / pin 2 -> Encoder push button
+#
+# All inputs use the MCP23017 internal pull-ups. The mechanical encoder
+# therefore switches the inputs to GND.
+#
+# GPIO6 remains reserved for a possible future MCP23017 interrupt input.
+# Encoder decoding and button actions will be implemented separately.
+
+binary_sensor:
+  - platform: gpio
+    id: backup_encoder_a
+    internal: true
+
+    pin:
+      mcp23xxx: external_io_expander
+      number: 0
+      mode:
+        input: true
+        pullup: true
+      inverted: true
+
+
+  - platform: gpio
+    id: backup_encoder_b
+    internal: true
+
+    pin:
+      mcp23xxx: external_io_expander
+      number: 1
+      mode:
+        input: true
+        pullup: true
+      inverted: true
+
+
+  - platform: gpio
+    id: backup_encoder_button
+    internal: true
+
+    pin:
+      mcp23xxx: external_io_expander
+      number: 2
+      mode:
+        input: true
+        pullup: true
+      inverted: true
+
+    filters:
+      - delayed_on_off: 20ms
+
+# ==============================================================================
+# INTERNAL I/O EXPANDER
+# ==============================================================================
+
+ch422g:
+  - id: io_expander
+    i2c_id: i2c_bus
+
+# ==============================================================================
+# GT911 TOUCH CONTROLLER
+# ==============================================================================
+# Onboard capacitive touchscreen.
+#
+# Wiring:
+#   SDA   -> GPIO8
+#   SCL   -> GPIO9
+#   IRQ   -> GPIO4
+#   RESET -> CH422G EXIO1
+
+touchscreen:
+  - platform: gt911
+    id: charger_touchscreen
+    i2c_id: i2c_bus
+
+    interrupt_pin:
+      number: ${pin_touch_irq}
+      mode:
+        input: true
+
+    reset_pin:
+      ch422g: io_expander
+      number: 1
+      mode:
+        output: true
+
+    on_touch:
+      - logger.log:
+          format: "Touch x=%d y=%d"
+          args:
+            - touch.x
+            - touch.y
+          level: INFO
+
+switch:
+  - platform: gpio
+    id: can_mode_select
+    internal: true
+    restore_mode: ALWAYS_ON
+
+    pin:
+      ch422g: io_expander
+      number: 5
+      mode:
+        output: true
+
+canbus:
+  - platform: esp32_can
+    id: charger_can
+    tx_pin: ${pin_can_tx}
+    rx_pin: ${pin_can_rx}
+    bit_rate: 125kbps
+    can_id: 0xE5F32E5
+    use_extended_id: true
+    rx_queue_len: ${can_rx_queue_len}

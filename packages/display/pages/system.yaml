@@ -1,191 +1,291 @@
-# LVGL PAGE: SYSTEM
-lvgl:
-  pages:
-    - id: system_page
-      bg_color: 0xF3F5F8
-      bg_opa: COVER
-      scrollable: false
-      scrollbar_mode: "OFF"
+# ==============================================================================
+# V5 LVGL PAGE: SYSTEM
+# ==============================================================================
+# Controller, network, memory and CAN diagnostics.
+
+id: page_system
+styles: style_page
+
+widgets:
+
+  # ============================================================================
+  # NETWORK
+  # ============================================================================
+
+  - obj:
+      x: 20
+      y: 75
+      width: 370
+      height: 145
+      styles: style_card
+
       widgets:
-        - obj:
-            scrollable: false
-            scrollbar_mode: "OFF"
-            x: 0
-            y: 0
-            width: 100%
-            height: 64
-            styles: style_header
-            pad_all: 0
-            widgets:
-              - label:
-                  x: 10
-                  y: 8
-                  width: 300
-                  text_align: CENTER
-                  text: "SYSTEM"
-                  text_font: ui_font_26_bold
-              - label:
-                  x: 10
-                  y: 42
-                  width: 300
-                  text_align: CENTER
-                  text: "Firmware v${firmware_version}"
-                  text_font: ui_font_14
-                  text_color: 0xFFFFFF
-
-        - obj:
-            scrollable: false
-            scrollbar_mode: "OFF"
-            x: 8
-            y: 72
-            width: 304
-            height: 86
-            styles: style_card
-            widgets:
-              - label:
-                  text: "NETWORK"
-                  text_font: ui_font_14
-                  text_color: 0x657080
-              - label:
-                  id: ui_system_ip
-                  x: 0
-                  y: 25
-                  text: "IP --"
-                  text_font: ui_font_18_bold
-              - label:
-                  id: ui_system_wifi
-                  x: 0
-                  y: 54
-                  text: "WiFi -- dBm"
-                  text_font: ui_font_14
-
-        - obj:
-            scrollable: false
-            scrollbar_mode: "OFF"
-            x: 8
-            y: 166
-            width: 304
-            height: 86
-            styles: style_card
-            widgets:
-              - label:
-                  text: "RUNTIME"
-                  text_font: ui_font_14
-                  text_color: 0x657080
-              - label:
-                  id: ui_system_uptime
-                  x: 0
-                  y: 25
-                  text: "Uptime --"
-                  text_font: ui_font_18_bold
-              - label:
-                  id: ui_system_cpu
-                  x: 0
-                  y: 54
-                  text: "CPU --.- C"
-                  text_font: ui_font_14
-
-        - obj:
-            scrollable: false
-            scrollbar_mode: "OFF"
-            x: 8
-            y: 260
-            width: 304
-            height: 86
-            styles: style_card
-            widgets:
-              - label:
-                  text: "MEMORY"
-                  text_font: ui_font_14
-                  text_color: 0x657080
-              - label:
-                  id: ui_system_heap
-                  x: 0
-                  y: 25
-                  text: "Heap ---- kB"
-                  text_font: ui_font_18_bold
-              - label:
-                  id: ui_system_psram
-                  x: 0
-                  y: 54
-                  text: "PSRAM ---- kB"
-                  text_font: ui_font_14
-
-        - obj:
-            scrollable: false
-            scrollbar_mode: "OFF"
-            x: 8
-            y: 354
-            width: 304
-            height: 76
-            styles: style_card
-            widgets:
-              - label:
-                  text: "CAN COMMUNICATION"
-                  text_font: ui_font_14
-                  text_color: 0x657080
-              - label:
-                  id: ui_system_can
-                  x: 0
-                  y: 30
-                  text: "L1 --   L2 --   L3 --"
-                  text_font: ui_font_18_bold
+        - label:
+            x: 16
+            y: 12
+            text: "NETWORK"
+            text_font: montserrat_18
+            text_color: 0x8B96A0
 
         - label:
-            x: 8
-            y: 448
-            width: 304
-            text_align: CENTER
-            text: "Double page | Hold START/STOP"
-            text_font: ui_font_14
-            text_color: 0x657080
+            x: 16
+            y: 50
+            text: "IP Address"
+            text_font: montserrat_16
+            text_color: 0x8B96A0
 
-interval:
-  - interval: 1s
-    then:
-      - lvgl.label.update:
-          id: ui_system_ip
-          text: !lambda 'return std::string("IP ") + (id(ip_address).state.empty() ? "--" : id(ip_address).state);'
+        - label:
+            id: ui_system_ip
+            x: 130
+            y: 47
+            width: 215
+            text_align: RIGHT
+            text: "--"
+            text_font: montserrat_20
+            text_color: 0xFFFFFF
 
-      - lvgl.label.update:
-          id: ui_system_wifi
-          text: !lambda |-
-            if (isnan(id(wifi_sig).state)) return std::string("WiFi -- dBm");
-            return str_sprintf("WiFi %.0f dBm", id(wifi_sig).state);
+        - label:
+            x: 16
+            y: 88
+            text: "WiFi RSSI"
+            text_font: montserrat_16
+            text_color: 0x8B96A0
 
-      - lvgl.label.update:
-          id: ui_system_uptime
-          text: !lambda |-
-            const uint32_t seconds = millis() / 1000U;
-            const uint32_t days = seconds / 86400U;
-            const uint32_t hours = (seconds % 86400U) / 3600U;
-            const uint32_t minutes = (seconds % 3600U) / 60U;
-            if (days > 0) return str_sprintf("Uptime %lu d %02lu:%02lu", static_cast<unsigned long>(days), static_cast<unsigned long>(hours), static_cast<unsigned long>(minutes));
-            return str_sprintf("Uptime %02lu:%02lu", static_cast<unsigned long>(hours), static_cast<unsigned long>(minutes));
+        - label:
+            id: ui_system_wifi
+            x: 210
+            y: 86
+            width: 135
+            text_align: RIGHT
+            text: "-- dBm"
+            text_font: montserrat_18
+            text_color: 0xFFFFFF
 
-      - lvgl.label.update:
-          id: ui_system_cpu
-          text: !lambda |-
-            if (isnan(id(cpu_temp).state)) return std::string("CPU --.- C");
-            return str_sprintf("CPU %.1f C", id(cpu_temp).state);
 
-      - lvgl.label.update:
-          id: ui_system_heap
-          text: !lambda |-
-            const size_t free_heap = heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
-            return str_sprintf("Heap %.0f kB free", free_heap / 1024.0f);
+  # ============================================================================
+  # CONTROLLER
+  # ============================================================================
 
-      - lvgl.label.update:
-          id: ui_system_psram
-          text: !lambda |-
-            const size_t free_psram = heap_caps_get_free_size(MALLOC_CAP_SPIRAM);
-            return str_sprintf("PSRAM %.0f kB free", free_psram / 1024.0f);
+  - obj:
+      x: 410
+      y: 75
+      width: 370
+      height: 145
+      styles: style_card
 
-      - lvgl.label.update:
-          id: ui_system_can
-          text: !lambda |-
-            return str_sprintf(
-              "L1 %s   L2 %s   L3 %s",
-              id(can_com_ok_1).state ? "OK" : "FAULT",
-              id(can_com_ok_2).state ? "OK" : "FAULT",
-              id(can_com_ok_3).state ? "OK" : "FAULT");
+      widgets:
+        - label:
+            x: 16
+            y: 12
+            text: "CONTROLLER"
+            text_font: montserrat_18
+            text_color: 0x8B96A0
+
+        - label:
+            x: 16
+            y: 50
+            text: "Uptime"
+            text_font: montserrat_16
+            text_color: 0x8B96A0
+
+        - label:
+            id: ui_system_uptime
+            x: 130
+            y: 47
+            width: 215
+            text_align: RIGHT
+            text: "--"
+            text_font: montserrat_20
+            text_color: 0xFFFFFF
+
+        - label:
+            x: 16
+            y: 88
+            text: "CPU Temp"
+            text_font: montserrat_16
+            text_color: 0x8B96A0
+
+        - label:
+            id: ui_system_cpu
+            x: 210
+            y: 86
+            width: 135
+            text_align: RIGHT
+            text: "--.- °C"
+            text_font: montserrat_18
+            text_color: 0xFFFFFF
+
+
+  # ============================================================================
+  # MEMORY / RUNTIME DEBUG
+  # ============================================================================
+
+  - obj:
+      x: 20
+      y: 235
+      width: 370
+      height: 160
+      styles: style_card
+
+      widgets:
+        - label:
+            x: 16
+            y: 10
+            text: "MEMORY / RUNTIME"
+            text_font: montserrat_18
+            text_color: 0x8B96A0
+
+        - label:
+            x: 16
+            y: 38
+            text: "Heap Free"
+            text_font: montserrat_14
+            text_color: 0x8B96A0
+
+        - label:
+            id: ui_system_heap
+            x: 190
+            y: 36
+            width: 155
+            text_align: RIGHT
+            text: "---- kB"
+            text_font: montserrat_16
+            text_color: 0xFFFFFF
+
+        - label:
+            x: 16
+            y: 62
+            text: "Heap Max Block"
+            text_font: montserrat_14
+            text_color: 0x8B96A0
+
+        - label:
+            id: ui_system_heap_block
+            x: 190
+            y: 60
+            width: 155
+            text_align: RIGHT
+            text: "---- kB"
+            text_font: montserrat_16
+            text_color: 0xFFFFFF
+
+        - label:
+            x: 16
+            y: 86
+            text: "PSRAM Free"
+            text_font: montserrat_14
+            text_color: 0x8B96A0
+
+        - label:
+            id: ui_system_psram
+            x: 190
+            y: 84
+            width: 155
+            text_align: RIGHT
+            text: "---- kB"
+            text_font: montserrat_16
+            text_color: 0xFFFFFF
+
+        - label:
+            x: 16
+            y: 110
+            text: "Loop Time"
+            text_font: montserrat_14
+            text_color: 0x8B96A0
+
+        - label:
+            id: ui_system_loop_time
+            x: 190
+            y: 108
+            width: 155
+            text_align: RIGHT
+            text: "-- ms"
+            text_font: montserrat_16
+            text_color: 0xFFFFFF
+
+        - label:
+            x: 16
+            y: 134
+            text: "CPU Frequency"
+            text_font: montserrat_14
+            text_color: 0x8B96A0
+
+        - label:
+            id: ui_system_cpu_frequency
+            x: 190
+            y: 132
+            width: 155
+            text_align: RIGHT
+            text: "--- MHz"
+            text_font: montserrat_16
+            text_color: 0xFFFFFF
+
+  # ============================================================================
+  # CAN / RECTIFIER STATUS
+  # ============================================================================
+
+  - obj:
+      x: 410
+      y: 235
+      width: 370
+      height: 160
+      styles: style_card
+
+      widgets:
+        - label:
+            x: 16
+            y: 12
+            text: "CAN / RECTIFIERS"
+            text_font: montserrat_18
+            text_color: 0x8B96A0
+
+        - label:
+            x: 16
+            y: 51
+            text: "Unit 1"
+            text_font: montserrat_16
+            text_color: 0x8B96A0
+
+        - label:
+            id: ui_system_unit_1
+            x: 115
+            y: 49
+            width: 230
+            text_align: RIGHT
+            text: "OFFLINE"
+            text_font: montserrat_18
+            text_color: 0x8B96A0
+
+        - label:
+            x: 16
+            y: 87
+            text: "Unit 2"
+            text_font: montserrat_16
+            text_color: 0x8B96A0
+
+        - label:
+            id: ui_system_unit_2
+            x: 115
+            y: 85
+            width: 230
+            text_align: RIGHT
+            text: "OFFLINE"
+            text_font: montserrat_18
+            text_color: 0x8B96A0
+
+        - label:
+            x: 16
+            y: 123
+            text: "Unit 3"
+            text_font: montserrat_16
+            text_color: 0x8B96A0
+
+        - label:
+            id: ui_system_unit_3
+            x: 115
+            y: 121
+            width: 230
+            text_align: RIGHT
+            text: "OFFLINE"
+            text_font: montserrat_18
+            text_color: 0x8B96A0

@@ -1,18 +1,2344 @@
 # ==============================================================================
-# LVGL UI PACKAGE AGGREGATOR
+# V5 LVGL USER INTERFACE
 # ==============================================================================
-# Main pages use the normal wrapped page sequence.
+# Main pages plus persistent header and bottom navigation.
+
+# ==============================================================================
+# V5 UI COMMAND STATE
+# ==============================================================================
+# Prevent repeated START/STOP commands while a rectifier state transition is
+# still in progress.
 #
-# Rectifier detail is a hierarchical child view. Its page is marked skip:true
-# so lvgl.page.next / previous never includes it in the main-menu cycle.
+# pending:
+#   0 = idle
+#   1 = starting
+#   2 = stopping
+
+globals:
+  - id: ui_charger_power_pending
+    type: uint8_t
+    restore_value: false
+    initial_value: "0"
+
+  - id: ui_charger_power_pending_since
+    type: uint32_t
+    restore_value: false
+    initial_value: "0"
+
+  - id: ui_rectifier_1_power_pending
+    type: uint8_t
+    restore_value: false
+    initial_value: "0"
+
+  - id: ui_rectifier_1_power_pending_since
+    type: uint32_t
+    restore_value: false
+    initial_value: "0"
+
+  - id: ui_rectifier_2_power_pending
+    type: uint8_t
+    restore_value: false
+    initial_value: "0"
+
+  - id: ui_rectifier_2_power_pending_since
+    type: uint32_t
+    restore_value: false
+    initial_value: "0"
+
+  - id: ui_rectifier_3_power_pending
+    type: uint8_t
+    restore_value: false
+    initial_value: "0"
+
+  - id: ui_rectifier_3_power_pending_since
+    type: uint32_t
+    restore_value: false
+    initial_value: "0"
 
 lvgl:
-  page_wrap: true
 
-packages:
-  page_dashboard: !include pages/dashboard.yaml
-  page_rectifiers: !include pages/rectifiers.yaml
-  page_rectifier_detail: !include pages/rectifier-detail.yaml
-  page_cooling: !include pages/cooling.yaml
-  page_system: !include pages/system.yaml
-  page_trends: !include pages/trends.yaml
+  # ============================================================================
+  # MAIN PAGES
+  # ============================================================================
+
+  pages:
+
+    # --------------------------------------------------------------------------
+    # Dashboard
+    # --------------------------------------------------------------------------
+    - !include pages/dashboard.yaml
+    # --------------------------------------------------------------------------
+    # Rectifiers
+    # --------------------------------------------------------------------------
+    - !include pages/rectifiers.yaml
+
+    # --------------------------------------------------------------------------
+    # Cooling
+    # --------------------------------------------------------------------------
+    - !include pages/cooling.yaml
+
+    # --------------------------------------------------------------------------
+    # System
+    # --------------------------------------------------------------------------
+    - !include pages/system.yaml
+
+    # --------------------------------------------------------------------------
+    # Trends
+    # --------------------------------------------------------------------------
+    - !include pages/trends.yaml
+
+  # ============================================================================
+  # PERSISTENT HEADER + NAVIGATION
+  # ============================================================================
+
+  top_layer:
+    widgets:
+
+      # ------------------------------------------------------------------------
+      # Header
+      # ------------------------------------------------------------------------
+      - obj:
+          x: 0
+          y: 0
+          width: 800
+          height: 58
+          styles: style_header
+
+          widgets:
+            - label:
+                x: 20
+                align: LEFT_MID
+                text: "R4875 Charger"
+                text_font: montserrat_20
+                text_color: 0xFFFFFF
+
+            - label:
+                x: 180
+                align: LEFT_MID
+                text: "v${firmware_version}"
+                text_font: montserrat_18
+                text_color: 0x8B96A0
+
+            - label:
+                id: ui_header_clock
+                x: 0
+                align: CENTER
+                width: 250
+                text_align: CENTER
+                text: "--.--.---- --:--"
+                text_font: montserrat_18
+                text_color: 0xDDE3E8
+
+            - label:
+                id: ui_dashboard_run_state
+                x: -20
+                align: RIGHT_MID
+                width: 100
+                text_align: RIGHT
+                text: "OFF"
+                text_font: montserrat_18
+                text_color: 0xFF3030
+
+      # ------------------------------------------------------------------------
+      # Bottom navigation
+      # ------------------------------------------------------------------------
+      - button:
+          x: 10
+          y: 410
+          width: 148
+          height: 58
+          styles: style_nav_button
+
+          pressed:
+            bg_color: 0x3A4652
+
+          widgets:
+            - label:
+                align: CENTER
+                text: "Dashboard"
+                text_font: montserrat_18
+
+          on_short_click:
+            - lvgl.page.show: page_dashboard
+
+
+      - button:
+          x: 168
+          y: 410
+          width: 148
+          height: 58
+          styles: style_nav_button
+
+          pressed:
+            bg_color: 0x3A4652
+
+          widgets:
+            - label:
+                align: CENTER
+                text: "Rectifiers"
+                text_font: montserrat_18
+
+          on_short_click:
+            - lvgl.page.show: page_rectifiers
+
+
+      - button:
+          x: 326
+          y: 410
+          width: 148
+          height: 58
+          styles: style_nav_button
+
+          pressed:
+            bg_color: 0x3A4652
+
+          widgets:
+            - label:
+                align: CENTER
+                text: "Cooling"
+                text_font: montserrat_18
+
+          on_short_click:
+            - lvgl.page.show: page_cooling
+
+
+      - button:
+          x: 484
+          y: 410
+          width: 148
+          height: 58
+          styles: style_nav_button
+
+          pressed:
+            bg_color: 0x3A4652
+
+          widgets:
+            - label:
+                align: CENTER
+                text: "System"
+                text_font: montserrat_18
+
+          on_short_click:
+            - lvgl.page.show: page_system
+
+
+      - button:
+          x: 642
+          y: 410
+          width: 148
+          height: 58
+          styles: style_nav_button
+
+          pressed:
+            bg_color: 0x3A4652
+
+          widgets:
+            - label:
+                align: CENTER
+                text: "Trends"
+                text_font: montserrat_18
+
+          on_short_click:
+            - lvgl.page.show: page_trends
+
+  # ============================================================================
+  # CHARGER CONFIRMATION DIALOGS
+  # ============================================================================
+
+  msgboxes:
+
+    # --------------------------------------------------------------------------
+    # START confirmation
+    # --------------------------------------------------------------------------
+    - id: ui_start_charger_dialog
+      close_button: false
+      title: "Start charger?"
+
+      body:
+        text: "Start all available and ready rectifier units?\n\nSafety checks are applied individually before startup."
+        text_font: montserrat_18
+
+      buttons:
+        - id: ui_start_cancel_button
+          text: "CANCEL"
+
+          on_click:
+            - lvgl.widget.hide: ui_start_charger_dialog
+
+        - id: ui_start_confirm_button
+          text: "START"
+
+          on_click:
+            - lvgl.widget.hide: ui_start_charger_dialog
+
+            - lambda: |-
+                id(ui_charger_power_pending) = 1;
+                id(ui_charger_power_pending_since) = millis();
+
+            - lvgl.widget.disable:
+                id: ui_dashboard_power_button
+
+            - lvgl.label.update:
+                id: ui_dashboard_power_button_label
+                text: "STARTING..."
+
+            - button.press: on_button_all
+
+    # --------------------------------------------------------------------------
+    # STOP confirmation
+    # --------------------------------------------------------------------------
+    - id: ui_stop_charger_dialog
+      close_button: false
+      title: "Stop charger?"
+
+      body:
+        text: "Stop all rectifier units?"
+        text_font: montserrat_18
+
+      buttons:
+        - id: ui_stop_cancel_button
+          text: "CANCEL"
+
+          on_click:
+            - lvgl.widget.hide: ui_stop_charger_dialog
+
+        - id: ui_stop_confirm_button
+          text: "STOP"
+
+          on_click:
+            - lvgl.widget.hide: ui_stop_charger_dialog
+
+            - lambda: |-
+                id(ui_charger_power_pending) = 2;
+                id(ui_charger_power_pending_since) = millis();
+
+            - lvgl.widget.disable:
+                id: ui_dashboard_power_button
+
+            - lvgl.label.update:
+                id: ui_dashboard_power_button_label
+                text: "STOPPING..."
+
+            - button.press: off_button_all
+
+    # --------------------------------------------------------------------------
+    # RECTIFIER 1 START
+    # --------------------------------------------------------------------------
+    - id: ui_start_rectifier_1_dialog
+      close_button: false
+      title: "Start Rectifier 1?"
+
+      body:
+        text: "Start Rectifier 1?\n\nAll individual safety checks will be applied."
+        text_font: montserrat_18
+
+      buttons:
+        - text: "CANCEL"
+          on_click:
+            - lvgl.widget.hide: ui_start_rectifier_1_dialog
+
+        - text: "START"
+          on_click:
+            - lvgl.widget.hide: ui_start_rectifier_1_dialog
+
+            - lambda: |-
+                id(ui_rectifier_1_power_pending) = 1;
+                id(ui_rectifier_1_power_pending_since) = millis();
+
+            - lvgl.widget.disable:
+                id: ui_rectifier_1_power_button
+
+            - lvgl.label.update:
+                id: ui_rectifier_1_power_button_label
+                text: "STARTING..."
+
+            - button.press: on_button_1
+
+    # --------------------------------------------------------------------------
+    # RECTIFIER 1 STOP
+    # --------------------------------------------------------------------------
+    - id: ui_stop_rectifier_1_dialog
+      close_button: false
+      title: "Stop Rectifier 1?"
+
+      body:
+        text: "Stop Rectifier 1?"
+        text_font: montserrat_18
+
+      buttons:
+        - text: "CANCEL"
+          on_click:
+            - lvgl.widget.hide: ui_stop_rectifier_1_dialog
+
+        - text: "STOP"
+          on_click:
+            - lvgl.widget.hide: ui_stop_rectifier_1_dialog
+
+            - lambda: |-
+                id(ui_rectifier_1_power_pending) = 2;
+                id(ui_rectifier_1_power_pending_since) = millis();
+
+            - lvgl.widget.disable:
+                id: ui_rectifier_1_power_button
+
+            - lvgl.label.update:
+                id: ui_rectifier_1_power_button_label
+                text: "STOPPING..."
+
+            - button.press: off_button_1
+
+    # --------------------------------------------------------------------------
+    # RECTIFIER 2 START
+    # --------------------------------------------------------------------------
+    - id: ui_start_rectifier_2_dialog
+      close_button: false
+      title: "Start Rectifier 2?"
+
+      body:
+        text: "Start Rectifier 2?\n\nAll individual safety checks will be applied."
+        text_font: montserrat_18
+
+      buttons:
+        - text: "CANCEL"
+          on_click:
+            - lvgl.widget.hide: ui_start_rectifier_2_dialog
+
+        - text: "START"
+          on_click:
+            - lvgl.widget.hide: ui_start_rectifier_2_dialog
+
+            - lambda: |-
+                id(ui_rectifier_2_power_pending) = 1;
+                id(ui_rectifier_2_power_pending_since) = millis();
+
+            - lvgl.widget.disable:
+                id: ui_rectifier_2_power_button
+
+            - lvgl.label.update:
+                id: ui_rectifier_2_power_button_label
+                text: "STARTING..."
+
+            - button.press: on_button_2
+
+    # --------------------------------------------------------------------------
+    # RECTIFIER 2 STOP
+    # --------------------------------------------------------------------------
+    - id: ui_stop_rectifier_2_dialog
+      close_button: false
+      title: "Stop Rectifier 2?"
+
+      body:
+        text: "Stop Rectifier 2?"
+        text_font: montserrat_18
+
+      buttons:
+        - text: "CANCEL"
+          on_click:
+            - lvgl.widget.hide: ui_stop_rectifier_2_dialog
+
+        - text: "STOP"
+          on_click:
+            - lvgl.widget.hide: ui_stop_rectifier_2_dialog
+
+            - lambda: |-
+                id(ui_rectifier_2_power_pending) = 2;
+                id(ui_rectifier_2_power_pending_since) = millis();
+
+            - lvgl.widget.disable:
+                id: ui_rectifier_2_power_button
+
+            - lvgl.label.update:
+                id: ui_rectifier_2_power_button_label
+                text: "STOPPING..."
+
+            - button.press: off_button_2
+
+    # --------------------------------------------------------------------------
+    # RECTIFIER 3 START
+    # --------------------------------------------------------------------------
+    - id: ui_start_rectifier_3_dialog
+      close_button: false
+      title: "Start Rectifier 3?"
+
+      body:
+        text: "Start Rectifier 3?\n\nAll individual safety checks will be applied."
+        text_font: montserrat_18
+
+      buttons:
+        - text: "CANCEL"
+          on_click:
+            - lvgl.widget.hide: ui_start_rectifier_3_dialog
+
+        - text: "START"
+          on_click:
+            - lvgl.widget.hide: ui_start_rectifier_3_dialog
+
+            - lambda: |-
+                id(ui_rectifier_3_power_pending) = 1;
+                id(ui_rectifier_3_power_pending_since) = millis();
+
+            - lvgl.widget.disable:
+                id: ui_rectifier_3_power_button
+
+            - lvgl.label.update:
+                id: ui_rectifier_3_power_button_label
+                text: "STARTING..."
+
+            - button.press: on_button_3
+
+    # --------------------------------------------------------------------------
+    # RECTIFIER 3 STOP
+    # --------------------------------------------------------------------------
+    - id: ui_stop_rectifier_3_dialog
+      close_button: false
+      title: "Stop Rectifier 3?"
+
+      body:
+        text: "Stop Rectifier 3?"
+        text_font: montserrat_18
+
+      buttons:
+        - text: "CANCEL"
+          on_click:
+            - lvgl.widget.hide: ui_stop_rectifier_3_dialog
+
+        - text: "STOP"
+          on_click:
+            - lvgl.widget.hide: ui_stop_rectifier_3_dialog
+
+            - lambda: |-
+                id(ui_rectifier_3_power_pending) = 2;
+                id(ui_rectifier_3_power_pending_since) = millis();
+
+            - lvgl.widget.disable:
+                id: ui_rectifier_3_power_button
+
+            - lvgl.label.update:
+                id: ui_rectifier_3_power_button_label
+                text: "STOPPING..."
+
+            - button.press: off_button_3
+
+# ==============================================================================
+# V5 DISPLAY RUNTIME UPDATES
+# ==============================================================================
+
+interval:
+  - interval: 500ms
+    then:
+      # ------------------------------------------------------------------------
+      # Date / time
+      # ------------------------------------------------------------------------
+      - lvgl.label.update:
+          id: ui_header_clock
+          text: !lambda |-
+            auto now = id(sntp_time).now();
+
+            if (!now.is_valid()) {
+              return std::string("--.--.---- --:--");
+            }
+
+            return str_sprintf(
+              "%02d.%02d.%04d  %02d:%02d",
+              now.day_of_month,
+              now.month,
+              now.year,
+              now.hour,
+              now.minute
+            );
+
+      # ------------------------------------------------------------------------
+      # AC input power
+      # ------------------------------------------------------------------------
+      - lvgl.label.update:
+          id: ui_dashboard_ac_power
+          text: !lambda |-
+            if (isnan(id(combined_ac_power).state)) {
+              return std::string("--.-- kW");
+            }
+
+            return str_sprintf(
+              "%.2f kW",
+              id(combined_ac_power).state
+            );
+
+
+      # ------------------------------------------------------------------------
+      # AC input voltage
+      #
+      # The three rectifiers are connected to separate AC phases. Display the
+      # average voltage of all currently reachable units with valid telemetry.
+      # ------------------------------------------------------------------------
+      - lvgl.label.update:
+          id: ui_dashboard_ac_voltage
+          text: !lambda |-
+            float voltage = 0.0f;
+            int units = 0;
+
+            if (
+              id(can_com_ok_1).state &&
+              !isnan(id(ac_voltage_1).state)
+            ) {
+              voltage += id(ac_voltage_1).state;
+              units++;
+            }
+
+            if (
+              id(can_com_ok_2).state &&
+              !isnan(id(ac_voltage_2).state)
+            ) {
+              voltage += id(ac_voltage_2).state;
+              units++;
+            }
+
+            if (
+              id(can_com_ok_3).state &&
+              !isnan(id(ac_voltage_3).state)
+            ) {
+              voltage += id(ac_voltage_3).state;
+              units++;
+            }
+
+            if (units == 0) {
+              return std::string("--- V");
+            }
+
+            return str_sprintf(
+              "%.0f V",
+              voltage / units
+            );
+
+
+      # ------------------------------------------------------------------------
+      # AC input current
+      #
+      # Preserve the proven v4 dashboard behaviour: show the average phase
+      # current of all reachable rectifiers rather than the sum of phase
+      # currents.
+      # ------------------------------------------------------------------------
+      - lvgl.label.update:
+          id: ui_dashboard_ac_current
+          text: !lambda |-
+            float current = 0.0f;
+            int units = 0;
+
+            if (
+              id(can_com_ok_1).state &&
+              !isnan(id(ac_current_1).state)
+            ) {
+              current += id(ac_current_1).state;
+              units++;
+            }
+
+            if (
+              id(can_com_ok_2).state &&
+              !isnan(id(ac_current_2).state)
+            ) {
+              current += id(ac_current_2).state;
+              units++;
+            }
+
+            if (
+              id(can_com_ok_3).state &&
+              !isnan(id(ac_current_3).state)
+            ) {
+              current += id(ac_current_3).state;
+              units++;
+            }
+
+            if (units == 0) {
+              return std::string("--.- A");
+            }
+
+            return str_sprintf(
+              "%.1f A",
+              current / units
+            );
+
+
+      # ------------------------------------------------------------------------
+      # DC output power
+      # ------------------------------------------------------------------------
+      - lvgl.label.update:
+          id: ui_dashboard_dc_power
+          text: !lambda |-
+            if (isnan(id(combined_dc_power).state)) {
+              return std::string("--.-- kW");
+            }
+
+            return str_sprintf(
+              "%.2f kW",
+              id(combined_dc_power).state
+            );
+
+
+      # ------------------------------------------------------------------------
+      # DC output voltage
+      # ------------------------------------------------------------------------
+      - lvgl.label.update:
+          id: ui_dashboard_dc_voltage
+          text: !lambda |-
+            if (isnan(id(average_dc_voltage).state)) {
+              return std::string("--.-- V");
+            }
+
+            return str_sprintf(
+              "%.2f V",
+              id(average_dc_voltage).state
+            );
+
+
+      # ------------------------------------------------------------------------
+      # Combined DC output current
+      # ------------------------------------------------------------------------
+      - lvgl.label.update:
+          id: ui_dashboard_dc_current
+          text: !lambda |-
+            if (isnan(id(combined_dc_current).state)) {
+              return std::string("--.- A");
+            }
+
+            return str_sprintf(
+              "%.1f A",
+              id(combined_dc_current).state
+            );
+
+
+      # ------------------------------------------------------------------------
+      # Available units
+      # ------------------------------------------------------------------------
+      - lvgl.label.update:
+          id: ui_dashboard_units
+          text: !lambda |-
+            if (isnan(id(available_units).state)) {
+              return std::string("- / 3");
+            }
+
+            return str_sprintf(
+              "%.0f / 3",
+              id(available_units).state
+            );
+
+
+      # ------------------------------------------------------------------------
+      # Highest rectifier output temperature
+      # ------------------------------------------------------------------------
+      - lvgl.label.update:
+          id: ui_dashboard_temperature
+          text: !lambda |-
+            if (isnan(id(highest_output_temperature).state)) {
+              return std::string("--.- °C");
+            }
+
+            return str_sprintf(
+              "%.1f °C",
+              id(highest_output_temperature).state
+            );
+
+
+      # ------------------------------------------------------------------------
+      # Conversion efficiency
+      # ------------------------------------------------------------------------
+      - lvgl.label.update:
+          id: ui_dashboard_efficiency
+          text: !lambda |-
+            if (isnan(id(conversion_efficiency).state)) {
+              return std::string("--.- %");
+            }
+
+            return str_sprintf(
+              "%.1f %%",
+              id(conversion_efficiency).state
+            );
+
+
+      # ------------------------------------------------------------------------
+      # DC voltage setpoint
+      # ------------------------------------------------------------------------
+      - lvgl.label.update:
+          id: ui_dashboard_set_voltage
+          text: !lambda |-
+            if (isnan(id(set_dc_voltage_limit).state)) {
+              return std::string("--.- V");
+            }
+
+            return str_sprintf(
+              "%.1f V",
+              id(set_dc_voltage_limit).state
+            );
+
+
+      # ------------------------------------------------------------------------
+      # Total DC power setpoint
+      # ------------------------------------------------------------------------
+      - lvgl.label.update:
+          id: ui_dashboard_set_power
+          text: !lambda |-
+            if (isnan(id(set_dc_sum_power).state)) {
+              return std::string("--.-- kW");
+            }
+
+            return str_sprintf(
+              "%.2f kW",
+              id(set_dc_sum_power).state
+            );
+
+
+      # ------------------------------------------------------------------------
+      # Applied per-unit DC current limit
+      # ------------------------------------------------------------------------
+      - lvgl.label.update:
+          id: ui_dashboard_set_current
+          text: !lambda |-
+            if (isnan(id(applied_dc_current_limit_sensor).state)) {
+              return std::string("--.- A");
+            }
+
+            return str_sprintf(
+              "%.1f A",
+              id(applied_dc_current_limit_sensor).state
+            );
+
+
+      # ------------------------------------------------------------------------
+      # Charger run state
+      # ------------------------------------------------------------------------
+      - lvgl.label.update:
+          id: ui_dashboard_run_state
+
+          text: !lambda |-
+            int online = 0;
+
+            if (
+              id(can_com_ok_1).state &&
+              id(power_state_1).state == "ON"
+            ) {
+              online++;
+            }
+
+            if (
+              id(can_com_ok_2).state &&
+              id(power_state_2).state == "ON"
+            ) {
+              online++;
+            }
+
+            if (
+              id(can_com_ok_3).state &&
+              id(power_state_3).state == "ON"
+            ) {
+              online++;
+            }
+
+            if (online == 0) {
+              return std::string("OFF");
+            }
+
+            return str_sprintf(
+              "%d/3 ON",
+              online
+            );
+
+          text_color: !lambda |-
+            int online = 0;
+
+            if (
+              id(can_com_ok_1).state &&
+              id(power_state_1).state == "ON"
+            ) {
+              online++;
+            }
+
+            if (
+              id(can_com_ok_2).state &&
+              id(power_state_2).state == "ON"
+            ) {
+              online++;
+            }
+
+            if (
+              id(can_com_ok_3).state &&
+              id(power_state_3).state == "ON"
+            ) {
+              online++;
+            }
+
+            return online == 3
+              ? lv_color_hex(0x5CFF7A)
+              : lv_color_hex(0xFF3030);
+
+      # ------------------------------------------------------------------------
+      # Charger power command transition
+      # ------------------------------------------------------------------------
+      - lambda: |-
+          const uint32_t now = millis();
+          const uint8_t pending = id(ui_charger_power_pending);
+
+          if (pending == 0) {
+            return;
+          }
+
+          bool any_on = false;
+          bool all_available_on = true;
+          int available = 0;
+
+          if (id(can_com_ok_1).state) {
+            available++;
+            if (id(power_state_1).state == "ON") {
+              any_on = true;
+            } else {
+              all_available_on = false;
+            }
+          }
+
+          if (id(can_com_ok_2).state) {
+            available++;
+            if (id(power_state_2).state == "ON") {
+              any_on = true;
+            } else {
+              all_available_on = false;
+            }
+          }
+
+          if (id(can_com_ok_3).state) {
+            available++;
+            if (id(power_state_3).state == "ON") {
+              any_on = true;
+            } else {
+              all_available_on = false;
+            }
+          }
+
+          bool completed = false;
+
+          if (pending == 1) {
+            completed =
+              available > 0 &&
+              all_available_on;
+          } else if (pending == 2) {
+            completed = !any_on;
+          }
+
+          const bool timed_out =
+            static_cast<uint32_t>(
+              now - id(ui_charger_power_pending_since)
+            ) >= 10000UL;
+
+          if (completed || timed_out) {
+            if (timed_out && !completed) {
+              ESP_LOGW(
+                "ui",
+                "Charger power command UI timeout."
+              );
+            }
+
+            id(ui_charger_power_pending) = 0;
+          }
+
+      # ------------------------------------------------------------------------
+      # Charger power button
+      # ------------------------------------------------------------------------
+      - lvgl.label.update:
+          id: ui_dashboard_power_button_label
+          text: !lambda |-
+            if (id(ui_charger_power_pending) == 1) {
+              return std::string("STARTING...");
+            }
+
+            if (id(ui_charger_power_pending) == 2) {
+              return std::string("STOPPING...");
+            }
+
+            if (
+              isnan(id(available_units).state) ||
+              id(available_units).state < 1
+            ) {
+              return std::string("NO RECTIFIERS");
+            }
+
+            const bool running =
+              (id(can_com_ok_1).state &&
+               id(power_state_1).state == "ON") ||
+              (id(can_com_ok_2).state &&
+               id(power_state_2).state == "ON") ||
+              (id(can_com_ok_3).state &&
+               id(power_state_3).state == "ON");
+
+            return running
+              ? std::string("STOP CHARGER")
+              : std::string("START CHARGER");
+
+      # ------------------------------------------------------------------------
+      # Charger power button availability
+      # ------------------------------------------------------------------------
+      - if:
+          condition:
+            lambda: |-
+              return
+                id(ui_charger_power_pending) == 0 &&
+                id(ui_rectifier_1_power_pending) == 0 &&
+                id(ui_rectifier_2_power_pending) == 0 &&
+                id(ui_rectifier_3_power_pending) == 0 &&
+                !isnan(id(available_units).state) &&
+                id(available_units).state > 0;
+
+          then:
+            - lvgl.widget.enable:
+                id: ui_dashboard_power_button
+
+          else:
+            - lvgl.widget.disable:
+                id: ui_dashboard_power_button
+
+      # ========================================================================
+      # RECTIFIER 1 PAGE
+      # ========================================================================
+
+      # ------------------------------------------------------------------------
+      # Lifecycle
+      # ------------------------------------------------------------------------
+      - lvgl.label.update:
+          id: ui_rectifier_1_lifecycle
+
+          text: !lambda |-
+            if (!id(can_com_ok_1).state) {
+              return std::string("OFFLINE");
+            }
+
+            const std::string state =
+              id(rectifier_control_state_text_1).state;
+
+            return state.empty()
+              ? std::string("--")
+              : state;
+
+          text_color: !lambda |-
+            if (!id(can_com_ok_1).state) {
+              return lv_color_hex(0x8B96A0);
+            }
+
+            if (
+              id(rectifier_control_state_1) ==
+                ${rectifier_state_online}
+            ) {
+              return lv_color_hex(0x5CFF7A);
+            }
+
+            if (
+              id(rectifier_control_state_1) ==
+                ${rectifier_state_discovering}
+            ) {
+              return lv_color_hex(0xFFC857);
+            }
+
+            return lv_color_hex(0x8B96A0);
+
+
+      # ------------------------------------------------------------------------
+      # Power state
+      # ------------------------------------------------------------------------
+      - lvgl.label.update:
+          id: ui_rectifier_1_power_state
+
+          text: !lambda |-
+            if (!id(can_com_ok_1).state) {
+              return std::string("--");
+            }
+
+            const std::string state =
+              id(power_state_1).state;
+
+            if (
+              state.empty() ||
+              state == "UNKNOWN"
+            ) {
+              return std::string("--");
+            }
+
+            return state;
+
+          text_color: !lambda |-
+            if (
+              id(can_com_ok_1).state &&
+              id(power_state_1).state == "ON"
+            ) {
+              return lv_color_hex(0x5CFF7A);
+            }
+
+            if (
+              id(can_com_ok_1).state &&
+              id(power_state_1).state == "OFF"
+            ) {
+              return lv_color_hex(0xDDE3E8);
+            }
+
+            return lv_color_hex(0x8B96A0);
+
+
+      # ------------------------------------------------------------------------
+      # AC voltage
+      # ------------------------------------------------------------------------
+      - lvgl.label.update:
+          id: ui_rectifier_1_ac_voltage
+
+          text: !lambda |-
+            if (
+              !id(can_com_ok_1).state ||
+              isnan(id(ac_voltage_1).state)
+            ) {
+              return std::string("--- V");
+            }
+
+            return str_sprintf(
+              "%.0f V",
+              id(ac_voltage_1).state
+            );
+
+
+      # ------------------------------------------------------------------------
+      # AC current
+      # ------------------------------------------------------------------------
+      - lvgl.label.update:
+          id: ui_rectifier_1_ac_current
+
+          text: !lambda |-
+            if (
+              !id(can_com_ok_1).state ||
+              isnan(id(ac_current_1).state)
+            ) {
+              return std::string("--.- A");
+            }
+
+            return str_sprintf(
+              "%.1f A",
+              id(ac_current_1).state
+            );
+
+
+      # ------------------------------------------------------------------------
+      # DC voltage
+      # ------------------------------------------------------------------------
+      - lvgl.label.update:
+          id: ui_rectifier_1_dc_voltage
+
+          text: !lambda |-
+            if (
+              !id(can_com_ok_1).state ||
+              isnan(id(dc_voltage_1).state)
+            ) {
+              return std::string("--.- V");
+            }
+
+            return str_sprintf(
+              "%.1f V",
+              id(dc_voltage_1).state
+            );
+
+
+      # ------------------------------------------------------------------------
+      # DC current
+      # ------------------------------------------------------------------------
+      - lvgl.label.update:
+          id: ui_rectifier_1_dc_current
+
+          text: !lambda |-
+            if (
+              !id(can_com_ok_1).state ||
+              isnan(id(dc_current_1).state)
+            ) {
+              return std::string("--.- A");
+            }
+
+            return str_sprintf(
+              "%.1f A",
+              id(dc_current_1).state
+            );
+
+
+      # ------------------------------------------------------------------------
+      # DC power
+      # ------------------------------------------------------------------------
+      - lvgl.label.update:
+          id: ui_rectifier_1_dc_power
+
+          text: !lambda |-
+            if (
+              !id(can_com_ok_1).state ||
+              isnan(id(dc_power_1).state)
+            ) {
+              return std::string("--.-- kW");
+            }
+
+            return str_sprintf(
+              "%.2f kW",
+              id(dc_power_1).state
+            );
+
+
+      # ------------------------------------------------------------------------
+      # Output temperature
+      # ------------------------------------------------------------------------
+      - lvgl.label.update:
+          id: ui_rectifier_1_temperature
+
+          text: !lambda |-
+            if (
+              !id(can_com_ok_1).state ||
+              isnan(id(output_temperature_1).state)
+            ) {
+              return std::string("--.- °C");
+            }
+
+            return str_sprintf(
+              "%.1f °C",
+              id(output_temperature_1).state
+            );
+
+      # ------------------------------------------------------------------------
+      # Power command transition
+      # ------------------------------------------------------------------------
+      - lambda: |-
+          const uint8_t pending =
+            id(ui_rectifier_1_power_pending);
+
+          if (pending == 0) {
+            return;
+          }
+
+          const bool completed =
+            (pending == 1 &&
+             id(power_state_1).state == "ON") ||
+            (pending == 2 &&
+             id(power_state_1).state == "OFF");
+
+          const bool timed_out =
+            static_cast<uint32_t>(
+              millis() -
+              id(ui_rectifier_1_power_pending_since)
+            ) >= 10000UL;
+
+          if (completed || timed_out) {
+            if (timed_out && !completed) {
+              ESP_LOGW(
+                "ui",
+                "Rectifier 1 power command UI timeout."
+              );
+            }
+
+            id(ui_rectifier_1_power_pending) = 0;
+          }
+
+      # ------------------------------------------------------------------------
+      # Power button label
+      # ------------------------------------------------------------------------
+      - lvgl.label.update:
+          id: ui_rectifier_1_power_button_label
+
+          text: !lambda |-
+            if (id(ui_rectifier_1_power_pending) == 1) {
+              return std::string("STARTING...");
+            }
+
+            if (id(ui_rectifier_1_power_pending) == 2) {
+              return std::string("STOPPING...");
+            }
+
+            if (
+              !id(can_com_ok_1).state ||
+              id(rectifier_control_state_1) !=
+                ${rectifier_state_online}
+            ) {
+              return std::string("UNAVAILABLE");
+            }
+
+            return
+              id(power_state_1).state == "ON"
+                ? std::string("STOP")
+                : std::string("START");
+
+      # ------------------------------------------------------------------------
+      # Power button availability
+      # ------------------------------------------------------------------------
+      - if:
+          condition:
+            lambda: |-
+              return
+                id(ui_charger_power_pending) == 0 &&
+                id(ui_rectifier_1_power_pending) == 0 &&
+                id(can_com_ok_1).state &&
+                id(rectifier_control_state_1) ==
+                  ${rectifier_state_online};
+
+          then:
+            - lvgl.widget.enable:
+                id: ui_rectifier_1_power_button
+
+          else:
+            - lvgl.widget.disable:
+                id: ui_rectifier_1_power_button
+
+      # ========================================================================
+      # RECTIFIER 2 PAGE
+      # ========================================================================
+
+      - lvgl.label.update:
+          id: ui_rectifier_2_lifecycle
+          text: !lambda |-
+            if (!id(can_com_ok_2).state) {
+              return std::string("OFFLINE");
+            }
+
+            const std::string state =
+              id(rectifier_control_state_text_2).state;
+
+            return state.empty()
+              ? std::string("--")
+              : state;
+
+          text_color: !lambda |-
+            if (!id(can_com_ok_2).state) {
+              return lv_color_hex(0x8B96A0);
+            }
+
+            if (
+              id(rectifier_control_state_2) ==
+                ${rectifier_state_online}
+            ) {
+              return lv_color_hex(0x5CFF7A);
+            }
+
+            if (
+              id(rectifier_control_state_2) ==
+                ${rectifier_state_discovering}
+            ) {
+              return lv_color_hex(0xFFC857);
+            }
+
+            return lv_color_hex(0x8B96A0);
+
+
+      - lvgl.label.update:
+          id: ui_rectifier_2_power_state
+          text: !lambda |-
+            if (!id(can_com_ok_2).state) {
+              return std::string("--");
+            }
+
+            const std::string state =
+              id(power_state_2).state;
+
+            if (
+              state.empty() ||
+              state == "UNKNOWN"
+            ) {
+              return std::string("--");
+            }
+
+            return state;
+
+          text_color: !lambda |-
+            if (
+              id(can_com_ok_2).state &&
+              id(power_state_2).state == "ON"
+            ) {
+              return lv_color_hex(0x5CFF7A);
+            }
+
+            if (
+              id(can_com_ok_2).state &&
+              id(power_state_2).state == "OFF"
+            ) {
+              return lv_color_hex(0xDDE3E8);
+            }
+
+            return lv_color_hex(0x8B96A0);
+
+
+      - lvgl.label.update:
+          id: ui_rectifier_2_ac_voltage
+          text: !lambda |-
+            if (
+              !id(can_com_ok_2).state ||
+              isnan(id(ac_voltage_2).state)
+            ) {
+              return std::string("--- V");
+            }
+
+            return str_sprintf(
+              "%.0f V",
+              id(ac_voltage_2).state
+            );
+
+
+      - lvgl.label.update:
+          id: ui_rectifier_2_ac_current
+          text: !lambda |-
+            if (
+              !id(can_com_ok_2).state ||
+              isnan(id(ac_current_2).state)
+            ) {
+              return std::string("--.- A");
+            }
+
+            return str_sprintf(
+              "%.1f A",
+              id(ac_current_2).state
+            );
+
+
+      - lvgl.label.update:
+          id: ui_rectifier_2_dc_voltage
+          text: !lambda |-
+            if (
+              !id(can_com_ok_2).state ||
+              isnan(id(dc_voltage_2).state)
+            ) {
+              return std::string("--.- V");
+            }
+
+            return str_sprintf(
+              "%.1f V",
+              id(dc_voltage_2).state
+            );
+
+
+      - lvgl.label.update:
+          id: ui_rectifier_2_dc_current
+          text: !lambda |-
+            if (
+              !id(can_com_ok_2).state ||
+              isnan(id(dc_current_2).state)
+            ) {
+              return std::string("--.- A");
+            }
+
+            return str_sprintf(
+              "%.1f A",
+              id(dc_current_2).state
+            );
+
+
+      - lvgl.label.update:
+          id: ui_rectifier_2_dc_power
+          text: !lambda |-
+            if (
+              !id(can_com_ok_2).state ||
+              isnan(id(dc_power_2).state)
+            ) {
+              return std::string("--.-- kW");
+            }
+
+            return str_sprintf(
+              "%.2f kW",
+              id(dc_power_2).state
+            );
+
+
+      - lvgl.label.update:
+          id: ui_rectifier_2_temperature
+          text: !lambda |-
+            if (
+              !id(can_com_ok_2).state ||
+              isnan(id(output_temperature_2).state)
+            ) {
+              return std::string("--.- °C");
+            }
+
+            return str_sprintf(
+              "%.1f °C",
+              id(output_temperature_2).state
+            );
+
+      - lambda: |-
+          const uint8_t pending =
+            id(ui_rectifier_2_power_pending);
+
+          if (pending == 0) {
+            return;
+          }
+
+          const bool completed =
+            (pending == 1 &&
+             id(power_state_2).state == "ON") ||
+            (pending == 2 &&
+             id(power_state_2).state == "OFF");
+
+          const bool timed_out =
+            static_cast<uint32_t>(
+              millis() -
+              id(ui_rectifier_2_power_pending_since)
+            ) >= 10000UL;
+
+          if (completed || timed_out) {
+            if (timed_out && !completed) {
+              ESP_LOGW(
+                "ui",
+                "Rectifier 2 power command UI timeout."
+              );
+            }
+
+            id(ui_rectifier_2_power_pending) = 0;
+          }
+
+      - lvgl.label.update:
+          id: ui_rectifier_2_power_button_label
+          text: !lambda |-
+            if (id(ui_rectifier_2_power_pending) == 1) {
+              return std::string("STARTING...");
+            }
+
+            if (id(ui_rectifier_2_power_pending) == 2) {
+              return std::string("STOPPING...");
+            }
+
+            if (
+              !id(can_com_ok_2).state ||
+              id(rectifier_control_state_2) !=
+                ${rectifier_state_online}
+            ) {
+              return std::string("UNAVAILABLE");
+            }
+
+            return
+              id(power_state_2).state == "ON"
+                ? std::string("STOP")
+                : std::string("START");
+
+      - if:
+          condition:
+            lambda: |-
+              return
+                id(ui_charger_power_pending) == 0 &&
+                id(ui_rectifier_2_power_pending) == 0 &&
+                id(can_com_ok_2).state &&
+                id(rectifier_control_state_2) ==
+                  ${rectifier_state_online};
+
+          then:
+            - lvgl.widget.enable:
+                id: ui_rectifier_2_power_button
+
+          else:
+            - lvgl.widget.disable:
+                id: ui_rectifier_2_power_button
+
+      # ========================================================================
+      # RECTIFIER 3 PAGE
+      # ========================================================================
+
+      - lvgl.label.update:
+          id: ui_rectifier_3_lifecycle
+          text: !lambda |-
+            if (!id(can_com_ok_3).state) {
+              return std::string("OFFLINE");
+            }
+
+            const std::string state =
+              id(rectifier_control_state_text_3).state;
+
+            return state.empty()
+              ? std::string("--")
+              : state;
+
+          text_color: !lambda |-
+            if (!id(can_com_ok_3).state) {
+              return lv_color_hex(0x8B96A0);
+            }
+
+            if (
+              id(rectifier_control_state_3) ==
+                ${rectifier_state_online}
+            ) {
+              return lv_color_hex(0x5CFF7A);
+            }
+
+            if (
+              id(rectifier_control_state_3) ==
+                ${rectifier_state_discovering}
+            ) {
+              return lv_color_hex(0xFFC857);
+            }
+
+            return lv_color_hex(0x8B96A0);
+
+
+      - lvgl.label.update:
+          id: ui_rectifier_3_power_state
+          text: !lambda |-
+            if (!id(can_com_ok_3).state) {
+              return std::string("--");
+            }
+
+            const std::string state =
+              id(power_state_3).state;
+
+            if (
+              state.empty() ||
+              state == "UNKNOWN"
+            ) {
+              return std::string("--");
+            }
+
+            return state;
+
+          text_color: !lambda |-
+            if (
+              id(can_com_ok_3).state &&
+              id(power_state_3).state == "ON"
+            ) {
+              return lv_color_hex(0x5CFF7A);
+            }
+
+            if (
+              id(can_com_ok_3).state &&
+              id(power_state_3).state == "OFF"
+            ) {
+              return lv_color_hex(0xDDE3E8);
+            }
+
+            return lv_color_hex(0x8B96A0);
+
+
+      - lvgl.label.update:
+          id: ui_rectifier_3_ac_voltage
+          text: !lambda |-
+            if (
+              !id(can_com_ok_3).state ||
+              isnan(id(ac_voltage_3).state)
+            ) {
+              return std::string("--- V");
+            }
+
+            return str_sprintf(
+              "%.0f V",
+              id(ac_voltage_3).state
+            );
+
+
+      - lvgl.label.update:
+          id: ui_rectifier_3_ac_current
+          text: !lambda |-
+            if (
+              !id(can_com_ok_3).state ||
+              isnan(id(ac_current_3).state)
+            ) {
+              return std::string("--.- A");
+            }
+
+            return str_sprintf(
+              "%.1f A",
+              id(ac_current_3).state
+            );
+
+
+      - lvgl.label.update:
+          id: ui_rectifier_3_dc_voltage
+          text: !lambda |-
+            if (
+              !id(can_com_ok_3).state ||
+              isnan(id(dc_voltage_3).state)
+            ) {
+              return std::string("--.- V");
+            }
+
+            return str_sprintf(
+              "%.1f V",
+              id(dc_voltage_3).state
+            );
+
+
+      - lvgl.label.update:
+          id: ui_rectifier_3_dc_current
+          text: !lambda |-
+            if (
+              !id(can_com_ok_3).state ||
+              isnan(id(dc_current_3).state)
+            ) {
+              return std::string("--.- A");
+            }
+
+            return str_sprintf(
+              "%.1f A",
+              id(dc_current_3).state
+            );
+
+
+      - lvgl.label.update:
+          id: ui_rectifier_3_dc_power
+          text: !lambda |-
+            if (
+              !id(can_com_ok_3).state ||
+              isnan(id(dc_power_3).state)
+            ) {
+              return std::string("--.-- kW");
+            }
+
+            return str_sprintf(
+              "%.2f kW",
+              id(dc_power_3).state
+            );
+
+
+      - lvgl.label.update:
+          id: ui_rectifier_3_temperature
+          text: !lambda |-
+            if (
+              !id(can_com_ok_3).state ||
+              isnan(id(output_temperature_3).state)
+            ) {
+              return std::string("--.- °C");
+            }
+
+            return str_sprintf(
+              "%.1f °C",
+              id(output_temperature_3).state
+            );
+
+      # ------------------------------------------------------------------------
+      # Rectifier 3 power command transition
+      # ------------------------------------------------------------------------
+      - lambda: |-
+          const uint8_t pending =
+            id(ui_rectifier_3_power_pending);
+
+          if (pending == 0) {
+            return;
+          }
+
+          const bool completed =
+            (pending == 1 &&
+             id(power_state_3).state == "ON") ||
+            (pending == 2 &&
+             id(power_state_3).state == "OFF");
+
+          const bool timed_out =
+            static_cast<uint32_t>(
+              millis() -
+              id(ui_rectifier_3_power_pending_since)
+            ) >= 10000UL;
+
+          if (completed || timed_out) {
+            if (timed_out && !completed) {
+              ESP_LOGW(
+                "ui",
+                "Rectifier 3 power command UI timeout."
+              );
+            }
+
+            id(ui_rectifier_3_power_pending) = 0;
+          }
+
+      - lvgl.label.update:
+          id: ui_rectifier_3_power_button_label
+
+          text: !lambda |-
+            if (id(ui_rectifier_3_power_pending) == 1) {
+              return std::string("STARTING...");
+            }
+
+            if (id(ui_rectifier_3_power_pending) == 2) {
+              return std::string("STOPPING...");
+            }
+
+            if (
+              !id(can_com_ok_3).state ||
+              id(rectifier_control_state_3) !=
+                ${rectifier_state_online}
+            ) {
+              return std::string("UNAVAILABLE");
+            }
+
+            return
+              id(power_state_3).state == "ON"
+                ? std::string("STOP")
+                : std::string("START");
+
+      - if:
+          condition:
+            lambda: |-
+              return
+                id(ui_charger_power_pending) == 0 &&
+                id(ui_rectifier_3_power_pending) == 0 &&
+                id(can_com_ok_3).state &&
+                id(rectifier_control_state_3) ==
+                  ${rectifier_state_online};
+
+          then:
+            - lvgl.widget.enable:
+                id: ui_rectifier_3_power_button
+
+          else:
+            - lvgl.widget.disable:
+                id: ui_rectifier_3_power_button
+
+      # ========================================================================
+      # COOLING PAGE
+      # ========================================================================
+
+      # ------------------------------------------------------------------------
+      # Compartment environment
+      # ------------------------------------------------------------------------
+      - lvgl.label.update:
+          id: ui_cooling_compartment_temperature
+          text: !lambda |-
+            if (isnan(id(rectifier_compartment_temperature).state)) {
+              return std::string("--.- °C");
+            }
+
+            return str_sprintf(
+              "%.1f °C",
+              id(rectifier_compartment_temperature).state
+            );
+
+      - lvgl.label.update:
+          id: ui_cooling_compartment_humidity
+          text: !lambda |-
+            if (isnan(id(rectifier_compartment_humidity).state)) {
+              return std::string("--.- %%");
+            }
+
+            return str_sprintf(
+              "%.1f %%",
+              id(rectifier_compartment_humidity).state
+            );
+
+
+      # ------------------------------------------------------------------------
+      # Rectifier 1
+      # ------------------------------------------------------------------------
+      - lvgl.label.update:
+          id: ui_cooling_r1_state
+          text: !lambda |-
+            if (!id(can_com_ok_1).state) {
+              return std::string("OFFLINE");
+            }
+
+            return id(rectifier_control_state_text_1).state;
+
+          text_color: !lambda |-
+            if (!id(can_com_ok_1).state) {
+              return lv_color_hex(0x8B96A0);
+            }
+
+            if (
+              id(rectifier_control_state_1) ==
+                ${rectifier_state_online}
+            ) {
+              return lv_color_hex(0x5CFF7A);
+            }
+
+            if (
+              id(rectifier_control_state_1) ==
+                ${rectifier_state_discovering}
+            ) {
+              return lv_color_hex(0xFFC857);
+            }
+
+            return lv_color_hex(0x8B96A0);
+
+      - lvgl.label.update:
+          id: ui_cooling_r1_rpm
+          text: !lambda |-
+            if (
+              !id(can_com_ok_1).state ||
+              isnan(id(fan_rpm_1).state)
+            ) {
+              return std::string("---- RPM");
+            }
+
+            return str_sprintf(
+              "%.0f RPM",
+              id(fan_rpm_1).state
+            );
+
+      - lvgl.label.update:
+          id: ui_cooling_r1_min_duty
+          text: !lambda |-
+            if (
+              !id(can_com_ok_1).state ||
+              isnan(id(fan_duty_1).state)
+            ) {
+              return std::string("--.- %");
+            }
+
+            return str_sprintf(
+              "%.1f %%",
+              id(fan_duty_1).state
+            );
+
+      - lvgl.label.update:
+          id: ui_cooling_r1_target_duty
+          text: !lambda |-
+            if (
+              !id(can_com_ok_1).state ||
+              isnan(id(fan_duty_setpoint_1).state)
+            ) {
+              return std::string("--.- %");
+            }
+
+            return str_sprintf(
+              "%.1f %%",
+              id(fan_duty_setpoint_1).state
+            );
+
+      - lvgl.label.update:
+          id: ui_cooling_r1_temperature
+          text: !lambda |-
+            if (
+              !id(can_com_ok_1).state ||
+              isnan(id(output_temperature_1).state)
+            ) {
+              return std::string("--.- °C");
+            }
+
+            return str_sprintf(
+              "%.1f °C",
+              id(output_temperature_1).state
+            );
+
+      - lvgl.label.update:
+          id: ui_cooling_r1_thermal
+          text: !lambda |-
+            if (!id(can_com_ok_1).state) {
+              return std::string("--");
+            }
+
+            return id(thermal_state_text_1).state;
+
+      - if:
+          condition:
+            lambda: |-
+              return
+                id(can_com_ok_1).state &&
+                id(rectifier_control_state_1) ==
+                  ${rectifier_state_online};
+
+          then:
+            - lvgl.widget.enable:
+                id: ui_cooling_r1_auto_button
+            - lvgl.widget.enable:
+                id: ui_cooling_r1_full_button
+
+          else:
+            - lvgl.widget.disable:
+                id: ui_cooling_r1_auto_button
+            - lvgl.widget.disable:
+                id: ui_cooling_r1_full_button
+
+      # ------------------------------------------------------------------------
+      # Rectifier 2
+      # ------------------------------------------------------------------------
+      - lvgl.label.update:
+          id: ui_cooling_r2_state
+          text: !lambda |-
+            if (!id(can_com_ok_2).state) {
+              return std::string("OFFLINE");
+            }
+
+            return id(rectifier_control_state_text_2).state;
+
+          text_color: !lambda |-
+            if (!id(can_com_ok_2).state) {
+              return lv_color_hex(0x8B96A0);
+            }
+
+            if (
+              id(rectifier_control_state_2) ==
+                ${rectifier_state_online}
+            ) {
+              return lv_color_hex(0x5CFF7A);
+            }
+
+            if (
+              id(rectifier_control_state_2) ==
+                ${rectifier_state_discovering}
+            ) {
+              return lv_color_hex(0xFFC857);
+            }
+
+            return lv_color_hex(0x8B96A0);
+
+      - lvgl.label.update:
+          id: ui_cooling_r2_rpm
+          text: !lambda |-
+            if (
+              !id(can_com_ok_2).state ||
+              isnan(id(fan_rpm_2).state)
+            ) {
+              return std::string("---- RPM");
+            }
+
+            return str_sprintf("%.0f RPM", id(fan_rpm_2).state);
+
+      - lvgl.label.update:
+          id: ui_cooling_r2_min_duty
+          text: !lambda |-
+            if (
+              !id(can_com_ok_2).state ||
+              isnan(id(fan_duty_2).state)
+            ) {
+              return std::string("--.- %");
+            }
+
+            return str_sprintf("%.1f %%", id(fan_duty_2).state);
+
+      - lvgl.label.update:
+          id: ui_cooling_r2_target_duty
+          text: !lambda |-
+            if (
+              !id(can_com_ok_2).state ||
+              isnan(id(fan_duty_setpoint_2).state)
+            ) {
+              return std::string("--.- %");
+            }
+
+            return str_sprintf(
+              "%.1f %%",
+              id(fan_duty_setpoint_2).state
+            );
+
+      - lvgl.label.update:
+          id: ui_cooling_r2_temperature
+          text: !lambda |-
+            if (
+              !id(can_com_ok_2).state ||
+              isnan(id(output_temperature_2).state)
+            ) {
+              return std::string("--.- °C");
+            }
+
+            return str_sprintf(
+              "%.1f °C",
+              id(output_temperature_2).state
+            );
+
+      - lvgl.label.update:
+          id: ui_cooling_r2_thermal
+          text: !lambda |-
+            if (!id(can_com_ok_2).state) {
+              return std::string("--");
+            }
+
+            return id(thermal_state_text_2).state;
+
+      - if:
+          condition:
+            lambda: |-
+              return
+                id(can_com_ok_2).state &&
+                id(rectifier_control_state_2) ==
+                  ${rectifier_state_online};
+
+          then:
+            - lvgl.widget.enable:
+                id: ui_cooling_r2_auto_button
+            - lvgl.widget.enable:
+                id: ui_cooling_r2_full_button
+
+          else:
+            - lvgl.widget.disable:
+                id: ui_cooling_r2_auto_button
+            - lvgl.widget.disable:
+                id: ui_cooling_r2_full_button
+
+      # ------------------------------------------------------------------------
+      # Rectifier 3
+      # ------------------------------------------------------------------------
+      - lvgl.label.update:
+          id: ui_cooling_r3_state
+          text: !lambda |-
+            if (!id(can_com_ok_3).state) {
+              return std::string("OFFLINE");
+            }
+
+            return id(rectifier_control_state_text_3).state;
+
+          text_color: !lambda |-
+            if (!id(can_com_ok_3).state) {
+              return lv_color_hex(0x8B96A0);
+            }
+
+            if (
+              id(rectifier_control_state_3) ==
+                ${rectifier_state_online}
+            ) {
+              return lv_color_hex(0x5CFF7A);
+            }
+
+            if (
+              id(rectifier_control_state_3) ==
+                ${rectifier_state_discovering}
+            ) {
+              return lv_color_hex(0xFFC857);
+            }
+
+            return lv_color_hex(0x8B96A0);
+
+      - lvgl.label.update:
+          id: ui_cooling_r3_rpm
+          text: !lambda |-
+            if (
+              !id(can_com_ok_3).state ||
+              isnan(id(fan_rpm_3).state)
+            ) {
+              return std::string("---- RPM");
+            }
+
+            return str_sprintf("%.0f RPM", id(fan_rpm_3).state);
+
+      - lvgl.label.update:
+          id: ui_cooling_r3_min_duty
+          text: !lambda |-
+            if (
+              !id(can_com_ok_3).state ||
+              isnan(id(fan_duty_3).state)
+            ) {
+              return std::string("--.- %");
+            }
+
+            return str_sprintf("%.1f %%", id(fan_duty_3).state);
+
+      - lvgl.label.update:
+          id: ui_cooling_r3_target_duty
+          text: !lambda |-
+            if (
+              !id(can_com_ok_3).state ||
+              isnan(id(fan_duty_setpoint_3).state)
+            ) {
+              return std::string("--.- %");
+            }
+
+            return str_sprintf(
+              "%.1f %%",
+              id(fan_duty_setpoint_3).state
+            );
+
+      - lvgl.label.update:
+          id: ui_cooling_r3_temperature
+          text: !lambda |-
+            if (
+              !id(can_com_ok_3).state ||
+              isnan(id(output_temperature_3).state)
+            ) {
+              return std::string("--.- °C");
+            }
+
+            return str_sprintf(
+              "%.1f °C",
+              id(output_temperature_3).state
+            );
+
+      - lvgl.label.update:
+          id: ui_cooling_r3_thermal
+          text: !lambda |-
+            if (!id(can_com_ok_3).state) {
+              return std::string("--");
+            }
+
+            return id(thermal_state_text_3).state;
+
+      - if:
+          condition:
+            lambda: |-
+              return
+                id(can_com_ok_3).state &&
+                id(rectifier_control_state_3) ==
+                  ${rectifier_state_online};
+
+          then:
+            - lvgl.widget.enable:
+                id: ui_cooling_r3_auto_button
+            - lvgl.widget.enable:
+                id: ui_cooling_r3_full_button
+
+          else:
+            - lvgl.widget.disable:
+                id: ui_cooling_r3_auto_button
+            - lvgl.widget.disable:
+                id: ui_cooling_r3_full_button
+
+      # ========================================================================
+      # SYSTEM PAGE
+      # ========================================================================
+
+      # ------------------------------------------------------------------------
+      # Network
+      # ------------------------------------------------------------------------
+      - lvgl.label.update:
+          id: ui_system_ip
+          text: !lambda |-
+            if (id(ip_address).state.empty()) {
+              return std::string("--");
+            }
+
+            return id(ip_address).state;
+
+      - lvgl.label.update:
+          id: ui_system_wifi
+          text: !lambda |-
+            if (isnan(id(wifi_sig).state)) {
+              return std::string("-- dBm");
+            }
+
+            return str_sprintf(
+              "%.0f dBm",
+              id(wifi_sig).state
+            );
+
+          text_color: !lambda |-
+            if (isnan(id(wifi_sig).state)) {
+              return lv_color_hex(0x8B96A0);
+            }
+
+            const float rssi = id(wifi_sig).state;
+
+            if (rssi >= -60.0f) {
+              return lv_color_hex(0x5CFF7A);
+            }
+
+            if (rssi >= -75.0f) {
+              return lv_color_hex(0xFFC857);
+            }
+
+            return lv_color_hex(0xFF5C5C);
+
+
+      # ------------------------------------------------------------------------
+      # Controller runtime
+      # ------------------------------------------------------------------------
+      - lvgl.label.update:
+          id: ui_system_cpu
+          text: !lambda |-
+            if (isnan(id(cpu_temp).state)) {
+              return std::string("--.- °C");
+            }
+
+            return str_sprintf(
+              "%.1f °C",
+              id(cpu_temp).state
+            );
+
+      # ------------------------------------------------------------------------
+      # Rectifier 1 communication/lifecycle
+      # ------------------------------------------------------------------------
+      - lvgl.label.update:
+          id: ui_system_unit_1
+
+          text: !lambda |-
+            if (!id(can_com_ok_1).state) {
+              return std::string("OFFLINE");
+            }
+
+            const std::string lifecycle =
+              id(rectifier_control_state_text_1).state;
+
+            if (lifecycle.empty()) {
+              return std::string("--");
+            }
+
+            return lifecycle;
+
+          text_color: !lambda |-
+            if (!id(can_com_ok_1).state) {
+              return lv_color_hex(0xFF5C5C);
+            }
+
+            if (
+              id(rectifier_control_state_1) ==
+                ${rectifier_state_online}
+            ) {
+              return lv_color_hex(0x5CFF7A);
+            }
+
+            if (
+              id(rectifier_control_state_1) ==
+                ${rectifier_state_discovering}
+            ) {
+              return lv_color_hex(0xFFC857);
+            }
+
+            return lv_color_hex(0x8B96A0);
+
+
+      # ------------------------------------------------------------------------
+      # Rectifier 2 communication/lifecycle
+      # ------------------------------------------------------------------------
+      - lvgl.label.update:
+          id: ui_system_unit_2
+
+          text: !lambda |-
+            if (!id(can_com_ok_2).state) {
+              return std::string("OFFLINE");
+            }
+
+            const std::string lifecycle =
+              id(rectifier_control_state_text_2).state;
+
+            if (lifecycle.empty()) {
+              return std::string("--");
+            }
+
+            return lifecycle;
+
+          text_color: !lambda |-
+            if (!id(can_com_ok_2).state) {
+              return lv_color_hex(0xFF5C5C);
+            }
+
+            if (
+              id(rectifier_control_state_2) ==
+                ${rectifier_state_online}
+            ) {
+              return lv_color_hex(0x5CFF7A);
+            }
+
+            if (
+              id(rectifier_control_state_2) ==
+                ${rectifier_state_discovering}
+            ) {
+              return lv_color_hex(0xFFC857);
+            }
+
+            return lv_color_hex(0x8B96A0);
+
+
+      # ------------------------------------------------------------------------
+      # Rectifier 3 communication/lifecycle
+      # ------------------------------------------------------------------------
+      - lvgl.label.update:
+          id: ui_system_unit_3
+
+          text: !lambda |-
+            if (!id(can_com_ok_3).state) {
+              return std::string("OFFLINE");
+            }
+
+            const std::string lifecycle =
+              id(rectifier_control_state_text_3).state;
+
+            if (lifecycle.empty()) {
+              return std::string("--");
+            }
+
+            return lifecycle;
+
+          text_color: !lambda |-
+            if (!id(can_com_ok_3).state) {
+              return lv_color_hex(0xFF5C5C);
+            }
+
+            if (
+              id(rectifier_control_state_3) ==
+                ${rectifier_state_online}
+            ) {
+              return lv_color_hex(0x5CFF7A);
+            }
+
+            if (
+              id(rectifier_control_state_3) ==
+                ${rectifier_state_discovering}
+            ) {
+              return lv_color_hex(0xFFC857);
+            }
+
+            return lv_color_hex(0x8B96A0);

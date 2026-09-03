@@ -1,242 +1,429 @@
-# LVGL PAGE: RECTIFIERS
-lvgl:
-  pages:
-    - id: rectifiers_page
-      bg_color: 0xF3F5F8
-      bg_opa: COVER
-      scrollable: false
-      scrollbar_mode: "OFF"
+# ==============================================================================
+# V5 LVGL PAGE: RECTIFIERS
+# ==============================================================================
+# Three-column rectifier overview.
+#
+# v5.0.11 Part 1 establishes the static 800x480 layout.
+# Live telemetry and per-unit controls are connected in Part 2.
+
+id: page_rectifiers
+styles: style_page
+
+widgets:
+
+  # ============================================================================
+  # RECTIFIER 1
+  # ============================================================================
+
+  - obj:
+      x: 20
+      y: 75
+      width: 235
+      height: 320
+      styles: style_card
+
       widgets:
-        - obj:
-            scrollable: false
-            scrollbar_mode: "OFF"
-            x: 0
-            y: 0
-            width: 100%
-            height: 64
-            styles: style_header
-            pad_all: 0
-            widgets:
-              - label:
-                  x: 10
-                  y: 8
-                  width: 300
-                  text_align: CENTER
-                  text: "RECTIFIERS"
-                  text_font: ui_font_26_bold
-              - label:
-                  x: 10
-                  y: 42
-                  width: 300
-                  text_align: CENTER
-                  text: "L1 / L2 / L3 status"
-                  text_font: ui_font_14
-                  text_color: 0xFFFFFF
-
-        - obj:
-            scrollable: false
-            scrollbar_mode: "OFF"
-            x: 8
-            y: 72
-            width: 304
-            height: 112
-            styles: style_card
-            widgets:
-              - label:
-                  id: ui_rectifier_title_1
-                  text: "> L1"
-                  text_font: ui_font_18_bold
-                  text_color: 0x1769AA
-              - label:
-                  id: ui_rectifier_status_1
-                  x: 45
-                  y: 0
-                  width: 245
-                  text: "PWR -- | CAN -- | --"
-                  text_font: ui_font_14
-              - label:
-                  id: ui_rectifier_1
-                  x: 45
-                  y: 23
-                  width: 245
-                  text: "DC    --.- V   --.- A   ---- W\nTemp  IN --.-   OUT --.- C\nFan   ---- RPM   Cap --.- A"
-                  text_font: ui_font_14
-
-        - obj:
-            scrollable: false
-            scrollbar_mode: "OFF"
-            x: 8
-            y: 190
-            width: 304
-            height: 112
-            styles: style_card
-            widgets:
-              - label:
-                  id: ui_rectifier_title_2
-                  text: "> L2"
-                  text_font: ui_font_18_bold
-                  text_color: 0x1769AA
-              - label:
-                  id: ui_rectifier_status_2
-                  x: 45
-                  y: 0
-                  width: 245
-                  text: "PWR -- | CAN -- | --"
-                  text_font: ui_font_14
-              - label:
-                  id: ui_rectifier_2
-                  x: 45
-                  y: 23
-                  width: 245
-                  text: "DC    --.- V   --.- A   ---- W\nTemp  IN --.-   OUT --.- C\nFan   ---- RPM   Cap --.- A"
-                  text_font: ui_font_14
-
-        - obj:
-            scrollable: false
-            scrollbar_mode: "OFF"
-            x: 8
-            y: 308
-            width: 304
-            height: 112
-            styles: style_card
-            widgets:
-              - label:
-                  id: ui_rectifier_title_3
-                  text: "> L3"
-                  text_font: ui_font_18_bold
-                  text_color: 0x1769AA
-              - label:
-                  id: ui_rectifier_status_3
-                  x: 45
-                  y: 0
-                  width: 245
-                  text: "PWR -- | CAN -- | --"
-                  text_font: ui_font_14
-              - label:
-                  id: ui_rectifier_3
-                  x: 45
-                  y: 23
-                  width: 245
-                  text: "DC    --.- V   --.- A   ---- W\nTemp  IN --.-   OUT --.- C\nFan   ---- RPM   Cap --.- A"
-                  text_font: ui_font_14
+        - label:
+            x: 16
+            y: 12
+            text: "RECTIFIER 1"
+            text_font: montserrat_20
+            text_color: 0xFFFFFF
 
         - label:
-            id: ui_rectifiers_footer
-            x: 8
-            y: 448
-            width: 304
-            text_align: CENTER
-            text: "Turn select | Press details | Double page | Hold ON/OFF"
-            text_font: ui_font_14
-            text_color: 0x657080
+            id: ui_rectifier_1_lifecycle
+            x: 16
+            y: 43
+            text: "OFFLINE"
+            text_font: montserrat_16
+            text_color: 0x8B96A0
 
-interval:
-  - interval: 500ms
-    then:
-      # ----------------------------------------------------------------------
-      # Rectifier SELECT indication
-      # ----------------------------------------------------------------------
-      - lvgl.label.update:
-          id: ui_rectifier_title_1
-          text: !lambda |-
-            return
-              id(encoder_page) == 1 &&
-              id(rectifier_detail_unit) == 0 &&
-              id(encoder_selection) == 0
-                ? std::string("> L1")
-                : std::string("  L1");
+        - label:
+            id: ui_rectifier_1_power_state
+            x: 150
+            y: 43
+            width: 65
+            text_align: RIGHT
+            text: "--"
+            text_font: montserrat_16
+            text_color: 0x8B96A0
 
-          text_color: !lambda |-
-            return
-              id(encoder_page) == 1 &&
-              id(rectifier_detail_unit) == 0 &&
-              id(encoder_selection) == 0
-                ? lv_color_hex(0x1769AA)
-                : lv_color_hex(0x657080);
+        - label:
+            x: 16
+            y: 82
+            text: "AC"
+            text_font: montserrat_16
+            text_color: 0x8B96A0
 
-      - lvgl.label.update:
-          id: ui_rectifier_title_2
-          text: !lambda |-
-            return
-              id(encoder_page) == 1 &&
-              id(rectifier_detail_unit) == 0 &&
-              id(encoder_selection) == 1
-                ? std::string("> L2")
-                : std::string("  L2");
+        - label:
+            id: ui_rectifier_1_ac_voltage
+            x: 70
+            y: 80
+            text: "230 V"
+            text_font: montserrat_18
+            text_color: 0xDDE3E8
 
-          text_color: !lambda |-
-            return
-              id(encoder_page) == 1 &&
-              id(rectifier_detail_unit) == 0 &&
-              id(encoder_selection) == 1
-                ? lv_color_hex(0x1769AA)
-                : lv_color_hex(0x657080);
+        - label:
+            id: ui_rectifier_1_ac_current
+            x: 145
+            y: 80
+            text: "5.2 A"
+            text_font: montserrat_18
+            text_color: 0xDDE3E8
 
-      - lvgl.label.update:
-          id: ui_rectifier_title_3
-          text: !lambda |-
-            return
-              id(encoder_page) == 1 &&
-              id(rectifier_detail_unit) == 0 &&
-              id(encoder_selection) == 2
-                ? std::string("> L3")
-                : std::string("  L3");
+        - label:
+            x: 16
+            y: 122
+            text: "DC"
+            text_font: montserrat_16
+            text_color: 0x8B96A0
 
-          text_color: !lambda |-
-            return
-              id(encoder_page) == 1 &&
-              id(rectifier_detail_unit) == 0 &&
-              id(encoder_selection) == 2
-                ? lv_color_hex(0x1769AA)
-                : lv_color_hex(0x657080);
+        - label:
+            id: ui_rectifier_1_dc_voltage
+            x: 70
+            y: 120
+            text: "53.1 V"
+            text_font: montserrat_18
+            text_color: 0xDDE3E8
 
-      - lvgl.label.update:
-          id: ui_rectifier_status_1
-          text: !lambda |-
-            const std::string lifecycle = id(rectifier_control_state_text_1).state.empty() ? "--" : id(rectifier_control_state_text_1).state;
-            const std::string power = id(power_state_1).state == "UNKNOWN" ? "?" : (id(power_state_1).state.empty() ? "--" : id(power_state_1).state);
-            return str_sprintf("PWR %s | CAN %s | %s", power.c_str(), id(can_com_ok_1).state ? "OK" : "FAULT", lifecycle.c_str());
-          text_color: !lambda |-
-            if (!id(can_com_ok_1).state) return lv_color_hex(0xC62828);
-            if (id(rectifier_control_state_1) == ${rectifier_state_discovering}) return lv_color_hex(0xC27A00);
-            if (id(rectifier_control_state_1) == ${rectifier_state_online}) return lv_color_hex(0x198754);
-            return lv_color_hex(0x657080);
-      - lvgl.label.update:
-          id: ui_rectifier_1
-          text: !lambda |-
-            if (!id(can_com_ok_1).state) return std::string("DC    --.- V   --.- A   ---- W\nTemp  IN --.-   OUT --.- C\nFan   ---- RPM   Cap --.- A");
-            return str_sprintf("DC    %.1f V   %.1f A   %.0f W\nTemp  IN %.1f   OUT %.1f C\nFan   %.0f RPM   Cap %.1f A", id(dc_voltage_1).state, id(dc_current_1).state, id(dc_power_1).state, id(input_temperature_1).state, id(output_temperature_1).state, id(fan_rpm_1).state, id(max_dc_current_1).state);
+        - label:
+            id: ui_rectifier_1_dc_current
+            x: 145
+            y: 120
+            text: "22.4 A"
+            text_font: montserrat_18
+            text_color: 0xDDE3E8
 
-      - lvgl.label.update:
-          id: ui_rectifier_status_2
-          text: !lambda |-
-            const std::string lifecycle = id(rectifier_control_state_text_2).state.empty() ? "--" : id(rectifier_control_state_text_2).state;
-            const std::string power = id(power_state_2).state == "UNKNOWN" ? "?" : (id(power_state_2).state.empty() ? "--" : id(power_state_2).state);
-            return str_sprintf("PWR %s | CAN %s | %s", power.c_str(), id(can_com_ok_2).state ? "OK" : "FAULT", lifecycle.c_str());
-          text_color: !lambda |-
-            if (!id(can_com_ok_2).state) return lv_color_hex(0xC62828);
-            if (id(rectifier_control_state_2) == ${rectifier_state_discovering}) return lv_color_hex(0xC27A00);
-            if (id(rectifier_control_state_2) == ${rectifier_state_online}) return lv_color_hex(0x198754);
-            return lv_color_hex(0x657080);
-      - lvgl.label.update:
-          id: ui_rectifier_2
-          text: !lambda |-
-            if (!id(can_com_ok_2).state) return std::string("DC    --.- V   --.- A   ---- W\nTemp  IN --.-   OUT --.- C\nFan   ---- RPM   Cap --.- A");
-            return str_sprintf("DC    %.1f V   %.1f A   %.0f W\nTemp  IN %.1f   OUT %.1f C\nFan   %.0f RPM   Cap %.1f A", id(dc_voltage_2).state, id(dc_current_2).state, id(dc_power_2).state, id(input_temperature_2).state, id(output_temperature_2).state, id(fan_rpm_2).state, id(max_dc_current_2).state);
+        - label:
+            id: ui_rectifier_1_dc_power
+            x: 70
+            y: 151
+            text: "--.-- kW"
+            text_font: montserrat_20
+            text_color: 0xFFFFFF
 
-      - lvgl.label.update:
-          id: ui_rectifier_status_3
-          text: !lambda |-
-            const std::string lifecycle = id(rectifier_control_state_text_3).state.empty() ? "--" : id(rectifier_control_state_text_3).state;
-            const std::string power = id(power_state_3).state == "UNKNOWN" ? "?" : (id(power_state_3).state.empty() ? "--" : id(power_state_3).state);
-            return str_sprintf("PWR %s | CAN %s | %s", power.c_str(), id(can_com_ok_3).state ? "OK" : "FAULT", lifecycle.c_str());
-          text_color: !lambda |-
-            if (!id(can_com_ok_3).state) return lv_color_hex(0xC62828);
-            if (id(rectifier_control_state_3) == ${rectifier_state_discovering}) return lv_color_hex(0xC27A00);
-            if (id(rectifier_control_state_3) == ${rectifier_state_online}) return lv_color_hex(0x198754);
-            return lv_color_hex(0x657080);
-      - lvgl.label.update:
-          id: ui_rectifier_3
-          text: !lambda |-
-            if (!id(can_com_ok_3).state) return std::string("DC    --.- V   --.- A   ---- W\nTemp  IN --.-   OUT --.- C\nFan   ---- RPM   Cap --.- A");
-            return str_sprintf("DC    %.1f V   %.1f A   %.0f W\nTemp  IN %.1f   OUT %.1f C\nFan   %.0f RPM   Cap %.1f A", id(dc_voltage_3).state, id(dc_current_3).state, id(dc_power_3).state, id(input_temperature_3).state, id(output_temperature_3).state, id(fan_rpm_3).state, id(max_dc_current_3).state);
+        - label:
+            x: 16
+            y: 194
+            text: "OUT"
+            text_font: montserrat_16
+            text_color: 0x8B96A0
+
+        - label:
+            id: ui_rectifier_1_temperature
+            x: 70
+            y: 192
+            text: "--.- °C"
+            text_font: montserrat_18
+            text_color: 0xDDE3E8
+
+        - button:
+            id: ui_rectifier_1_power_button
+            x: 16
+            y: 250
+            width: 203
+            height: 48
+
+            disabled:
+              bg_color: 0x30343A
+              border_color: 0x44484E
+
+            widgets:
+              - label:
+                  id: ui_rectifier_1_power_button_label
+                  align: CENTER
+                  text: "UNAVAILABLE"
+                  text_font: montserrat_18
+                  text_color: 0xFFFFFF
+
+            on_short_click:
+              - if:
+                  condition:
+                    lambda: |-
+                      return
+                        id(can_com_ok_1).state &&
+                        id(power_state_1).state == "ON";
+
+                  then:
+                    - lvgl.widget.show: ui_stop_rectifier_1_dialog
+
+                  else:
+                    - lvgl.widget.show: ui_start_rectifier_1_dialog
+
+  # ============================================================================
+  # RECTIFIER 2
+  # ============================================================================
+
+  - obj:
+      x: 270
+      y: 75
+      width: 235
+      height: 320
+      styles: style_card
+
+      widgets:
+        - label:
+            x: 16
+            y: 12
+            text: "RECTIFIER 2"
+            text_font: montserrat_20
+            text_color: 0xFFFFFF
+
+        - label:
+            id: ui_rectifier_2_lifecycle
+            x: 16
+            y: 43
+            text: "OFFLINE"
+            text_font: montserrat_16
+            text_color: 0x8B96A0
+
+        - label:
+            id: ui_rectifier_2_power_state
+            x: 150
+            y: 43
+            width: 65
+            text_align: RIGHT
+            text: "--"
+            text_font: montserrat_16
+            text_color: 0x8B96A0
+
+        - label:
+            x: 16
+            y: 82
+            text: "AC"
+            text_font: montserrat_16
+            text_color: 0x8B96A0
+
+        - label:
+            id: ui_rectifier_2_ac_voltage
+            x: 70
+            y: 80
+            text: "--- V"
+            text_font: montserrat_18
+            text_color: 0x8B96A0
+
+        - label:
+            id: ui_rectifier_2_ac_current
+            x: 145
+            y: 80
+            text: "--.- A"
+            text_font: montserrat_18
+            text_color: 0x8B96A0
+
+        - label:
+            x: 16
+            y: 122
+            text: "DC"
+            text_font: montserrat_16
+            text_color: 0x8B96A0
+
+        - label:
+            id: ui_rectifier_2_dc_voltage
+            x: 70
+            y: 120
+            text: "--.- V"
+            text_font: montserrat_18
+            text_color: 0x8B96A0
+
+        - label:
+            id: ui_rectifier_2_dc_current
+            x: 145
+            y: 120
+            text: "--.- A"
+            text_font: montserrat_18
+            text_color: 0x8B96A0
+
+        - label:
+            id: ui_rectifier_2_dc_power
+            x: 70
+            y: 151
+            text: "--.-- kW"
+            text_font: montserrat_20
+            text_color: 0x8B96A0
+
+        - label:
+            x: 16
+            y: 194
+            text: "OUT"
+            text_font: montserrat_16
+            text_color: 0x8B96A0
+
+        - label:
+            id: ui_rectifier_2_temperature
+            x: 70
+            y: 192
+            text: "--.- °C"
+            text_font: montserrat_18
+            text_color: 0x8B96A0
+
+        - button:
+            id: ui_rectifier_2_power_button
+            x: 16
+            y: 250
+            width: 203
+            height: 48
+
+            disabled:
+              bg_color: 0x30343A
+              border_color: 0x44484E
+
+            widgets:
+              - label:
+                  id: ui_rectifier_2_power_button_label
+                  align: CENTER
+                  text: "UNAVAILABLE"
+                  text_font: montserrat_18
+                  text_color: 0xFFFFFF
+
+            on_short_click:
+              - if:
+                  condition:
+                    lambda: |-
+                      return
+                        id(can_com_ok_2).state &&
+                        id(power_state_2).state == "ON";
+
+                  then:
+                    - lvgl.widget.show: ui_stop_rectifier_2_dialog
+
+                  else:
+                    - lvgl.widget.show: ui_start_rectifier_2_dialog
+
+  # ============================================================================
+  # RECTIFIER 3
+  # ============================================================================
+
+  - obj:
+      x: 520
+      y: 75
+      width: 260
+      height: 320
+      styles: style_card
+
+      widgets:
+        - label:
+            x: 16
+            y: 12
+            text: "RECTIFIER 3"
+            text_font: montserrat_20
+            text_color: 0xFFFFFF
+
+        - label:
+            id: ui_rectifier_3_lifecycle
+            x: 16
+            y: 43
+            text: "OFFLINE"
+            text_font: montserrat_16
+            text_color: 0x8B96A0
+
+        - label:
+            id: ui_rectifier_3_power_state
+            x: 175
+            y: 43
+            width: 65
+            text_align: RIGHT
+            text: "--"
+            text_font: montserrat_16
+            text_color: 0x8B96A0
+
+        - label:
+            x: 16
+            y: 82
+            text: "AC"
+            text_font: montserrat_16
+            text_color: 0x8B96A0
+
+        - label:
+            id: ui_rectifier_3_ac_voltage
+            x: 75
+            y: 80
+            text: "--- V"
+            text_font: montserrat_18
+            text_color: 0x8B96A0
+
+        - label:
+            id: ui_rectifier_3_ac_current
+            x: 165
+            y: 80
+            text: "--.- A"
+            text_font: montserrat_18
+            text_color: 0x8B96A0
+
+        - label:
+            x: 16
+            y: 122
+            text: "DC"
+            text_font: montserrat_16
+            text_color: 0x8B96A0
+
+        - label:
+            id: ui_rectifier_3_dc_voltage
+            x: 75
+            y: 120
+            text: "--.- V"
+            text_font: montserrat_18
+            text_color: 0x8B96A0
+
+        - label:
+            id: ui_rectifier_3_dc_current
+            x: 165
+            y: 120
+            text: "--.- A"
+            text_font: montserrat_18
+            text_color: 0x8B96A0
+
+        - label:
+            id: ui_rectifier_3_dc_power
+            x: 75
+            y: 151
+            text: "--.-- kW"
+            text_font: montserrat_20
+            text_color: 0x8B96A0
+
+        - label:
+            x: 16
+            y: 194
+            text: "OUT"
+            text_font: montserrat_16
+            text_color: 0x8B96A0
+
+        - label:
+            id: ui_rectifier_3_temperature
+            x: 75
+            y: 192
+            text: "--.- °C"
+            text_font: montserrat_18
+            text_color: 0x8B96A0
+
+        - button:
+            id: ui_rectifier_3_power_button
+            x: 16
+            y: 250
+            width: 228
+            height: 48
+
+            disabled:
+              bg_color: 0x30343A
+              border_color: 0x44484E
+
+            widgets:
+              - label:
+                  id: ui_rectifier_3_power_button_label
+                  align: CENTER
+                  text: "UNAVAILABLE"
+                  text_font: montserrat_18
+                  text_color: 0xFFFFFF
+
+            on_short_click:
+              - if:
+                  condition:
+                    lambda: |-
+                      return
+                        id(can_com_ok_3).state &&
+                        id(power_state_3).state == "ON";
+
+                  then:
+                    - lvgl.widget.show: ui_stop_rectifier_3_dialog
+
+                  else:
+                    - lvgl.widget.show: ui_start_rectifier_3_dialog

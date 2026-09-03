@@ -363,10 +363,8 @@ number:
 # Charger-wide ON/OFF, internal R4875G1 fan-mode overrides and manual discovery.
 
 button:
-  # Broadcast ON command to all three rectifiers.
-  #
-  # Because a broadcast ON command cannot exclude an individual unit, every
-  # rectifier must be fully ONLINE and satisfy all START safety requirements.
+  # Start all currently available rectifiers individually.
+  # Each per-unit ON button performs its own complete safety validation.
   - platform: template
     name: "Turn On All Units"
     id: on_button_all
@@ -374,75 +372,45 @@ button:
 
     on_press:
       then:
-        - lambda: |-
-            ESP_LOGI(
-              "custom",
-              "All Unit ON button pressed."
-            );
+        - logger.log:
+            level: INFO
+            format: "Start requested for all available rectifiers."
 
+        # Unit 1
         - if:
             condition:
               lambda: |-
                 return
                   id(rectifier_control_state_1) ==
                     ${rectifier_state_online} &&
-                  id(rectifier_control_state_2) ==
-                    ${rectifier_state_online} &&
-                  id(rectifier_control_state_3) ==
-                    ${rectifier_state_online} &&
-
-                  id(can_com_ok_1).state &&
-                  id(can_com_ok_2).state &&
-                  id(can_com_ok_3).state &&
-
-                  id(power_state_1).state == "OFF" &&
-                  id(power_state_2).state == "OFF" &&
-                  id(power_state_3).state == "OFF" &&
-
-                  !isnan(id(output_temperature_1).state) &&
-                  !isnan(id(output_temperature_2).state) &&
-                  !isnan(id(output_temperature_3).state) &&
-
-                  id(output_temperature_1).state <
-                    ${overtemp_trip_c}f &&
-                  id(output_temperature_2).state <
-                    ${overtemp_trip_c}f &&
-                  id(output_temperature_3).state <
-                    ${overtemp_trip_c}f &&
-
-                  !id(overtemp_lockout_1) &&
-                  !id(overtemp_lockout_2) &&
-                  !id(overtemp_lockout_3);
+                  id(can_com_ok_1).state;
 
             then:
-              # Ensure all three verified ONLINE units have the latest active
-              # voltage/current values immediately before ON.
-              - script.execute: refresh_active_setpoints_online
-              - script.wait: refresh_active_setpoints_online
+              - button.press: on_button_1
 
-              - delay: 100ms
+        # Unit 2
+        - if:
+            condition:
+              lambda: |-
+                return
+                  id(rectifier_control_state_2) ==
+                    ${rectifier_state_online} &&
+                  id(can_com_ok_2).state;
 
-              - canbus.send:
-                  use_extended_id: true
-                  can_id: 0x108080FE
-                  data:
-                    - 0x01
-                    - 0x32
-                    - 0x00
-                    - 0x00
-                    - 0x00
-                    - 0x00
-                    - 0x00
-                    - 0x00
+            then:
+              - button.press: on_button_2
 
-              - logger.log:
-                  level: INFO
-                  format: "All three verified ONLINE rectifiers commanded ON."
+        # Unit 3
+        - if:
+            condition:
+              lambda: |-
+                return
+                  id(rectifier_control_state_3) ==
+                    ${rectifier_state_online} &&
+                  id(can_com_ok_3).state;
 
-            else:
-              - logger.log:
-                  level: WARN
-                  format: "All ON blocked - all three units must be ONLINE with fresh CAN communication, explicit OFF state, valid safe temperature and no overtemperature lockout."
+            then:
+              - button.press: on_button_3
 
   # Broadcast OFF command to all three rectifiers.
   - platform: template

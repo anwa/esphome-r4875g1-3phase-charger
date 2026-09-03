@@ -1,5 +1,67 @@
 # 3-Phase Huawei R4875G1 Battery Charger Controller
 
+> [!IMPORTANT]
+> **v5 hardware migration in progress**
+>
+> `main` now targets the Waveshare ESP32-S3-Touch-LCD-7 hardware generation.
+>
+> The stable ESP32-S3-DevKitC-1 based v4 implementation is maintained on the
+> `v4-maintenance` branch. The immutable v4 baseline is tagged `v4.4.0`.
+>
+> During the early v5 migration, parts of the source and documentation still
+> describe the legacy v4 hardware because charger subsystems are being migrated
+> incrementally rather than rewritten in one step.
+
+## v5 hardware baseline
+
+The v5 controller is based on:
+
+```text
+Waveshare ESP32-S3-Touch-LCD-7
+ESP32-S3 N16R8
+16 MB Flash
+8 MB PSRAM
+7-inch 800 × 480 RGB IPS display
+GT911 capacitive touchscreen
+CH422G onboard I/O expander
+onboard CAN transceiver
+```
+
+The first v5 milestone is functional parity with v4:
+
+```text
+Dashboard
+Rectifiers
+Rectifier detail views
+Cooling
+System
+Trends
+```
+
+The existing UI will first be ported functionally to 800 × 480. A dedicated
+touch-oriented v5 redesign will follow only after the charger is fully
+operational on the new hardware.
+
+Planned external I²C expansion:
+
+```text
+ESP32-S3 GPIO8 / GPIO9
+        │
+        ├── onboard CH422G
+        ├── onboard GT911
+        │
+        └── TCA9548A @ 0x70
+                │
+                └── Channel 0
+                        └── AHT10 @ 0x38
+```
+
+Rotary encoder integration and the final external cooling-fan implementation
+are intentionally deferred until the display, touch, CAN and charger core are
+running reliably.
+
+---
+
 ESPHome-based controller for **three Huawei R4875G1 rectifiers** operated as a coordinated three-phase battery charger with a common parallel DC output.
 
 The project combines CAN control, live telemetry, Home Assistant, MQTT, a local web interface, a 480×320 TFT, automatic compartment cooling and a rotary encoder.

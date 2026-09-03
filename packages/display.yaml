@@ -1,21 +1,16 @@
 # ==============================================================================
-# LOCAL DISPLAY PACKAGE AGGREGATOR
+# V5 DISPLAY PACKAGE AGGREGATOR
 # ==============================================================================
-# v4 display implementation. The LVGL UI is deliberately split into three
-# focused packages so hardware transport, visual styling and screen logic can
-# evolve independently.
+# The v5 display implementation is split into focused packages:
 #
-# The proven v3 display configuration exposes a 480x320 landscape canvas.
-# LVGL rotates that canvas by 90 degrees for the default 320x480 portrait UI.
-# Set display_rotation to 0 to use landscape orientation instead.
+#   hardware.yaml  - RGB panel and LVGL runtime configuration
+#   theme.yaml     - shared visual styles
+#   ui.yaml        - pages, persistent header and navigation
 #
-# Include paths in this file are resolved relative to packages/display.yaml,
-# i.e. relative to the packages directory.
-
-substitutions:
-  display_rotation: "90"
+# Page-specific UI definitions live below display/pages/.
 
 packages:
   display_hardware: !include display/hardware.yaml
   display_theme: !include display/theme.yaml
   display_ui: !include display/ui.yaml
+  display_trends: !include display/trends.yaml
