@@ -1,0 +1,108 @@
+# ==============================================================================
+# V5 DISPLAY COMMAND STATE RUNTIME
+# ==============================================================================
+#
+# Global UI command-state handling.
+#
+# These state machines must continue running regardless of the currently
+# visible LVGL page. They clear START/STOP pending states when the commanded
+# state is reached or when the UI timeout expires.
+#
+# No page widgets are periodically updated from this runtime.
+# ==============================================================================
+
+interval:
+  - interval: 500ms
+    then:
+      # ========================================================================
+      # RECTIFIER POWER COMMAND TRANSITIONS
+      # ========================================================================
+      #
+      # These remain global because command completion/timeout handling must
+      # continue even after leaving the Rectifiers page.
+      # ========================================================================
+
+      # ------------------------------------------------------------------------
+      # Rectifier 1
+      # ------------------------------------------------------------------------
+      - lambda: |-
+          const uint8_t pending =
+            id(ui_rectifier_1_power_pending);
+          if (pending == 0) {
+            return;
+          }
+          const bool completed =
+            (pending == 1 &&
+             id(power_state_1).state == "ON") ||
+            (pending == 2 &&
+             id(power_state_1).state == "OFF");
+          const bool timed_out =
+            static_cast<uint32_t>(
+              millis() -
+              id(ui_rectifier_1_power_pending_since)
+            ) >= 10000UL;
+          if (completed || timed_out) {
+            if (timed_out && !completed) {
+              ESP_LOGW(
+                "ui",
+                "Rectifier 1 power command UI timeout."
+              );
+            }
+            id(ui_rectifier_1_power_pending) = 0;
+          }
+      # ------------------------------------------------------------------------
+      # Rectifier 2
+      # ------------------------------------------------------------------------
+      - lambda: |-
+          const uint8_t pending =
+            id(ui_rectifier_2_power_pending);
+          if (pending == 0) {
+            return;
+          }
+          const bool completed =
+            (pending == 1 &&
+             id(power_state_2).state == "ON") ||
+            (pending == 2 &&
+             id(power_state_2).state == "OFF");
+          const bool timed_out =
+            static_cast<uint32_t>(
+              millis() -
+              id(ui_rectifier_2_power_pending_since)
+            ) >= 10000UL;
+          if (completed || timed_out) {
+            if (timed_out && !completed) {
+              ESP_LOGW(
+                "ui",
+                "Rectifier 2 power command UI timeout."
+              );
+            }
+            id(ui_rectifier_2_power_pending) = 0;
+          }
+      # ------------------------------------------------------------------------
+      # Rectifier 3
+      # ------------------------------------------------------------------------
+      - lambda: |-
+          const uint8_t pending =
+            id(ui_rectifier_3_power_pending);
+          if (pending == 0) {
+            return;
+          }
+          const bool completed =
+            (pending == 1 &&
+             id(power_state_3).state == "ON") ||
+            (pending == 2 &&
+             id(power_state_3).state == "OFF");
+          const bool timed_out =
+            static_cast<uint32_t>(
+              millis() -
+              id(ui_rectifier_3_power_pending_since)
+            ) >= 10000UL;
+          if (completed || timed_out) {
+            if (timed_out && !completed) {
+              ESP_LOGW(
+                "ui",
+                "Rectifier 3 power command UI timeout."
+              );
+            }
+            id(ui_rectifier_3_power_pending) = 0;
+          }
