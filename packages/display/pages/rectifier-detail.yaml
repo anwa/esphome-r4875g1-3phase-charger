@@ -34,7 +34,7 @@ widgets:
             x: 16
             align: LEFT_MID
             width: 330
-            text: "RECTIFIER --  |  ---- h"
+            text: "RECTIFIER --    ---- h"
             text_font: montserrat_24
             text_color: 0xFFFFFF
 
