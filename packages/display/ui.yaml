@@ -15,6 +15,24 @@
 #   2 = stopping
 
 globals:
+  # ---------------------------------------------------------------------------
+  # Active display page
+  # ---------------------------------------------------------------------------
+  #
+  # Only the currently visible page is refreshed periodically.
+  #
+  #   0 = Dashboard
+  #   1 = Rectifiers
+  #   2 = Rectifier Detail
+  #   3 = Cooling
+  #   4 = System
+  #   5 = Trends
+  #
+  - id: ui_active_page
+    type: uint8_t
+    restore_value: false
+    initial_value: "0"
+
   - id: ui_charger_power_pending
     type: uint8_t
     restore_value: false
@@ -190,6 +208,7 @@ lvgl:
           on_short_click:
             - lambda: |-
                 id(rectifier_detail_unit) = 0;
+                id(ui_active_page) = 0;
             - lvgl.page.show: page_dashboard
 
 
@@ -212,6 +231,7 @@ lvgl:
           on_short_click:
             - lambda: |-
                 id(rectifier_detail_unit) = 0;
+                id(ui_active_page) = 1;
             - lvgl.page.show: page_rectifiers
 
 
@@ -234,6 +254,7 @@ lvgl:
           on_short_click:
             - lambda: |-
                 id(rectifier_detail_unit) = 0;
+                id(ui_active_page) = 3;
             - lvgl.page.show: page_cooling
 
 
@@ -256,6 +277,7 @@ lvgl:
           on_short_click:
             - lambda: |-
                 id(rectifier_detail_unit) = 0;
+                id(ui_active_page) = 4;
             - lvgl.page.show: page_system
 
 
@@ -278,6 +300,7 @@ lvgl:
           on_short_click:
             - lambda: |-
                 id(rectifier_detail_unit) = 0;
+                id(ui_active_page) = 5;
             - lvgl.page.show: page_trends
 
       # ========================================================================
@@ -794,259 +817,6 @@ interval:
             );
 
       # ------------------------------------------------------------------------
-      # AC input power
-      # ------------------------------------------------------------------------
-      - lvgl.label.update:
-          id: ui_dashboard_ac_power
-          text: !lambda |-
-            if (isnan(id(combined_ac_power).state)) {
-              return std::string("--.-- kW");
-            }
-
-            return str_sprintf(
-              "%.2f kW",
-              id(combined_ac_power).state
-            );
-
-
-      # ------------------------------------------------------------------------
-      # AC input voltage
-      #
-      # The three rectifiers are connected to separate AC phases. Display the
-      # average voltage of all currently reachable units with valid telemetry.
-      # ------------------------------------------------------------------------
-      - lvgl.label.update:
-          id: ui_dashboard_ac_voltage
-          text: !lambda |-
-            float voltage = 0.0f;
-            int units = 0;
-
-            if (
-              id(can_com_ok_1).state &&
-              !isnan(id(ac_voltage_1).state)
-            ) {
-              voltage += id(ac_voltage_1).state;
-              units++;
-            }
-
-            if (
-              id(can_com_ok_2).state &&
-              !isnan(id(ac_voltage_2).state)
-            ) {
-              voltage += id(ac_voltage_2).state;
-              units++;
-            }
-
-            if (
-              id(can_com_ok_3).state &&
-              !isnan(id(ac_voltage_3).state)
-            ) {
-              voltage += id(ac_voltage_3).state;
-              units++;
-            }
-
-            if (units == 0) {
-              return std::string("--- V");
-            }
-
-            return str_sprintf(
-              "%.0f V",
-              voltage / units
-            );
-
-
-      # ------------------------------------------------------------------------
-      # AC input current
-      #
-      # Preserve the proven v4 dashboard behaviour: show the average phase
-      # current of all reachable rectifiers rather than the sum of phase
-      # currents.
-      # ------------------------------------------------------------------------
-      - lvgl.label.update:
-          id: ui_dashboard_ac_current
-          text: !lambda |-
-            float current = 0.0f;
-            int units = 0;
-
-            if (
-              id(can_com_ok_1).state &&
-              !isnan(id(ac_current_1).state)
-            ) {
-              current += id(ac_current_1).state;
-              units++;
-            }
-
-            if (
-              id(can_com_ok_2).state &&
-              !isnan(id(ac_current_2).state)
-            ) {
-              current += id(ac_current_2).state;
-              units++;
-            }
-
-            if (
-              id(can_com_ok_3).state &&
-              !isnan(id(ac_current_3).state)
-            ) {
-              current += id(ac_current_3).state;
-              units++;
-            }
-
-            if (units == 0) {
-              return std::string("--.- A");
-            }
-
-            return str_sprintf(
-              "%.1f A",
-              current / units
-            );
-
-
-      # ------------------------------------------------------------------------
-      # DC output power
-      # ------------------------------------------------------------------------
-      - lvgl.label.update:
-          id: ui_dashboard_dc_power
-          text: !lambda |-
-            if (isnan(id(combined_dc_power).state)) {
-              return std::string("--.-- kW");
-            }
-
-            return str_sprintf(
-              "%.2f kW",
-              id(combined_dc_power).state
-            );
-
-
-      # ------------------------------------------------------------------------
-      # DC output voltage
-      # ------------------------------------------------------------------------
-      - lvgl.label.update:
-          id: ui_dashboard_dc_voltage
-          text: !lambda |-
-            if (isnan(id(average_dc_voltage).state)) {
-              return std::string("--.-- V");
-            }
-
-            return str_sprintf(
-              "%.2f V",
-              id(average_dc_voltage).state
-            );
-
-
-      # ------------------------------------------------------------------------
-      # Combined DC output current
-      # ------------------------------------------------------------------------
-      - lvgl.label.update:
-          id: ui_dashboard_dc_current
-          text: !lambda |-
-            if (isnan(id(combined_dc_current).state)) {
-              return std::string("--.- A");
-            }
-
-            return str_sprintf(
-              "%.1f A",
-              id(combined_dc_current).state
-            );
-
-
-      # ------------------------------------------------------------------------
-      # Available units
-      # ------------------------------------------------------------------------
-      - lvgl.label.update:
-          id: ui_dashboard_units
-          text: !lambda |-
-            if (isnan(id(available_units).state)) {
-              return std::string("- / 3");
-            }
-
-            return str_sprintf(
-              "%.0f / 3",
-              id(available_units).state
-            );
-
-
-      # ------------------------------------------------------------------------
-      # Highest rectifier output temperature
-      # ------------------------------------------------------------------------
-      - lvgl.label.update:
-          id: ui_dashboard_temperature
-          text: !lambda |-
-            if (isnan(id(highest_output_temperature).state)) {
-              return std::string("--.- °C");
-            }
-
-            return str_sprintf(
-              "%.1f °C",
-              id(highest_output_temperature).state
-            );
-
-
-      # ------------------------------------------------------------------------
-      # Conversion efficiency
-      # ------------------------------------------------------------------------
-      - lvgl.label.update:
-          id: ui_dashboard_efficiency
-          text: !lambda |-
-            if (isnan(id(conversion_efficiency).state)) {
-              return std::string("--.- %");
-            }
-
-            return str_sprintf(
-              "%.1f %%",
-              id(conversion_efficiency).state
-            );
-
-
-      # ------------------------------------------------------------------------
-      # DC voltage setpoint
-      # ------------------------------------------------------------------------
-      - lvgl.label.update:
-          id: ui_dashboard_set_voltage
-          text: !lambda |-
-            if (isnan(id(set_dc_voltage_limit).state)) {
-              return std::string("--.- V");
-            }
-
-            return str_sprintf(
-              "%.1f V",
-              id(set_dc_voltage_limit).state
-            );
-
-
-      # ------------------------------------------------------------------------
-      # Total DC power setpoint
-      # ------------------------------------------------------------------------
-      - lvgl.label.update:
-          id: ui_dashboard_set_power
-          text: !lambda |-
-            if (isnan(id(set_dc_sum_power).state)) {
-              return std::string("--.-- kW");
-            }
-
-            return str_sprintf(
-              "%.2f kW",
-              id(set_dc_sum_power).state
-            );
-
-
-      # ------------------------------------------------------------------------
-      # Applied per-unit DC current limit
-      # ------------------------------------------------------------------------
-      - lvgl.label.update:
-          id: ui_dashboard_set_current
-          text: !lambda |-
-            if (isnan(id(applied_dc_current_limit_sensor).state)) {
-              return std::string("--.- A");
-            }
-
-            return str_sprintf(
-              "%.1f A",
-              id(applied_dc_current_limit_sensor).state
-            );
-
-
-      # ------------------------------------------------------------------------
       # Charger run state
       # ------------------------------------------------------------------------
       - lvgl.label.update:
@@ -1112,129 +882,6 @@ interval:
             return online == 3
               ? lv_color_hex(0x5CFF7A)
               : lv_color_hex(0xFF3030);
-
-      # ------------------------------------------------------------------------
-      # Charger power command transition
-      # ------------------------------------------------------------------------
-      - lambda: |-
-          const uint32_t now = millis();
-          const uint8_t pending = id(ui_charger_power_pending);
-
-          if (pending == 0) {
-            return;
-          }
-
-          bool any_on = false;
-          bool all_available_on = true;
-          int available = 0;
-
-          if (id(can_com_ok_1).state) {
-            available++;
-            if (id(power_state_1).state == "ON") {
-              any_on = true;
-            } else {
-              all_available_on = false;
-            }
-          }
-
-          if (id(can_com_ok_2).state) {
-            available++;
-            if (id(power_state_2).state == "ON") {
-              any_on = true;
-            } else {
-              all_available_on = false;
-            }
-          }
-
-          if (id(can_com_ok_3).state) {
-            available++;
-            if (id(power_state_3).state == "ON") {
-              any_on = true;
-            } else {
-              all_available_on = false;
-            }
-          }
-
-          bool completed = false;
-
-          if (pending == 1) {
-            completed =
-              available > 0 &&
-              all_available_on;
-          } else if (pending == 2) {
-            completed = !any_on;
-          }
-
-          const bool timed_out =
-            static_cast<uint32_t>(
-              now - id(ui_charger_power_pending_since)
-            ) >= 10000UL;
-
-          if (completed || timed_out) {
-            if (timed_out && !completed) {
-              ESP_LOGW(
-                "ui",
-                "Charger power command UI timeout."
-              );
-            }
-
-            id(ui_charger_power_pending) = 0;
-          }
-
-      # ------------------------------------------------------------------------
-      # Charger power button
-      # ------------------------------------------------------------------------
-      - lvgl.label.update:
-          id: ui_dashboard_power_button_label
-          text: !lambda |-
-            if (id(ui_charger_power_pending) == 1) {
-              return std::string("STARTING...");
-            }
-
-            if (id(ui_charger_power_pending) == 2) {
-              return std::string("STOPPING...");
-            }
-
-            if (
-              isnan(id(available_units).state) ||
-              id(available_units).state < 1
-            ) {
-              return std::string("NO RECTIFIERS");
-            }
-
-            const bool running =
-              (id(can_com_ok_1).state &&
-               id(power_state_1).state == "ON") ||
-              (id(can_com_ok_2).state &&
-               id(power_state_2).state == "ON") ||
-              (id(can_com_ok_3).state &&
-               id(power_state_3).state == "ON");
-
-            return running
-              ? std::string("STOP CHARGER")
-              : std::string("START CHARGER");
-
-      # ------------------------------------------------------------------------
-      # Charger power button availability
-      # ------------------------------------------------------------------------
-      - if:
-          condition:
-            lambda: |-
-              return
-                id(ui_charger_power_pending) == 0 &&
-                id(ui_rectifier_1_power_pending) == 0 &&
-                id(ui_rectifier_2_power_pending) == 0 &&
-                id(ui_rectifier_3_power_pending) == 0 &&
-                !isnan(id(available_units).state) &&
-                id(available_units).state > 0;
-
-          then:
-            - lvgl.widget.enable:
-                id: ui_dashboard_power_button
-
-          else:
-            - lvgl.widget.disable:
-                id: ui_dashboard_power_button
 
       # ========================================================================
       # RECTIFIER 1 PAGE
