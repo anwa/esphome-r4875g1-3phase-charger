@@ -121,7 +121,7 @@ widgets:
             id: ui_rectifier_1_power_button
             x: 16
             y: 250
-            width: 203
+            width: 125
             height: 48
 
             disabled:
@@ -149,6 +149,27 @@ widgets:
 
                   else:
                     - lvgl.widget.show: ui_start_rectifier_1_dialog
+
+        - button:
+            x: 147
+            y: 250
+            width: 72
+            height: 48
+
+            widgets:
+              - label:
+                  align: CENTER
+                  text: "DETAIL"
+                  text_font: montserrat_12
+
+            on_short_click:
+              - lambda: |-
+                  id(rectifier_detail_unit) = 1;
+
+              - lvgl.page.show: page_rectifier_detail
+
+              - script.execute:
+                  id: refresh_rectifier_detail
 
   # ============================================================================
   # RECTIFIER 2
@@ -260,7 +281,7 @@ widgets:
             id: ui_rectifier_2_power_button
             x: 16
             y: 250
-            width: 203
+            width: 125
             height: 48
 
             disabled:
@@ -288,6 +309,27 @@ widgets:
 
                   else:
                     - lvgl.widget.show: ui_start_rectifier_2_dialog
+
+        - button:
+            x: 147
+            y: 250
+            width: 72
+            height: 48
+
+            widgets:
+              - label:
+                  align: CENTER
+                  text: "DETAIL"
+                  text_font: montserrat_12
+
+            on_short_click:
+              - lambda: |-
+                  id(rectifier_detail_unit) = 2;
+
+              - lvgl.page.show: page_rectifier_detail
+
+              - script.execute:
+                  id: refresh_rectifier_detail
 
   # ============================================================================
   # RECTIFIER 3
@@ -399,7 +441,7 @@ widgets:
             id: ui_rectifier_3_power_button
             x: 16
             y: 250
-            width: 228
+            width: 145
             height: 48
 
             disabled:
@@ -427,3 +469,24 @@ widgets:
 
                   else:
                     - lvgl.widget.show: ui_start_rectifier_3_dialog
+
+        - button:
+            x: 167
+            y: 250
+            width: 77
+            height: 48
+
+            widgets:
+              - label:
+                  align: CENTER
+                  text: "DETAIL"
+                  text_font: montserrat_12
+
+            on_short_click:
+              - lambda: |-
+                  id(rectifier_detail_unit) = 3;
+
+              - lvgl.page.show: page_rectifier_detail
+
+              - script.execute:
+                  id: refresh_rectifier_detail

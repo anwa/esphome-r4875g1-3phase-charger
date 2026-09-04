@@ -1,0 +1,496 @@
+# ==============================================================================
+# V5 RECTIFIER DETAIL RUNTIME
+# ==============================================================================
+
+script:
+  - id: refresh_rectifier_detail
+    mode: restart
+
+    then:
+      - if:
+          condition:
+            lambda: |-
+              return
+                id(rectifier_detail_unit) >= 1 &&
+                id(rectifier_detail_unit) <= 3;
+
+          then:
+
+            # ------------------------------------------------------------------
+            # Title
+            # ------------------------------------------------------------------
+            - lvgl.label.update:
+                id: ui_rectifier_detail_title
+                text: !lambda |-
+                  const int unit = id(rectifier_detail_unit);
+
+                  float hours = NAN;
+
+                  if (unit == 1 && id(can_com_ok_1).state)
+                    hours = id(operating_hours_1).state;
+                  else if (unit == 2 && id(can_com_ok_2).state)
+                    hours = id(operating_hours_2).state;
+                  else if (unit == 3 && id(can_com_ok_3).state)
+                    hours = id(operating_hours_3).state;
+
+                  if (unit < 1 || unit > 3)
+                    return std::string("RECTIFIER --    ---- h");
+
+                  if (isnan(hours))
+                    return str_sprintf("RECTIFIER %d     ---- h", unit);
+
+                  return str_sprintf(
+                    "RECTIFIER %d    %.0f h",
+                    unit,
+                    hours
+                  );
+
+            # ------------------------------------------------------------------
+            # Status
+            # ------------------------------------------------------------------
+            - lvgl.label.update:
+                id: ui_rectifier_detail_status
+
+                text: !lambda |-
+                  const int unit =
+                    id(rectifier_detail_unit);
+
+                  if (unit == 1) {
+                    return str_sprintf(
+                      "CAN %s | PWR %s | %s",
+                      id(can_com_ok_1).state
+                        ? "OK"
+                        : "FAULT",
+                      id(power_state_1).state.c_str(),
+                      id(rectifier_control_state_text_1).state.c_str()
+                    );
+                  }
+
+                  if (unit == 2) {
+                    return str_sprintf(
+                      "CAN %s | PWR %s | %s",
+                      id(can_com_ok_2).state
+                        ? "OK"
+                        : "FAULT",
+                      id(power_state_2).state.c_str(),
+                      id(rectifier_control_state_text_2).state.c_str()
+                    );
+                  }
+
+                  if (unit == 3) {
+                    return str_sprintf(
+                      "CAN %s | PWR %s | %s",
+                      id(can_com_ok_3).state
+                        ? "OK"
+                        : "FAULT",
+                      id(power_state_3).state.c_str(),
+                      id(rectifier_control_state_text_3).state.c_str()
+                    );
+                  }
+
+                  return std::string(
+                    "CAN -- | PWR -- | --"
+                  );
+
+            # ==================================================================
+            # AC INPUT
+            # ==================================================================
+
+            - lvgl.label.update:
+                id: ui_rectifier_detail_ac_voltage
+                text: !lambda |-
+                  float value = NAN;
+
+                  switch (id(rectifier_detail_unit)) {
+                    case 1:
+                      if (id(can_com_ok_1).state)
+                        value = id(ac_voltage_1).state;
+                      break;
+                    case 2:
+                      if (id(can_com_ok_2).state)
+                        value = id(ac_voltage_2).state;
+                      break;
+                    case 3:
+                      if (id(can_com_ok_3).state)
+                        value = id(ac_voltage_3).state;
+                      break;
+                  }
+
+                  return isnan(value)
+                    ? std::string("--.- V")
+                    : str_sprintf("%.1f V", value);
+
+
+            - lvgl.label.update:
+                id: ui_rectifier_detail_ac_current
+                text: !lambda |-
+                  float value = NAN;
+
+                  switch (id(rectifier_detail_unit)) {
+                    case 1:
+                      if (id(can_com_ok_1).state)
+                        value = id(ac_current_1).state;
+                      break;
+                    case 2:
+                      if (id(can_com_ok_2).state)
+                        value = id(ac_current_2).state;
+                      break;
+                    case 3:
+                      if (id(can_com_ok_3).state)
+                        value = id(ac_current_3).state;
+                      break;
+                  }
+
+                  return isnan(value)
+                    ? std::string("--.- A")
+                    : str_sprintf("%.1f A", value);
+
+
+            - lvgl.label.update:
+                id: ui_rectifier_detail_ac_power
+                text: !lambda |-
+                  float value = NAN;
+
+                  switch (id(rectifier_detail_unit)) {
+                    case 1:
+                      if (id(can_com_ok_1).state)
+                        value = id(ac_power_1).state;
+                      break;
+                    case 2:
+                      if (id(can_com_ok_2).state)
+                        value = id(ac_power_2).state;
+                      break;
+                    case 3:
+                      if (id(can_com_ok_3).state)
+                        value = id(ac_power_3).state;
+                      break;
+                  }
+
+                  return isnan(value)
+                    ? std::string("---- W")
+                    : str_sprintf("%.0f W", value);
+
+
+            - lvgl.label.update:
+                id: ui_rectifier_detail_ac_frequency
+                text: !lambda |-
+                  float value = NAN;
+
+                  switch (id(rectifier_detail_unit)) {
+                    case 1:
+                      if (id(can_com_ok_1).state)
+                        value = id(ac_frequency_1).state;
+                      break;
+                    case 2:
+                      if (id(can_com_ok_2).state)
+                        value = id(ac_frequency_2).state;
+                      break;
+                    case 3:
+                      if (id(can_com_ok_3).state)
+                        value = id(ac_frequency_3).state;
+                      break;
+                  }
+
+                  return isnan(value)
+                    ? std::string("--.-- Hz")
+                    : str_sprintf("%.2f Hz", value);
+
+
+            # ==================================================================
+            # DC OUTPUT
+            # ==================================================================
+
+            - lvgl.label.update:
+                id: ui_rectifier_detail_dc_voltage
+                text: !lambda |-
+                  float value = NAN;
+
+                  switch (id(rectifier_detail_unit)) {
+                    case 1:
+                      if (id(can_com_ok_1).state)
+                        value = id(dc_voltage_1).state;
+                      break;
+                    case 2:
+                      if (id(can_com_ok_2).state)
+                        value = id(dc_voltage_2).state;
+                      break;
+                    case 3:
+                      if (id(can_com_ok_3).state)
+                        value = id(dc_voltage_3).state;
+                      break;
+                  }
+
+                  return isnan(value)
+                    ? std::string("--.- V")
+                    : str_sprintf("%.1f V", value);
+
+
+            - lvgl.label.update:
+                id: ui_rectifier_detail_dc_current
+                text: !lambda |-
+                  float value = NAN;
+
+                  switch (id(rectifier_detail_unit)) {
+                    case 1:
+                      if (id(can_com_ok_1).state)
+                        value = id(dc_current_1).state;
+                      break;
+                    case 2:
+                      if (id(can_com_ok_2).state)
+                        value = id(dc_current_2).state;
+                      break;
+                    case 3:
+                      if (id(can_com_ok_3).state)
+                        value = id(dc_current_3).state;
+                      break;
+                  }
+
+                  return isnan(value)
+                    ? std::string("--.- A")
+                    : str_sprintf("%.1f A", value);
+
+
+            - lvgl.label.update:
+                id: ui_rectifier_detail_dc_power
+                text: !lambda |-
+                  float value = NAN;
+
+                  switch (id(rectifier_detail_unit)) {
+                    case 1:
+                      if (id(can_com_ok_1).state)
+                        value = id(dc_power_1).state;
+                      break;
+                    case 2:
+                      if (id(can_com_ok_2).state)
+                        value = id(dc_power_2).state;
+                      break;
+                    case 3:
+                      if (id(can_com_ok_3).state)
+                        value = id(dc_power_3).state;
+                      break;
+                  }
+
+                  return isnan(value)
+                    ? std::string("---- W")
+                    : str_sprintf("%.0f W", value);
+
+
+            - lvgl.label.update:
+                id: ui_rectifier_detail_dc_setpoint
+                text: !lambda |-
+                  float value = NAN;
+
+                  switch (id(rectifier_detail_unit)) {
+                    case 1:
+                      if (id(can_com_ok_1).state)
+                        value = id(max_dc_current_setpoint_1).state;
+                      break;
+                    case 2:
+                      if (id(can_com_ok_2).state)
+                        value = id(max_dc_current_setpoint_2).state;
+                      break;
+                    case 3:
+                      if (id(can_com_ok_3).state)
+                        value = id(max_dc_current_setpoint_3).state;
+                      break;
+                  }
+
+                  return isnan(value)
+                    ? std::string("--.- A")
+                    : str_sprintf("%.1f A", value);
+
+            # ==================================================================
+            # THERMAL / INTERNAL FAN
+            # ==================================================================
+
+            - lvgl.label.update:
+                id: ui_rectifier_detail_input_temp
+                text: !lambda |-
+                  float value = NAN;
+
+                  switch (id(rectifier_detail_unit)) {
+                    case 1:
+                      if (id(can_com_ok_1).state)
+                        value = id(input_temperature_1).state;
+                      break;
+                    case 2:
+                      if (id(can_com_ok_2).state)
+                        value = id(input_temperature_2).state;
+                      break;
+                    case 3:
+                      if (id(can_com_ok_3).state)
+                        value = id(input_temperature_3).state;
+                      break;
+                  }
+
+                  return isnan(value)
+                    ? std::string("IN  --.- °C")
+                    : str_sprintf("IN  %.1f °C", value);
+
+
+            - lvgl.label.update:
+                id: ui_rectifier_detail_output_temp
+                text: !lambda |-
+                  float value = NAN;
+
+                  switch (id(rectifier_detail_unit)) {
+                    case 1:
+                      if (id(can_com_ok_1).state)
+                        value = id(output_temperature_1).state;
+                      break;
+                    case 2:
+                      if (id(can_com_ok_2).state)
+                        value = id(output_temperature_2).state;
+                      break;
+                    case 3:
+                      if (id(can_com_ok_3).state)
+                        value = id(output_temperature_3).state;
+                      break;
+                  }
+
+                  return isnan(value)
+                    ? std::string("OUT  --.- °C")
+                    : str_sprintf("OUT  %.1f °C", value);
+
+
+            - lvgl.label.update:
+                id: ui_rectifier_detail_fan_rpm
+                text: !lambda |-
+                  float value = NAN;
+
+                  switch (id(rectifier_detail_unit)) {
+                    case 1:
+                      if (id(can_com_ok_1).state)
+                        value = id(fan_rpm_1).state;
+                      break;
+                    case 2:
+                      if (id(can_com_ok_2).state)
+                        value = id(fan_rpm_2).state;
+                      break;
+                    case 3:
+                      if (id(can_com_ok_3).state)
+                        value = id(fan_rpm_3).state;
+                      break;
+                  }
+
+                  return isnan(value)
+                    ? std::string("FAN  ---- RPM")
+                    : str_sprintf("FAN  %.0f RPM", value);
+
+
+            - lvgl.label.update:
+                id: ui_rectifier_detail_fan_duty
+                text: !lambda |-
+                  float value = NAN;
+
+                  switch (id(rectifier_detail_unit)) {
+                    case 1:
+                      if (id(can_com_ok_1).state)
+                        value = id(fan_duty_1).state;
+                      break;
+                    case 2:
+                      if (id(can_com_ok_2).state)
+                        value = id(fan_duty_2).state;
+                      break;
+                    case 3:
+                      if (id(can_com_ok_3).state)
+                        value = id(fan_duty_3).state;
+                      break;
+                  }
+
+                  return isnan(value)
+                    ? std::string("MIN  --.- %")
+                    : str_sprintf("MIN  %.1f %%", value);
+
+            - lvgl.label.update:
+                id: ui_rectifier_detail_fan_min
+                text: !lambda |-
+                  float value = NAN;
+
+                  switch (id(rectifier_detail_unit)) {
+                    case 1:
+                      if (id(can_com_ok_1).state)
+                        value = id(fan_duty_setpoint_1).state;
+                      break;
+                    case 2:
+                      if (id(can_com_ok_2).state)
+                        value = id(fan_duty_setpoint_2).state;
+                      break;
+                    case 3:
+                      if (id(can_com_ok_3).state)
+                        value = id(fan_duty_setpoint_3).state;
+                      break;
+                  }
+
+                  return isnan(value)
+                    ? std::string("TARGET --.- %")
+                    : str_sprintf("TARGET %.1f %%", value);
+
+            - lvgl.label.update:
+                id: ui_rectifier_detail_capability
+                text: !lambda |-
+                  float value = NAN;
+
+                  switch (id(rectifier_detail_unit)) {
+                    case 1:
+                      if (id(can_com_ok_1).state)
+                        value = id(max_dc_current_1).state;
+                      break;
+                    case 2:
+                      if (id(can_com_ok_2).state)
+                        value = id(max_dc_current_2).state;
+                      break;
+                    case 3:
+                      if (id(can_com_ok_3).state)
+                        value = id(max_dc_current_3).state;
+                      break;
+                  }
+
+                  return isnan(value)
+                    ? std::string("CAP  --.- A")
+                    : str_sprintf("CAP  %.1f A", value);
+
+            # ==================================================================
+            # FALLBACK SETTINGS
+            # ==================================================================
+
+            - lvgl.label.update:
+                id: ui_rectifier_detail_fallback_voltage
+                text: !lambda |-
+                  if (isnan(id(set_dc_voltage_limit_fallback).state))
+                    return std::string("--.- V");
+
+                  return str_sprintf(
+                    "%.1f V",
+                    id(set_dc_voltage_limit_fallback).state
+                  );
+
+            - lvgl.label.update:
+                id: ui_rectifier_detail_fallback_current
+                text: !lambda |-
+                  if (isnan(id(set_dc_current_limit_fallback).state))
+                    return std::string("--.- A");
+
+                  return str_sprintf(
+                    "%.1f A",
+                    id(set_dc_current_limit_fallback).state
+                  );
+
+# ==============================================================================
+# PERIODIC DETAIL REFRESH
+# ==============================================================================
+
+interval:
+  - interval: 500ms
+
+    then:
+      - if:
+          condition:
+            lambda: |-
+              return
+                id(rectifier_detail_unit) >= 1 &&
+                id(rectifier_detail_unit) <= 3;
+
+          then:
+            - script.execute:
+                id: refresh_rectifier_detail

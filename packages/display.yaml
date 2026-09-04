@@ -14,3 +14,4 @@ packages:
   display_theme: !include display/theme.yaml
   display_ui: !include display/ui.yaml
   display_trends: !include display/trends.yaml
+  display_rectifier_detail: !include display/rectifier-detail.yaml
