@@ -33,7 +33,8 @@ widgets:
             id: ui_rectifier_detail_title
             x: 16
             align: LEFT_MID
-            text: "RECTIFIER --"
+            width: 330
+            text: "RECTIFIER --  |  ---- h"
             text_font: montserrat_24
             text_color: 0xFFFFFF
 
@@ -41,12 +42,11 @@ widgets:
             id: ui_rectifier_detail_status
             x: -16
             align: RIGHT_MID
-            width: 430
+            width: 380
             text_align: RIGHT
             text: "CAN -- | PWR -- | --"
             text_font: montserrat_16
             text_color: 0x8B96A0
-
 
   # ============================================================================
   # AC INPUT
@@ -283,7 +283,7 @@ widgets:
             y: 75
             width: 155
             text_align: RIGHT
-            text: "DUTY --.- %"
+            text: "MIN  --.- %"
             text_font: montserrat_16
             text_color: 0xFFFFFF
 
@@ -292,7 +292,7 @@ widgets:
             x: 16
             y: 102
             width: 150
-            text: "MIN  --.- %"
+            text: "TARGET --.- %"
             text_font: montserrat_16
             text_color: 0xFFFFFF
 
@@ -308,7 +308,7 @@ widgets:
 
 
   # ============================================================================
-  # RUNTIME / ACTION
+  # FALLBACK / CONTROL
   # ============================================================================
 
   - obj:
@@ -322,93 +322,73 @@ widgets:
         - label:
             x: 16
             y: 10
-            text: "RUNTIME / CONTROL"
+            text: "FALLBACK / CONTROL"
             text_font: montserrat_18
             text_color: 0x8B96A0
 
         - label:
-            id: ui_rectifier_detail_runtime
             x: 16
-            y: 48
-            width: 180
-            text: "Operating ---- h"
+            y: 47
+            text: "Voltage"
             text_font: montserrat_16
+            text_color: 0x8B96A0
+
+        - label:
+            id: ui_rectifier_detail_fallback_voltage
+            x: 120
+            y: 44
+            width: 90
+            text_align: RIGHT
+            text: "--.- V"
+            text_font: montserrat_18
+            text_color: 0xFFFFFF
+
+        - label:
+            x: 16
+            y: 82
+            text: "Current"
+            text_font: montserrat_16
+            text_color: 0x8B96A0
+
+        - label:
+            id: ui_rectifier_detail_fallback_current
+            x: 120
+            y: 79
+            width: 90
+            text_align: RIGHT
+            text: "--.- A"
+            text_font: montserrat_18
             text_color: 0xFFFFFF
 
         - button:
-            id: ui_rectifier_detail_power_button
-            x: 215
-            y: 42
-            width: 130
+            id: ui_rectifier_detail_fallback_edit
+            x: 235
+            y: 47
+            width: 110
             height: 48
-
-            disabled:
-              bg_color: 0x30343A
-              border_color: 0x44484E
 
             widgets:
               - label:
-                  id: ui_rectifier_detail_power_button_label
                   align: CENTER
-                  text: "UNAVAILABLE"
-                  text_font: montserrat_14
+                  text: "EDIT"
+                  text_font: montserrat_16
 
             on_short_click:
-              - if:
-                  condition:
-                    lambda: |-
-                      return id(rectifier_detail_unit) == 1;
+              - lambda: |-
+                  id(ui_fallback_voltage_edit) =
+                    id(set_dc_voltage_limit_fallback).state;
 
-                  then:
-                    - if:
-                        condition:
-                          lambda: |-
-                            return id(power_state_1).state == "ON";
+                  id(ui_fallback_current_edit) =
+                    id(set_dc_current_limit_fallback).state;
 
-                        then:
-                          - lvgl.widget.show:
-                              id: ui_stop_rectifier_1_dialog
+              - lvgl.spinbox.update:
+                  id: ui_fallback_voltage_spinbox
+                  value: !lambda |-
+                    return id(ui_fallback_voltage_edit);
 
-                        else:
-                          - lvgl.widget.show:
-                              id: ui_start_rectifier_1_dialog
+              - lvgl.spinbox.update:
+                  id: ui_fallback_current_spinbox
+                  value: !lambda |-
+                    return id(ui_fallback_current_edit);
 
-
-              - if:
-                  condition:
-                    lambda: |-
-                      return id(rectifier_detail_unit) == 2;
-
-                  then:
-                    - if:
-                        condition:
-                          lambda: |-
-                            return id(power_state_2).state == "ON";
-
-                        then:
-                          - lvgl.widget.show:
-                              id: ui_stop_rectifier_2_dialog
-
-                        else:
-                          - lvgl.widget.show:
-                              id: ui_start_rectifier_2_dialog
-
-
-              - if:
-                  condition:
-                    lambda: |-
-                      return id(rectifier_detail_unit) == 3;
-
-                  then:
-                    - if:
-                        condition:
-                          lambda: |-
-                            return id(power_state_3).state == "ON";
-
-                        then:
-                          - lvgl.widget.show:
-                              id: ui_stop_rectifier_3_dialog
-
-                        else:
-                          - lvgl.widget.show:
-                              id: ui_start_rectifier_3_dialog
+              - lvgl.widget.show: ui_fallback_dialog

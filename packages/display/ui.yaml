@@ -55,6 +55,19 @@ globals:
     restore_value: false
     initial_value: "0"
 
+  # ---------------------------------------------------------------------------
+  # Fallback edit dialog temporary values
+  # ---------------------------------------------------------------------------
+  - id: ui_fallback_voltage_edit
+    type: float
+    restore_value: false
+    initial_value: "0.0"
+
+  - id: ui_fallback_current_edit
+    type: float
+    restore_value: false
+    initial_value: "0.0"
+
 lvgl:
 
   # ============================================================================
@@ -165,6 +178,8 @@ lvgl:
                 text_font: montserrat_18
 
           on_short_click:
+            - lambda: |-
+                id(rectifier_detail_unit) = 0;
             - lvgl.page.show: page_dashboard
 
 
@@ -185,6 +200,8 @@ lvgl:
                 text_font: montserrat_18
 
           on_short_click:
+            - lambda: |-
+                id(rectifier_detail_unit) = 0;
             - lvgl.page.show: page_rectifiers
 
 
@@ -205,6 +222,8 @@ lvgl:
                 text_font: montserrat_18
 
           on_short_click:
+            - lambda: |-
+                id(rectifier_detail_unit) = 0;
             - lvgl.page.show: page_cooling
 
 
@@ -225,6 +244,8 @@ lvgl:
                 text_font: montserrat_18
 
           on_short_click:
+            - lambda: |-
+                id(rectifier_detail_unit) = 0;
             - lvgl.page.show: page_system
 
 
@@ -245,7 +266,216 @@ lvgl:
                 text_font: montserrat_18
 
           on_short_click:
+            - lambda: |-
+                id(rectifier_detail_unit) = 0;
             - lvgl.page.show: page_trends
+
+      # ========================================================================
+      # FALLBACK SETTINGS DIALOG
+      # ========================================================================
+      - obj:
+          id: ui_fallback_dialog
+          x: 170
+          y: 95
+          width: 460
+          height: 300
+          hidden: true
+          bg_color: 0x202830
+          border_color: 0x4A5662
+          border_width: 2
+          radius: 10
+          pad_all: 0
+          scrollable: false
+          scrollbar_mode: "OFF"
+
+          widgets:
+            # ------------------------------------------------------------------
+            # Title
+            # ------------------------------------------------------------------
+            - label:
+                x: 20
+                y: 16
+                width: 420
+                text_align: CENTER
+                text: "FALLBACK SETTINGS"
+                text_font: montserrat_20
+                text_color: 0xFFFFFF
+            # ------------------------------------------------------------------
+            # Voltage
+            # ------------------------------------------------------------------
+            - label:
+                x: 25
+                y: 65
+                text: "DC Voltage"
+                text_font: montserrat_16
+                text_color: 0x8B96A0
+
+            - button:
+                align: TOP_MID
+                x: -85
+                y: 55
+                width: 50
+                height: 45
+
+                widgets:
+                  - label:
+                      align: CENTER
+                      text: "-"
+                      text_font: montserrat_20
+
+                on_short_click:
+                  - lvgl.spinbox.decrement:
+                      id: ui_fallback_voltage_spinbox
+
+            - spinbox:
+                id: ui_fallback_voltage_spinbox
+                align: TOP_MID
+                x: 0
+                y: 55
+                width: 110
+                height: 45
+
+                range_from: ${dc_voltage_min_v}
+                range_to: ${dc_voltage_max_v}
+                decimal_places: 1
+                selected_digit: 0
+
+                text_align: CENTER
+                text_font: montserrat_18
+
+                on_value:
+                  then:
+                    - lambda: |-
+                        id(ui_fallback_voltage_edit) = x;
+
+            - button:
+                align: TOP_MID
+                x: 85
+                y: 55
+                width: 50
+                height: 45
+
+                widgets:
+                  - label:
+                      align: CENTER
+                      text: "+"
+                      text_font: montserrat_20
+
+                on_short_click:
+                  - lvgl.spinbox.increment:
+                      id: ui_fallback_voltage_spinbox
+
+            # ------------------------------------------------------------------
+            # Current
+            # ------------------------------------------------------------------
+            - label:
+                x: 25
+                y: 125
+                text: "DC Current"
+                text_font: montserrat_16
+                text_color: 0x8B96A0
+
+            - button:
+                align: TOP_MID
+                x: -85
+                y: 115
+                width: 50
+                height: 45
+
+                widgets:
+                  - label:
+                      align: CENTER
+                      text: "-"
+                      text_font: montserrat_20
+
+                on_short_click:
+                  - lvgl.spinbox.decrement:
+                      id: ui_fallback_current_spinbox
+
+            - spinbox:
+                id: ui_fallback_current_spinbox
+                align: TOP_MID
+                x: 0
+                y: 115
+                width: 110
+                height: 45
+                range_from: ${minimum_dc_current_a}
+                range_to: ${project_max_dc_current_a}
+                selected_digit: 0
+                decimal_places: 1
+                text_align: CENTER
+                text_font: montserrat_18
+
+                on_value:
+                  then:
+                    - lambda: |-
+                        id(ui_fallback_current_edit) = x;
+
+            - button:
+                align: TOP_MID
+                x: 85
+                y: 115
+                width: 50
+                height: 45
+
+                widgets:
+                  - label:
+                      align: CENTER
+                      text: "+"
+                      text_font: montserrat_20
+
+                on_short_click:
+                  - lvgl.spinbox.increment:
+                      id: ui_fallback_current_spinbox
+
+            # ------------------------------------------------------------------
+            # Cancel
+            # ------------------------------------------------------------------
+
+            - button:
+                align: BOTTOM_MID
+                x: -85
+                y: -20
+                width: 140
+                height: 50
+
+                widgets:
+                  - label:
+                      align: CENTER
+                      text: "CANCEL"
+                      text_font: montserrat_16
+
+                on_short_click:
+                  - lvgl.widget.hide: ui_fallback_dialog
+
+            # ------------------------------------------------------------------
+            # Save
+            # ------------------------------------------------------------------
+            - button:
+                align: BOTTOM_MID
+                x: 85
+                y: -20
+                width: 140
+                height: 50
+
+                widgets:
+                  - label:
+                      align: CENTER
+                      text: "SAVE"
+                      text_font: montserrat_16
+
+                on_short_click:
+                  - number.set:
+                      id: set_dc_voltage_limit_fallback
+                      value: !lambda |-
+                        return id(ui_fallback_voltage_edit);
+
+                  - number.set:
+                      id: set_dc_current_limit_fallback
+                      value: !lambda |-
+                        return id(ui_fallback_current_edit);
+
+                  - lvgl.widget.hide: ui_fallback_dialog
 
   # ============================================================================
   # CHARGER CONFIRMATION DIALOGS

@@ -22,17 +22,28 @@ script:
             - lvgl.label.update:
                 id: ui_rectifier_detail_title
                 text: !lambda |-
-                  switch (id(rectifier_detail_unit)) {
-                    case 1:
-                      return std::string("RECTIFIER 1");
-                    case 2:
-                      return std::string("RECTIFIER 2");
-                    case 3:
-                      return std::string("RECTIFIER 3");
-                    default:
-                      return std::string("RECTIFIER --");
-                  }
+                  const int unit = id(rectifier_detail_unit);
 
+                  float hours = NAN;
+
+                  if (unit == 1 && id(can_com_ok_1).state)
+                    hours = id(operating_hours_1).state;
+                  else if (unit == 2 && id(can_com_ok_2).state)
+                    hours = id(operating_hours_2).state;
+                  else if (unit == 3 && id(can_com_ok_3).state)
+                    hours = id(operating_hours_3).state;
+
+                  if (unit < 1 || unit > 3)
+                    return std::string("RECTIFIER --    ---- h");
+
+                  if (isnan(hours))
+                    return str_sprintf("RECTIFIER %d     ---- h", unit);
+
+                  return str_sprintf(
+                    "RECTIFIER %d    %.0f h",
+                    unit,
+                    hours
+                  );
 
             # ------------------------------------------------------------------
             # Status
@@ -388,9 +399,8 @@ script:
                   }
 
                   return isnan(value)
-                    ? std::string("DUTY --.- %")
-                    : str_sprintf("DUTY %.1f %%", value);
-
+                    ? std::string("MIN  --.- %")
+                    : str_sprintf("MIN  %.1f %%", value);
 
             - lvgl.label.update:
                 id: ui_rectifier_detail_fan_min
@@ -413,9 +423,8 @@ script:
                   }
 
                   return isnan(value)
-                    ? std::string("MIN  --.- %")
-                    : str_sprintf("MIN  %.1f %%", value);
-
+                    ? std::string("TARGET --.- %")
+                    : str_sprintf("TARGET %.1f %%", value);
 
             - lvgl.label.update:
                 id: ui_rectifier_detail_capability
@@ -442,88 +451,30 @@ script:
                     : str_sprintf("CAP  %.1f A", value);
 
             # ==================================================================
-            # OPERATING HOURS
+            # FALLBACK SETTINGS
             # ==================================================================
 
             - lvgl.label.update:
-                id: ui_rectifier_detail_runtime
+                id: ui_rectifier_detail_fallback_voltage
                 text: !lambda |-
-                  float value = NAN;
+                  if (isnan(id(set_dc_voltage_limit_fallback).state))
+                    return std::string("--.- V");
 
-                  switch (id(rectifier_detail_unit)) {
-                    case 1:
-                      if (id(can_com_ok_1).state)
-                        value = id(operating_hours_1).state;
-                      break;
-                    case 2:
-                      if (id(can_com_ok_2).state)
-                        value = id(operating_hours_2).state;
-                      break;
-                    case 3:
-                      if (id(can_com_ok_3).state)
-                        value = id(operating_hours_3).state;
-                      break;
-                  }
-
-                  return isnan(value)
-                    ? std::string("Operating ---- h")
-                    : str_sprintf("Operating %.0f h", value);
-
-            # ==================================================================
-            # POWER BUTTON STATE
-            # ==================================================================
+                  return str_sprintf(
+                    "%.1f V",
+                    id(set_dc_voltage_limit_fallback).state
+                  );
 
             - lvgl.label.update:
-                id: ui_rectifier_detail_power_button_label
+                id: ui_rectifier_detail_fallback_current
                 text: !lambda |-
-                  const int unit = id(rectifier_detail_unit);
+                  if (isnan(id(set_dc_current_limit_fallback).state))
+                    return std::string("--.- A");
 
-                  bool can_ok = false;
-                  std::string power;
-
-                  if (unit == 1) {
-                    can_ok = id(can_com_ok_1).state;
-                    power = id(power_state_1).state;
-                  } else if (unit == 2) {
-                    can_ok = id(can_com_ok_2).state;
-                    power = id(power_state_2).state;
-                  } else if (unit == 3) {
-                    can_ok = id(can_com_ok_3).state;
-                    power = id(power_state_3).state;
-                  }
-
-                  if (!can_ok)
-                    return std::string("UNAVAILABLE");
-
-                  if (power == "ON")
-                    return std::string("STOP");
-
-                  return std::string("START");
-
-
-            - if:
-                condition:
-                  lambda: |-
-                    const int unit = id(rectifier_detail_unit);
-
-                    if (unit == 1)
-                      return id(can_com_ok_1).state;
-
-                    if (unit == 2)
-                      return id(can_com_ok_2).state;
-
-                    if (unit == 3)
-                      return id(can_com_ok_3).state;
-
-                    return false;
-
-                then:
-                  - lvgl.widget.enable:
-                      id: ui_rectifier_detail_power_button
-
-                else:
-                  - lvgl.widget.disable:
-                      id: ui_rectifier_detail_power_button
+                  return str_sprintf(
+                    "%.1f A",
+                    id(set_dc_current_limit_fallback).state
+                  );
 
 # ==============================================================================
 # PERIODIC DETAIL REFRESH
