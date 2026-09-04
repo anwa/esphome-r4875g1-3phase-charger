@@ -17,5 +17,6 @@ packages:
   display_dashboard: !include display/dashboard.yaml
   display_rectifiers: !include display/rectifiers.yaml
   display_rectifier_detail: !include display/rectifier-detail.yaml
+  display_cooling: !include display/cooling.yaml
   display_battery: !include display/battery.yaml
   display_trends: !include display/trends.yaml
