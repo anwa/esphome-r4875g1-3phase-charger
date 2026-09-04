@@ -105,7 +105,7 @@ substitutions:
   pin_i2c_scl: "GPIO9"
   pin_can_tx: "GPIO20"
   pin_can_rx: "GPIO19"
-  pin_mcp_interrupt: "GPIO6"
+  pin_battery_adc: "GPIO6"
 
   pin_fan_enable: "GPIO21"
   pin_fan3_tach: "GPIO39"
@@ -172,7 +172,12 @@ substitutions:
   #     Channel 1 -> AHT10 @ 0x38
   #
   # External GPIO:
-  #   GPIO6 -> reserved for optional MCP23017 interrupt input
+  #   GPIO6 -> J8 AD input, connected to battery divider TP1
+  #
+  # Battery voltage divider:
+  #   VBAT -> 200 kΩ -> TP1 -> 100 kΩ -> GND
+  #   TP1  -> J8 pin 3 / GPIO6
+  #   ADC voltage = VBAT / 3
 
   # --------------------------------------------------------------------------
   # External cooling-fan defaults

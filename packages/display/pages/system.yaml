@@ -83,7 +83,7 @@ widgets:
 
         - label:
             x: 16
-            y: 50
+            y: 43
             text: "Uptime"
             text_font: montserrat_16
             text_color: 0x8B96A0
@@ -91,7 +91,7 @@ widgets:
         - label:
             id: ui_system_uptime
             x: 130
-            y: 47
+            y: 40
             width: 215
             text_align: RIGHT
             text: "--"
@@ -100,7 +100,7 @@ widgets:
 
         - label:
             x: 16
-            y: 88
+            y: 72
             text: "CPU Temp"
             text_font: montserrat_16
             text_color: 0x8B96A0
@@ -108,13 +108,29 @@ widgets:
         - label:
             id: ui_system_cpu
             x: 210
-            y: 86
+            y: 70
             width: 135
             text_align: RIGHT
             text: "--.- °C"
             text_font: montserrat_18
             text_color: 0xFFFFFF
 
+        - label:
+            x: 16
+            y: 101
+            text: "Battery"
+            text_font: montserrat_16
+            text_color: 0x8B96A0
+
+        - label:
+            id: ui_system_battery
+            x: 145
+            y: 99
+            width: 200
+            text_align: RIGHT
+            text: "--.-- V / -- %"
+            text_font: montserrat_18
+            text_color: 0xFFFFFF
 
   # ============================================================================
   # MEMORY / RUNTIME DEBUG
