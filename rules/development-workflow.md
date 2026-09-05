@@ -1,6 +1,6 @@
 # Development Workflow
 
-This rule defines how firmware changes should be planned, implemented andvalidated.
+This rule defines how firmware changes should be planned, implemented and validated.
 
 The primary goal is to keep changes understandable, testable and reversible.
 

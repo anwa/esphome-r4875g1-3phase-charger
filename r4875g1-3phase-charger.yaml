@@ -40,8 +40,8 @@
 # a three-phase battery charger. Each rectifier is supplied from one AC phase;
 # their DC outputs are connected in parallel to the same battery bus.
 #
-# DATA PATH
-# ---------
+# Data path:
+#
 #   R4875G1 Unit 1 / 2 / 3
 #          |
 #          | extended 29-bit CAN frames @ 125 kbit/s
@@ -57,8 +57,8 @@
 #          |
 #          +--> TFT display / Home Assistant / MQTT
 #
-# LOCAL BLACKSTART CONTROL PATH
-# -----------------------------
+# Local blackstart control path:
+#
 #   Rotary encoder + push button via TCA9548A / MCP23017
 #          |
 #          +--> choose DC voltage or nominal three-unit DC power target
@@ -66,14 +66,14 @@
 #          +--> apply active voltage/current setpoints only to verified ONLINE units
 #          +--> long press starts/stops all units
 #
-# OFFLINE OPERATION
-# -----------------
+# Offline operation:
+#
 # Wi-Fi, MQTT and Home Assistant are optional for core charger operation.
 # Network reboot timeouts are disabled so a dead or isolated site network cannot
 # prevent the ESP32 from controlling the charger during a blackstart.
 #
-# CAN VALUE SCALING
-# -----------------
+# CAN value scaling:
+#
 # Most voltage/telemetry values use a fixed-point scale of 1024:
 #     engineering_value = raw_CAN_value / 1024
 #     raw_CAN_value     = engineering_value * 1024
@@ -93,8 +93,8 @@
 # This keeps mixed-capability installations within the limit of the weakest
 # available rectifier.
 #
-# COMMUNICATION HEALTH
-# --------------------
+# Communication health:
+#
 # Valid per-unit CAN activity refreshes last_can_rx_1..3. During normal
 # operation cyclic telemetry provides the heartbeat; valid property frames also
 # refresh it while discovery temporarily suspends cyclic polling.
@@ -105,6 +105,10 @@
 # ==============================================================================
 
 substitutions:
+  # ---------------------------------------------------------------------------
+  # PROJECT IDENTITY
+  # ---------------------------------------------------------------------------
+
   mqtt_command_prefix: "HG/DG/Technik/Charger"
 
   # ---------------------------------------------------------------------------
@@ -125,73 +129,6 @@ substitutions:
   pin_fan_pwm: "GPIO42"
 
   # ---------------------------------------------------------------------------
-  # V5 WAVESHARE BOARD GPIO MAP
-  # ---------------------------------------------------------------------------
-  #
-  # RGB LCD - reserved by onboard display:
-  #   GPIO0   LCD G3
-  #   GPIO1   LCD R3
-  #   GPIO2   LCD R4
-  #   GPIO3   LCD VSYNC
-  #   GPIO5   LCD DE
-  #   GPIO7   LCD PCLK
-  #   GPIO10  LCD B7
-  #   GPIO14  LCD B3
-  #   GPIO17  LCD B6
-  #   GPIO18  LCD B5
-  #   GPIO21  LCD G7
-  #   GPIO38  LCD B4
-  #   GPIO39  LCD G2
-  #   GPIO40  LCD R7
-  #   GPIO41  LCD R6
-  #   GPIO42  LCD R5
-  #   GPIO45  LCD G4
-  #   GPIO46  LCD HSYNC
-  #   GPIO47  LCD G6
-  #   GPIO48  LCD G5
-  #
-  # Touch / shared I2C:
-  #   GPIO4   GT911 interrupt
-  #   GPIO8   I2C SDA
-  #   GPIO9   I2C SCL
-  #
-  # CAN / native USB shared pins:
-  #   GPIO19  CAN RX / USB D-
-  #   GPIO20  CAN TX / USB D+
-  #
-  # TF card:
-  #   GPIO11  MOSI
-  #   GPIO12  SCK
-  #   GPIO13  MISO
-  #
-  # RS485:
-  #   GPIO15  TX
-  #   GPIO16  RX
-  #
-  # CH422G:
-  #   EXIO1   GT911 reset
-  #   EXIO2   display/backlight enable
-  #   EXIO4   TF card CS
-  #   EXIO5   USB/CAN selection
-  #
-  # External I2C expansion:
-  #   TCA9548A @ 0x70
-  #     Channel 0 -> MCP23017 @ 0x20
-  #       GPA0 -> rotary encoder A
-  #       GPA1 -> rotary encoder B
-  #       GPA2 -> rotary encoder button
-  #     Channel 1 -> AHT10 @ 0x38
-  #
-  # External GPIO:
-  #   GPIO6 -> J8 AD input, connected to battery divider TP1
-  #
-  # Battery voltage divider:
-  #   VBAT -> 200 kΩ -> TP1 -> 100 kΩ -> GND
-  #   TP1  -> J8 pin 3 / GPIO6
-  #   ADC voltage = VBAT / 3
-  # ---------------------------------------------------------------------------
-
-  # ---------------------------------------------------------------------------
   # EXTERNAL COOLING-FAN DEFAULTS
   # ---------------------------------------------------------------------------
 
@@ -200,21 +137,26 @@ substitutions:
   cooling_fan_tach_pulses_per_revolution: "2.0"
 
   # ---------------------------------------------------------------------------
-  # PROJECT-WIDE OPERATING LIMITS
+  # DC OPERATING LIMITS
   # ---------------------------------------------------------------------------
 
-  # Absolute supported project ceiling.
+  # Absolute supported per-rectifier project ceiling.
   project_max_dc_current_a: "75.0"
-  # Conservative current ceiling until every currently reachable rectifier
-  # has a freshly confirmed maximum-current capability.
+
+  # Conservative ceiling until every currently reachable rectifier has a
+  # freshly confirmed maximum-current capability.
   failsafe_dc_current_a: "50.0"
+
   minimum_dc_current_a: "1.0"
 
   dc_voltage_min_v: "49.0"
   dc_voltage_max_v: "58.0"
   dc_voltage_default_v: "53.0"
 
-  # Thermal derating thresholds and hysteresis.
+  # ---------------------------------------------------------------------------
+  # THERMAL DERATING
+  # ---------------------------------------------------------------------------
+
   thermal_warn1_c: "70.0"
   thermal_warn1_reset_c: "65.0"
   thermal_warn1_limit_a: "50.0"
@@ -226,17 +168,22 @@ substitutions:
   overtemp_trip_c: "90.0"
   overtemp_reset_c: "80.0"
 
-  # Internal thermal-state codes.
+  # ---------------------------------------------------------------------------
+  # THERMAL STATE CODES
+  # ---------------------------------------------------------------------------
+
   thermal_state_normal: "0"
   thermal_state_warn1: "1"
   thermal_state_warn2: "2"
   thermal_state_lockout: "3"
 
+  # Ignore near-idle input power where calculated efficiency becomes unstable.
   efficiency_min_ac_power_w: "100.0"
 
   # ---------------------------------------------------------------------------
   # PROTOCOL SCALING
   # ---------------------------------------------------------------------------
+
   protocol_value_scale: "1024"
   fan_duty_counts_per_percent: "256.0"
 
@@ -262,13 +209,12 @@ substitutions:
   rectifier_state_online: "2"
 
   # ---------------------------------------------------------------------------
-  # CAN COMMUNICATION BUFFERING
+  # CAN COMMUNICATION
   # ---------------------------------------------------------------------------
-  can_rx_queue_len: "64"
 
-  # ---------------------------------------------------------------------------
-  # CAN COMMUNICATION TIMING
-  # ---------------------------------------------------------------------------
+  # RX queue depth must accommodate the largest observed multi-frame property
+  # response without dropping frames.
+  can_rx_queue_len: "64"
 
   # Normal runtime CAN watchdog.
   can_watchdog_timeout_ms: "3000"
@@ -290,17 +236,25 @@ substitutions:
   offline_probe_slot_interval: "5s"
 
   can_recovery_check_interval: "2s"
-
   setpoint_refresh_interval: "30s"
 
   # ---------------------------------------------------------------------------
   # DISCOVERY RETRY POLICY
   # ---------------------------------------------------------------------------
+
   property_discovery_attempts: "3"
   capability_discovery_attempts: "10"
   discovery_retry_delay: "1s"
   discovery_startup_delay: "5s"
   property_bus_quiet_delay: "500ms"
+
+# ==============================================================================
+# FIRMWARE PACKAGE ASSEMBLY
+# ==============================================================================
+#
+# Assembles the shared controller packages and instantiates the parameterized
+# rectifier package once for each of the three charger units.
+# ==============================================================================
 
 packages:
   version: !include packages/version.yaml
@@ -391,16 +345,16 @@ esphome:
 # PROJECT-WIDE / AGGREGATE SENSORS
 # ==============================================================================
 #
-# Controller diagnostics, shared compartment/environment input, local encoder
-# input and charger-wide aggregate telemetry that do not belong to one package
-# or one parameterized rectifier instance.
+# Controller diagnostics, shared compartment/environment measurements and
+# charger-wide aggregate telemetry that do not belong to one parameterized
+# rectifier instance.
 # ==============================================================================
 
 sensor:
 
-  # --------------------------------------------------------------------------
-  # ESPHome Runtime Diagnostics
-  # --------------------------------------------------------------------------
+  # ---------------------------------------------------------------------------
+  # ESPHOME RUNTIME DIAGNOSTICS
+  # ---------------------------------------------------------------------------
 
   - platform: debug
     free:
@@ -612,7 +566,10 @@ sensor:
   # ---------------------------------------------------------------------------
   # EFFECTIVE DC CURRENT LIMIT
   # ---------------------------------------------------------------------------
+  #
   # Runtime hardware/capability ceiling shared by all active-current paths.
+  # ---------------------------------------------------------------------------
+
   - platform: template
     name: "Effective DC Current Limit"
     id: effective_dc_current_limit_sensor
@@ -626,6 +583,7 @@ sensor:
   # ---------------------------------------------------------------------------
   # THERMAL / APPLIED CURRENT DIAGNOSTICS
   # ---------------------------------------------------------------------------
+
   - platform: template
     name: "Thermal DC Current Limit"
     id: thermal_dc_current_limit_sensor
@@ -656,7 +614,10 @@ sensor:
   # ---------------------------------------------------------------------------
   # COMBINED AC POWER ALL UNITS
   # ---------------------------------------------------------------------------
+  #
   # CAN-aware AC-input power total from reachable units with valid telemetry.
+  # ---------------------------------------------------------------------------
+
   - platform: template
     name: "Combined AC Power All Units"
     id: combined_ac_power
@@ -689,7 +650,6 @@ sensor:
         valid_units++;
       }
 
-      // No valid CAN data available
       if (valid_units == 0) {
         return NAN;
       }
@@ -700,8 +660,11 @@ sensor:
   # ---------------------------------------------------------------------------
   # COMBINED DC POWER ALL UNITS
   # ---------------------------------------------------------------------------
-  # CAN-aware DC power total with the same stale-data protection as the AC total.
-  # The lambda sums watts and the multiply filter converts W to kW.
+  #
+  # CAN-aware DC power total with the same stale-data protection as the AC
+  # total. The lambda sums watts and the multiply filter converts W to kW.
+  # ---------------------------------------------------------------------------
+
   - platform: template
     name: "Combined DC Power All Units"
     id: combined_dc_power
@@ -745,7 +708,10 @@ sensor:
   # ---------------------------------------------------------------------------
   # AVAILABLE UNITS
   # ---------------------------------------------------------------------------
+  #
   # Number of rectifier units currently providing valid CAN communication.
+  # ---------------------------------------------------------------------------
+
   - platform: template
     name: "Available Units"
     id: available_units
@@ -773,7 +739,10 @@ sensor:
   # ---------------------------------------------------------------------------
   # COMBINED DC CURRENT ALL UNITS
   # ---------------------------------------------------------------------------
+  #
   # Sum of DC output current from all reachable rectifiers with valid telemetry.
+  # ---------------------------------------------------------------------------
+
   - platform: template
     name: "Combined DC Current All Units"
     id: combined_dc_current
@@ -814,9 +783,13 @@ sensor:
   # ---------------------------------------------------------------------------
   # AVERAGE DC VOLTAGE ALL UNITS
   # ---------------------------------------------------------------------------
+  #
   # Average DC output voltage across all reachable rectifiers.
+  #
   # The rectifier outputs are connected in parallel, so their voltages should
   # normally be nearly identical.
+  # ---------------------------------------------------------------------------
+
   - platform: template
     name: "Average DC Voltage All Units"
     id: average_dc_voltage
@@ -857,7 +830,10 @@ sensor:
   # ---------------------------------------------------------------------------
   # HIGHEST OUTPUT TEMPERATURE ALL UNITS
   # ---------------------------------------------------------------------------
+  #
   # Reports the hottest currently reachable rectifier.
+  # ---------------------------------------------------------------------------
+
   - platform: template
     name: "Highest Output Temperature All Units"
     id: highest_output_temperature
@@ -904,11 +880,14 @@ sensor:
   # ---------------------------------------------------------------------------
   # CONVERSION EFFICIENCY ALL UNITS
   # ---------------------------------------------------------------------------
+  #
   # Calculates DC output power divided by AC input power.
   #
   # Only units that simultaneously provide valid AC and DC power telemetry are
-  # included. Values below 100 W AC input are ignored because efficiency becomes
-  # meaningless and unstable close to idle operation.
+  # included. Values below 100 W AC input are ignored because efficiency
+  # becomes meaningless and unstable close to idle operation.
+  # ---------------------------------------------------------------------------
+
   - platform: template
     name: "Conversion Efficiency All Units"
     id: conversion_efficiency
@@ -956,7 +935,10 @@ sensor:
   # ---------------------------------------------------------------------------
   # AC ENERGY TODAY
   # ---------------------------------------------------------------------------
+  #
   # Daily AC input energy integrated from the CAN-aware combined AC power.
+  # ---------------------------------------------------------------------------
+
   - platform: total_daily_energy
     name: "AC Energy Today"
     power_id: combined_ac_power
@@ -970,7 +952,10 @@ sensor:
   # ---------------------------------------------------------------------------
   # DC ENERGY TODAY
   # ---------------------------------------------------------------------------
+  #
   # Daily DC output energy integrated from the CAN-aware combined DC power.
+  # ---------------------------------------------------------------------------
+
   - platform: total_daily_energy
     name: "DC Energy Today"
     power_id: combined_dc_power
@@ -984,11 +969,16 @@ sensor:
 # ==============================================================================
 # PROJECT-WIDE BINARY SENSORS
 # ==============================================================================
-# Local physical push button and charger-wide capability diagnostics.
+#
+# Charger-wide diagnostic states that do not belong to one rectifier instance.
+# ==============================================================================
+
 binary_sensor:
-  # --------------------------------------------------------------------------
+
+  # ---------------------------------------------------------------------------
   # RECTIFIER CAPABILITY MISMATCH
-  # --------------------------------------------------------------------------
+  # ---------------------------------------------------------------------------
+  #
   # Diagnostic problem indicator comparing the maximum-current capability
   # reported by all three rectifiers.
   #
@@ -999,6 +989,8 @@ binary_sensor:
   #
   # The state is published by evaluate_rectifier_capabilities whenever fresh
   # capability data is received.
+  # ---------------------------------------------------------------------------
+
   - platform: template
     name: "Rectifier Capability Mismatch"
     id: rectifier_capability_mismatch
@@ -1009,11 +1001,16 @@ binary_sensor:
 # ==============================================================================
 # PROJECT-WIDE TEXT / STATUS SENSORS
 # ==============================================================================
-# Network/controller diagnostics that are shared by the assembled device.
+#
+# Network and controller diagnostics shared by the assembled device.
+# ==============================================================================
+
 text_sensor:
+
   # ---------------------------------------------------------------------------
   # NETWORK INFORMATION
   # ---------------------------------------------------------------------------
+
   - platform: wifi_info
     ip_address:
       id: ip_address
@@ -1022,6 +1019,7 @@ text_sensor:
   # ---------------------------------------------------------------------------
   # ESPHOME VERSION
   # ---------------------------------------------------------------------------
+
   - platform: version
     name: "ESPHome Version"
     entity_category: diagnostic
@@ -1031,6 +1029,7 @@ text_sensor:
   # ---------------------------------------------------------------------------
   # DEVICE AND RESET DIAGNOSTICS
   # ---------------------------------------------------------------------------
+
   - platform: debug
     device:
       name: "Device Info"

@@ -1,11 +1,3 @@
-## Normative Language
-
-The keywords MUST, MUST NOT, SHOULD, SHOULD NOT and MAY describe the strength of a rule.
-
-- MUST / MUST NOT: required
-- SHOULD / SHOULD NOT: preferred unless there is a concrete reason to deviate
-- MAY: optional
-
 # YAML Comment Style Guide
 
 This rule defines the required comment style for all YAML files in this repository.
@@ -15,6 +7,14 @@ The primary audience is AI coding agents, but comments must remain concise, read
 The goal is a consistent hierarchy of comments without unnecessary noise.
 
 ---
+
+## Normative Language
+
+The keywords MUST, MUST NOT, SHOULD, SHOULD NOT and MAY describe the strength of a rule.
+
+- MUST / MUST NOT: required
+- SHOULD / SHOULD NOT: preferred unless there is a concrete reason to deviate
+- MAY: optional
 
 ## General Principles
 
