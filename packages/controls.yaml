@@ -155,11 +155,15 @@ number:
 
         - script.execute: send_active_current_to_online_units
 
-  # DC Current Fallback Setting
-  # --------------------------------------------------------------------------
-  # Set DC Current Limit Fallback
-  # Fallback current parameter. Uses the same model-dependent
-  # current validation but command selector 0x04.
+  # ---------------------------------------------------------------------------
+  # DC CURRENT FALLBACK LIMIT
+  # ---------------------------------------------------------------------------
+  #
+  # Fallback current setpoint used by the rectifiers when the active current
+  # command is unavailable.
+  #
+  # The requested value is constrained by the same detected hardware capability
+  # used for the active DC current limit and is sent with CAN selector 0x04.
   - platform: template
     name: "Set DC Current Limit Fallback"
     id: set_dc_current_limit_fallback
@@ -231,11 +235,12 @@ number:
               can_data[7] = scaled_value & 0xFF;
               return can_data;
 
-  # DC Voltage Fallback Setting
-  # --------------------------------------------------------------------------
-  # Set DC Voltage Limit Fallback
-  # Fallback voltage parameter using the same centralized project voltage
-  # range as the active DC voltage setting.
+  # ---------------------------------------------------------------------------
+  # DC VOLTAGE FALLBACK LIMIT
+  # ---------------------------------------------------------------------------
+  #
+  # Fallback DC voltage setpoint using the same project-wide voltage range and
+  # fixed-point protocol scaling as the active DC voltage command.
   - platform: template
     name: "Set DC Voltage Limit Fallback"
     id: set_dc_voltage_limit_fallback
@@ -272,14 +277,14 @@ number:
               can_data[7] = fallback_scaled_value & 0xFF;         // Encode the low byte in the 8th byte
               return can_data;
 
-  # AC Current Setting
-  # --------------------------------------------------------------------------
-  # Set AC Current Limit
+  # ---------------------------------------------------------------------------
+  # AC INPUT CURRENT LIMIT
+  # ---------------------------------------------------------------------------
+  #
   # Broadcast AC input-current limit for all rectifiers.
-  # A model-dependent maximum is derived from current_scaling_factor.
-  # The requested amperage is encoded using voltage_scaling_factor
-  # (1024 counts per ampere) and sent with command selector 0x09.
-  # Byte 3 enables the limit when the requested value is greater than zero.
+  #
+  # A model-dependent maximum is derived from the detected rectifier command
+  # scaling. A requested value of 0 A disables the AC current limit.
   - platform: template
     name: "Set AC Current Limit"
     id: set_ac_current_limit
@@ -340,18 +345,14 @@ number:
               can_data[7] = scaled_value & 0xFF;
               return can_data;
 
-  # --------------------------------------------------------------------------
-  # Set DC Sum Power
+  # ---------------------------------------------------------------------------
+  # NOMINAL DC SUM POWER
+  # ---------------------------------------------------------------------------
+  #
   # Nominal total DC power target for the complete three-rectifier system.
   #
-  # This is not a native rectifier parameter. Changing it runs
-  # apply_dc_sum_power, which always calculates the common current command as:
-  #
-  #     I_each = P_target / (3 * V_DC)
-  #
-  # The target is intentionally not redistributed across fewer available units.
-  # If only one or two rectifiers operate, actual total output power will be
-  # proportionally lower than this nominal three-unit target.
+  # This is a controller-side convenience setpoint rather than a native
+  # rectifier parameter.
   - platform: template
     name: "Set DC Sum Power"
     id: set_dc_sum_power

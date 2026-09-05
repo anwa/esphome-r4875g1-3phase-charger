@@ -77,11 +77,20 @@
 #     engineering_value = raw_CAN_value / 1024
 #     raw_CAN_value     = engineering_value * 1024
 #
-# Current commands use current_scaling_factor.
-# The controller starts with the known 75 A R4875G1 fallback value
-# (1024 / 75 = 13.653333) and automatically refreshes the factor from
-# Unit 1's detected maximum-current capability whenever Unit 1 becomes
-# available on the CAN bus.
+# DC current commands use current_scaling_factor.
+#
+# Until all currently reachable rectifiers have fresh capability data, the
+# controller uses the conservative 75 A protocol scale:
+#
+#     current_scaling_factor = 1024 / 75
+#
+# Once capability discovery is complete, command scaling is derived from the
+# reachable rectifier capabilities.
+#
+# effective_dc_current_limit is maintained independently and enforces the
+# lowest supported current capability across the currently reachable units.
+# This keeps mixed-capability installations within the limit of the weakest
+# available rectifier.
 #
 # COMMUNICATION HEALTH
 # --------------------
@@ -479,8 +488,11 @@ sensor:
                   x / 1000000.0f
                 );
 
-  # --------------------------------------------------------------------------
-  # Controller CPU Temperature
+  # ---------------------------------------------------------------------------
+  # CONTROLLER CPU TEMPERATURE
+  # ---------------------------------------------------------------------------
+  - platform: internal_temperature
+    name: "Controller CPU Temperature"
   - platform: internal_temperature
     name: "Controller CPU Temperature"
     id: cpu_temp
@@ -491,8 +503,9 @@ sensor:
     update_interval: 10s
     icon: "mdi:thermometer"
 
-  # --------------------------------------------------------------------------
-  # Controller Uptime
+  # ---------------------------------------------------------------------------
+  # CONTROLLER UPTIME
+  # ---------------------------------------------------------------------------
   - platform: uptime
     type: seconds
     name: "Uptime"
@@ -536,8 +549,9 @@ sensor:
                 static_cast<unsigned long>(minutes)
               );
 
-  # --------------------------------------------------------------------------
-  # Wi-Fi RSSI
+  # ---------------------------------------------------------------------------
+  # WI-FI RSSI
+  # ---------------------------------------------------------------------------
   - platform: wifi_signal
     name: "WiFi RSSI"
     id: wifi_sig
@@ -547,8 +561,9 @@ sensor:
     update_interval: 10s
     icon: "mdi:wifi"
 
-  # --------------------------------------------------------------------------
-  # Rectifier Compartment Temperature and Humidity
+  # ---------------------------------------------------------------------------
+  # RECTIFIER COMPARTMENT TEMPERATURE AND HUMIDITY
+  # ---------------------------------------------------------------------------
   #
   # AHT10 installed in the shared rear connection compartment behind the
   # three rectifier units.
@@ -577,26 +592,11 @@ sensor:
       accuracy_decimals: 1
       icon: "mdi:water-percent"
 
-  # --------------------------------------------------------------------------
-  # local_encoder
-  #
-  # Page-aware SELECT / EDIT controller.
-  #
-  # SELECT:
-  #   Dashboard  -> select Voltage / Power
-  #   Rectifiers -> select L1 / L2 / L3 and open detail with short press
-  #   Cooling    -> select Automatic and, in manual mode, Power / PWM
-  #   System     -> no selectable parameters
-  #   Trends     -> select displayed trend
-  #
-  # EDIT:
-  #   Rotation changes only encoder_edit_value.
-  #   No real entity is changed until the confirming short press.
-
-
-  # --------------------------------------------------------------------------
-  # Effective DC Current Limit
+  # ---------------------------------------------------------------------------
+  # EFFECTIVE DC CURRENT LIMIT
+  # ---------------------------------------------------------------------------
   # Runtime hardware/capability ceiling shared by all active-current paths.
+  # --------------------------------------------------------------------------
   - platform: template
     name: "Effective DC Current Limit"
     id: effective_dc_current_limit_sensor
@@ -607,9 +607,9 @@ sensor:
     update_interval: never
     icon: "mdi:current-dc"
 
-  # --------------------------------------------------------------------------
-  # Thermal / applied current diagnostics
-  # --------------------------------------------------------------------------
+  # ---------------------------------------------------------------------------
+  # THERMAL / APPLIED CURRENT DIAGNOSTICS
+  # ---------------------------------------------------------------------------
   - platform: template
     name: "Thermal DC Current Limit"
     id: thermal_dc_current_limit_sensor
@@ -637,9 +637,11 @@ sensor:
       return applied;
     icon: "mdi:current-dc"
 
-  # --------------------------------------------------------------------------
-  # Combined AC Power All Units
+  # ---------------------------------------------------------------------------
+  # COMBINED AC POWER ALL UNITS
+  # ---------------------------------------------------------------------------
   # CAN-aware AC-input power total from reachable units with valid telemetry.
+  # ---------------------------------------------------------------------------
   - platform: template
     name: "Combined AC Power All Units"
     id: combined_ac_power

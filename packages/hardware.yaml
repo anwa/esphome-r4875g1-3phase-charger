@@ -1,17 +1,20 @@
 # ==============================================================================
-# V5 EXTERNAL HARDWARE PACKAGE
+# V5 CONTROLLER HARDWARE PACKAGE
 # ==============================================================================
 #
-# Defines external peripherals connected to the Waveshare controller:
+# Defines controller-side buses and peripherals not owned by the RGB display
+# driver itself.
 #
+# Included hardware:
 #   - shared I2C bus
 #   - TCA9548A I2C multiplexer
 #   - MCP23017 encoder I/O expander
 #   - rotary encoder inputs
-#   - controller backup-battery voltage measurement
-#   - voltage-based backup-battery SOC estimate
-#
-# Display-specific onboard hardware is configured separately under display/.
+#   - controller backup-battery ADC
+#   - onboard CH422G I/O expander
+#   - GT911 touch controller
+#   - USB/CAN mode selection
+#   - ESP32-S3 CAN controller
 # ==============================================================================
 
 # ==============================================================================
