@@ -290,6 +290,8 @@ This allows a partially available charger to remain controllable while preventin
 
 The controller uses the Waveshare 7-inch 800 × 480 RGB display with GT911 capacitive touch.
 
+The display backlight is automatically disabled after the configured LVGL idle timeout while charger control and telemetry continue running normally. Touching and releasing the sleeping touchscreen wakes the display without activating the control underneath the wake-up touch.
+
 The LVGL interface contains five primary functional pages:
 
 ```text
