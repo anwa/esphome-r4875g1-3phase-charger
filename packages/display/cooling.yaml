@@ -40,7 +40,7 @@ interval:
                 id: ui_cooling_compartment_humidity
                 text: !lambda |-
                   if (isnan(id(rectifier_compartment_humidity).state)) {
-                    return std::string("--.- %%");
+                    return std::string("--.- %");
                   }
 
                   return str_sprintf(

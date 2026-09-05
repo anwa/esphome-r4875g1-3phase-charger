@@ -9,6 +9,7 @@
 #   - shared I2C bus
 #   - TCA9548A I2C multiplexer
 #   - MCP23017 encoder I/O expander
+#   - EMC2101 external fan controller
 #   - rotary encoder inputs
 #   - controller backup-battery ADC
 #   - onboard CH422G I/O expander
@@ -37,6 +38,7 @@ i2c:
 # Channel allocation:
 #   CH0 -> MCP23017 external I/O expander
 #   CH1 -> AHT10 rectifier compartment temperature/humidity
+#   CH2 -> EMC2101 external fan controller
 #
 # Remaining channels are reserved for future external I2C devices.
 # ==============================================================================
@@ -53,6 +55,8 @@ tca9548a:
       - bus_id: external_i2c_ch1
         channel: 1
 
+      - bus_id: external_i2c_ch2
+        channel: 2
 
 # ==============================================================================
 # EXTERNAL I/O EXPANDER
@@ -64,9 +68,11 @@ tca9548a:
 #   GPA0 / pin 0 -> rotary encoder A
 #   GPA1 / pin 1 -> rotary encoder B
 #   GPA2 / pin 2 -> rotary encoder button
+#   GPA3 / pin 3 -> external cooling-fan enable
+#   GPA4 / pin 4 -> cooling fan 1 tachometer
+#   GPA5 / pin 5 -> cooling fan 2 tachometer
 #
-# GPIO6 is used for controller battery voltage measurement via J8 AD.
-# MCP23017 interrupt operation is therefore not used.
+# MCP23017 interrupt operation is not used.
 # ==============================================================================
 
 mcp23017:
@@ -98,7 +104,7 @@ binary_sensor:
 
     pin:
       mcp23xxx: external_io_expander
-      number: 0
+      number: ${mcp_encoder_a_pin}
       mode:
         input: true
         pullup: true
@@ -111,7 +117,7 @@ binary_sensor:
 
     pin:
       mcp23xxx: external_io_expander
-      number: 1
+      number: ${mcp_encoder_b_pin}
       mode:
         input: true
         pullup: true
@@ -124,7 +130,7 @@ binary_sensor:
 
     pin:
       mcp23xxx: external_io_expander
-      number: 2
+      number: ${mcp_encoder_button_pin}
       mode:
         input: true
         pullup: true

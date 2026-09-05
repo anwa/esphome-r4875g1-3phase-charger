@@ -122,18 +122,26 @@ substitutions:
   pin_can_rx: "GPIO19"
   pin_battery_adc: "GPIO6"
 
-  pin_fan_enable: "GPIO21"
-  pin_fan3_tach: "GPIO39"
-  pin_fan2_tach: "GPIO40"
-  pin_fan1_tach: "GPIO41"
-  pin_fan_pwm: "GPIO42"
+  # MCP23017 pin allocation.
+  mcp_encoder_a_pin: "0"
+  mcp_encoder_b_pin: "1"
+  mcp_encoder_button_pin: "2"
+  mcp_fan_enable_pin: "3"
+  mcp_fan1_tach_pin: "4"
+  mcp_fan2_tach_pin: "5"
 
   # ---------------------------------------------------------------------------
   # EXTERNAL COOLING-FAN DEFAULTS
   # ---------------------------------------------------------------------------
 
-  cooling_fan_pwm_frequency: "25000Hz"
+  # EMC2101 PWM configuration:
+  #   360 kHz / (2 × 7 × 1) ≈ 25.7 kHz
+  cooling_fan_pwm_resolution: "7"
+  cooling_fan_pwm_divider: "1"
+
   cooling_fan_default_pwm_percent: "100.0"
+
+  # Used for the two MCP23017-based tachometer inputs.
   cooling_fan_tach_pulses_per_revolution: "2.0"
 
   # ---------------------------------------------------------------------------

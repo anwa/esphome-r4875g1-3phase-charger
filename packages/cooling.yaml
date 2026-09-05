@@ -2,30 +2,60 @@
 # EXTERNAL COOLING-FAN PACKAGE
 # ==============================================================================
 #
-# Controls the optional chassis fans surrounding the rectifier assembly.
+# Controls the three external chassis fans surrounding the rectifier assembly.
 #
 # These external fans are independent of the internal Huawei rectifier fans,
 # whose speed, target duty and minimum duty are handled through CAN.
 #
-# Supported external fan operation:
+# Hardware:
+#   - MCP23017 GPA3 controls the common fan-supply enable
+#   - MCP23017 GPA4 monitors Cooling Fan 1 tachometer
+#   - MCP23017 GPA5 monitors Cooling Fan 2 tachometer
+#   - EMC2101 provides the common four-pin fan PWM signal
+#   - EMC2101 monitors Cooling Fan 3 tachometer
+#
+# Cooling Fan 3 ventilates the rear rectifier compartment monitored by AHT10.
+#
+# Supported operation:
 #   - common switched fan supply
-#   - 25 kHz PWM control for four-pin fans
-#   - three tachometer inputs
+#   - hardware-generated approximately 25.7 kHz PWM
+#   - three independent tachometer signals
 #   - automatic compartment-temperature control
 #   - manual override when automatic mode is disabled
 # ==============================================================================
+
+# ==============================================================================
+# EMC2101 FAN CONTROLLER
+# ==============================================================================
+#
+# The EMC2101 is connected through TCA9548A channel 2.
+#
+# It provides the common PWM signal for all connected four-pin chassis fans.
+# Its dedicated tachometer input monitors Cooling Fan 3, which ventilates the
+# rear rectifier compartment monitored by the AHT10.
+#
+# PWM configuration:
+#   360 kHz / (2 × 7 × 1) ≈ 25.7 kHz
+# ==============================================================================
+
+emc2101:
+  id: cooling_fan_controller
+  i2c_id: external_i2c_ch2
+  address: 0x4C
+  inverted: false
+
+  pwm:
+    resolution: ${cooling_fan_pwm_resolution}
+    divider: ${cooling_fan_pwm_divider}
+
 
 # ==============================================================================
 # PWM OUTPUT
 # ==============================================================================
 
 output:
-  - platform: ledc
+  - platform: emc2101
     id: cooling_fan_pwm_output
-    frequency: ${cooling_fan_pwm_frequency}
-    pin:
-      number: ${pin_fan_pwm}
-      inverted: true
 
 # ==============================================================================
 # AUTOMATIC CONTROL STATE
@@ -44,6 +74,18 @@ globals:
     restore_value: no
     initial_value: '0'
 
+  # Pulse counters for the two tachometer signals connected through the
+  # MCP23017. Each logical rising edge represents one tachometer pulse.
+  - id: cooling_fan_1_tach_pulses
+    type: uint32_t
+    restore_value: false
+    initial_value: "0"
+
+  - id: cooling_fan_2_tach_pulses
+    type: uint32_t
+    restore_value: false
+    initial_value: "0"
+
 # ==============================================================================
 # FAN CONTROL SWITCHES
 # ==============================================================================
@@ -57,7 +99,10 @@ switch:
     icon: "mdi:fan"
     restore_mode: ALWAYS_OFF
     pin:
-      number: ${pin_fan_enable}
+      mcp23xxx: external_io_expander
+      number: ${mcp_fan_enable_pin}
+      mode:
+        output: true
       inverted: false
 
   # Automatic compartment-temperature control. Disable this switch to regain
@@ -73,63 +118,129 @@ switch:
         - script.execute: apply_cooling_fan_automatic
 
 # ==============================================================================
+# MCP23017 FAN TACHOMETER INPUTS
+# ==============================================================================
+#
+# Cooling Fans 1 and 2 provide independent tachometer signals through the
+# MCP23017. The inputs use pull-ups and are inverted so each active-low
+# tachometer pulse generates one logical press event.
+#
+# The pulse events are accumulated and converted to RPM by the template sensors
+# below.
+# ==============================================================================
+
+binary_sensor:
+  - platform: gpio
+    id: cooling_fan_1_tach
+    internal: true
+
+    pin:
+      mcp23xxx: external_io_expander
+      number: ${mcp_fan1_tach_pin}
+      mode:
+        input: true
+        pullup: true
+      inverted: true
+
+    on_press:
+      then:
+        - lambda: |-
+            id(cooling_fan_1_tach_pulses)++;
+
+
+  - platform: gpio
+    id: cooling_fan_2_tach
+    internal: true
+
+    pin:
+      mcp23xxx: external_io_expander
+      number: ${mcp_fan2_tach_pin}
+      mode:
+        input: true
+        pullup: true
+      inverted: true
+
+    on_press:
+      then:
+        - lambda: |-
+            id(cooling_fan_2_tach_pulses)++;
+
+# ==============================================================================
 # FAN TACHOMETERS
 # ==============================================================================
 
 sensor:
-  - platform: pulse_counter
+  # ---------------------------------------------------------------------------
+  # COOLING FAN 1 RPM
+  # ---------------------------------------------------------------------------
+  #
+  # Fan 1 tachometer pulses are counted through MCP23017 GPA4.
+  # ---------------------------------------------------------------------------
+
+  - platform: template
     name: "Cooling Fan 1 RPM"
     id: cooling_fan_1_rpm
-    pin:
-      number: ${pin_fan1_tach}
-      mode:
-        input: true
-        pullup: true
-    count_mode:
-      rising_edge: INCREMENT
-      falling_edge: DISABLE
     unit_of_measurement: "RPM"
     accuracy_decimals: 0
     update_interval: 5s
-    filters:
-      - lambda: 'return x / ${cooling_fan_tach_pulses_per_revolution}f;'
     icon: "mdi:fan"
 
-  - platform: pulse_counter
+    lambda: |-
+      const uint32_t pulses =
+        id(cooling_fan_1_tach_pulses);
+
+      id(cooling_fan_1_tach_pulses) = 0;
+
+      return
+        static_cast<float>(pulses) *
+        (60.0f / 5.0f) /
+        ${cooling_fan_tach_pulses_per_revolution}f;
+
+
+  # ---------------------------------------------------------------------------
+  # COOLING FAN 2 RPM
+  # ---------------------------------------------------------------------------
+  #
+  # Fan 2 tachometer pulses are counted through MCP23017 GPA5.
+  # ---------------------------------------------------------------------------
+
+  - platform: template
     name: "Cooling Fan 2 RPM"
     id: cooling_fan_2_rpm
-    pin:
-      number: ${pin_fan2_tach}
-      mode:
-        input: true
-        pullup: true
-    count_mode:
-      rising_edge: INCREMENT
-      falling_edge: DISABLE
     unit_of_measurement: "RPM"
     accuracy_decimals: 0
     update_interval: 5s
-    filters:
-      - lambda: 'return x / ${cooling_fan_tach_pulses_per_revolution}f;'
     icon: "mdi:fan"
 
-  - platform: pulse_counter
-    name: "Cooling Fan 3 RPM"
-    id: cooling_fan_3_rpm
-    pin:
-      number: ${pin_fan3_tach}
-      mode:
-        input: true
-        pullup: true
-    count_mode:
-      rising_edge: INCREMENT
-      falling_edge: DISABLE
-    unit_of_measurement: "RPM"
-    accuracy_decimals: 0
+    lambda: |-
+      const uint32_t pulses =
+        id(cooling_fan_2_tach_pulses);
+
+      id(cooling_fan_2_tach_pulses) = 0;
+
+      return
+        static_cast<float>(pulses) *
+        (60.0f / 5.0f) /
+        ${cooling_fan_tach_pulses_per_revolution}f;
+
+
+  # ---------------------------------------------------------------------------
+  # COOLING FAN 3 RPM
+  # ---------------------------------------------------------------------------
+  #
+  # Fan 3 ventilates the rear rectifier compartment and uses the dedicated
+  # EMC2101 tachometer input.
+  # ---------------------------------------------------------------------------
+
+  - platform: emc2101
+    speed:
+      name: "Cooling Fan 3 RPM"
+      id: cooling_fan_3_rpm
+      unit_of_measurement: "RPM"
+      accuracy_decimals: 0
+      icon: "mdi:fan"
+
     update_interval: 5s
-    filters:
-      - lambda: 'return x / ${cooling_fan_tach_pulses_per_revolution}f;'
-    icon: "mdi:fan"
 
 # ==============================================================================
 # PWM COMMAND
