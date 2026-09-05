@@ -697,7 +697,7 @@ sensor:
 
 binary_sensor:
   # ---------------------------------------------------------------------------
-  # CAN Communication Unit ${ru_unit}
+  # CAN COMMUNICATION UNIT ${ru_unit}
   # ---------------------------------------------------------------------------
   #
   # Per-unit connectivity watchdog. A transition from unavailable to available
@@ -842,7 +842,7 @@ text_sensor:
 button:
 
   # ---------------------------------------------------------------------------
-  # Turn On Unit ${ru_unit}
+  # TURN ON UNIT ${ru_unit}
   # ---------------------------------------------------------------------------
   #
   # Reasserts the latest per-unit voltage/current setpoints before sending ON.
