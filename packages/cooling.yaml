@@ -18,6 +18,7 @@
 # ==============================================================================
 # PWM OUTPUT
 # ==============================================================================
+
 output:
   - platform: ledc
     id: cooling_fan_pwm_output
@@ -29,6 +30,7 @@ output:
 # ==============================================================================
 # AUTOMATIC CONTROL STATE
 # ==============================================================================
+
 globals:
   # Automatic cooling stage:
   #   0 = OFF
@@ -37,7 +39,6 @@ globals:
   #   3 = 60 %
   #   4 = 80 %
   #   5 = 100 %
-  # 0=OFF, 1=35%, 2=45%, 3=60%, 4=80%, 5=100%.
   - id: cooling_fan_auto_stage
     type: int
     restore_value: no
@@ -46,6 +47,7 @@ globals:
 # ==============================================================================
 # FAN CONTROL SWITCHES
 # ==============================================================================
+
 switch:
   # Common external fan-supply enable. Three-pin fans are controlled only by
   # this power switch; they do not use the PWM command below.
@@ -73,6 +75,7 @@ switch:
 # ==============================================================================
 # FAN TACHOMETERS
 # ==============================================================================
+
 sensor:
   - platform: pulse_counter
     name: "Cooling Fan 1 RPM"
@@ -131,6 +134,7 @@ sensor:
 # ==============================================================================
 # PWM COMMAND
 # ==============================================================================
+
 number:
   # Manual PWM command and the visible commanded PWM value. While automatic
   # mode is enabled, the controller updates this value from the temperature
@@ -156,6 +160,7 @@ number:
 # ==============================================================================
 # AUTOMATIC TEMPERATURE CONTROL
 # ==============================================================================
+
 script:
   # Temperature curve with 2 C hysteresis on downward transitions:
   #   <30 C   -> OFF / 0%
@@ -213,6 +218,7 @@ script:
 # ==============================================================================
 # PERIODIC AUTOMATIC CONTROL
 # ==============================================================================
+
 interval:
   - interval: 5s
     then:

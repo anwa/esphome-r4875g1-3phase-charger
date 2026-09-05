@@ -31,6 +31,7 @@ i2c:
 # ==============================================================================
 # EXTERNAL I2C MULTIPLEXER
 # ==============================================================================
+#
 # TCA9548A on the shared onboard I2C bus.
 #
 # Channel allocation:
@@ -38,6 +39,7 @@ i2c:
 #   CH1 -> AHT10 rectifier compartment temperature/humidity
 #
 # Remaining channels are reserved for future external I2C devices.
+# ==============================================================================
 
 tca9548a:
   - id: external_i2c_mux
@@ -55,15 +57,17 @@ tca9548a:
 # ==============================================================================
 # EXTERNAL I/O EXPANDER
 # ==============================================================================
+#
 # MCP23017 on TCA9548A channel 0.
 #
-# Planned allocation:
+# Pin allocation:
 #   GPA0 / pin 0 -> rotary encoder A
 #   GPA1 / pin 1 -> rotary encoder B
 #   GPA2 / pin 2 -> rotary encoder button
 #
 # GPIO6 is used for controller battery voltage measurement via J8 AD.
 # MCP23017 interrupt operation is therefore not used.
+# ==============================================================================
 
 mcp23017:
   - id: external_io_expander
@@ -73,6 +77,7 @@ mcp23017:
 # ==============================================================================
 # BACKUP ROTARY ENCODER INPUTS
 # ==============================================================================
+#
 # Mechanical rotary encoder connected to the MCP23017 on TCA9548A channel 0.
 #
 # Pin allocation:
@@ -84,7 +89,7 @@ mcp23017:
 # therefore switches the inputs to GND.
 #
 # GPIO6 is dedicated to controller battery voltage measurement.
-# Encoder decoding and button actions will be implemented separately.
+# ==============================================================================
 
 binary_sensor:
   - platform: gpio
@@ -196,6 +201,7 @@ sensor:
   #
   # The piecewise curve is therefore intended for useful local monitoring,
   # not precision coulomb counting.
+  # ---------------------------------------------------------------------------
 
   - platform: template
     id: controller_battery_soc
@@ -291,6 +297,7 @@ ch422g:
 # ==============================================================================
 # GT911 TOUCH CONTROLLER
 # ==============================================================================
+#
 # Onboard capacitive touchscreen.
 #
 # Wiring:
@@ -298,6 +305,7 @@ ch422g:
 #   SCL   -> GPIO9
 #   IRQ   -> GPIO4
 #   RESET -> CH422G EXIO1
+# ==============================================================================
 
 touchscreen:
   - platform: gt911
@@ -323,6 +331,13 @@ touchscreen:
             - touch.y
           level: INFO
 
+# ==============================================================================
+# USB / CAN MODE SELECTION
+# ==============================================================================
+#
+# CH422G EXIO5 selects the onboard transceiver routing required for CAN mode.
+# ==============================================================================
+
 switch:
   - platform: gpio
     id: can_mode_select
@@ -334,6 +349,15 @@ switch:
       number: 5
       mode:
         output: true
+
+# ==============================================================================
+# CAN BUS
+# ==============================================================================
+#
+# ESP32-S3 TWAI controller connected to the onboard CAN transceiver.
+#
+# Huawei R4875G1 communication uses extended 29-bit frames at 125 kbit/s.
+# ==============================================================================
 
 canbus:
   - platform: esp32_can

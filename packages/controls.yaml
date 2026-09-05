@@ -13,11 +13,14 @@
 # ==============================================================================
 
 number:
+
   # ---------------------------------------------------------------------------
   # INTERNAL RECTIFIER FAN MINIMUM DUTY
   # ---------------------------------------------------------------------------
   # Broadcasts the minimum duty for the rectifiers' built-in fans using Huawei
   # CAN command selector 0x14. This is not the external chassis-fan PWM.
+  # ---------------------------------------------------------------------------
+
   - platform: template
     name: "Set Fan Minimum Speed"
     id: set_fan_min_speed
@@ -76,6 +79,8 @@ number:
   # The requested engineering value uses 0.1 V resolution and is converted to
   # the Huawei fixed-point CAN representation before being applied to all
   # eligible ONLINE rectifiers.
+  # ---------------------------------------------------------------------------
+
   - platform: template
     name: "Set DC Voltage Limit"
     id: set_dc_voltage_limit
@@ -110,6 +115,8 @@ number:
   #
   # The requested current is constrained by detected hardware capability and
   # thermal derating before the active command is sent to the rectifiers.
+  # ---------------------------------------------------------------------------
+
   - platform: template
     name: "Set DC Current Limit"
     id: set_dc_current_limit
@@ -164,6 +171,8 @@ number:
   #
   # The requested value is constrained by the same detected hardware capability
   # used for the active DC current limit and is sent with CAN selector 0x04.
+  # ---------------------------------------------------------------------------
+
   - platform: template
     name: "Set DC Current Limit Fallback"
     id: set_dc_current_limit_fallback
@@ -241,6 +250,8 @@ number:
   #
   # Fallback DC voltage setpoint using the same project-wide voltage range and
   # fixed-point protocol scaling as the active DC voltage command.
+  # ---------------------------------------------------------------------------
+
   - platform: template
     name: "Set DC Voltage Limit Fallback"
     id: set_dc_voltage_limit_fallback
@@ -285,6 +296,8 @@ number:
   #
   # A model-dependent maximum is derived from the detected rectifier command
   # scaling. A requested value of 0 A disables the AC current limit.
+  # ---------------------------------------------------------------------------
+
   - platform: template
     name: "Set AC Current Limit"
     id: set_ac_current_limit
@@ -353,6 +366,8 @@ number:
   #
   # This is a controller-side convenience setpoint rather than a native
   # rectifier parameter.
+  # ---------------------------------------------------------------------------
+
   - platform: template
     name: "Set DC Sum Power"
     id: set_dc_sum_power
@@ -373,7 +388,10 @@ number:
 # ==============================================================================
 # BROADCAST / SHARED CONTROL BUTTONS
 # ==============================================================================
-# Charger-wide ON/OFF, internal R4875G1 fan-mode overrides and manual discovery.
+#
+# Charger-wide ON/OFF controls, internal R4875G1 fan-mode overrides and manual
+# rectifier discovery.
+# ==============================================================================
 
 button:
   # Start all currently available rectifiers individually.
