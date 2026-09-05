@@ -35,95 +35,33 @@ interval:
             # ---------------------------------------------------------------------------
             # AC INPUT VOLTAGE
             # ---------------------------------------------------------------------------
-            #
-            # The three rectifiers are connected to separate AC phases. Display the
-            # average voltage of all currently reachable units with valid telemetry.
-            # ---------------------------------------------------------------------------
 
             - lvgl.label.update:
                 id: ui_dashboard_ac_voltage
                 text: !lambda |-
-                  float voltage = 0.0f;
-                  int units = 0;
-
-                  if (
-                    id(can_com_ok_1).state &&
-                    !isnan(id(ac_voltage_1).state)
-                  ) {
-                    voltage += id(ac_voltage_1).state;
-                    units++;
-                  }
-
-                  if (
-                    id(can_com_ok_2).state &&
-                    !isnan(id(ac_voltage_2).state)
-                  ) {
-                    voltage += id(ac_voltage_2).state;
-                    units++;
-                  }
-
-                  if (
-                    id(can_com_ok_3).state &&
-                    !isnan(id(ac_voltage_3).state)
-                  ) {
-                    voltage += id(ac_voltage_3).state;
-                    units++;
-                  }
-
-                  if (units == 0) {
+                  if (isnan(id(average_ac_voltage).state)) {
                     return std::string("--- V");
                   }
 
                   return str_sprintf(
                     "%.0f V",
-                    voltage / units
+                    id(average_ac_voltage).state
                   );
 
             # ---------------------------------------------------------------------------
             # AC INPUT CURRENT
             # ---------------------------------------------------------------------------
-            #
-            # Display the average phase current of all reachable rectifiers rather
-            # than summing currents from the three independent AC phases.
-            # ---------------------------------------------------------------------------
 
             - lvgl.label.update:
                 id: ui_dashboard_ac_current
                 text: !lambda |-
-                  float current = 0.0f;
-                  int units = 0;
-
-                  if (
-                    id(can_com_ok_1).state &&
-                    !isnan(id(ac_current_1).state)
-                  ) {
-                    current += id(ac_current_1).state;
-                    units++;
-                  }
-
-                  if (
-                    id(can_com_ok_2).state &&
-                    !isnan(id(ac_current_2).state)
-                  ) {
-                    current += id(ac_current_2).state;
-                    units++;
-                  }
-
-                  if (
-                    id(can_com_ok_3).state &&
-                    !isnan(id(ac_current_3).state)
-                  ) {
-                    current += id(ac_current_3).state;
-                    units++;
-                  }
-
-                  if (units == 0) {
+                  if (isnan(id(average_ac_current).state)) {
                     return std::string("--.- A");
                   }
 
                   return str_sprintf(
                     "%.1f A",
-                    current / units
+                    id(average_ac_current).state
                   );
 
             # ---------------------------------------------------------------------------
