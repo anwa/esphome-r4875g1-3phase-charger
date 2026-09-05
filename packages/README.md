@@ -1,11 +1,4 @@
-> **v5 migration:** `main` targets the Waveshare ESP32-S3-Touch-LCD-7.
-> The stable v4 package architecture remains available on `v4-maintenance`
-> and as tag `v4.4.0`.
->
-> Legacy v4 hardware definitions are temporarily retained where required by
-> packages that have not yet been migrated.
-
-# Firmware package architecture
+# Firmware Package Architecture
 
 This directory contains the modular ESPHome implementation of the three-phase Huawei R4875G1 charger controller.
 
@@ -15,40 +8,35 @@ The root configuration:
 ../r4875g1-3phase-charger.yaml
 ```
 
-assembles the packages in this directory into the complete firmware.
+assembles these packages into the complete firmware.
 
-Current stable firmware on `main`:
-
-```text
-v4.3.0
-```
-
-Feature branches may contain newer development versions.
-
-For the complete project documentation, hardware description, CAN protocol information, commissioning and troubleshooting, see:
+For project-level hardware, operation and safety documentation, see:
 
 ```text
 ../README.md
 ```
 
-For detailed runtime/state-machine behavior, see:
+For detailed rectifier lifecycle and control-flow documentation, see:
 
 ```text
 ../R4875G1_CONTROL_FLOWS.md
 ```
 
+The firmware version is intentionally not duplicated here.
+`version.yaml` is the single source of truth.
+
 ---
 
-# Package structure
+## Package Structure
 
 ```text
 packages/
 ├── version.yaml
 ├── core.yaml
 ├── hardware.yaml
-├── display.yaml
-├── cooling.yaml
 ├── controls.yaml
+├── cooling.yaml
+├── display.yaml
 ├── rectifier-shared.yaml
 ├── rectifier-unit.yaml
 ├── README.md
@@ -57,6 +45,16 @@ packages/
 │   ├── hardware.yaml
 │   ├── theme.yaml
 │   ├── ui.yaml
+│   ├── header.yaml
+│   ├── command-state.yaml
+│   ├── battery.yaml
+│   ├── dashboard.yaml
+│   ├── rectifiers.yaml
+│   ├── rectifier-detail.yaml
+│   ├── cooling.yaml
+│   ├── system.yaml
+│   ├── trends.yaml
+│   │
 │   └── pages/
 │       ├── dashboard.yaml
 │       ├── rectifiers.yaml
@@ -76,900 +74,235 @@ packages/
 
 ---
 
-# Package ownership
+## Ownership Principles
+
+Package ownership is intentionally separated so that hardware, shared charger logic, per-unit state, display layout and periodic display updates remain independent.
+
+The main ownership boundaries are:
+
+```text
+core.yaml
+    controller-wide ESPHome infrastructure
+
+hardware.yaml
+    physical controller buses and peripherals
+
+controls.yaml
+    charger-wide user setpoints and controls
+
+cooling.yaml
+    external chassis cooling
+
+rectifier-shared.yaml
+    cross-unit lifecycle, safety and CAN scheduling
+
+rectifier-unit.yaml
+    parameterized per-unit state and telemetry
+
+rectifier-can/*.yaml
+    parameterized CAN receive fragments
+
+display.yaml
+    display package aggregation
+
+display/pages/*.yaml
+    static LVGL page layouts
+
+display/*.yaml
+    persistent and page-specific display runtime
+```
+
+A package SHOULD own one coherent responsibility and SHOULD NOT duplicate runtime state or hardware definitions owned elsewhere.
+
+---
 
 ## `version.yaml`
 
-Single source of truth for the firmware version.
+`version.yaml` is the only source of truth for the firmware version.
 
-Example:
+The value is consumed by the firmware project metadata and user-interface components that display the current version.
 
-```yaml
-substitutions:
-  firmware_version: "4.3.2"
+Versioning policy is defined in:
+
+```text
+../rules/versioning.md
 ```
 
-The value is consumed by:
-
-* `esphome.project.version`
-* the TFT
-* deployment tooling
-* project documentation
-
-Normal program commits increment PATCH exactly once.
-
-Pure documentation or repository-cleanup commits do not require a firmware-version change.
-
-Intentional releases may advance MINOR or MAJOR and reset PATCH.
+Documentation-only and repository-cleanup commits do not require a firmware version change unless runtime behavior also changes.
 
 ---
 
 ## `core.yaml`
 
-Owns controller-wide ESPHome infrastructure including:
+Owns controller-wide ESPHome infrastructure.
 
-* ESP32-S3 platform/framework configuration
-* flash configuration
-* PSRAM configuration
-* Wi-Fi
-* API
-* MQTT
-* web server
-* OTA
-* SNTP/time services
-* general controller services
+Responsibilities include:
 
-Hardware-specific charger logic should not be placed here.
+- ESP32-S3 platform and framework configuration
+- Flash and PSRAM configuration
+- Wi-Fi
+- ESPHome native API
+- MQTT
+- web server
+- OTA
+- time synchronization
+- general controller services
+
+Hardware-specific charger logic does not belong in this package.
 
 ---
 
 ## `hardware.yaml`
 
-Owns shared hardware buses used by multiple packages.
+Owns the physical V5 controller hardware that is shared across multiple functional packages.
 
-Current shared buses include:
-
-```text
-I2C
-SPI
-```
-
-Current I2C allocation:
-
-```text
-SDA GPIO8
-SCL GPIO9
-```
-
-The AHT10 uses the shared I2C bus.
-
----
-
-# Display architecture
-
-The display stack is intentionally separated into transport, shared presentation and page-specific content.
-
-```text
-display.yaml
-    ↓
-display/hardware.yaml
-display/theme.yaml
-display/ui.yaml
-    ↓
-display/pages/dashboard.yaml
-display/pages/rectifiers.yaml
-display/pages/rectifier-detail.yaml
-display/pages/cooling.yaml
-display/pages/system.yaml
-display/pages/trends.yaml
-```
-
----
-
-## `display.yaml`
-
-Display package aggregator.
-
-It defines display-related substitutions and includes the actual display subpackages.
-
----
-
-## `display/hardware.yaml`
-
-Owns the physical ILI9488 interface:
-
-* SPI transport
-* display dimensions
-* panel orientation
-* display transform
-* TFT backlight
-
-Current display:
-
-```text
-ILI9488
-480 × 320
-RGB565
-landscape
-```
-
----
-
-## `display/theme.yaml`
-
-Owns:
-
-* LVGL configuration
-* framebuffer configuration
-* fonts
-* reusable styles
-* common visual defaults
-
-The controller has no touchscreen.
-
-Therefore scrolling is not part of the UI concept.
-
-Generic LVGL containers have scrolling and scrollbar rendering disabled.
-
-Page/header/card containers additionally define the same policy explicitly:
-
-```yaml
-scrollable: false
-scrollbar_mode: "OFF"
-```
-
-This avoids LVGL scrollbar inheritance differences and prevents unusable horizontal or vertical scrollbars.
-
----
-
-## `display/ui.yaml`
-
-Aggregates the five LVGL main pages plus the hierarchical Rectifier detail page.
-
-Page order:
-
-```text
-0 Dashboard
-1 Rectifiers
-2 Cooling
-3 System
-4 Trends
-```
-
-Page wrapping is enabled:
-
-```text
-Dashboard
-  ↓
-Rectifiers
-  ↓
-Cooling
-  ↓
-System
-  ↓
-Trends
-  ↓
-Dashboard
-```
-
-The encoder state machine uses the same page numbering through `encoder_page`.
-
----
-
-# Display pages
-
-## `display/pages/dashboard.yaml`
-
-Main charger operating page.
-
-Displays:
-
-* date/time
-* firmware version
-* aggregate charger ON/OFF state
-* combined AC power
-* combined DC power
-* AC voltage/current summary
-* DC voltage/current summary
-* available rectifier count
-* highest output temperature
-* conversion efficiency
-* DC Voltage setpoint
-* nominal three-unit DC Power setpoint
-* applied current per unit
-
-Run-state colors:
-
-```text
-OFF      red
-1/3 ON   red
-2/3 ON   red
-3/3 ON   green
-```
-
-Partial operation is intentionally treated as an attention state.
-
-Editable encoder parameters:
-
-```text
-0 DC Voltage
-1 DC Power
-```
-
----
-
-## `display/pages/rectifiers.yaml`
-
-Per-unit diagnostic page.
-
-Contains one card for each rectifier:
-
-```text
-L1
-L2
-L3
-```
-
-Each card displays:
-
-* power state
-* CAN communication state
-* lifecycle state
-* DC voltage
-* DC current
-* DC power
-* input temperature
-* output temperature
-* internal rectifier fan RPM
-* detected maximum-current capability
-
-Status colors:
-
-```text
-CAN fault      red
-DISCOVERING    amber
-ONLINE         green
-OFFLINE        muted
-```
-
-Unreachable units use placeholders instead of stale live telemetry.
-
-The overview is read-only with respect to charger parameters, but it
-participates in hierarchical navigation.
-
-Encoder selection values:
-
-```text
-0 = L1 / Unit 1
-1 = L2 / Unit 2
-2 = L3 / Unit 3
-```
-
-Rotation changes the selected unit and the currently selected card is marked
-with `>`.
-
-A short press opens `rectifier-detail.yaml` for the selected unit.
-
----
-
-## `display/pages/rectifier-detail.yaml`
-
-Shared hierarchical detail view for all three R4875G1 units.
-
-The selected unit is stored in:
-
-```text
-rectifier_detail_unit
-```
-
-Values:
-
-```text
-0 = no detail page / Rectifiers overview
-1 = L1 / Unit 1
-2 = L2 / Unit 2
-3 = L3 / Unit 3
-```
-
-One shared LVGL page is used instead of maintaining three nearly identical
-page definitions.
-
-The LVGL page uses:
-
-```yaml
-skip: true
-```
-
-so it is excluded from normal `lvgl.page.next` main-page navigation.
-
-The detail page displays per-unit:
-
-* Power State,
-* CAN communication,
-* lifecycle,
-* AC input voltage,
-* AC input current,
-* AC input power,
-* AC frequency,
-* DC output voltage,
-* DC output current,
-* DC output power,
-* rectifier-reported active maximum-current setpoint,
-* input temperature,
-* output temperature,
-* internal fan RPM,
-* internal fan target duty,
-* internal fan minimum duty,
-* maximum-current capability,
-* operating hours.
-
-The detail view contains no editable parameters.
-
-Encoder behavior:
-
-```text
-Rotate        no action
-Short press   no action
-Double press  return to Rectifiers overview
-Long press    global rectifier ON/OFF
-```
-
-Returning to the Rectifiers overview restores the L1/L2/L3 selection to the
-unit whose detail page was just closed.
-
-Live telemetry is validated before formatting. If CAN communication is
-unavailable or one of the values required by an information block is `NAN`,
-that block displays placeholders instead of stale or `nan` text.
-
----
-
-## `display/pages/cooling.yaml`
-
-External compartment-cooling page.
-
-Displays:
-
-* AHT10 compartment temperature
-* AHT10 relative humidity
-* automatic cooling state
-* external fan power state
-* PWM command
-* automatic cooling stage
-* Fan 1 RPM
-* Fan 2 RPM
-* Fan 3 RPM
-
-Editable encoder parameters:
-
-```text
-0 Automatic
-1 Fan Power
-2 PWM
-```
-
-When automatic cooling is enabled:
-
-```text
-Automatic   selectable
-Fan Power   disabled / muted
-PWM         disabled / muted
-```
-
-When automatic cooling is disabled, all three parameters are selectable.
-
----
-
-## `display/pages/system.yaml`
-
-Controller diagnostic page.
-
-Displays:
-
-* firmware
-* IP address
-* Wi-Fi RSSI
-* uptime
-* CPU temperature
-* free internal heap
-* free PSRAM
-* L1/L2/L3 CAN status
-
-This page is read-only.
-
-There are no selectable encoder parameters.
-
----
-
-## `display/pages/trends.yaml`
-
-Owns the local ten-minute trend display.
-
-Five telemetry sources are recorded continuously:
-
-```text
-0 Combined DC Power
-1 Combined DC Current
-2 Average DC Voltage
-3 Highest Rectifier Output Temperature
-4 Rectifier Compartment Temperature
-```
-
-Sampling:
-
-```text
-5 seconds
-120 samples
-10 minutes
-```
-
-Each telemetry source has its own ring buffer, so changing the selected trend
-does not reset or restart its history.
-
-The page displays:
-
-```text
-selected trend
-line chart
-Current
-Min
-Max
-```
-
-Min and Max are calculated from the valid samples currently retained in the
-selected 120-point ring buffer.
-
-`NAN` values are preserved and displayed as chart gaps.
-
-The current chart implementation directly uses native LVGL because the stable
-ESPHome release does not yet expose the chart widget through its LVGL YAML
-integration.
-
-`LV_USE_CHART=1` is enabled by the root configuration and `trend_helpers.h`
-provides the local LVGL include support.
-
-This implementation is intended to be replaced by native ESPHome chart support
-when it becomes available in a stable release.
-
----
-
-# Encoder SELECT / EDIT architecture
-
-The local encoder uses one page-aware state machine instead of page-specific button behavior.
-
-Runtime state is stored in `rectifier-shared.yaml`.
-
-Current globals:
-
-```text
-encoder_page
-encoder_selection
-encoder_edit_mode
-encoder_edit_value
-rectifier_detail_unit
-trend_selection
-trend_buffer_dc_power
-trend_buffer_dc_current
-trend_buffer_dc_voltage
-trend_buffer_output_temp
-trend_buffer_compartment_temp
-trend_write_index
-trend_sample_count
-```
-
----
-
-## `encoder_page`
-
-Current LVGL page:
-
-```text
-0 Dashboard
-1 Rectifiers
-2 Cooling
-3 System
-4 Trends
-```
-
-A successful page change resets:
-
-```text
-encoder_selection = 0
-```
-
----
-
-## `rectifier_detail_unit`
-
-Tracks hierarchical navigation below the Rectifiers main page.
-
-```text
-0 = Rectifiers overview
-1 = Unit 1 / L1 detail
-2 = Unit 2 / L2 detail
-3 = Unit 3 / L3 detail
-```
-
-This state is deliberately separate from `encoder_page`.
-
-While a detail view is open:
-
-```text
-encoder_page = 1
-```
-
-still identifies the logical main section as Rectifiers.
-
-This allows the detail page to behave as a true child view rather than as
-another main-menu page.
-
----
-
-## `encoder_selection`
-
-Identifies the selected parameter on the current page.
-
-The meaning is page-specific.
-
-Dashboard:
-
-```text
-0 Voltage
-1 Power
-```
-
-Cooling:
-
-```text
-0 Automatic
-1 Fan Power
-2 PWM
-```
-
-Selection meaning is page-specific.
-
-Rectifiers:
-
-```text
-0 L1 / Unit 1
-1 L2 / Unit 2
-2 L3 / Unit 3
-````
-
-System has no selectable parameters.
-
-Trends uses `trend_selection` rather than `encoder_selection`:
-
-```text
-0 DC Power
-1 DC Current
-2 DC Voltage
-3 Output Temperature
-4 Compartment Temperature
-```
-
----
-
-## `encoder_edit_mode`
-
-Boolean UI state:
-
-```text
-false = SELECT
-true  = EDIT
-```
-
-The state is not restored across controller reboot.
-
-The UI therefore always starts in a known SELECT state.
-
----
-
-## `encoder_edit_value`
-
-Temporary floating-point edit buffer.
-
-When EDIT begins, the real value is copied into this buffer.
-
-Encoder rotation changes only the buffer.
-
-The actual ESPHome entity is not changed until the user confirms with a short press.
-
-This prevents intermediate encoder steps from immediately transmitting changing charger setpoints.
-
----
-
-# SELECT mode
-
-Controls:
-
-```text
-Rotate        select parameter
-Short press   enter EDIT
-Double press  next page
-Long press    global rectifier ON/OFF
-```
-
-The currently selected parameter is indicated by:
-
-```text
->
-```
-
-Example:
-
-```text
-> Voltage  53.0 V
-  Power     3.00 kW
-```
-
-On read-only pages, rotation and short press intentionally do nothing.
-
-Double-click page navigation and long-press START/STOP remain available.
-
----
-
-# EDIT mode
-
-Controls:
-
-```text
-Rotate        modify temporary value
-Short press   commit value and return to SELECT
-Double press  disabled
-Long press    disabled
-```
-
-The active parameter uses inverted presentation:
-
-```text
-dark background
-white text
-```
-
-The normal `>` SELECT marker is removed.
-
-The footer changes to:
-
-```text
-EDIT: Turn adjust | Press save
-```
-
-This provides both behavioral and visual separation between SELECT and EDIT.
-
----
-
-# Editable parameter behavior
-
-## Dashboard Voltage
-
-```text
-Range 49.0–58.0 V
-Step  0.1 V
-```
-
-During EDIT, only `encoder_edit_value` changes.
-
-On confirmation:
-
-1. the new voltage is written to `set_dc_voltage_limit`;
-2. the nominal total-power target is reapplied;
-3. corresponding per-unit current is recalculated.
-
----
-
-## Dashboard Power
-
-```text
-Range 0.25–12.0 kW
-Step  0.25 kW
-```
-
-During EDIT, only the temporary buffer changes.
-
-The actual power target changes only after confirmation.
-
----
-
-## Cooling Automatic
-
-Boolean:
-
-```text
-ON
-OFF
-```
-
-Either encoder direction toggles the temporary Boolean value while editing.
-
-After confirmation:
-
-* ON enables automatic temperature control;
-* OFF enables manual Fan Power/PWM selection.
-
----
-
-## Cooling Fan Power
-
-Boolean:
-
-```text
-ON
-OFF
-```
-
-Selectable only when automatic cooling is OFF.
-
-The actual GPIO power switch is changed only after confirmation.
-
----
-
-## Cooling PWM
-
-```text
-Range 0–100 %
-Step  1 %
-```
-
-Selectable only when automatic cooling is OFF.
-
-The actual PWM number/output is updated only after confirmation.
-
----
-
-# `cooling.yaml`
-
-Owns the external/chassis cooling system.
-
-This is separate from the internal R4875G1 fan CAN telemetry/control.
-
-External hardware:
-
-```text
-common fan power enable
-shared 25 kHz PWM
-Fan 1 tachometer
-Fan 2 tachometer
-Fan 3 tachometer
-AHT10 compartment sensor
-```
-
-Three-pin fans use:
-
-```text
-power
-tachometer
-```
-
-Four-pin fans use:
-
-```text
-power
-PWM
-tachometer
-```
-
----
-
-# Automatic cooling
-
-`Cooling Fan Automatic` defaults to enabled.
-
-Control interval:
-
-```text
-5 seconds
-```
-
-Temperature curve:
-
-| Temperature  |   Command |
-| ------------ | --------: |
-| `<30 °C`     | OFF / 0 % |
-| `30–34.9 °C` |      35 % |
-| `35–39.9 °C` |      45 % |
-| `40–44.9 °C` |      60 % |
-| `45–49.9 °C` |      80 % |
-| `>=50 °C`    |     100 % |
-
-Downward hysteresis:
-
-```text
-48 °C
-43 °C
-38 °C
-33 °C
-28 °C
-```
-
-A rising temperature immediately selects the required higher stage.
-
-If compartment temperature is invalid:
-
-```text
-Fan Power ON
-PWM 100 %
-```
-
-This is the intentional cooling fail-safe.
-
-The AHT10 automatic OFF-below-30 °C path has been observed on hardware.
-
-Full external fan PWM/RPM testing remains pending installation of the fans.
-
----
-
-# `controls.yaml`
-
-Owns charger-wide setpoints and controls.
+The current controller target is the Waveshare ESP32-S3-Touch-LCD-7.
 
 Responsibilities include:
 
-* requested DC voltage
-* requested DC current
-* nominal three-unit DC power
-* fallback settings
-* shared/broadcast control entities
+- shared I2C bus
+- TCA9548A external I2C multiplexer
+- MCP23017 external I/O expander
+- GT911 touchscreen
+- CH422G onboard I/O expander
+- USB/CAN routing selection
+- ESP32-S3 TWAI / onboard CAN interface
+- backup rotary-encoder inputs
+- controller backup-battery ADC and SOC estimate
 
-The requested current remains conceptually separate from:
+### Shared I2C Topology
 
 ```text
-effective hardware limit
-thermal limit
-applied current
+ESP32-S3
+│
+├── GPIO8 -> SDA
+├── GPIO9 -> SCL
+│
+└── TCA9548A @ 0x70
+    ├── CH0 -> MCP23017 @ 0x20
+    ├── CH1 -> AHT10 @ 0x38
+    └── CH2 -> EMC2101 @ 0x4C
 ```
+
+The EMC2101 component itself is configured in `cooling.yaml`, but its I2C bus is provided by `hardware.yaml`.
+
+### MCP23017 Allocation
+
+```text
+GPA0 -> backup rotary encoder A
+GPA1 -> backup rotary encoder B
+GPA2 -> backup rotary encoder button
+GPA3 -> external cooling-fan supply enable
+GPA4 -> Cooling Fan 1 tachometer
+GPA5 -> Cooling Fan 2 tachometer
+```
+
+The backup encoder inputs currently provide hardware entities only.
+No charger-control or navigation actions are assigned to them in the current V5 firmware.
 
 ---
 
-# `rectifier-unit.yaml`
+## `controls.yaml`
 
-Parameterized implementation of one R4875G1.
+Owns charger-wide user-facing setpoints and controls.
 
-The root configuration includes this package three times for:
+This includes values such as:
 
-```text
-Unit 1
-Unit 2
-Unit 3
-```
+- active DC voltage target
+- charger power target
+- fallback voltage
+- fallback current
+- charger-wide START/STOP controls
 
-Per-unit public IDs and Home Assistant entity names should remain stable unless a change explicitly requires otherwise.
+Shared controls SHOULD express user intent.
 
-The package owns per-unit:
-
-* telemetry
-* discovery state
-* static properties
-* capability
-* power state
-* thermal state
-* lifecycle-related helpers
+Safety limiting, capability limiting and per-unit CAN command transmission are implemented in the rectifier control packages rather than directly in
+`controls.yaml`.
 
 ---
 
-# `rectifier-shared.yaml`
+## `cooling.yaml`
 
-Owns cross-unit charger state and orchestration.
+Owns the external chassis cooling system.
+
+This subsystem is separate from the internal fans built into the Huawei rectifiers.
+
+Current external cooling hardware:
+
+```text
+MCP23017 GPA3 -> common fan-supply enable
+MCP23017 GPA4 -> Cooling Fan 1 tachometer
+MCP23017 GPA5 -> Cooling Fan 2 tachometer
+
+EMC2101 PWM   -> common four-pin fan PWM
+EMC2101 TACH  -> Cooling Fan 3 tachometer
+
+AHT10         -> rear-compartment temperature and humidity
+```
 
 Responsibilities include:
 
-* encoder UI state
-* per-unit lifecycle
-* discovery queue
-* discovery serialization
-* effective current capability
-* current scaling
-* thermal derating
-* blackstart scripts
-* polling schedulers
-* reconnect probing
-* TWAI recovery
-* aggregate/shared control logic
+- EMC2101 fan-controller configuration
+- common external fan PWM
+- common fan-supply enable
+- three independent RPM measurements
+- automatic temperature-based cooling
+- manual fan-power and PWM override
+
+Cooling Fan 3 ventilates the rear rectifier compartment monitored by the AHT10.
+
+Automatic cooling fails safe to enabled fan power and maximum PWM if the compartment temperature becomes unavailable.
 
 ---
 
-# Rectifier lifecycle
+# Rectifier Architecture
 
-Per-unit lifecycle:
+The rectifier implementation is split into shared and parameterized packages.
+
+```text
+rectifier-shared.yaml
+        │
+        ├── shared lifecycle and safety state
+        ├── discovery serialization
+        ├── capability evaluation
+        ├── thermal limiting
+        ├── CAN scheduling
+        └── charger-wide command routing
+
+rectifier-unit.yaml
+        │
+        └── instantiated once for each rectifier
+
+rectifier-can/*.yaml
+        │
+        └── parameterized CAN receive fragments
+```
+
+---
+
+## `rectifier-shared.yaml`
+
+Owns cross-unit state and behavior shared by all three rectifiers.
+
+Major responsibilities include:
+
+- rectifier lifecycle coordination
+- communication reconciliation
+- TWAI recovery handling
+- serialized discovery
+- low-rate OFFLINE probing
+- high-rate ONLINE polling
+- capability-aware current limiting
+- shared protocol scaling
+- thermal current limiting
+- active setpoint routing
+- blackstart START/STOP sequences
+- periodic setpoint refresh
+- local trend sampling
+
+### Lifecycle
+
+Each rectifier uses:
 
 ```text
 OFFLINE
@@ -977,296 +310,530 @@ DISCOVERING
 ONLINE
 ```
 
-Normal connectivity timeout:
+Normal cyclic and fan telemetry polling is restricted to `ONLINE` units.
 
-```text
-3 seconds
-```
+`OFFLINE` units are probed sparsely so absent peers cannot continuously generate high-rate failed CAN transmissions.
 
-During `DISCOVERING`:
+### Shared Current Limit
 
-```text
-7 seconds
-```
+The effective current ceiling is derived from currently reachable rectifiers.
 
-The longer discovery watchdog accommodates the intentional 5-second stabilization period.
+If any reachable unit has an unknown maximum-current capability, the conservative fail-safe ceiling is used.
 
-Discovery waits for TWAI:
+When all reachable capabilities are known, the lowest reachable capability becomes the shared hardware ceiling.
 
-```text
-RUNNING
-```
+The thermal ceiling is applied independently.
 
-Time spent in BUS_OFF/recovery does not consume normal discovery attempts.
+Final CAN current commands therefore use the most restrictive relevant limit.
 
 ---
 
-# Discovery sequence
+## `rectifier-unit.yaml`
 
-Per unit:
+Parameterized package instantiated once for each R4875G1.
+
+The main configuration provides:
 
 ```text
-CAN detected
-    ↓
+ru_unit = 1
+ru_unit = 2
+ru_unit = 3
+```
+
+Each instance owns per-unit:
+
+- CAN watchdog timestamp
+- lifecycle state
+- thermal state
+- overtemperature lockout
+- discovery flags
+- discovery counters
+- property buffer
+- telemetry sensors
+- static identification sensors
+- maximum-current capability
+- unit-specific discovery scripts
+- unit-specific START control
+
+Public IDs intentionally resolve to stable per-unit names.
+
+Shared cross-unit policy does not belong in this package.
+
+---
+
+## `rectifier-can/`
+
+Contains parameterized CAN receive fragments used by the shared CAN interface.
+
+Every fragment receives at least:
+
+```text
+ru_unit
+```
+
+as a substitution.
+
+### `property-start.yaml`
+
+Handles:
+
+```text
+0x108${ru_unit}D27F
+```
+
+Starts and accumulates the multi-frame ASCII static-property response.
+
+### `property-end.yaml`
+
+Handles:
+
+```text
+0x108${ru_unit}D27E
+```
+
+Completes the property response, parses required keys and marks static-property discovery complete only when all required values have been decoded.
+
+### `cyclic-telemetry.yaml`
+
+Handles:
+
+```text
+0x108${ru_unit}407F
+```
+
+Decodes selector-based operational telemetry such as:
+
+- AC power
+- AC frequency
+- AC current
+- AC voltage
+- DC power
+- DC voltage
+- DC current
+- temperatures
+- operating hours
+- rectifier-reported current setpoint
+
+### `fan-telemetry.yaml`
+
+Handles:
+
+```text
+0x108${ru_unit}827E
+```
+
+Decodes internal rectifier-fan telemetry:
+
+- minimum duty
+- target duty
+- fan RPM
+
+### `address-data.yaml`
+
+Handles:
+
+```text
+0x108${ru_unit}507E
+```
+
+Decodes shelf/slot address data used during discovery.
+
+### `power-state.yaml`
+
+Handles:
+
+```text
+0x100${ru_unit}117E
+```
+
+Publishes:
+
+- rectifier ON/OFF/ERROR state
+- alternate DC-current freshness telemetry
+
+---
+
+# Display Architecture
+
+The V5 display implementation separates static LVGL layout from periodic runtime updates.
+
+This separation is important because updating every widget continuously caused unnecessary LVGL load on the controller.
+
+The current architecture is:
+
+```text
+display.yaml
+│
+├── display/hardware.yaml
+├── display/theme.yaml
+├── display/ui.yaml
+│
+├── persistent/global runtime
+│   ├── display/header.yaml
+│   ├── display/command-state.yaml
+│   └── display/battery.yaml
+│
+├── page-specific runtime
+│   ├── display/dashboard.yaml
+│   ├── display/rectifiers.yaml
+│   ├── display/rectifier-detail.yaml
+│   ├── display/cooling.yaml
+│   ├── display/system.yaml
+│   └── display/trends.yaml
+│
+└── static page layouts
+    └── display/pages/*.yaml
+```
+
+Only the currently visible page receives normal page-specific runtime updates.
+
+Persistent header state, command-transition state and controller-battery display updates continue independently.
+
+---
+
+## `display.yaml`
+
+Display package aggregator.
+
+It includes:
+
+- physical display hardware
+- theme and styles
+- shared UI tree
+- persistent display runtimes
+- page-specific runtimes
+
+It should contain package composition rather than page logic.
+
+---
+
+## `display/hardware.yaml`
+
+Owns the Waveshare RGB display hardware.
+
+Responsibilities include:
+
+- 800 × 480 RGB panel configuration
+- display timing
+- framebuffer configuration
+- LVGL display binding
+- backlight control
+
+Touchscreen hardware is owned by the controller-wide `hardware.yaml` because GT911 shares the main I2C bus and reset infrastructure with other controller hardware.
+
+---
+
+## `display/theme.yaml`
+
+Owns reusable presentation definitions including:
+
+- fonts
+- card styles
+- page styles
+- header styles
+- navigation styles
+- common LVGL defaults
+
+It should not own live telemetry or control-state logic.
+
+---
+
+## `display/ui.yaml`
+
+Owns the persistent LVGL widget tree and shared UI state.
+
+Responsibilities include:
+
+- page aggregation
+- persistent header layout
+- bottom navigation
+- shared dialogs
+- shared UI globals
+- fallback-edit dialog state
+- active display-page tracking
+
+Periodic telemetry refresh does not belong in this file.
+
+---
+
+# Persistent Display Runtime
+
+## `display/header.yaml`
+
+Updates the persistent header independently of the active page.
+
+Typical header information includes:
+
+- date/time
+- firmware identity
+- charger run state
+- controller backup-battery indication
+
+---
+
+## `display/command-state.yaml`
+
+Owns asynchronous START/STOP transition display state.
+
+Pending command state remains active even if the user leaves the page where the command originated.
+
+This prevents command-completion handling from depending on one visible page.
+
+---
+
+## `display/battery.yaml`
+
+Updates controller backup-battery presentation.
+
+Battery values change slowly and therefore use an independent low-rate refresh rather than being tied to faster page runtimes.
+
+---
+
+# Page-Specific Display Runtime
+
+## `display/dashboard.yaml`
+
+Updates Dashboard telemetry and charger-wide control presentation.
+
+Runtime executes only while the Dashboard page is visible.
+
+---
+
+## `display/rectifiers.yaml`
+
+Updates the three-unit Rectifiers overview.
+
+Runtime includes:
+
+- lifecycle state
+- power state
+- AC/DC summary telemetry
+- button state
+- unit availability
+
+---
+
+## `display/rectifier-detail.yaml`
+
+Updates the shared Rectifier Detail page.
+
+One page is reused for all three units.
+
+The currently selected unit is stored in:
+
+```text
+rectifier_detail_unit
+```
+
+Runtime selects the corresponding telemetry dynamically.
+
+---
+
+## `display/cooling.yaml`
+
+Updates the Cooling page.
+
+The current page focuses on:
+
+- shared compartment temperature
+- shared compartment humidity
+- internal Huawei rectifier-fan telemetry
+
+External chassis-fan control is owned by `cooling.yaml`.
+
+---
+
+## `display/system.yaml`
+
+Updates controller diagnostics including:
+
+- network information
+- controller runtime information
+- memory information
+- CAN / rectifier status
+
+Controller battery values are updated separately by `display/battery.yaml`.
+
+---
+
+## `display/trends.yaml`
+
+Owns the native LVGL chart runtime.
+
+Five independent 120-sample ring buffers are recorded continuously by `rectifier-shared.yaml`.
+
+The display runtime:
+
+- selects the active trend
+- calculates current/minimum/maximum values
+- determines the dynamic Y-axis range
+- populates the LVGL series
+- renders unavailable samples as gaps
+
+The native LVGL chart helper remains in:
+
+```text
+../trend_helpers.h
+```
+
+---
+
+# Static Display Pages
+
+The files under:
+
+```text
+display/pages/
+```
+
+define LVGL layout only.
+
+They SHOULD NOT own periodic telemetry-refresh logic.
+
+Current pages:
+
+```text
+dashboard.yaml
+rectifiers.yaml
+rectifier-detail.yaml
+cooling.yaml
+system.yaml
+trends.yaml
+```
+
+The main navigation exposes:
+
+```text
+Dashboard
+Rectifiers
+Cooling
+System
+Trends
+```
+
+Rectifier Detail is a hierarchical child view rather than an additional main navigation page.
+
+---
+
+# Data and Control Paths
+
+## Telemetry Path
+
+Normal per-unit telemetry follows:
+
+```text
+R4875G1
+   │
+   │ CAN
+   ▼
+rectifier-can/*.yaml
+   │
+   ▼
+rectifier-unit.yaml sensors
+   │
+   ├── Home Assistant / MQTT / Web
+   │
+   └── display page runtimes
+```
+
+Shared aggregate values are calculated above the per-unit telemetry layer.
+
+---
+
+## Charger Control Path
+
+User intent follows approximately:
+
+```text
+controls.yaml
+     │
+     ▼
+rectifier-shared.yaml
+     │
+     ├── hardware capability limit
+     ├── thermal limit
+     └── lifecycle / CAN eligibility
+     │
+     ▼
+per-unit CAN command
+     │
+     ▼
+R4875G1
+```
+
+This separation prevents UI entities from bypassing charger safety policy.
+
+---
+
+## Discovery Path
+
+```text
+OFFLINE unit
+    │
+    │ valid reconnect telemetry
+    ▼
 DISCOVERING
-    ↓
-stabilization
-    ↓
-static properties
-    ↓
-maximum-current capability
-    ↓
-address/shelf information
-    ↓
-verification
-    ↓
-targeted active-setpoint restore
-    ↓
+    │
+    ▼
+serialized discovery queue
+    │
+    ├── static properties
+    ├── maximum-current capability
+    └── address data
+    │
+    ▼
+reapply active setpoints
+    │
+    ▼
 ONLINE
 ```
 
-The static property response can contain many frames.
-
-TWAI RX queue:
-
-```text
-64 frames
-```
-
-A physically observed property response contained:
-
-```text
-56 frames
-```
+Discovery is serialized because multi-frame property traffic temporarily requires coordinated access to the shared CAN bus.
 
 ---
 
-# Current capability
-
-Absolute project ceiling:
+## Display Update Path
 
 ```text
-75 A
+sensor / control state
+        │
+        ▼
+page-specific runtime
+        │
+        ▼
+currently visible LVGL page
 ```
 
-If a reachable rectifier has unknown capability:
+Persistent state uses separate runtimes:
 
 ```text
-effective current limit = 50 A
+header
+command transitions
+controller battery
 ```
 
-Once all reachable capabilities are known:
-
-```text
-effective current limit
-    =
-min(
-    75 A,
-    lowest reachable capability
-)
-```
-
-Command scaling uses the highest known reachable capability once all reachable capabilities are available.
-
-Current limiting and command scaling are intentionally separate concepts.
+This architecture avoids continuously refreshing hidden pages.
 
 ---
 
-# Thermal protection
+# Documentation Ownership
 
-Applied current:
-
-```text
-min(
-    requested current,
-    hardware capability,
-    thermal limit
-)
-```
-
-Thermal states:
-
-| State     |     Enter | Recovery |                Current |
-| --------- | --------: | -------: | ---------------------: |
-| NORMAL    |  `<70 °C` |        — | hardware/project limit |
-| WARNING_1 | `>=70 °C` | `<65 °C` |                   50 A |
-| WARNING_2 | `>=80 °C` | `<75 °C` |                   30 A |
-| LOCKOUT   | `>=90 °C` | `<80 °C` |         individual OFF |
-
-Stale temperature data never relaxes thermal protection.
-
-Recovery from lockout never automatically turns the rectifier back on.
-
----
-
-# `rectifier-can/`
-
-Contains parameterized CAN receive handlers.
-
-## `property-start.yaml`
-
-Handles the start of the multi-frame static property response.
-
-## `property-end.yaml`
-
-Handles property completion and reconstructed property parsing.
-
-## `cyclic-telemetry.yaml`
-
-Decodes normal cyclic rectifier telemetry.
-
-## `fan-telemetry.yaml`
-
-Decodes internal R4875G1 fan telemetry.
-
-## `address-data.yaml`
-
-Handles capability/address-related discovery data.
-
-## `power-state.yaml`
-
-Handles rectifier power-state/status frames.
-
----
-
-# CAN transmission policy
-
-Normal ESPHome CAN transmission is used for:
-
-* online telemetry polling
-* internal fan polling
-* property discovery
-* capability/address discovery
-* active setpoints
-* reconnect setpoint restore
-* ON/OFF control
-
-TWAI Single-Shot is reserved for:
+The documentation hierarchy is:
 
 ```text
-slow OFFLINE reconnect probes
-```
+../README.md
+    project overview, hardware, operation and safety
 
-This prevents absent rectifiers from causing repeated automatic retransmission of unacknowledged probe frames.
-
----
-
-# Deployment boundary
-
-`scripts/deploy-ha.ps1` manages:
-
-```text
-r4875g1-3phase-charger.yaml
-packages/**/*.yaml
-```
-
-It intentionally does **not** deploy:
-
-```text
-packages/README.md
 README.md
-other non-YAML files
+    package ownership and implementation architecture
+
+../R4875G1_CONTROL_FLOWS.md
+    detailed lifecycle and control-flow behavior
+
+../rules/
+    repository development rules
 ```
 
-The deployment process uses:
+Implementation-local details SHOULD remain close to the corresponding YAML rather than being duplicated here.
 
-* remote staging
-* SHA-256 verification
-* optional backups
-* installed-file verification
-* staging cleanup
-
----
-
-# Change discipline
-
-Preserve unless explicitly changing them:
-
-* public ESPHome IDs
-* Home Assistant entity names
-* CAN identifiers
-* CAN payload formats
-* protocol scaling
-* timing/order requirements
-* lifecycle transitions
-* requested/applied-current semantics
-* thermal thresholds
-* blackstart safety behavior
-
-Firmware version convention:
-
-```text
-normal program commit -> PATCH +1
-documentation-only commit -> version unchanged
-repository cleanup only -> version unchanged
-release -> MINOR/MAJOR may advance
-```
-
-README documentation must remain synchronized with documented software behavior.
-
-Commit messages should contain:
-
-1. concise descriptive subject;
-2. detailed bullet list of important changes and effects.
-
----
-
-# Validation
-
-Before committing meaningful firmware changes:
-
-```text
-git diff --check
-esphome config r4875g1-3phase-charger.yaml
-esphome compile r4875g1-3phase-charger.yaml
-```
-
-For display/encoder changes, also verify the physical TFT.
-
-For cooling changes, verify physical fan behavior when the external fan hardware is installed.
-
-For PowerShell tooling changes, perform at least a parser check or `-DryRun`.
-
----
-
-# Current development status
-
-Stable release:
-
-```text
-v4.3.0
-main
-```
-
-The v4.3.0 encoder implementation has been hardware-tested for:
-
-* Dashboard SELECT
-* Dashboard EDIT
-* temporary value buffering
-* confirmation/commit
-* double-click suppression in EDIT
-* long-press suppression in EDIT
-* Cooling Automatic selection/edit
-* Cooling manual Fan Power
-* Cooling manual PWM
-* automatic-mode restriction of manual Cooling parameters
-* page-aware footer behavior
-* read-only Rectifiers/System behavior
-
-The current feature branch is therefore functionally ready for release after repository cleanup and documentation synchronization.
-
----
-
-# Release preparation
-
-Before promoting the current feature branch to the next stable release:
-
-1. remove obsolete temporary GitHub Actions workflows;
-2. verify `README.md` and `packages/README.md`;
-3. run `git diff --check`;
-4. validate the ESPHome configuration;
-5. compile the complete firmware;
-6. optionally perform one final physical TFT smoke test;
-7. create the release version commit;
-8. promote the tested feature branch to `main`.
-
+When package ownership or architecture changes, this document should be updated as part of the same functional change or immediately afterwards.

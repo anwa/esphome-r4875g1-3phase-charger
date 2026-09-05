@@ -1,7 +1,6 @@
 # 3-Phase Huawei R4875G1 Battery Charger Controller
 
-ESPHome-based controller for three Huawei R4875G1 rectifiers operated as a
-coordinated three-phase battery charger with a common parallel DC output.
+ESPHome-based controller for three Huawei R4875G1 rectifiers operated as a coordinated three-phase battery charger with a common parallel DC output.
 
 The current V5 hardware platform is based on the
 **Waveshare ESP32-S3-Touch-LCD-7** and combines:
@@ -18,17 +17,13 @@ The current V5 hardware platform is based on the
 - controller backup-battery monitoring
 - Home Assistant, MQTT and ESPHome web integration
 
-The charger core is intentionally designed to remain operational without
-Wi-Fi, Home Assistant, MQTT or Internet access.
+The charger core is intentionally designed to remain operational without Wi-Fi, Home Assistant, MQTT or Internet access.
 
-For detailed runtime and state-machine behavior, see
-[`R4875G1_CONTROL_FLOWS.md`](R4875G1_CONTROL_FLOWS.md).
+For detailed runtime and state-machine behavior, see [`R4875G1_CONTROL_FLOWS.md`](R4875G1_CONTROL_FLOWS.md).
 
-For package ownership and firmware architecture, see
-[`packages/README.md`](packages/README.md).
+For package ownership and firmware architecture, see [`packages/README.md`](packages/README.md).
 
-Repository development rules are defined in [`AGENTS.md`](AGENTS.md) and the
-[`rules/`](rules/) directory.
+Repository development rules are defined in [`AGENTS.md`](AGENTS.md) and the [`rules/`](rules/) directory.
 
 > [!WARNING]
 > This project controls equipment connected to mains voltage and a high-current
@@ -45,8 +40,7 @@ Repository development rules are defined in [`AGENTS.md`](AGENTS.md) and the
 
 ## System Architecture
 
-The intended installation uses one rectifier per AC phase while all three DC
-outputs feed the same battery/DC bus.
+The intended installation uses one rectifier per AC phase while all three DC outputs feed the same battery/DC bus.
 
 ```text
 Three-phase AC
@@ -70,8 +64,7 @@ DC voltage command: shared
 DC current command: common per-unit request
 ```
 
-Each rectifier maintains its own communication, lifecycle, discovery, thermal
-and telemetry state.
+Each rectifier maintains its own communication, lifecycle, discovery, thermal and telemetry state.
 
 ---
 
@@ -130,8 +123,7 @@ Shared I2C
             └── Cooling Fan 3 tachometer
 ```
 
-Unused TCA9548A channels and MCP23017 pins remain available for future
-expansion.
+Unused TCA9548A channels and MCP23017 pins remain available for future expansion.
 
 ---
 
@@ -139,8 +131,7 @@ expansion.
 
 The three Huawei rectifiers share one CAN bus.
 
-The firmware implements independent per-unit communication state and explicit
-rectifier lifecycle handling:
+The firmware implements independent per-unit communication state and explicit rectifier lifecycle handling:
 
 ```text
 OFFLINE
@@ -159,12 +150,9 @@ A rectifier that loses valid communication returns to `OFFLINE`.
 
 Normal high-rate telemetry polling is restricted to `ONLINE` units.
 
-`OFFLINE` units are probed at a much lower rate using single-shot CAN
-transmission so an absent rectifier cannot continuously force the ESP32 TWAI
-controller toward `BUS_OFF`.
+`OFFLINE` units are probed at a much lower rate using single-shot CAN transmission so an absent rectifier cannot continuously force the ESP32 TWAI controller toward `BUS_OFF`.
 
-The firmware also implements explicit TWAI recovery if the complete physical
-CAN network disappears.
+The firmware also implements explicit TWAI recovery if the complete physical CAN network disappears.
 
 ### Discovery
 
@@ -174,18 +162,15 @@ Discovery retrieves information including:
 - maximum DC-current capability
 - shelf/address information
 
-Discovery traffic is serialized so only one discovery operation owns the CAN
-bus at a time.
+Discovery traffic is serialized so only one discovery operation owns the CAN bus at a time.
 
-A successfully rediscovered unit receives the currently active DC voltage and
-current commands before its lifecycle returns to `ONLINE`.
+A successfully rediscovered unit receives the currently active DC voltage and current commands before its lifecycle returns to `ONLINE`.
 
 ---
 
 ## Charger Control
 
-The controller manages three rectifiers as one coordinated charger while
-preserving independent per-unit safety and communication state.
+The controller manages three rectifiers as one coordinated charger while preserving independent per-unit safety and communication state.
 
 Supported charger-wide controls include:
 
@@ -201,8 +186,7 @@ Fallback DC current
 
 The nominal DC power target is converted into a common per-unit current request.
 
-The requested current and the actually applied current are intentionally kept
-separate.
+The requested current and the actually applied current are intentionally kept separate.
 
 The final applied current is limited by:
 
@@ -214,9 +198,7 @@ min(
 )
 ```
 
-This allows the requested charger target to remain unchanged while hardware or
-thermal protection temporarily reduces the current actually sent to the
-rectifiers.
+This allows the requested charger target to remain unchanged while hardware or thermal protection temporarily reduces the current actually sent to the rectifiers.
 
 ---
 
@@ -224,8 +206,7 @@ rectifiers.
 
 R4875G1 variants can report different maximum-current capabilities.
 
-The controller therefore discovers the capability of each reachable unit and
-derives a safe shared limit.
+The controller therefore discovers the capability of each reachable unit and derives a safe shared limit.
 
 The basic policy is:
 
@@ -240,11 +221,9 @@ All reachable capabilities known
     -> effective ceiling = lowest reachable capability
 ```
 
-Command scaling is derived independently from the detected rectifier
-capabilities so mixed-capability installations remain fail-safe.
+Command scaling is derived independently from the detected rectifier capabilities so mixed-capability installations remain fail-safe.
 
-A diagnostic entity reports capability mismatches between simultaneously
-reachable rectifiers.
+A diagnostic entity reports capability mismatches between simultaneously reachable rectifiers.
 
 ---
 
@@ -269,19 +248,15 @@ The current configuration uses staged derating:
 
 Hysteresis prevents rapid state oscillation while temperatures fall.
 
-A thermal lockout is not cleared by missing or stale telemetry. Valid
-temperature data must confirm that the rectifier has returned to a safe
-temperature.
+A thermal lockout is not cleared by missing or stale telemetry. Valid temperature data must confirm that the rectifier has returned to a safe temperature.
 
-The shared thermal current ceiling is derived from the most restrictive active
-per-unit thermal state.
+The shared thermal current ceiling is derived from the most restrictive active per-unit thermal state.
 
 ---
 
 ## Local Blackstart
 
-Core charger operation is designed to remain available without network
-services.
+Core charger operation is designed to remain available without network services.
 
 Blackstart does not depend on:
 
@@ -307,15 +282,13 @@ Only units passing all checks receive the ON command.
 
 STOP remains unrestricted.
 
-This allows a partially available charger to remain controllable while
-preventing unknown or unsafe units from being started.
+This allows a partially available charger to remain controllable while preventing unknown or unsafe units from being started.
 
 ---
 
 ## Local User Interface
 
-The controller uses the Waveshare 7-inch 800 × 480 RGB display with GT911
-capacitive touch.
+The controller uses the Waveshare 7-inch 800 × 480 RGB display with GT911 capacitive touch.
 
 The LVGL interface contains five primary functional pages:
 
@@ -327,8 +300,7 @@ System
 Trends
 ```
 
-The Rectifiers page also provides one shared hierarchical detail view for
-Units 1, 2 and 3.
+The Rectifiers page also provides one shared hierarchical detail view for Units 1, 2 and 3.
 
 ### Dashboard
 
@@ -396,11 +368,9 @@ One LVGL page is reused dynamically for all three rectifiers.
 
 ### Cooling
 
-The Cooling page displays the shared rear-compartment environmental data and
-internal rectifier-fan telemetry.
+The Cooling page displays the shared rear-compartment environmental data and internal rectifier-fan telemetry.
 
-External chassis-fan control is implemented independently by
-`packages/cooling.yaml`.
+External chassis-fan control is implemented independently by `packages/cooling.yaml`.
 
 ### System
 
@@ -437,8 +407,7 @@ Sampling uses:
 10-minute history
 ```
 
-Invalid source values are preserved as gaps instead of being converted to
-artificial zero values.
+Invalid source values are preserved as gaps instead of being converted to artificial zero values.
 
 ---
 
@@ -450,20 +419,17 @@ A mechanical rotary encoder is connected through the MCP23017.
 MCP23017 GPA0 -> Encoder A
 MCP23017 GPA1 -> Encoder B
 MCP23017 GPA2 -> Encoder button
-````
+```
 
-The three inputs are implemented as internal MCP23017-backed GPIO entities and
-provide the hardware basis for future independent local encoder control.
+The three inputs are implemented as internal MCP23017-backed GPIO entities.
 
-The current V5 firmware does not yet assign charger-control or navigation
-actions to these backup encoder inputs.
+The current V5 firmware does not assign charger-control or navigation actions to these backup encoder inputs.
 
 ---
 
 ## External Cooling System
 
-The external chassis cooling system is independent of the internal fans built
-into the Huawei rectifiers.
+The external chassis cooling system is independent of the internal fans built into the Huawei rectifiers.
 
 Three external fans are supported.
 
@@ -484,8 +450,7 @@ The EMC2101 generates the shared hardware PWM signal at approximately:
 25.7 kHz
 ```
 
-Cooling Fan 3 ventilates the rear rectifier compartment where the AHT10
-temperature/humidity sensor is installed.
+Cooling Fan 3 ventilates the rear rectifier compartment where the AHT10 temperature/humidity sensor is installed.
 
 ### Automatic Cooling
 
@@ -504,8 +469,7 @@ The current temperature curve is:
 
 Downward transitions use hysteresis.
 
-If compartment-temperature telemetry becomes unavailable, the cooling system
-fails safe by enabling the external fans at 100 %.
+If compartment-temperature telemetry becomes unavailable, the cooling system fails safe by enabling the external fans at 100 %.
 
 Automatic mode can be disabled for manual fan-power and PWM control.
 
@@ -513,8 +477,7 @@ Automatic mode can be disabled for manual fan-power and PWM control.
 
 ## Controller Backup Battery
 
-The Waveshare controller supports a 1S lithium backup battery through its J3
-battery connector.
+The Waveshare controller supports a 1S lithium backup battery through its J3 battery connector.
 
 The board provides an existing divider:
 
@@ -528,8 +491,7 @@ TP1 is externally connected to:
 J8 pin 3 / AD -> GPIO6
 ```
 
-The ADC therefore sees one third of the battery voltage and the firmware
-restores the actual value using a factor of 3.
+The ADC therefore sees one third of the battery voltage and the firmware restores the actual value using a factor of 3.
 
 The measured voltage is filtered and exposed as:
 
@@ -543,15 +505,13 @@ A second sensor derives an approximate voltage-based state of charge:
 Controller Battery State of Charge
 ```
 
-The SOC value is intended for monitoring only. It is not a replacement for
-coulomb counting or a dedicated fuel-gauge IC.
+The SOC value is intended for monitoring only. It is not a replacement for coulomb counting or a dedicated fuel-gauge IC.
 
 ---
 
 ## Network Interfaces
 
-Network services provide additional monitoring and control but are not part of
-the local charger safety path.
+Network services provide additional monitoring and control but are not part of the local charger safety path.
 
 The firmware integrates:
 
@@ -563,8 +523,7 @@ OTA
 SNTP time synchronization
 ```
 
-Home Assistant can therefore expose charger telemetry, diagnostics, setpoints
-and control entities while local operation remains independent.
+Home Assistant can therefore expose charger telemetry, diagnostics, setpoints and control entities while local operation remains independent.
 
 ---
 
@@ -632,15 +591,13 @@ packages/
 | `rectifier-can/*.yaml` | parameterized CAN receive handlers |
 | `trend_helpers.h` | native LVGL chart support |
 
-The detailed ownership model is documented in
-[`packages/README.md`](packages/README.md).
+The detailed ownership model is documented in [`packages/README.md`](packages/README.md).
 
 ---
 
 ## Display Architecture
 
-The V5 display implementation separates static UI layout from periodic runtime
-updates.
+The V5 display implementation separates static UI layout from periodic runtime updates.
 
 ```text
 display.yaml
@@ -666,8 +623,7 @@ display.yaml
     └── pages/*.yaml
 ```
 
-Only the currently visible page receives its normal page-specific runtime
-updates.
+Only the currently visible page receives its normal page-specific runtime updates.
 
 Persistent header and command-state handling continue independently.
 
@@ -690,8 +646,7 @@ esphome config r4875g1-3phase-charger.yaml
 esphome compile r4875g1-3phase-charger.yaml
 ```
 
-Hardware-dependent changes should always be validated on the actual controller
-after successful compilation.
+Hardware-dependent changes should always be validated on the actual controller after successful compilation.
 
 ---
 
@@ -711,8 +666,7 @@ Version changes follow:
 rules/versioning.md
 ```
 
-Pure documentation and repository-cleanup changes do not require a firmware
-version increment unless they also change runtime behavior.
+Pure documentation and repository-cleanup changes do not require a firmware version increment unless they also change runtime behavior.
 
 ---
 
@@ -727,8 +681,7 @@ rules/
 
 `AGENTS.md` is the entry point for agents.
 
-All human-readable repository content created or substantially modified by the
-project is written in English.
+All human-readable repository content created or substantially modified by the project is written in English.
 
 The repository rules define:
 
@@ -744,8 +697,7 @@ YAML comment style
 
 ## V4 Hardware Variant
 
-The previous ESP32-S3-DevKitC-1 hardware implementation remains maintained
-separately on:
+The previous ESP32-S3-DevKitC-1 hardware implementation remains maintained separately on:
 
 ```text
 v4-maintenance
@@ -753,34 +705,24 @@ v4-maintenance
 
 V4 is a permanent hardware variant rather than the active V5 controller target.
 
-Changes that are genuinely shared between both hardware generations may be
-ported when appropriate, but V5-specific display, I/O and hardware assumptions
-must not be applied blindly to the V4 branch.
+Changes that are genuinely shared between both hardware generations may be ported when appropriate, but V5-specific display, I/O and hardware assumptions must not be applied blindly to the V4 branch.
 
 ---
 
 ## Acknowledgements
 
-This project originally grew from the Huawei R48xx CAN work published by
-**mjpalmowski** in:
+This project originally grew from the Huawei R48xx CAN work published by **mjpalmowski** in:
 
 `CAN-BUS-control-R4875G1-with-ESPHome-and-MQTT`
 
-That work provided important groundwork for Huawei CAN protocol research,
-telemetry decoding, control commands, property/capability discovery and ESPHome
-integration.
+That work provided important groundwork for Huawei CAN protocol research, telemetry decoding, control commands, property/capability discovery and ESPHome integration.
 
-The current project has since evolved into a dedicated three-unit charger with
-independent per-unit lifecycle management, local/offline control, automatic CAN
-recovery, capability-aware current limiting, thermal protection, a V5
-touchscreen controller platform and external cooling management.
+The current project has since evolved into a dedicated three-unit charger with independent per-unit lifecycle management, local/offline control, automatic CAN recovery, capability-aware current limiting, thermal protection, a V5 touchscreen controller platform and external cooling management.
 
 ---
 
 ## Disclaimer
 
-This repository is provided for development and experimentation with Huawei
-R4875G1 rectifiers.
+This repository is provided for development and experimentation with Huawei R4875G1 rectifiers.
 
-Anyone building or operating hardware based on this project is responsible for
-the electrical, thermal and mechanical safety of the resulting system.
+Anyone building or operating hardware based on this project is responsible for the electrical, thermal and mechanical safety of the resulting system.
