@@ -14,7 +14,20 @@ esp32:
 
   flash_size: 16MB
   flash_mode: qio
+
+  # Waveshare recommends 120 MHz Flash and PSRAM for maximum display/LVGL
+  # performance on this board. The current ESPHome/ESP-IDF configuration rejects
+  # 120 MHz with octal PSRAM ("PSRAM 120MHz is not supported in octal mode").
+  #
+  # Do not force this through experimental sdkconfig options while ESPHome does
+  # not support the configuration cleanly. Re-evaluate 120 MHz Flash/PSRAM when
+  # stable ESPHome support becomes available, as this may provide a meaningful
+  # performance improvement for LVGL and PSRAM-heavy workloads.
+  #
+  # Waveshare's ESP-IDF example also enables CONFIG_IDF_EXPERIMENTAL_FEATURES=y
+  # for its 120 MHz configuration, but this is intentionally not enabled here.
   flash_frequency: 80MHz
+
   cpu_frequency: 240MHz
 
   toolchain: esp-idf
@@ -24,6 +37,9 @@ esp32:
     version: recommended
     advanced:
       execute_from_psram: true
+      compiler_optimization: PERF
+    sdkconfig_options:
+      CONFIG_ESP32S3_DATA_CACHE_LINE_64B: y
 
 # ==============================================================================
 # EXTERNAL PSRAM
@@ -37,7 +53,12 @@ esp32:
 
 psram:
   mode: octal
+
+  # Keep this aligned with the Flash configuration above. 120 MHz remains a
+  # future performance option once ESPHome supports octal PSRAM at that speed
+  # without requiring unsupported or experimental workarounds.
   speed: 80MHz
+
   ignore_not_found: false
 
 # ==============================================================================
