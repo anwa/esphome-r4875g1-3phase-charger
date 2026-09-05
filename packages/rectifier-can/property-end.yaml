@@ -1,3 +1,9 @@
+# R4875G1 static-property completion handler for Unit ${ru_unit}.
+#
+# Appends the final payload fragment, parses required ASCII property keys and
+# marks static-property discovery complete only when the full required set has
+# been decoded.
+
 can_id: 0x108${ru_unit}D27E
 use_extended_id: true
 then:
@@ -5,7 +11,6 @@ then:
       // The property END frame also confirms active CAN communication.
       id(last_can_rx_${ru_unit}) = millis();
 
-      // Check if this frame contains additional payload data
       if (x.size() > 2) {  // Payload starts at x[2], so size must be > 2
         std::string frame_data((char*)&x[2], x.size() - 2);
         ESP_LOGI(
@@ -13,7 +18,6 @@ then:
           "Unit ${ru_unit}: End Message Frame Data: %s",
           frame_data.c_str()
         );
-        // Append any remaining data to unit_properties_${ru_unit}
         id(unit_properties_${ru_unit}) += frame_data;
       }
       ESP_LOGI(
@@ -89,19 +93,19 @@ then:
           );
           all_keys_found = false;
           if (mapping.flag) {
-            *(mapping.flag) = false; // Reset the flag for missing keys
+            *(mapping.flag) = false;
           }
         }
       }
 
       if (all_keys_found) {
-        id(unit_properties_complete_${ru_unit}) = true; // Mark completion only if all keys are found
+        id(unit_properties_complete_${ru_unit}) = true;
         ESP_LOGI(
           "unit_properties",
           "Unit ${ru_unit}: All required keys found. Marking as complete."
         );
       } else {
-        id(unit_properties_complete_${ru_unit}) = false; // Explicitly reset the flag if keys are missing
+        id(unit_properties_complete_${ru_unit}) = false;
         ESP_LOGI(
           "unit_properties",
           "Unit ${ru_unit}: Not all keys found. Will continue processing."

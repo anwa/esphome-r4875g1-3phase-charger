@@ -1,3 +1,8 @@
+# R4875G1 cyclic telemetry handler for Unit ${ru_unit}.
+#
+# Decodes selector-based measurement frames from extended CAN ID
+# 0x108${ru_unit}407F and publishes raw protocol values to per-unit sensors.
+
 can_id: 0x108${ru_unit}407F
 use_extended_id: true
 then:

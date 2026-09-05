@@ -1,3 +1,8 @@
+# R4875G1 capability/address response handler for Unit ${ru_unit}.
+#
+# Decodes shelf/slot address values from extended CAN frame
+# 0x108${ru_unit}507E during capability discovery.
+
 can_id: 0x108${ru_unit}507E
 use_extended_id: true
 then:

@@ -1,3 +1,8 @@
+# R4875G1 internal-fan telemetry handler for Unit ${ru_unit}.
+#
+# Decodes minimum duty, target duty and fan speed from the rectifier's
+# dedicated fan-status response.
+
 can_id: 0x108${ru_unit}827E
 use_extended_id: true
 then:
