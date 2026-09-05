@@ -1,22 +1,26 @@
 # ==============================================================================
 # V5 LVGL USER INTERFACE
 # ==============================================================================
-# Main pages plus persistent header and bottom navigation.
+#
+# Defines the persistent LVGL widget tree, page includes, navigation controls,
+# shared dialogs and UI state required across the complete display.
+#
+# Periodic runtime updates are handled by the dedicated display runtime
+# packages rather than from this file.
+# ==============================================================================
 
 # ==============================================================================
-# V5 UI COMMAND STATE
+# SHARED UI STATE
 # ==============================================================================
-# Prevent repeated START/STOP commands while a rectifier state transition is
-# still in progress.
 #
-# pending:
-#   0 = idle
-#   1 = starting
-#   2 = stopping
+# Persistent runtime state shared by navigation, dialogs and asynchronous
+# START/STOP command handling.
+# ==============================================================================
 
 globals:
+
   # ---------------------------------------------------------------------------
-  # Active display page
+  # ACTIVE DISPLAY PAGE
   # ---------------------------------------------------------------------------
   #
   # Only the currently visible page is refreshed periodically.
@@ -27,7 +31,8 @@ globals:
   #   3 = Cooling
   #   4 = System
   #   5 = Trends
-  #
+  # ---------------------------------------------------------------------------
+
   - id: ui_active_page
     type: uint8_t
     restore_value: false
@@ -74,8 +79,9 @@ globals:
     initial_value: "0"
 
   # ---------------------------------------------------------------------------
-  # Fallback edit dialog temporary values
+  # FALLBACK EDIT DIALOG STATE
   # ---------------------------------------------------------------------------
+
   - id: ui_fallback_voltage_edit
     type: float
     restore_value: false
@@ -88,52 +94,27 @@ globals:
 
 lvgl:
 
-  # ============================================================================
+  # ---------------------------------------------------------------------------
   # MAIN PAGES
-  # ============================================================================
+  # ---------------------------------------------------------------------------
 
   pages:
 
-    # --------------------------------------------------------------------------
-    # Dashboard
-    # --------------------------------------------------------------------------
     - !include pages/dashboard.yaml
-
-    # --------------------------------------------------------------------------
-    # Rectifiers
-    # --------------------------------------------------------------------------
     - !include pages/rectifiers.yaml
-
-    # --------------------------------------------------------------------------
-    # Rectifier Detail
-    # --------------------------------------------------------------------------
     - !include pages/rectifier-detail.yaml
-
-    # --------------------------------------------------------------------------
-    # Cooling
-    # --------------------------------------------------------------------------
     - !include pages/cooling.yaml
-
-    # --------------------------------------------------------------------------
-    # System
-    # --------------------------------------------------------------------------
     - !include pages/system.yaml
-
-    # --------------------------------------------------------------------------
-    # Trends
-    # --------------------------------------------------------------------------
     - !include pages/trends.yaml
 
-  # ============================================================================
-  # PERSISTENT HEADER + NAVIGATION
-  # ============================================================================
+  # ---------------------------------------------------------------------------
+  # PERSISTENT HEADER AND NAVIGATION
+  # ---------------------------------------------------------------------------
 
   top_layer:
     widgets:
 
-      # ------------------------------------------------------------------------
       # Header
-      # ------------------------------------------------------------------------
       - obj:
           x: 0
           y: 0
@@ -177,7 +158,7 @@ lvgl:
                 text_color: 0x8B96A0
 
             - label:
-                id: ui_dashboard_run_state
+                id: ui_header_run_state
                 x: -20
                 align: RIGHT_MID
                 width: 100
@@ -186,9 +167,7 @@ lvgl:
                 text_font: montserrat_18
                 text_color: 0xFF3030
 
-      # ------------------------------------------------------------------------
       # Bottom navigation
-      # ------------------------------------------------------------------------
       - button:
           x: 10
           y: 410
@@ -210,7 +189,6 @@ lvgl:
                 id(rectifier_detail_unit) = 0;
                 id(ui_active_page) = 0;
             - lvgl.page.show: page_dashboard
-
 
       - button:
           x: 168
@@ -234,7 +212,6 @@ lvgl:
                 id(ui_active_page) = 1;
             - lvgl.page.show: page_rectifiers
 
-
       - button:
           x: 326
           y: 410
@@ -256,7 +233,6 @@ lvgl:
                 id(rectifier_detail_unit) = 0;
                 id(ui_active_page) = 3;
             - lvgl.page.show: page_cooling
-
 
       - button:
           x: 484
@@ -280,7 +256,6 @@ lvgl:
                 id(ui_active_page) = 4;
             - lvgl.page.show: page_system
 
-
       - button:
           x: 642
           y: 410
@@ -303,9 +278,7 @@ lvgl:
                 id(ui_active_page) = 5;
             - lvgl.page.show: page_trends
 
-      # ========================================================================
       # FALLBACK SETTINGS DIALOG
-      # ========================================================================
       - obj:
           id: ui_fallback_dialog
           x: 170
@@ -322,9 +295,7 @@ lvgl:
           scrollbar_mode: "OFF"
 
           widgets:
-            # ------------------------------------------------------------------
             # Title
-            # ------------------------------------------------------------------
             - label:
                 x: 20
                 y: 16
@@ -333,9 +304,8 @@ lvgl:
                 text: "FALLBACK SETTINGS"
                 text_font: montserrat_20
                 text_color: 0xFFFFFF
-            # ------------------------------------------------------------------
+
             # Voltage
-            # ------------------------------------------------------------------
             - label:
                 x: 25
                 y: 65
@@ -398,9 +368,7 @@ lvgl:
                   - lvgl.spinbox.increment:
                       id: ui_fallback_voltage_spinbox
 
-            # ------------------------------------------------------------------
             # Current
-            # ------------------------------------------------------------------
             - label:
                 x: 25
                 y: 125
@@ -461,10 +429,7 @@ lvgl:
                   - lvgl.spinbox.increment:
                       id: ui_fallback_current_spinbox
 
-            # ------------------------------------------------------------------
             # Cancel
-            # ------------------------------------------------------------------
-
             - button:
                 align: BOTTOM_MID
                 x: -85
@@ -481,9 +446,7 @@ lvgl:
                 on_short_click:
                   - lvgl.widget.hide: ui_fallback_dialog
 
-            # ------------------------------------------------------------------
             # Save
-            # ------------------------------------------------------------------
             - button:
                 align: BOTTOM_MID
                 x: 85
@@ -519,6 +482,7 @@ lvgl:
     # --------------------------------------------------------------------------
     # START confirmation
     # --------------------------------------------------------------------------
+
     - id: ui_start_charger_dialog
       close_button: false
       title: "Start charger?"
@@ -556,6 +520,7 @@ lvgl:
     # --------------------------------------------------------------------------
     # STOP confirmation
     # --------------------------------------------------------------------------
+
     - id: ui_stop_charger_dialog
       close_button: false
       title: "Stop charger?"
@@ -593,6 +558,7 @@ lvgl:
     # --------------------------------------------------------------------------
     # RECTIFIER 1 START
     # --------------------------------------------------------------------------
+
     - id: ui_start_rectifier_1_dialog
       close_button: false
       title: "Start Rectifier 1?"
@@ -626,6 +592,7 @@ lvgl:
     # --------------------------------------------------------------------------
     # RECTIFIER 1 STOP
     # --------------------------------------------------------------------------
+
     - id: ui_stop_rectifier_1_dialog
       close_button: false
       title: "Stop Rectifier 1?"
@@ -659,6 +626,7 @@ lvgl:
     # --------------------------------------------------------------------------
     # RECTIFIER 2 START
     # --------------------------------------------------------------------------
+
     - id: ui_start_rectifier_2_dialog
       close_button: false
       title: "Start Rectifier 2?"
@@ -692,6 +660,7 @@ lvgl:
     # --------------------------------------------------------------------------
     # RECTIFIER 2 STOP
     # --------------------------------------------------------------------------
+
     - id: ui_stop_rectifier_2_dialog
       close_button: false
       title: "Stop Rectifier 2?"
@@ -725,6 +694,7 @@ lvgl:
     # --------------------------------------------------------------------------
     # RECTIFIER 3 START
     # --------------------------------------------------------------------------
+
     - id: ui_start_rectifier_3_dialog
       close_button: false
       title: "Start Rectifier 3?"
@@ -758,6 +728,7 @@ lvgl:
     # --------------------------------------------------------------------------
     # RECTIFIER 3 STOP
     # --------------------------------------------------------------------------
+
     - id: ui_stop_rectifier_3_dialog
       close_button: false
       title: "Stop Rectifier 3?"
@@ -787,100 +758,3 @@ lvgl:
                 text: "STOPPING..."
 
             - button.press: off_button_3
-
-# ==============================================================================
-# PERSISTENT HEADER RUNTIME
-# ==============================================================================
-
-interval:
-  - interval: 500ms
-    then:
-
-      # ------------------------------------------------------------------------
-      # Date / time
-      # ------------------------------------------------------------------------
-      - lvgl.label.update:
-          id: ui_header_clock
-          text: !lambda |-
-            auto now = id(sntp_time).now();
-
-            if (!now.is_valid()) {
-              return std::string("--.--.---- --:--");
-            }
-
-            return str_sprintf(
-              "%02d.%02d.%04d  %02d:%02d",
-              now.day_of_month,
-              now.month,
-              now.year,
-              now.hour,
-              now.minute
-            );
-
-
-      # ------------------------------------------------------------------------
-      # Charger run state
-      # ------------------------------------------------------------------------
-      - lvgl.label.update:
-          id: ui_dashboard_run_state
-
-          text: !lambda |-
-            int online = 0;
-
-            if (
-              id(can_com_ok_1).state &&
-              id(power_state_1).state == "ON"
-            ) {
-              online++;
-            }
-
-            if (
-              id(can_com_ok_2).state &&
-              id(power_state_2).state == "ON"
-            ) {
-              online++;
-            }
-
-            if (
-              id(can_com_ok_3).state &&
-              id(power_state_3).state == "ON"
-            ) {
-              online++;
-            }
-
-            if (online == 0) {
-              return std::string("OFF");
-            }
-
-            return str_sprintf(
-              "%d/3 ON",
-              online
-            );
-
-          text_color: !lambda |-
-            int online = 0;
-
-            if (
-              id(can_com_ok_1).state &&
-              id(power_state_1).state == "ON"
-            ) {
-              online++;
-            }
-
-            if (
-              id(can_com_ok_2).state &&
-              id(power_state_2).state == "ON"
-            ) {
-              online++;
-            }
-
-            if (
-              id(can_com_ok_3).state &&
-              id(power_state_3).state == "ON"
-            ) {
-              online++;
-            }
-
-            return online == 3
-              ? lv_color_hex(0x5CFF7A)
-              : lv_color_hex(0xFF3030);

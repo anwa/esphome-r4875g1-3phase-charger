@@ -1,5 +1,14 @@
 # ==============================================================================
-# V5 RECTIFIER DETAIL RUNTIME
+# V5 RECTIFIER DETAIL DISPLAY RUNTIME
+# ==============================================================================
+#
+# Updates the shared Rectifier Detail page for the unit selected through
+# rectifier_detail_unit.
+#
+# One common LVGL page is reused for Units 1, 2 and 3. Runtime values are
+# selected dynamically from the corresponding per-unit telemetry entities.
+#
+# The refresh script is executed only while a valid detail unit is selected.
 # ==============================================================================
 
 script:
@@ -16,9 +25,10 @@ script:
 
           then:
 
-            # ------------------------------------------------------------------
-            # Title
-            # ------------------------------------------------------------------
+            # ---------------------------------------------------------------------------
+            # HEADER AND STATUS
+            # ---------------------------------------------------------------------------
+
             - lvgl.label.update:
                 id: ui_rectifier_detail_title
                 text: !lambda |-
@@ -45,9 +55,6 @@ script:
                     hours
                   );
 
-            # ------------------------------------------------------------------
-            # Status
-            # ------------------------------------------------------------------
             - lvgl.label.update:
                 id: ui_rectifier_detail_status
 
@@ -92,9 +99,9 @@ script:
                     "CAN -- | PWR -- | --"
                   );
 
-            # ==================================================================
+            # ---------------------------------------------------------------------------
             # AC INPUT
-            # ==================================================================
+            # ---------------------------------------------------------------------------
 
             - lvgl.label.update:
                 id: ui_rectifier_detail_ac_voltage
@@ -120,7 +127,6 @@ script:
                     ? std::string("--.- V")
                     : str_sprintf("%.1f V", value);
 
-
             - lvgl.label.update:
                 id: ui_rectifier_detail_ac_current
                 text: !lambda |-
@@ -144,7 +150,6 @@ script:
                   return isnan(value)
                     ? std::string("--.- A")
                     : str_sprintf("%.1f A", value);
-
 
             - lvgl.label.update:
                 id: ui_rectifier_detail_ac_power
@@ -170,7 +175,6 @@ script:
                     ? std::string("---- W")
                     : str_sprintf("%.0f W", value);
 
-
             - lvgl.label.update:
                 id: ui_rectifier_detail_ac_frequency
                 text: !lambda |-
@@ -195,10 +199,9 @@ script:
                     ? std::string("--.-- Hz")
                     : str_sprintf("%.2f Hz", value);
 
-
-            # ==================================================================
+            # ---------------------------------------------------------------------------
             # DC OUTPUT
-            # ==================================================================
+            # ---------------------------------------------------------------------------
 
             - lvgl.label.update:
                 id: ui_rectifier_detail_dc_voltage
@@ -224,7 +227,6 @@ script:
                     ? std::string("--.- V")
                     : str_sprintf("%.1f V", value);
 
-
             - lvgl.label.update:
                 id: ui_rectifier_detail_dc_current
                 text: !lambda |-
@@ -248,7 +250,6 @@ script:
                   return isnan(value)
                     ? std::string("--.- A")
                     : str_sprintf("%.1f A", value);
-
 
             - lvgl.label.update:
                 id: ui_rectifier_detail_dc_power
@@ -274,7 +275,6 @@ script:
                     ? std::string("---- W")
                     : str_sprintf("%.0f W", value);
 
-
             - lvgl.label.update:
                 id: ui_rectifier_detail_dc_setpoint
                 text: !lambda |-
@@ -299,9 +299,9 @@ script:
                     ? std::string("--.- A")
                     : str_sprintf("%.1f A", value);
 
-            # ==================================================================
-            # THERMAL / INTERNAL FAN
-            # ==================================================================
+            # ---------------------------------------------------------------------------
+            # THERMAL AND INTERNAL FAN
+            # ---------------------------------------------------------------------------
 
             - lvgl.label.update:
                 id: ui_rectifier_detail_input_temp
@@ -327,7 +327,6 @@ script:
                     ? std::string("IN  --.- °C")
                     : str_sprintf("IN  %.1f °C", value);
 
-
             - lvgl.label.update:
                 id: ui_rectifier_detail_output_temp
                 text: !lambda |-
@@ -352,7 +351,6 @@ script:
                     ? std::string("OUT  --.- °C")
                     : str_sprintf("OUT  %.1f °C", value);
 
-
             - lvgl.label.update:
                 id: ui_rectifier_detail_fan_rpm
                 text: !lambda |-
@@ -376,7 +374,6 @@ script:
                   return isnan(value)
                     ? std::string("FAN  ---- RPM")
                     : str_sprintf("FAN  %.0f RPM", value);
-
 
             - lvgl.label.update:
                 id: ui_rectifier_detail_fan_duty
@@ -450,9 +447,9 @@ script:
                     ? std::string("CAP  --.- A")
                     : str_sprintf("CAP  %.1f A", value);
 
-            # ==================================================================
+            # ---------------------------------------------------------------------------
             # FALLBACK SETTINGS
-            # ==================================================================
+            # ---------------------------------------------------------------------------
 
             - lvgl.label.update:
                 id: ui_rectifier_detail_fallback_voltage

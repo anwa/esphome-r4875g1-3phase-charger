@@ -1,6 +1,13 @@
 # ==============================================================================
 # CONTROLLER BATTERY DISPLAY RUNTIME
 # ==============================================================================
+#
+# Updates the persistent header battery indication and the detailed battery
+# value on the System page.
+#
+# The controller backup battery changes slowly, so both widgets are refreshed
+# independently from the faster page-specific display runtimes every 5 seconds.
+# ==============================================================================
 
 interval:
   - interval: 5s

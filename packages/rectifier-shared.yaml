@@ -1,12 +1,16 @@
 # ==============================================================================
 # SHARED RECTIFIER CONTROL PACKAGE
 # ==============================================================================
-# Cross-unit runtime state, scripts, CAN protocol handling and periodic schedulers.
+#
+# Provides charger-wide rectifier state, lifecycle coordination, safety limits,
+# setpoint handling, CAN frame routing, discovery scheduling and periodic
+# communication tasks shared by all three R4875G1 units.
+# ==============================================================================
 
 globals:
-  # --------------------------------------------------------------------------
-  # Local encoder UI state
-  # --------------------------------------------------------------------------
+  # ---------------------------------------------------------------------------
+  # LOCAL ENCODER UI STATE
+  # ---------------------------------------------------------------------------
   #
   # Pages:
   #   0 = Dashboard
@@ -77,9 +81,9 @@ globals:
     restore_value: false
     initial_value: "0.0f"
 
-  # --------------------------------------------------------------------------
-  # Trends page
-  # --------------------------------------------------------------------------
+  # ---------------------------------------------------------------------------
+  # TRENDS PAGE
+  # ---------------------------------------------------------------------------
   #
   # Five independent 120-sample ring buffers are recorded continuously.
   #
@@ -98,6 +102,7 @@ globals:
   #
   # Invalid source values are stored as NAN so the renderer can represent
   # missing telemetry as a gap instead of an artificial zero.
+  # ---------------------------------------------------------------------------
 
   - id: trend_selection
     type: int
@@ -142,28 +147,40 @@ globals:
     restore_value: false
     initial_value: "0"
 
-  # Timestamp (millis) when static property discovery most recently ended.
-  # Used for the post-property grace period before connectivity demotion resumes.
+  # ---------------------------------------------------------------------------
+  # COMMUNICATION SCHEDULER STATE
+  # ---------------------------------------------------------------------------
+
+  # Timestamp when static-property discovery most recently ended.
+  # Used for the post-discovery grace period before connectivity demotion
+  # resumes.
   - id: last_property_discovery_end
     type: uint32_t
     restore_value: false
     initial_value: "0"
 
-  # Next unit considered by the five-second OFFLINE round-robin probe task.
+  # Next unit considered by the round-robin OFFLINE probe scheduler.
   - id: offline_probe_next_unit
     type: uint8_t
     restore_value: false
     initial_value: "1"
 
-  # --------------------------------------------------------------------------
-  # Thermal derating state
-  # --------------------------------------------------------------------------
+  # ---------------------------------------------------------------------------
+  # THERMAL DERATING STATE
+  # ---------------------------------------------------------------------------
+  #
   # Updated only from valid output-temperature telemetry. A stale/NAN value
   # never relaxes an existing warning or lockout.
+  # ---------------------------------------------------------------------------
+
   - id: thermal_dc_current_limit
     type: float
     restore_value: false
     initial_value: "${project_max_dc_current_a}f"
+
+  # ---------------------------------------------------------------------------
+  # CURRENT LIMIT AND PROTOCOL SCALING
+  # ---------------------------------------------------------------------------
 
   # Shared current-command scaling factor.
   #
@@ -203,9 +220,10 @@ globals:
     restore_value: false
 
 script:
-  # --------------------------------------------------------------------------
-  # set_rectifier_control_state
-  # --------------------------------------------------------------------------
+  # ---------------------------------------------------------------------------
+  # SET RECTIFIER CONTROL STATE
+  # ---------------------------------------------------------------------------
+  #
   # Centralized lifecycle-state handler for all three rectifiers.
   #
   # States:
@@ -215,6 +233,8 @@ script:
   #
   # The state is published for diagnostics and is also used by the CAN polling
   # scheduler and charger-wide lifecycle coordination.
+  # ---------------------------------------------------------------------------
+
   - id: set_rectifier_control_state
     mode: queued
     max_runs: 12
@@ -348,9 +368,10 @@ script:
             unit
           );
 
-  # --------------------------------------------------------------------------
-  # reconcile_rectifier_connectivity
-  # --------------------------------------------------------------------------
+  # ---------------------------------------------------------------------------
+  # RECONCILE RECTIFIER CONNECTIVITY
+  # ---------------------------------------------------------------------------
+  #
   # Converts raw CAN connectivity loss into an operational lifecycle transition.
   #
   # Raw can_com_ok_x may temporarily become false while static property
@@ -363,6 +384,8 @@ script:
   #
   # If CAN communication is still unavailable after that grace period, the
   # affected ONLINE rectifier is returned to OFFLINE.
+  # ---------------------------------------------------------------------------
+
   - id: reconcile_rectifier_connectivity
     mode: restart
     then:
@@ -483,9 +506,10 @@ script:
                   "returning lifecycle state to OFFLINE."
                 );
 
-  # --------------------------------------------------------------------------
-  # send_single_shot_offline_probe
-  # --------------------------------------------------------------------------
+  # ---------------------------------------------------------------------------
+  # SEND SINGLE-SHOT OFFLINE PROBE
+  # ---------------------------------------------------------------------------
+  #
   # Sends exactly one cyclic telemetry request to an OFFLINE rectifier.
   #
   # ESPHome's normal canbus.send path uses the standard TWAI transmission mode.
@@ -503,6 +527,8 @@ script:
   # This project uses exactly one ESP32 CAN controller. ESPHome installs it as
   # TWAI controller 0, therefore the legacy twai_transmit() wrapper addresses
   # the same driver instance used by ESPHome's internal twai_transmit_v2().
+  # ---------------------------------------------------------------------------
+
   - id: send_single_shot_offline_probe
     mode: queued
     max_runs: 4
@@ -609,9 +635,10 @@ script:
             static_cast<unsigned long>(can_id)
           );
 
-  # --------------------------------------------------------------------------
-  # update_effective_dc_current_limit
-  # --------------------------------------------------------------------------
+  # ---------------------------------------------------------------------------
+  # UPDATE EFFECTIVE DC CURRENT LIMIT
+  # ---------------------------------------------------------------------------
+  #
   # Recomputes the common command ceiling and command scaling from only the
   # rectifiers that currently have fresh CAN communication.
   #
@@ -620,6 +647,8 @@ script:
   #   - any reachable unit with unknown capability -> same 50 A failsafe
   #   - all reachable capabilities known -> ceiling = lowest capability,
   #     command scale = 1024 / highest capability
+  # ---------------------------------------------------------------------------
+
   - id: update_effective_dc_current_limit
     mode: restart
     then:
@@ -773,11 +802,14 @@ script:
 
       - script.execute: send_active_current_to_online_units
 
-  # --------------------------------------------------------------------------
-  # update_thermal_current_limit
-  # --------------------------------------------------------------------------
+  # ---------------------------------------------------------------------------
+  # UPDATE THERMAL CURRENT LIMIT
+  # ---------------------------------------------------------------------------
+  #
   # Shared thermal ceiling based on the most severe latched per-unit state.
   # NORMAL=75 A, WARNING_1=50 A, WARNING_2/LOCKOUT=30 A.
+  # ---------------------------------------------------------------------------
+
   - id: update_thermal_current_limit
     mode: restart
     then:
@@ -813,12 +845,15 @@ script:
       # remains the periodic fallback.
       - script.execute: send_active_current_to_online_units
 
-  # --------------------------------------------------------------------------
-  # update_rectifier_thermal_state
-  # --------------------------------------------------------------------------
+  # ---------------------------------------------------------------------------
+  # UPDATE RECTIFIER THERMAL STATE
+  # ---------------------------------------------------------------------------
+  #
   # Hysteretic per-unit state machine. It runs only for valid numeric
   # output-temperature samples. Missing/stale data therefore never clears a
   # warning or lockout.
+  # ---------------------------------------------------------------------------
+
   - id: update_rectifier_thermal_state
     mode: queued
     max_runs: 12
@@ -934,12 +969,15 @@ script:
             id(update_thermal_current_limit)->execute();
           }
 
-  # --------------------------------------------------------------------------
-  # evaluate_rectifier_capabilities
-  # --------------------------------------------------------------------------
+  # ---------------------------------------------------------------------------
+  # EVALUATE RECTIFIER CAPABILITIES
+  # ---------------------------------------------------------------------------
+  #
   # Compares only currently CAN-reachable rectifiers. The diagnostic is valid
   # when at least two units are reachable and every reachable unit has a fresh
   # capability. Offline units and stale capability values are ignored.
+  # ---------------------------------------------------------------------------
+
   - id: evaluate_rectifier_capabilities
     mode: restart
     then:
@@ -1012,13 +1050,16 @@ script:
             );
           }
 
-  # --------------------------------------------------------------------------
-  # send_active_voltage_to_unit
-  # --------------------------------------------------------------------------
+  # ---------------------------------------------------------------------------
+  # SEND ACTIVE VOLTAGE TO UNIT
+  # ---------------------------------------------------------------------------
+  #
   # Sends the configured active DC voltage to exactly one rectifier.
   #
   # Unit-specific addressing prevents OFFLINE or DISCOVERING rectifiers from
   # receiving normal operating setpoints intended for already ONLINE units.
+  # ---------------------------------------------------------------------------
+
   - id: send_active_voltage_to_unit
     mode: queued
     max_runs: 12
@@ -1123,11 +1164,14 @@ script:
                 );
 
 
-  # --------------------------------------------------------------------------
-  # send_active_current_to_unit
-  # --------------------------------------------------------------------------
+  # ---------------------------------------------------------------------------
+  # SEND ACTIVE CURRENT TO UNIT
+  # ---------------------------------------------------------------------------
+  #
   # Sends the requested active DC current, limited by hardware capability and
   # the shared thermal derating ceiling, to exactly one rectifier.
+  # ---------------------------------------------------------------------------
+
   - id: send_active_current_to_unit
     mode: queued
     max_runs: 12
@@ -1266,9 +1310,10 @@ script:
                   unit
                 );
 
-  # --------------------------------------------------------------------------
-  # send_active_voltage_to_online_units
-  # --------------------------------------------------------------------------
+  # ---------------------------------------------------------------------------
+  # SEND ACTIVE VOLTAGE TO ONLINE UNITS
+  # ---------------------------------------------------------------------------
+
   - id: send_active_voltage_to_online_units
     mode: restart
     then:
@@ -1306,9 +1351,10 @@ script:
             - script.wait: send_active_voltage_to_unit
 
 
-  # --------------------------------------------------------------------------
-  # send_active_current_to_online_units
-  # --------------------------------------------------------------------------
+  # ---------------------------------------------------------------------------
+  # SEND ACTIVE CURRENT TO ONLINE UNITS
+  # ---------------------------------------------------------------------------
+
   - id: send_active_current_to_online_units
     mode: restart
     then:
@@ -1346,10 +1392,13 @@ script:
             - script.wait: send_active_current_to_unit
 
 
-  # --------------------------------------------------------------------------
-  # refresh_active_setpoints_online
-  # --------------------------------------------------------------------------
+  # ---------------------------------------------------------------------------
+  # REFRESH ACTIVE SETPOINTS ONLINE
+  # ---------------------------------------------------------------------------
+  #
   # Periodically reasserts active voltage/current only to fully ONLINE units.
+  # ---------------------------------------------------------------------------
+
   - id: refresh_active_setpoints_online
     mode: restart
     then:
@@ -1361,14 +1410,17 @@ script:
       - script.execute: send_active_current_to_online_units
       - script.wait: send_active_current_to_online_units
 
-  # --------------------------------------------------------------------------
-  # reapply_active_setpoints
-  # --------------------------------------------------------------------------
+  # ---------------------------------------------------------------------------
+  # REAPPLY ACTIVE SETPOINTS
+  # ---------------------------------------------------------------------------
+  #
   # Restores the currently configured active voltage and current to one
   # specifically verified rectifier after discovery.
   #
   # The unit is still DISCOVERING while these commands are sent. It is marked
   # ONLINE by the discovery queue only after this script has completed.
+  # ---------------------------------------------------------------------------
+
   - id: reapply_active_setpoints
     mode: queued
     max_runs: 8
@@ -1448,9 +1500,10 @@ script:
                   id(current_scaling_factor)
                 );
 
-  # --------------------------------------------------------------------------
-  # discovery_queue
-  # --------------------------------------------------------------------------
+  # ---------------------------------------------------------------------------
+  # DISCOVERY QUEUE
+  # ---------------------------------------------------------------------------
+  #
   # Global serialized discovery worker.
   #
   # All automatic per-unit discovery requests and the manual full discovery
@@ -1465,6 +1518,8 @@ script:
   #   1 = Unit 1 only
   #   2 = Unit 2 only
   #   3 = Unit 3 only
+  # ---------------------------------------------------------------------------
+
   - id: discovery_queue
     mode: queued
     max_runs: 8
@@ -1473,9 +1528,7 @@ script:
       unit: int
 
     then:
-      # ----------------------------------------------------------------------
       # Full three-unit discovery
-      # ----------------------------------------------------------------------
       - if:
           condition:
             lambda: 'return unit == 0;'
@@ -1502,9 +1555,7 @@ script:
                 unit: 3
                 state: ${rectifier_state_discovering}
 
-            # --------------------------------------------------------------
-            # Unit 1
-            # --------------------------------------------------------------
+            # UNIT 1
             - logger.log:
                 level: INFO
                 format: "Discovery queue: starting Unit 1 discovery."
@@ -1544,9 +1595,7 @@ script:
                       unit: 1
                       state: ${rectifier_state_offline}
 
-            # --------------------------------------------------------------
             # Unit 2
-            # --------------------------------------------------------------
             - logger.log:
                 level: INFO
                 format: "Discovery queue: starting Unit 2 discovery."
@@ -1586,9 +1635,7 @@ script:
                       unit: 2
                       state: ${rectifier_state_offline}
 
-            # --------------------------------------------------------------
-            # Unit 3
-            # --------------------------------------------------------------
+            # UNIT 3
             - logger.log:
                 level: INFO
                 format: "Discovery queue: starting Unit 3 discovery."
@@ -1632,9 +1679,7 @@ script:
                 level: INFO
                 format: "Discovery queue: full three-unit discovery completed."
 
-      # ----------------------------------------------------------------------
-      # Unit 1 automatic / individual discovery
-      # ----------------------------------------------------------------------
+      # Unit 1 automatic / individual discovery.
       - if:
           condition:
             lambda: 'return unit == 1;'
@@ -1683,9 +1728,7 @@ script:
                 level: INFO
                 format: "Discovery queue: Unit 1 discovery completed."
 
-      # ----------------------------------------------------------------------
-      # Unit 2 automatic / individual discovery
-      # ----------------------------------------------------------------------
+      # Unit 2 automatic / individual discovery.
       - if:
           condition:
             lambda: 'return unit == 2;'
@@ -1734,9 +1777,7 @@ script:
                 level: INFO
                 format: "Discovery queue: Unit 2 discovery completed."
 
-      # ----------------------------------------------------------------------
-      # Unit 3 automatic / individual discovery
-      # ----------------------------------------------------------------------
+      # Unit 3 automatic / individual discovery.
       - if:
           condition:
             lambda: 'return unit == 3;'
@@ -1785,9 +1826,7 @@ script:
                 level: INFO
                 format: "Discovery queue: Unit 3 discovery completed."
 
-      # ----------------------------------------------------------------------
-      # Invalid parameter
-      # ----------------------------------------------------------------------
+      # Invalid parameter.
       - if:
           condition:
             lambda: |-
@@ -1801,11 +1840,14 @@ script:
                   unit
                 );
 
-  # --------------------------------------------------------------------------
-  # apply_dc_sum_power
-  # --------------------------------------------------------------------------
+  # ---------------------------------------------------------------------------
+  # APPLY DC SUM POWER
+  # ---------------------------------------------------------------------------
+  #
   # Converts the nominal three-unit power target into the requested per-unit
   # current. Hardware and thermal limits are applied later when CAN is sent.
+  # ---------------------------------------------------------------------------
+
   - id: apply_dc_sum_power
     mode: restart
     then:
@@ -1839,9 +1881,10 @@ script:
           call.set_value(requested);
           call.perform();
 
-  # --------------------------------------------------------------------------
-  # blackstart_start
-  # --------------------------------------------------------------------------
+  # ---------------------------------------------------------------------------
+  # BLACKSTART START
+  # ---------------------------------------------------------------------------
+  #
   # Local START sequence.
   #
   # The configured nominal three-unit power target is first converted into the
@@ -1859,6 +1902,8 @@ script:
   # - no overtemperature lockout is active.
   #
   # OFFLINE and DISCOVERING rectifiers never receive an ON command.
+  # ---------------------------------------------------------------------------
+
   - id: blackstart_start
     mode: single
     then:
@@ -1877,9 +1922,7 @@ script:
 
       - delay: 100ms
 
-      # ----------------------------------------------------------------------
-      # Unit 1
-      # ----------------------------------------------------------------------
+      # UNIT 1
       - if:
           condition:
             lambda: |-
@@ -1960,9 +2003,7 @@ script:
                   );
                 }
 
-      # ----------------------------------------------------------------------
-      # Unit 2
-      # ----------------------------------------------------------------------
+      # UNIT 2
       - if:
           condition:
             lambda: |-
@@ -2043,9 +2084,7 @@ script:
                   );
                 }
 
-      # ----------------------------------------------------------------------
-      # Unit 3
-      # ----------------------------------------------------------------------
+      # UNIT 3
       - if:
           condition:
             lambda: |-
@@ -2130,10 +2169,13 @@ script:
           level: INFO
           format: "BLACKSTART: Start sequence completed; only fully ONLINE units passing CAN, explicit OFF-state, temperature and lockout checks were commanded ON."
 
-  # --------------------------------------------------------------------------
-  # blackstart_stop
-  # --------------------------------------------------------------------------
+  # ---------------------------------------------------------------------------
+  # BLACKSTART STOP
+  # ---------------------------------------------------------------------------
+  #
   # Offline STOP sequence. Broadcasts the OFF command to all units.
+  # ---------------------------------------------------------------------------
+
   - id: blackstart_stop
     mode: single
     then:
@@ -2146,32 +2188,21 @@ script:
           level: INFO
           format: "BLACKSTART: Rectifiers switched OFF"
 
-  # --------------------------------------------------------------------------
-  # display_inactivity_timer
-  # --------------------------------------------------------------------------
-  # Restartable inactivity timer. Any encoder movement or
-  # button press restarts it and wakes the backlight. After five minutes without
-  # input, the backlight fades out over ten seconds.
-
-
 # ==============================================================================
 # CAN BUS INTERFACE AND FRAME DECODERS
 # ==============================================================================
-# Uses the ESP32-S3 native CAN/TWAI peripheral at 125 kbit/s. The R4875G1
-# protocol uses extended 29-bit CAN IDs. Unit number is encoded in the ID.
-# Typical SN65HVD230 wiring:
 #
-# ${pin_can_tx} -> CAN module CTX
-# ${pin_can_rx} -> CAN module CRX
-# ESP32 3.3 V   -> 3V3
-# ESP32 GND     -> GND
-# CAN-H         -> CAN-H bus
-# CAN-L         -> CAN-L bus
+# Extends the shared charger_can interface defined by the controller hardware
+# package with all R4875G1 receive handlers.
+#
+# The protocol uses extended 29-bit CAN identifiers at 125 kbit/s. Unit-specific
+# frame handlers are either declared directly below or instantiated from the
+# parameterized fragments in rectifier-can/.
+# ==============================================================================
 
 canbus:
   - id: !extend charger_can
     on_frame:
-      # ----------------------------------------------------------------------
       # Static property START/DATA handlers for Units 1..3 (0x108xD27F).
       - !include
           file: rectifier-can/property-start.yaml
@@ -2188,7 +2219,6 @@ canbus:
           vars:
             ru_unit: "3"
 
-      # ----------------------------------------------------------------------
       # Static property END handlers for Units 1..3 (0x108xD27E).
       - !include
           file: rectifier-can/property-end.yaml
@@ -2205,7 +2235,6 @@ canbus:
           vars:
             ru_unit: "3"
 
-      # ----------------------------------------------------------------------
       # Cyclic telemetry handlers for Units 1..3 (0x108x407F).
       - !include
           file: rectifier-can/cyclic-telemetry.yaml
@@ -2222,10 +2251,7 @@ canbus:
           vars:
             ru_unit: "3"
 
-      # ----------------------------------------------------------------------
-      # Maximum-current capability handlers. All three publish per-unit
-      # capability/scaling diagnostics; shared limit/scaling is recomputed
-      # centrally from currently CAN-reachable units.
+      # Unit 1 maximum-current capability response.
       - can_id: 0x1081507F
         use_extended_id: true
         then:
@@ -2291,12 +2317,7 @@ canbus:
                 unit_1_scaling_factor
               );
 
-
-      # Handler for CAN ID 0x1082507F (Packet 1)
-      # Max current capability for Unit 2
-      # ----------------------------------------------------------------------
-      # CAN RX 0x1082507F
-      # Unit 2 capability participates in the shared reachable-unit calculation.
+      # Unit 2 maximum-current capability response.
       - can_id: 0x1082507F
         use_extended_id: true
         then:
@@ -2362,12 +2383,7 @@ canbus:
                 unit_2_scaling_factor
               );
 
-
-      # Handler for CAN ID 0x1083507F (Packet 1)
-      # Max current capability for Unit 3
-      # ----------------------------------------------------------------------
-      # CAN RX 0x1083507F
-      # Unit 3 capability participates in the shared reachable-unit calculation.
+      # Unit 3 maximum-current capability response.
       - can_id: 0x1083507F
         use_extended_id: true
         then:
@@ -2433,9 +2449,6 @@ canbus:
                 unit_3_scaling_factor
               );
 
-      # ----------------------------------------------------------------------
-      # Internal R4875G1 fan telemetry handlers for Units 1..3 (0x108x827E).
-      # ----------------------------------------------------------------------
       # Internal R4875G1 fan telemetry handlers for Units 1..3 (0x108x827E).
       - !include
           file: rectifier-can/fan-telemetry.yaml
@@ -2452,7 +2465,6 @@ canbus:
           vars:
             ru_unit: "3"
 
-      # ----------------------------------------------------------------------
       # Shelf/slot address-data handlers for Units 1..3 (0x108x507E).
       - !include
           file: rectifier-can/address-data.yaml
@@ -2469,7 +2481,6 @@ canbus:
           vars:
             ru_unit: "3"
 
-      # ----------------------------------------------------------------------
       # Power-state / alternate-current handlers for Units 1..3 (0x100x117E).
       - !include
           file: rectifier-can/power-state.yaml
@@ -2488,21 +2499,26 @@ canbus:
 
 
 # ==============================================================================
-# PERIODIC RECTIFIER / CAN TASKS
+# PERIODIC RECTIFIER AND CAN TASKS
 # ==============================================================================
-# Lifecycle reconciliation, TWAI recovery, slow reconnect probes, fast ONLINE
-# polling and periodic active-setpoint refresh.
+#
+# Runs lifecycle reconciliation, TWAI recovery, slow reconnect probing,
+# high-rate ONLINE telemetry polling, trend sampling and periodic active
+# setpoint refresh.
+# ==============================================================================
 
 interval:
-  # --------------------------------------------------------------------------
-  # Periodic task: local TFT trend sampling
-  # --------------------------------------------------------------------------
+  # ---------------------------------------------------------------------------
+  # LOCAL TFT TREND SAMPLING
+  # ---------------------------------------------------------------------------
   #
   # Store one sample for all five trends every five seconds.
   #
   # The source sensors already perform their own availability/staleness
   # handling. NAN values are intentionally retained in the buffer so the
   # chart can later render telemetry gaps instead of false zero values.
+  # ---------------------------------------------------------------------------
+
   - interval: 5s
     then:
       - lambda: |-
@@ -2533,15 +2549,17 @@ interval:
             id(trend_sample_count)++;
           }
 
-  # --------------------------------------------------------------------------
-  # Periodic task: reconcile raw CAN connectivity with lifecycle state
-  # --------------------------------------------------------------------------
+  # ---------------------------------------------------------------------------
+  # LIFECYCLE RECONCILIATION
+  # ---------------------------------------------------------------------------
+
   - interval: 1s
     then:
       - script.execute: reconcile_rectifier_connectivity
 
-  # --------------------------------------------------------------------------
-  # Periodic task: TWAI controller recovery
+  # ---------------------------------------------------------------------------
+  # TWAI CONTROLLER RECOVERY
+  # ---------------------------------------------------------------------------
   #
   # If every physical CAN peer disappears, transmitted frames are no longer
   # acknowledged. Repeated transmission errors can eventually place the
@@ -2554,6 +2572,8 @@ interval:
   # Once the controller is running again, the normal telemetry polling below
   # automatically detects returning rectifiers. The existing can_com_ok_x
   # OFF->ON transition then launches automatic unit discovery.
+  # ---------------------------------------------------------------------------
+
   - interval: ${can_recovery_check_interval}
     then:
       - lambda: |-
@@ -2572,12 +2592,7 @@ interval:
             return;
           }
 
-          // --------------------------------------------------------------
-          // BUS_OFF
-          // --------------------------------------------------------------
-          //
-          // The controller has disabled itself after excessive CAN errors.
-          // Start the ESP-IDF bus-recovery sequence.
+          // A BUS_OFF controller must enter the ESP-IDF recovery sequence explicitly.
           if (status_info.state == TWAI_STATE_BUS_OFF) {
 
             ESP_LOGW(
@@ -2611,12 +2626,8 @@ interval:
             return;
           }
 
-          // --------------------------------------------------------------
-          // STOPPED
-          // --------------------------------------------------------------
-          //
-          // The legacy ESP-IDF TWAI driver returns to STOPPED state after
-          // successful bus recovery. Restart it so normal RX/TX can resume.
+          // Recovery returns the legacy TWAI driver to STOPPED; restart it so normal
+          // RX/TX can resume.
           if (status_info.state == TWAI_STATE_STOPPED) {
 
             const esp_err_t start_result =
@@ -2641,8 +2652,9 @@ interval:
             return;
           }
 
-  # --------------------------------------------------------------------------
-  # Periodic task: slow offline rectifier probing
+  # ---------------------------------------------------------------------------
+  # OFFLINE RECTIFIER PROBING
+  # ---------------------------------------------------------------------------
   #
   # Offline rectifiers are not included in the normal high-rate polling cycle.
   #
@@ -2659,6 +2671,8 @@ interval:
   #
   # Offline probing is suspended while the serialized discovery worker is
   # active so reconnect probes cannot interfere with discovery traffic.
+  # ---------------------------------------------------------------------------
+
   - interval: ${offline_probe_slot_interval}
     then:
       - if:
@@ -2667,9 +2681,7 @@ interval:
               return !id(discovery_queue).is_running();
 
           then:
-            # --------------------------------------------------------------
             # Unit 1 probe slot
-            # --------------------------------------------------------------
             - if:
                 condition:
                   lambda: |-
@@ -2683,9 +2695,7 @@ interval:
                       id: send_single_shot_offline_probe
                       unit: 1
 
-            # --------------------------------------------------------------
             # Unit 2 probe slot
-            # --------------------------------------------------------------
             - if:
                 condition:
                   lambda: |-
@@ -2699,9 +2709,7 @@ interval:
                       id: send_single_shot_offline_probe
                       unit: 2
 
-            # --------------------------------------------------------------
             # Unit 3 probe slot
-            # --------------------------------------------------------------
             - if:
                 condition:
                   lambda: |-
@@ -2723,8 +2731,9 @@ interval:
                   id(offline_probe_next_unit) = 1;
                 }
 
-  # --------------------------------------------------------------------------
-  # Periodic task: 577 ms
+  # ---------------------------------------------------------------------------
+  # ONLINE TELEMETRY POLLING
+  # ---------------------------------------------------------------------------
   #
   # State-aware fast CAN polling.
   #
@@ -2741,6 +2750,8 @@ interval:
   #
   # During property discovery the complete fast-polling cycle is suspended so
   # the multi-frame property response has exclusive access to the CAN bus.
+  # ---------------------------------------------------------------------------
+
   - interval: ${telemetry_poll_interval}
     then:
       - if:
@@ -2752,9 +2763,7 @@ interval:
                 !id(detect_unit_3_properties).is_running();
 
           then:
-            # --------------------------------------------------------------
             # Unit 1 cyclic telemetry
-            # --------------------------------------------------------------
             - if:
                 condition:
                   lambda: |-
@@ -2803,9 +2812,7 @@ interval:
 
             - delay: ${unit_2_poll_gap}
 
-            # --------------------------------------------------------------
             # Unit 2 cyclic telemetry
-            # --------------------------------------------------------------
             - if:
                 condition:
                   lambda: |-
@@ -2829,6 +2836,8 @@ interval:
 
             - delay: ${fan_query_delay}
 
+            # Fan telemetry is normal operational polling and therefore runs
+            # only when Unit 2 is fully ONLINE.
             - if:
                 condition:
                   lambda: |-
@@ -2852,9 +2861,7 @@ interval:
 
             - delay: ${unit_3_poll_gap}
 
-            # --------------------------------------------------------------
             # Unit 3 cyclic telemetry
-            # --------------------------------------------------------------
             - if:
                 condition:
                   lambda: |-
@@ -2878,6 +2885,8 @@ interval:
 
             - delay: ${fan_query_delay}
 
+            # Fan telemetry is normal operational polling and therefore runs
+            # only when Unit 3 is fully ONLINE.
             - if:
                 condition:
                   lambda: |-
@@ -2899,8 +2908,9 @@ interval:
                         - 0x00
                         - 0x00
 
-  # --------------------------------------------------------------------------
-  # Periodic task: active setpoint refresh
+  # ---------------------------------------------------------------------------
+  # ACTIVE SETPOINT REFRESH
+  # ---------------------------------------------------------------------------
   #
   # Active voltage/current are periodically reasserted only to rectifiers that
   # completed discovery and are currently ONLINE.
@@ -2908,12 +2918,8 @@ interval:
   # OFFLINE and DISCOVERING units deliberately receive no normal active
   # setpoints. A successfully rediscovered unit receives its configured active
   # values through reapply_active_setpoints before transitioning to ONLINE.
+  # ---------------------------------------------------------------------------
+
   - interval: ${setpoint_refresh_interval}
     then:
       - script.execute: refresh_active_setpoints_online
-
-# ==============================================================================
-# MANUAL CONTROL BUTTON ENTITIES
-# ==============================================================================
-# Home Assistant/web controls for broadcast and individual ON/OFF commands,
-# fan overrides and manual unit discovery.

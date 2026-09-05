@@ -29,9 +29,7 @@ script:
           static uint16_t last_sample_count = 0xFFFF;
 
 
-          // ====================================================================
-          // CREATE CHART ON FIRST USE
-          // ====================================================================
+          // Create the native LVGL chart lazily on first use.
           if (chart == nullptr) {
 
             chart = lv_chart_create(
@@ -134,10 +132,7 @@ script:
             );
           }
 
-
-          // ====================================================================
-          // CURRENT BUFFER STATE
-          // ====================================================================
+          // Current buffer state
           const int selection =
             id(trend_selection);
 
@@ -151,9 +146,7 @@ script:
             );
 
 
-          // ====================================================================
-          // SELECT SOURCE
-          // ====================================================================
+          // Select source
           const std::vector<float> *buffer = nullptr;
 
           const char *title = "DC POWER";
@@ -228,10 +221,7 @@ script:
               return;
           }
 
-
-          // ====================================================================
-          // SELECTOR / TITLE
-          // ====================================================================
+          // Select the active trend buffer and display unit.
           const lv_color_t normal =
             lv_color_hex(0x202830);
 
@@ -262,9 +252,7 @@ script:
             LV_PART_MAIN
           );
 
-          // ====================================================================
-          // CURRENT VALUE
-          // ====================================================================
+          // Current value
           std::string current_text;
 
           if (isnan(current)) {
@@ -285,7 +273,7 @@ script:
 
             current_text =
               str_sprintf(
-                "CURREN %.2f %s",
+                "CURRENT %.2f %s",
                 current,
                 unit
               );
@@ -296,10 +284,7 @@ script:
             current_text.c_str()
           );
 
-
-          // ====================================================================
-          // NOTHING NEW FOR GRAPH?
-          // ====================================================================
+          // Nothing new for graph?
           if (
             selection == last_selection &&
             write_index == last_write_index &&
@@ -313,9 +298,7 @@ script:
           last_sample_count = sample_count;
 
 
-          // ====================================================================
-          // REWRITE 120-POINT SERIES
-          // ====================================================================
+          // Rewrite 120-point series
           float minimum = NAN;
           float maximum = NAN;
 
@@ -398,10 +381,7 @@ script:
             );
           }
 
-
-          // ============================================================================
-          // DYNAMIC Y RANGE
-          // ============================================================================
+          // Dynamic y range
           float axis_low = 0.0f;
           float axis_high = minimum_span;
 
@@ -478,10 +458,7 @@ script:
             chart_axis_high
           );
 
-
-          // ============================================================================
-          // Y-AXIS LABELS
-          // ============================================================================
+          // y-axis labels
           const float axis_mid =
             (
               axis_low +
@@ -557,10 +534,7 @@ script:
             y_min.c_str()
           );
 
-
-          // ============================================================================
-          // MIN / MAX LABELS
-          // ============================================================================
+          // Min / Max labels
           std::string minimum_text;
           std::string maximum_text;
 
@@ -622,10 +596,7 @@ script:
             maximum_text.c_str()
           );
 
-
-          // ============================================================================
-          // FINAL CHART REFRESH
-          // ============================================================================
+          // Final chart refresh
           lv_chart_refresh(chart);
 
 

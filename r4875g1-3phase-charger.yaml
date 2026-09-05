@@ -1,45 +1,47 @@
 # ==============================================================================
-# HARDWARE GENERATION: V5
+# R4875G1 THREE-PHASE CHARGER - V5 HARDWARE
 # ==============================================================================
-# Board: Waveshare ESP32-S3-Touch-LCD-7
-# Module: ESP32-S3 N16R8
-# Flash: 16 MB
-# PSRAM: 8 MB
 #
-# Integrated hardware:
+# Target controller:
+#   Waveshare ESP32-S3-Touch-LCD-7
+#   ESP32-S3 N16R8
+#
+# Memory:
+#   Flash -> 16 MB
+#   PSRAM -> 8 MB Octal
+#
+# Integrated board hardware:
 #   - 7-inch 800x480 RGB IPS display
 #   - GT911 capacitive touch controller
 #   - CH422G I/O expander
 #   - onboard CAN transceiver
-#   - onboard RS485
+#   - onboard RS485 interface
 #   - TF card interface
 #   - native USB and USB-to-UART
 #
-# External I2C hardware:
+# External hardware:
 #   - TCA9548A I2C multiplexer @ 0x70
 #   - MCP23017 I/O expander @ 0x20 on TCA channel 0
 #   - AHT10 compartment temperature/humidity sensor @ 0x38 on TCA channel 1
+#   - rotary encoder connected through the MCP23017
+#   - external three/four-pin cooling-fan interface
+#   - 1S lithium controller backup battery on J3
+#   - battery-voltage measurement through TP1 / J8 AD / GPIO6
 #
-# Deferred hardware:
-#   - physical blackstart button
-#   - external cooling fan PWM
-#   - external cooling fan tachometer inputs
-#
-# V5 migration strategy:
-#   Port the proven v4 charger functionality to the new hardware first.
-#   Preserve the existing five-page UI functionality before redesigning it
-#   for the larger 800x480 touch display.
+# The V5 firmware retains the proven three-rectifier CAN control architecture
+# while using the Waveshare display controller as the local standalone UI.
 # ==============================================================================
 
 # ==============================================================================
 # THREE-PHASE R4875G1 CHARGER CONTROLLER - ARCHITECTURE OVERVIEW
 # ==============================================================================
+#
 # This ESPHome firmware controls three Huawei R4875G1 rectifier units used as
 # a three-phase battery charger. Each rectifier is supplied from one AC phase;
 # their DC outputs are connected in parallel to the same battery bus.
 #
-# DATA PATH
-# ---------
+# Data path:
+#
 #   R4875G1 Unit 1 / 2 / 3
 #          |
 #          | extended 29-bit CAN frames @ 125 kbit/s
@@ -55,35 +57,46 @@
 #          |
 #          +--> TFT display / Home Assistant / MQTT
 #
-# LOCAL BLACKSTART CONTROL PATH
-# -----------------------------
-#   Rotary encoder + push button
-#          |
-#          +--> choose DC voltage or nominal three-unit DC power target
-#          +--> calculate the common per-unit current setpoint from that target
-#          +--> apply active voltage/current setpoints only to verified ONLINE units
-#          +--> long press starts/stops all units
+# Local control path:
 #
-# OFFLINE OPERATION
-# -----------------
+#   GT911 touchscreen / LVGL interface
+#          |
+#          +--> charger-wide voltage and power setpoints
+#          +--> charger and per-unit START/STOP controls
+#          +--> fallback voltage/current adjustment
+#
+# Backup rotary-encoder inputs are connected through the MCP23017 but currently
+# have no assigned charger-control or navigation actions.
+#
+# Offline operation:
+#
 # Wi-Fi, MQTT and Home Assistant are optional for core charger operation.
 # Network reboot timeouts are disabled so a dead or isolated site network cannot
 # prevent the ESP32 from controlling the charger during a blackstart.
 #
-# CAN VALUE SCALING
-# -----------------
+# CAN value scaling:
+#
 # Most voltage/telemetry values use a fixed-point scale of 1024:
 #     engineering_value = raw_CAN_value / 1024
 #     raw_CAN_value     = engineering_value * 1024
 #
-# Current commands use current_scaling_factor.
-# The controller starts with the known 75 A R4875G1 fallback value
-# (1024 / 75 = 13.653333) and automatically refreshes the factor from
-# Unit 1's detected maximum-current capability whenever Unit 1 becomes
-# available on the CAN bus.
+# DC current commands use current_scaling_factor.
 #
-# COMMUNICATION HEALTH
-# --------------------
+# Until all currently reachable rectifiers have fresh capability data, the
+# controller uses the conservative 75 A protocol scale:
+#
+#     current_scaling_factor = 1024 / 75
+#
+# Once capability discovery is complete, command scaling is derived from the
+# reachable rectifier capabilities.
+#
+# effective_dc_current_limit is maintained independently and enforces the
+# lowest supported current capability across the currently reachable units.
+# This keeps mixed-capability installations within the limit of the weakest
+# available rectifier.
+#
+# Communication health:
+#
 # Valid per-unit CAN activity refreshes last_can_rx_1..3. During normal
 # operation cyclic telemetry provides the heartbeat; valid property frames also
 # refresh it while discovery temporarily suspends cyclic polling.
@@ -94,12 +107,16 @@
 # ==============================================================================
 
 substitutions:
-  # Firmware version is defined once in packages/version.yaml.
+  # ---------------------------------------------------------------------------
+  # PROJECT IDENTITY
+  # ---------------------------------------------------------------------------
+
   mqtt_command_prefix: "HG/DG/Technik/Charger"
 
-  # --------------------------------------------------------------------------
+  # ---------------------------------------------------------------------------
   # V5 ACTIVE GPIO MAP
-  # --------------------------------------------------------------------------
+  # ---------------------------------------------------------------------------
+
   pin_touch_irq: "GPIO4"
   pin_i2c_sda: "GPIO8"
   pin_i2c_scl: "GPIO9"
@@ -107,100 +124,49 @@ substitutions:
   pin_can_rx: "GPIO19"
   pin_battery_adc: "GPIO6"
 
-  pin_fan_enable: "GPIO21"
-  pin_fan3_tach: "GPIO39"
-  pin_fan2_tach: "GPIO40"
-  pin_fan1_tach: "GPIO41"
-  pin_fan_pwm: "GPIO42"
+  # MCP23017 pin allocation.
+  mcp_encoder_a_pin: "0"
+  mcp_encoder_b_pin: "1"
+  mcp_encoder_button_pin: "2"
+  mcp_fan_enable_pin: "3"
+  mcp_fan1_tach_pin: "4"
+  mcp_fan2_tach_pin: "5"
 
-  # --------------------------------------------------------------------------
-  # V5 WAVESHARE BOARD GPIO MAP
-  # --------------------------------------------------------------------------
-  #
-  # RGB LCD - reserved by onboard display:
-  #   GPIO0   LCD G3
-  #   GPIO1   LCD R3
-  #   GPIO2   LCD R4
-  #   GPIO3   LCD VSYNC
-  #   GPIO5   LCD DE
-  #   GPIO7   LCD PCLK
-  #   GPIO10  LCD B7
-  #   GPIO14  LCD B3
-  #   GPIO17  LCD B6
-  #   GPIO18  LCD B5
-  #   GPIO21  LCD G7
-  #   GPIO38  LCD B4
-  #   GPIO39  LCD G2
-  #   GPIO40  LCD R7
-  #   GPIO41  LCD R6
-  #   GPIO42  LCD R5
-  #   GPIO45  LCD G4
-  #   GPIO46  LCD HSYNC
-  #   GPIO47  LCD G6
-  #   GPIO48  LCD G5
-  #
-  # Touch / shared I2C:
-  #   GPIO4   GT911 interrupt
-  #   GPIO8   I2C SDA
-  #   GPIO9   I2C SCL
-  #
-  # CAN / native USB shared pins:
-  #   GPIO19  CAN RX / USB D-
-  #   GPIO20  CAN TX / USB D+
-  #
-  # TF card:
-  #   GPIO11  MOSI
-  #   GPIO12  SCK
-  #   GPIO13  MISO
-  #
-  # RS485:
-  #   GPIO15  TX
-  #   GPIO16  RX
-  #
-  # CH422G:
-  #   EXIO1   GT911 reset
-  #   EXIO2   display/backlight enable
-  #   EXIO4   TF card CS
-  #   EXIO5   USB/CAN selection
-  #
-  # External I2C expansion:
-  #   TCA9548A @ 0x70
-  #     Channel 0 -> MCP23017 @ 0x20
-  #       GPA0 -> rotary encoder A
-  #       GPA1 -> rotary encoder B
-  #       GPA2 -> rotary encoder button
-  #     Channel 1 -> AHT10 @ 0x38
-  #
-  # External GPIO:
-  #   GPIO6 -> J8 AD input, connected to battery divider TP1
-  #
-  # Battery voltage divider:
-  #   VBAT -> 200 kΩ -> TP1 -> 100 kΩ -> GND
-  #   TP1  -> J8 pin 3 / GPIO6
-  #   ADC voltage = VBAT / 3
+  # ---------------------------------------------------------------------------
+  # EXTERNAL COOLING-FAN DEFAULTS
+  # ---------------------------------------------------------------------------
 
-  # --------------------------------------------------------------------------
-  # External cooling-fan defaults
-  # --------------------------------------------------------------------------
-  cooling_fan_pwm_frequency: "25000Hz"
+  # EMC2101 PWM configuration:
+  #   360 kHz / (2 × 7 × 1) ≈ 25.7 kHz
+  cooling_fan_pwm_resolution: "7"
+  cooling_fan_pwm_divider: "1"
+
   cooling_fan_default_pwm_percent: "100.0"
+
+  # Used for the two MCP23017-based tachometer inputs.
   cooling_fan_tach_pulses_per_revolution: "2.0"
 
-  # --------------------------------------------------------------------------
-  # Project-wide operating limits
-  # --------------------------------------------------------------------------
-  # Absolute supported project ceiling.
+  # ---------------------------------------------------------------------------
+  # DC OPERATING LIMITS
+  # ---------------------------------------------------------------------------
+
+  # Absolute supported per-rectifier project ceiling.
   project_max_dc_current_a: "75.0"
-  # Conservative current ceiling until every currently reachable rectifier
-  # has a freshly confirmed maximum-current capability.
+
+  # Conservative ceiling until every currently reachable rectifier has a
+  # freshly confirmed maximum-current capability.
   failsafe_dc_current_a: "50.0"
+
   minimum_dc_current_a: "1.0"
 
   dc_voltage_min_v: "49.0"
   dc_voltage_max_v: "58.0"
   dc_voltage_default_v: "53.0"
 
-  # Thermal derating thresholds and hysteresis.
+  # ---------------------------------------------------------------------------
+  # THERMAL DERATING
+  # ---------------------------------------------------------------------------
+
   thermal_warn1_c: "70.0"
   thermal_warn1_reset_c: "65.0"
   thermal_warn1_limit_a: "50.0"
@@ -212,23 +178,28 @@ substitutions:
   overtemp_trip_c: "90.0"
   overtemp_reset_c: "80.0"
 
-  # Internal thermal-state codes.
+  # ---------------------------------------------------------------------------
+  # THERMAL STATE CODES
+  # ---------------------------------------------------------------------------
+
   thermal_state_normal: "0"
   thermal_state_warn1: "1"
   thermal_state_warn2: "2"
   thermal_state_lockout: "3"
 
+  # Ignore near-idle input power where calculated efficiency becomes unstable.
   efficiency_min_ac_power_w: "100.0"
 
-  # --------------------------------------------------------------------------
-  # Protocol scaling
-  # --------------------------------------------------------------------------
+  # ---------------------------------------------------------------------------
+  # PROTOCOL SCALING
+  # ---------------------------------------------------------------------------
+
   protocol_value_scale: "1024"
   fan_duty_counts_per_percent: "256.0"
 
-  # --------------------------------------------------------------------------
-  # Rectifier control-state codes
-  # --------------------------------------------------------------------------
+  # ---------------------------------------------------------------------------
+  # RECTIFIER CONTROL-STATE CODES
+  # ---------------------------------------------------------------------------
   # Internal lifecycle state used independently for each rectifier.
   #
   # OFFLINE:
@@ -241,18 +212,20 @@ substitutions:
   # ONLINE:
   #   Discovery completed successfully and the unit is ready for normal
   #   operational handling.
+  # ---------------------------------------------------------------------------
+
   rectifier_state_offline: "0"
   rectifier_state_discovering: "1"
   rectifier_state_online: "2"
 
-  # --------------------------------------------------------------------------
-  # CAN communication buffering
-  # --------------------------------------------------------------------------
+  # ---------------------------------------------------------------------------
+  # CAN COMMUNICATION
+  # ---------------------------------------------------------------------------
+
+  # RX queue depth must accommodate the largest observed multi-frame property
+  # response without dropping frames.
   can_rx_queue_len: "64"
 
-  # --------------------------------------------------------------------------
-  # CAN communication timing
-  # --------------------------------------------------------------------------
   # Normal runtime CAN watchdog.
   can_watchdog_timeout_ms: "3000"
 
@@ -273,17 +246,25 @@ substitutions:
   offline_probe_slot_interval: "5s"
 
   can_recovery_check_interval: "2s"
-
   setpoint_refresh_interval: "30s"
 
-  # --------------------------------------------------------------------------
-  # Discovery retry policy
-  # --------------------------------------------------------------------------
+  # ---------------------------------------------------------------------------
+  # DISCOVERY RETRY POLICY
+  # ---------------------------------------------------------------------------
+
   property_discovery_attempts: "3"
   capability_discovery_attempts: "10"
   discovery_retry_delay: "1s"
   discovery_startup_delay: "5s"
   property_bus_quiet_delay: "500ms"
+
+# ==============================================================================
+# FIRMWARE PACKAGE ASSEMBLY
+# ==============================================================================
+#
+# Assembles the shared controller packages and instantiates the parameterized
+# rectifier package once for each of the three charger units.
+# ==============================================================================
 
 packages:
   version: !include packages/version.yaml
@@ -312,8 +293,11 @@ packages:
 # ==============================================================================
 # ESPHOME DEVICE IDENTITY AND BOOT ACTIONS
 # ==============================================================================
+#
 # Defines the device identity used by ESPHome/Home Assistant.
 # The boot hook initializes rectifier lifecycle and shared diagnostic states.
+# ==============================================================================
+
 esphome:
   name: hg-dg-technik-charger
   friendly_name: HG|DG|Technik|Charger
@@ -370,13 +354,18 @@ esphome:
 # ==============================================================================
 # PROJECT-WIDE / AGGREGATE SENSORS
 # ==============================================================================
-# Controller diagnostics, shared compartment/environment input, local encoder
-# input and charger-wide aggregate telemetry that do not belong to one package
-# or one parameterized rectifier instance.
+#
+# Controller diagnostics, shared compartment/environment measurements and
+# charger-wide aggregate telemetry that do not belong to one parameterized
+# rectifier instance.
+# ==============================================================================
+
 sensor:
-  # --------------------------------------------------------------------------
-  # ESPHome Runtime Diagnostics
-  # --------------------------------------------------------------------------
+
+  # ---------------------------------------------------------------------------
+  # ESPHOME RUNTIME DIAGNOSTICS
+  # ---------------------------------------------------------------------------
+
   - platform: debug
     free:
       name: "Heap Free"
@@ -478,8 +467,10 @@ sensor:
                   x / 1000000.0f
                 );
 
-  # --------------------------------------------------------------------------
-  # Controller CPU Temperature
+  # ---------------------------------------------------------------------------
+  # CONTROLLER CPU TEMPERATURE
+  # ---------------------------------------------------------------------------
+
   - platform: internal_temperature
     name: "Controller CPU Temperature"
     id: cpu_temp
@@ -490,8 +481,10 @@ sensor:
     update_interval: 10s
     icon: "mdi:thermometer"
 
-  # --------------------------------------------------------------------------
-  # Controller Uptime
+  # ---------------------------------------------------------------------------
+  # CONTROLLER UPTIME
+  # ---------------------------------------------------------------------------
+
   - platform: uptime
     type: seconds
     name: "Uptime"
@@ -535,8 +528,10 @@ sensor:
                 static_cast<unsigned long>(minutes)
               );
 
-  # --------------------------------------------------------------------------
-  # Wi-Fi RSSI
+  # ---------------------------------------------------------------------------
+  # WI-FI RSSI
+  # ---------------------------------------------------------------------------
+
   - platform: wifi_signal
     name: "WiFi RSSI"
     id: wifi_sig
@@ -546,15 +541,17 @@ sensor:
     update_interval: 10s
     icon: "mdi:wifi"
 
-  # --------------------------------------------------------------------------
-  # Rectifier Compartment Temperature and Humidity
+  # ---------------------------------------------------------------------------
+  # RECTIFIER COMPARTMENT TEMPERATURE AND HUMIDITY
+  # ---------------------------------------------------------------------------
   #
   # AHT10 installed in the shared rear connection compartment behind the
   # three rectifier units.
   #
   # Connected through:
   #   main I2C -> TCA9548A channel 1 -> AHT10 @ 0x38
-  # --------------------------------------------------------------------------
+  # ---------------------------------------------------------------------------
+
   - platform: aht10
     variant: AHT10
     i2c_id: external_i2c_ch1
@@ -576,26 +573,13 @@ sensor:
       accuracy_decimals: 1
       icon: "mdi:water-percent"
 
-  # --------------------------------------------------------------------------
-  # local_encoder
+  # ---------------------------------------------------------------------------
+  # EFFECTIVE DC CURRENT LIMIT
+  # ---------------------------------------------------------------------------
   #
-  # Page-aware SELECT / EDIT controller.
-  #
-  # SELECT:
-  #   Dashboard  -> select Voltage / Power
-  #   Rectifiers -> select L1 / L2 / L3 and open detail with short press
-  #   Cooling    -> select Automatic and, in manual mode, Power / PWM
-  #   System     -> no selectable parameters
-  #   Trends     -> select displayed trend
-  #
-  # EDIT:
-  #   Rotation changes only encoder_edit_value.
-  #   No real entity is changed until the confirming short press.
-
-
-  # --------------------------------------------------------------------------
-  # Effective DC Current Limit
   # Runtime hardware/capability ceiling shared by all active-current paths.
+  # ---------------------------------------------------------------------------
+
   - platform: template
     name: "Effective DC Current Limit"
     id: effective_dc_current_limit_sensor
@@ -606,9 +590,10 @@ sensor:
     update_interval: never
     icon: "mdi:current-dc"
 
-  # --------------------------------------------------------------------------
-  # Thermal / applied current diagnostics
-  # --------------------------------------------------------------------------
+  # ---------------------------------------------------------------------------
+  # THERMAL / APPLIED CURRENT DIAGNOSTICS
+  # ---------------------------------------------------------------------------
+
   - platform: template
     name: "Thermal DC Current Limit"
     id: thermal_dc_current_limit_sensor
@@ -636,9 +621,13 @@ sensor:
       return applied;
     icon: "mdi:current-dc"
 
-  # --------------------------------------------------------------------------
-  # Combined AC Power All Units
+  # ---------------------------------------------------------------------------
+  # COMBINED AC POWER ALL UNITS
+  # ---------------------------------------------------------------------------
+  #
   # CAN-aware AC-input power total from reachable units with valid telemetry.
+  # ---------------------------------------------------------------------------
+
   - platform: template
     name: "Combined AC Power All Units"
     id: combined_ac_power
@@ -671,7 +660,6 @@ sensor:
         valid_units++;
       }
 
-      // No valid CAN data available
       if (valid_units == 0) {
         return NAN;
       }
@@ -679,9 +667,14 @@ sensor:
       return power;
     icon: "mdi:flash"
 
-  # --------------------------------------------------------------------------
-  # Combined DC Power All Units
-  # CAN-aware DC power total with the same stale-data protection as the AC total. The lambda sums watts and the multiply filter converts W to kW.
+  # ---------------------------------------------------------------------------
+  # COMBINED DC POWER ALL UNITS
+  # ---------------------------------------------------------------------------
+  #
+  # CAN-aware DC power total with the same stale-data protection as the AC
+  # total. The lambda sums watts and the multiply filter converts W to kW.
+  # ---------------------------------------------------------------------------
+
   - platform: template
     name: "Combined DC Power All Units"
     id: combined_dc_power
@@ -722,9 +715,13 @@ sensor:
       return power;
     icon: "mdi:flash"
 
-  # --------------------------------------------------------------------------
-  # Available Units
+  # ---------------------------------------------------------------------------
+  # AVAILABLE UNITS
+  # ---------------------------------------------------------------------------
+  #
   # Number of rectifier units currently providing valid CAN communication.
+  # ---------------------------------------------------------------------------
+
   - platform: template
     name: "Available Units"
     id: available_units
@@ -749,9 +746,13 @@ sensor:
       return count;
     icon: "mdi:server-network"
 
-  # --------------------------------------------------------------------------
-  # Combined DC Current All Units
+  # ---------------------------------------------------------------------------
+  # COMBINED DC CURRENT ALL UNITS
+  # ---------------------------------------------------------------------------
+  #
   # Sum of DC output current from all reachable rectifiers with valid telemetry.
+  # ---------------------------------------------------------------------------
+
   - platform: template
     name: "Combined DC Current All Units"
     id: combined_dc_current
@@ -789,11 +790,16 @@ sensor:
       return current;
     icon: "mdi:current-dc"
 
-  # --------------------------------------------------------------------------
-  # Average DC Voltage All Units
+  # ---------------------------------------------------------------------------
+  # AVERAGE DC VOLTAGE ALL UNITS
+  # ---------------------------------------------------------------------------
+  #
   # Average DC output voltage across all reachable rectifiers.
+  #
   # The rectifier outputs are connected in parallel, so their voltages should
   # normally be nearly identical.
+  # ---------------------------------------------------------------------------
+
   - platform: template
     name: "Average DC Voltage All Units"
     id: average_dc_voltage
@@ -831,9 +837,13 @@ sensor:
       return voltage / valid_units;
     icon: "mdi:current-dc"
 
-  # --------------------------------------------------------------------------
-  # Highest Output Temperature All Units
+  # ---------------------------------------------------------------------------
+  # HIGHEST OUTPUT TEMPERATURE ALL UNITS
+  # ---------------------------------------------------------------------------
+  #
   # Reports the hottest currently reachable rectifier.
+  # ---------------------------------------------------------------------------
+
   - platform: template
     name: "Highest Output Temperature All Units"
     id: highest_output_temperature
@@ -877,13 +887,17 @@ sensor:
       return highest;
     icon: "mdi:thermometer-high"
 
-  # --------------------------------------------------------------------------
-  # Conversion Efficiency All Units
+  # ---------------------------------------------------------------------------
+  # CONVERSION EFFICIENCY ALL UNITS
+  # ---------------------------------------------------------------------------
+  #
   # Calculates DC output power divided by AC input power.
   #
   # Only units that simultaneously provide valid AC and DC power telemetry are
-  # included. Values below 100 W AC input are ignored because efficiency becomes
-  # meaningless and unstable close to idle operation.
+  # included. Values below 100 W AC input are ignored because efficiency
+  # becomes meaningless and unstable close to idle operation.
+  # ---------------------------------------------------------------------------
+
   - platform: template
     name: "Conversion Efficiency All Units"
     id: conversion_efficiency
@@ -928,9 +942,13 @@ sensor:
       return (dc_power / ac_power) * 100.0f;
     icon: "mdi:gauge"
 
-  # --------------------------------------------------------------------------
-  # AC Energy Today
+  # ---------------------------------------------------------------------------
+  # AC ENERGY TODAY
+  # ---------------------------------------------------------------------------
+  #
   # Daily AC input energy integrated from the CAN-aware combined AC power.
+  # ---------------------------------------------------------------------------
+
   - platform: total_daily_energy
     name: "AC Energy Today"
     power_id: combined_ac_power
@@ -941,9 +959,13 @@ sensor:
     accuracy_decimals: 3
     icon: "mdi:counter"
 
-  # --------------------------------------------------------------------------
-  # DC Energy Today
+  # ---------------------------------------------------------------------------
+  # DC ENERGY TODAY
+  # ---------------------------------------------------------------------------
+  #
   # Daily DC output energy integrated from the CAN-aware combined DC power.
+  # ---------------------------------------------------------------------------
+
   - platform: total_daily_energy
     name: "DC Energy Today"
     power_id: combined_dc_power
@@ -957,23 +979,16 @@ sensor:
 # ==============================================================================
 # PROJECT-WIDE BINARY SENSORS
 # ==============================================================================
-# Local physical push button and charger-wide capability diagnostics.
-binary_sensor:
-  # --------------------------------------------------------------------------
-  # local_encoder_button
-  #
-  # SELECT MODE:
-  #   short press  -> enter EDIT if the page has an editable parameter
-  #   double press -> next page
-  #   long press   -> toggle all rectifiers ON/OFF
-  #
-  # EDIT MODE:
-  #   short press  -> commit and return to SELECT
-  #   double press -> disabled
-  #   long press   -> disabled
+#
+# Charger-wide diagnostic states that do not belong to one rectifier instance.
+# ==============================================================================
 
-  # --------------------------------------------------------------------------
-  # Rectifier Capability Mismatch
+binary_sensor:
+
+  # ---------------------------------------------------------------------------
+  # RECTIFIER CAPABILITY MISMATCH
+  # ---------------------------------------------------------------------------
+  #
   # Diagnostic problem indicator comparing the maximum-current capability
   # reported by all three rectifiers.
   #
@@ -984,6 +999,8 @@ binary_sensor:
   #
   # The state is published by evaluate_rectifier_capabilities whenever fresh
   # capability data is received.
+  # ---------------------------------------------------------------------------
+
   - platform: template
     name: "Rectifier Capability Mismatch"
     id: rectifier_capability_mismatch
@@ -994,22 +1011,35 @@ binary_sensor:
 # ==============================================================================
 # PROJECT-WIDE TEXT / STATUS SENSORS
 # ==============================================================================
-# Network/controller diagnostics that are shared by the assembled device.
+#
+# Network and controller diagnostics shared by the assembled device.
+# ==============================================================================
+
 text_sensor:
-  # Network diagnostic used by the TFT footer.
+
+  # ---------------------------------------------------------------------------
+  # NETWORK INFORMATION
+  # ---------------------------------------------------------------------------
+
   - platform: wifi_info
     ip_address:
       id: ip_address
       entity_category: diagnostic
 
-  # Running ESPHome firmware version.
+  # ---------------------------------------------------------------------------
+  # ESPHOME VERSION
+  # ---------------------------------------------------------------------------
+
   - platform: version
     name: "ESPHome Version"
     entity_category: diagnostic
 
     icon: "mdi:code-tags"
 
-  # ESPHome device information and last reset reason.
+  # ---------------------------------------------------------------------------
+  # DEVICE AND RESET DIAGNOSTICS
+  # ---------------------------------------------------------------------------
+
   - platform: debug
     device:
       name: "Device Info"

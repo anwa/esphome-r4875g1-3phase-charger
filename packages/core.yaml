@@ -1,8 +1,13 @@
 # ==============================================================================
-# CORE PLATFORM / NETWORK PACKAGE
+# CORE PLATFORM AND NETWORK PACKAGE
 # ==============================================================================
-# Extracted from the monolithic configuration without functional changes.
-# Project-wide substitutions remain defined in the main YAML.
+#
+# Defines the ESP32-S3 platform, memory configuration and all controller-wide
+# network services.
+#
+# Core charger operation is intentionally independent of Wi-Fi, MQTT and
+# Home Assistant so the controller remains usable during offline blackstart.
+# ==============================================================================
 
 esp32:
   variant: esp32s3
@@ -23,9 +28,12 @@ esp32:
 # ==============================================================================
 # EXTERNAL PSRAM
 # ==============================================================================
-# Explicitly enables the ESP32-S3 N16R8 module's 8 MB Octal PSRAM at 80 MHz.
-# The future 800x480 RGB framebuffer and Wi-Fi allocations will make extensive
-# use of this memory.
+#
+# Enables the ESP32-S3 N16R8 module's 8 MB Octal PSRAM at 80 MHz.
+#
+# LVGL framebuffer allocations and other large runtime buffers may use this
+# external memory.
+# ==============================================================================
 
 psram:
   mode: octal
@@ -35,9 +43,10 @@ psram:
 # ==============================================================================
 # LOGGING
 # ==============================================================================
-# Keep verbose serial logging enabled during the initial Waveshare board
-# bring-up. Logging can be reduced again once the v5 hardware baseline is
-# proven stable.
+#
+# Debug logging is enabled for charger diagnostics, CAN troubleshooting and
+# controller runtime analysis.
+# ==============================================================================
 
 logger:
   level: DEBUG
@@ -45,8 +54,13 @@ logger:
 # ==============================================================================
 # LOCAL ESPHOME WEB SERVER
 # ==============================================================================
-# Exposes entities and controls directly from the ESP32 whenever IP networking
-# is available. Local blackstart operation does not depend on this web server.
+#
+# Provides direct browser access to charger entities and controls whenever
+# local IP networking is available.
+#
+# All web assets are stored locally so the interface does not depend on
+# internet access.
+# ==============================================================================
 
 web_server:
   version: 3
@@ -73,8 +87,12 @@ web_server:
 # ==============================================================================
 # HOME ASSISTANT NATIVE API
 # ==============================================================================
-# Encrypted ESPHome API. reboot_timeout is disabled deliberately: a missing
-# Home Assistant instance must never reboot a charger needed for blackstart.
+#
+# Provides the encrypted native ESPHome integration for Home Assistant.
+#
+# reboot_timeout is deliberately disabled because loss of Home Assistant must
+# never restart or disable an otherwise operational charger.
+# ==============================================================================
 
 api:
   encryption:
@@ -84,7 +102,9 @@ api:
 # ==============================================================================
 # OVER-THE-AIR FIRMWARE UPDATE
 # ==============================================================================
-# Enables normal ESPHome OTA updates after the first USB installation.
+#
+# Enables authenticated ESPHome OTA updates after the initial USB installation.
+# ==============================================================================
 
 ota:
   - platform: esphome
@@ -92,9 +112,13 @@ ota:
 # ==============================================================================
 # WI-FI
 # ==============================================================================
-# Wi-Fi credentials come from secrets.yaml. Power saving is disabled for stable
-# latency. reboot_timeout: 0s keeps the controller alive indefinitely when Wi-Fi
-# is unavailable, which is essential for offline blackstart operation.
+#
+# Wi-Fi credentials are provided through secrets.yaml.
+#
+# Power saving and automatic reboot on connection loss are disabled to keep
+# controller networking responsive without making charger operation dependent
+# on infrastructure Wi-Fi.
+# ==============================================================================
 
 wifi:
   ssid: !secret wifi_ssid
@@ -114,16 +138,22 @@ wifi:
 # ==============================================================================
 # FALLBACK CAPTIVE PORTAL
 # ==============================================================================
+#
 # Works with the fallback access point above if the configured infrastructure
 # Wi-Fi cannot be reached.
+# ==============================================================================
 
 captive_portal:
 
 # ==============================================================================
 # TIME SYNCHRONIZATION
 # ==============================================================================
-# SNTP provides Europe/Berlin local time for the TFT clock and daily energy
-# integration. Display updates are handled independently by the TFT component.
+#
+# SNTP provides Europe/Berlin local time for the persistent display header and
+# any time-dependent controller functions.
+#
+# Header rendering is handled separately by display/header.yaml.
+# ==============================================================================
 
 time:
   - platform: sntp
@@ -153,8 +183,10 @@ time:
 # ==============================================================================
 # ESPHOME DEBUG METRICS
 # ==============================================================================
-# Enables internal diagnostic values such as heap, loop timing, PSRAM and CPU
-# frequency that are published further down in the sensor section.
+#
+# Enables internal runtime diagnostics including heap usage, maximum free block,
+# loop time, PSRAM availability and CPU frequency.
+# ==============================================================================
 
 debug:
   update_interval: 5s
@@ -162,8 +194,14 @@ debug:
 # ==============================================================================
 # MQTT CLIENT
 # ==============================================================================
-# Provides additional command topics besides the native API. MQTT is optional:
-# reboot_timeout is disabled so broker failure cannot affect local charging.
+#
+# Provides additional command and state transport alongside the native ESPHome
+# API.
+#
+# MQTT discovery is disabled because Home Assistant uses the native ESPHome API
+# as the canonical integration. Broker availability must never affect local
+# charger operation.
+# ==============================================================================
 
 mqtt:
   id: mqtt_client

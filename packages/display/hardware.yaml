@@ -1,8 +1,10 @@
 # ==============================================================================
 # V5 DISPLAY HARDWARE
 # ==============================================================================
-# Waveshare ESP32-S3-Touch-LCD-7
-# Native 800x480 RGB panel with GT911 capacitive touch input.
+#
+# Waveshare ESP32-S3-Touch-LCD-7 with native 800x480 RGB panel and GT911
+# capacitive touch input.
+# ==============================================================================
 
 display:
   - platform: mipi_rgb

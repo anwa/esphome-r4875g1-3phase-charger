@@ -2,20 +2,23 @@
 # V5 LVGL PAGE: COOLING
 # ==============================================================================
 #
-# Real cooling telemetry from the three Huawei R4875G1 rectifiers plus the
-# shared compartment AHT10 sensor.
+# Cooling overview for the three internal Huawei rectifier fans and the shared
+# rear-compartment temperature and humidity measurement.
 #
-# External chassis-fan hardware is intentionally not shown here until the
-# corresponding v5 hardware has been implemented.
+# External chassis-fan control is implemented separately in packages/cooling.yaml
+# and is not currently exposed as a dedicated card on this page.
+#
+# Runtime updates are handled by display/cooling.yaml.
+# ==============================================================================
 
 id: page_cooling
 styles: style_page
 
 widgets:
 
-  # ============================================================================
+  # ---------------------------------------------------------------------------
   # COMPARTMENT ENVIRONMENT
-  # ============================================================================
+  # ---------------------------------------------------------------------------
 
   - obj:
       x: 20
@@ -52,10 +55,9 @@ widgets:
             text_font: montserrat_24
             text_color: 0xFFFFFF
 
-
-  # ============================================================================
+  # ---------------------------------------------------------------------------
   # RECTIFIER 1 FAN
-  # ============================================================================
+  # ---------------------------------------------------------------------------
 
   - obj:
       x: 20
@@ -184,10 +186,9 @@ widgets:
             on_short_click:
               - button.press: fan_full_speed_button_1
 
-
-  # ============================================================================
+  # ---------------------------------------------------------------------------
   # RECTIFIER 2 FAN
-  # ============================================================================
+  # ---------------------------------------------------------------------------
 
   - obj:
       x: 270
@@ -316,10 +317,9 @@ widgets:
             on_short_click:
               - button.press: fan_full_speed_button_2
 
-
-  # ============================================================================
+  # ---------------------------------------------------------------------------
   # RECTIFIER 3 FAN
-  # ============================================================================
+  # ---------------------------------------------------------------------------
 
   - obj:
       x: 520

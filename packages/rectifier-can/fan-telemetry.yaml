@@ -1,3 +1,12 @@
+# R4875G1 internal-fan telemetry handler for Unit ${ru_unit}.
+#
+# Required substitutions:
+#   ru_unit                      -> rectifier unit number (1..3)
+#   fan_duty_counts_per_percent  -> raw protocol counts per duty-cycle percent
+#
+# Decodes minimum duty, target duty and fan speed from extended CAN frame
+# 0x108${ru_unit}827E.
+
 can_id: 0x108${ru_unit}827E
 use_extended_id: true
 then:

@@ -1,6 +1,8 @@
 # R4875G1 Three-Phase Charger — Control and Runtime Flows
 
-This document describes firmware **4.0.4** on `main` as of **2026-08-29**. Version 4 keeps the validated v3 charger/CAN/blackstart control model and replaces the local TFT renderer with an LVGL-based UI.
+This document describes the current V5 charger-control, CAN, lifecycle, safety and runtime architecture.
+
+The firmware version is intentionally not duplicated here. `packages/version.yaml` is the single source of truth.
 
 > **Scope:** behavioral firmware documentation, not an electrical safety specification.
 
@@ -23,9 +25,9 @@ This document describes firmware **4.0.4** on `main` as of **2026-08-29**. Versi
 | Property bus quiet period | 500 ms |
 | Property / capability attempts | 3 / 10 |
 | TWAI RX queue | 64 frames |
-| Display UI update / inactivity | 500 ms / 5 min |
+| Display resolution | 800×480 landscape |
 | LVGL framebuffer | 100%, 16-bit RGB565 |
-| Default UI orientation | 320×480 portrait |
+| Controller battery display refresh | 5 s |
 
 # 1. System architecture
 
@@ -34,40 +36,56 @@ flowchart LR
     AC[Three-phase AC source] --> U1[R4875G1 Unit 1]
     AC --> U2[R4875G1 Unit 2]
     AC --> U3[R4875G1 Unit 3]
+
     U1 --> DCBUS[Common DC bus / battery]
     U2 --> DCBUS
     U3 --> DCBUS
-    ESP[ESP32-S3 N16R8] <--> CAN[125 kbit/s extended CAN]
+
+    CTRL[Waveshare ESP32-S3-Touch-LCD-7] <--> CAN[125 kbit/s extended CAN]
     CAN <--> U1
     CAN <--> U2
     CAN <--> U3
-    ENC[Rotary encoder + button] --> ESP
-    AHT[AHT10] --> ESP
-    ESP --> TFT[ILI9488 + LVGL]
-    ESP <--> HA[Home Assistant]
-    ESP <--> MQTT[MQTT]
+
+    CTRL --> LCD[7-inch 800×480 RGB LCD]
+    TOUCH[GT911 touchscreen] --> CTRL
+
+    CTRL <--> I2C[TCA9548A I2C expansion]
+    I2C --> MCP[MCP23017]
+    I2C --> AHT[AHT10]
+    I2C --> EMC[EMC2101]
+
+    ENC[Backup rotary encoder inputs] --> MCP
+    EMC --> FANS[External chassis fans]
+
+    CTRL <--> HA[Home Assistant]
+    CTRL <--> MQTT[MQTT]
 ```
 
-Core charging remains local. Wi-Fi, Home Assistant and MQTT are optional for charger control and blackstart.
+Core charging remains local. Wi-Fi, Home Assistant, MQTT and Internet access are optional for charger control and blackstart.
 
 # 2. Firmware module ownership
 
-Version 4 retains the modular v3 charger architecture and adds a split LVGL display package:
+The V5 firmware keeps charger-control, hardware, per-unit rectifier state and display runtime ownership separated into modular ESPHome packages:
 
 | Source | Primary responsibility |
 |---|---|
-| `r4875g1-3phase-charger.yaml` | substitutions, unit instances, identity, boot sequence, aggregate entities |
-| `packages/core.yaml` | ESP32/network/API/MQTT/web/OTA/time |
-| `packages/hardware.yaml` | I²C/SPI buses |
-| `packages/display.yaml` | display aggregator, rotation/version substitutions |
-| `packages/display/hardware.yaml` | ILI9488 transport and backlight |
-| `packages/display/theme.yaml` | LVGL, RGB565 framebuffer, fonts/styles |
-| `packages/display/ui.yaml` | portrait dashboard and dynamic labels |
-| `packages/cooling.yaml` | external fan interface |
-| `packages/controls.yaml` | charger-wide controls/setpoints |
-| `packages/rectifier-unit.yaml` | parameterized per-unit state/entities/discovery/watchdog |
-| `packages/rectifier-shared.yaml` | cross-unit lifecycle, limits, CAN scheduling/recovery |
-| `packages/rectifier-can/*.yaml` | parameterized CAN RX handlers |
+| `r4875g1-3phase-charger.yaml` | substitutions, unit instances, identity, boot sequence and aggregate entities |
+| `packages/core.yaml` | ESP32, network, API, MQTT, web, OTA and time services |
+| `packages/hardware.yaml` | controller buses, TCA9548A, MCP23017, touch, CAN, backup encoder inputs and controller battery |
+| `packages/controls.yaml` | charger-wide controls and setpoints |
+| `packages/cooling.yaml` | external chassis-fan control, EMC2101 and RPM monitoring |
+| `packages/rectifier-unit.yaml` | parameterized per-unit state, telemetry and discovery |
+| `packages/rectifier-shared.yaml` | cross-unit lifecycle, limits, CAN scheduling, recovery and control |
+| `packages/rectifier-can/*.yaml` | parameterized CAN receive handlers |
+| `packages/display.yaml` | complete display package aggregation |
+| `packages/display/hardware.yaml` | Waveshare RGB display and LVGL binding |
+| `packages/display/theme.yaml` | fonts, styles and shared presentation |
+| `packages/display/ui.yaml` | persistent widget tree, navigation, dialogs and shared UI state |
+| `packages/display/pages/*.yaml` | static LVGL page layouts |
+| `packages/display/header.yaml` | persistent header runtime |
+| `packages/display/command-state.yaml` | asynchronous START/STOP transition runtime |
+| `packages/display/battery.yaml` | controller battery display runtime |
+| `packages/display/{dashboard,rectifiers,rectifier-detail,cooling,system,trends}.yaml` | page-specific display runtimes |
 
 # 3. Rectifier lifecycle
 
@@ -91,10 +109,9 @@ flowchart TD
     B --> C[Power states UNKNOWN]
     C --> D[Effective current limit = 50 A fail-safe]
     D --> E[Lifecycle 1..3 = OFFLINE]
-    E --> F[Start display inactivity timer]
-    F --> G[External fan PWM = 100%]
-    G --> H[Enable fan supply]
-    H --> I[Normal runtime]
+    E --> F[Initialize controller hardware and display]
+    F --> G[Start periodic CAN and lifecycle runtime]
+    G --> H[Normal runtime]
 ```
 
 Initial current command scaling is `1024 / 75`. Capability discovery later recomputes shared scaling.
@@ -194,11 +211,25 @@ I_each = P_target / (3 × V_DC)
 
 The divisor intentionally remains fixed at three. Therefore, before losses/clamping, two active rectifiers deliver roughly 67% and one roughly 33% of the configured nominal three-unit target. The firmware does not automatically increase remaining-unit current when a rectifier disappears.
 
-# 15. Blackstart and local encoder
+# 15. Blackstart and local control
 
-The encoder edits DC voltage or nominal three-unit DC power. Short press toggles the edit target; long press (≥3 s) toggles START/STOP. STOP has priority and remains unrestricted.
+Blackstart is implemented independently from Home Assistant, MQTT, Wi-Fi and Internet connectivity.
 
-START evaluates each rectifier independently. A unit must be `ONLINE`, CAN-fresh, explicitly `OFF`, have valid output temperature below 90 °C and have no overtemperature lockout. Active setpoints are refreshed before individual ON commands are issued.
+START evaluates each rectifier independently. A unit must be `ONLINE`, CAN-fresh, explicitly `OFF`, have valid output-temperature telemetry below 90 °C and have no overtemperature lockout. Active setpoints are refreshed before individual ON commands are issued.
+
+STOP remains unrestricted.
+
+The V5 controller provides touchscreen-based local control through the LVGL interface.
+
+A backup rotary encoder is physically connected through the MCP23017:
+
+```text
+GPA0 -> Encoder A
+GPA1 -> Encoder B
+GPA2 -> Encoder button
+```
+
+The current V5 firmware exposes these encoder inputs as internal hardware entities but does not assign charger-control or navigation actions to them.
 
 # 16. Thermal derating
 
@@ -219,23 +250,51 @@ Cyclic selectors include operating hours (`0x0E`), AC power (`0x70`), frequency 
 
 Aggregate AC/DC power, DC current, average DC voltage, highest output temperature and efficiency include only CAN-fresh units with valid required telemetry. `Available Units` returns the reachable count.
 
-# 18. LVGL TFT behavior — v4
+# 18. V5 LVGL display behavior
 
-Version 4 replaces the previous immediate-mode display renderer with LVGL. The physical ILI9488 transport remains 480×320 RGB565; LVGL rotation `90` produces the default 320×480 portrait UI. Rotation `0` is available for landscape.
+The V5 controller uses the Waveshare ESP32-S3-Touch-LCD-7 with a 7-inch 800×480 RGB display and GT911 capacitive touchscreen.
 
-The ESP32-S3 N16R8 has 8 MB PSRAM, and LVGL is configured with a **100% 16-bit RGB565 framebuffer**. The dashboard updates dynamic labels every 500 ms. Scrollbars are explicitly disabled on the page and cards.
+The LVGL interface exposes five primary navigation pages:
 
-The dashboard contains:
+```text
+Dashboard
+Rectifiers
+Cooling
+System
+Trends
+```
 
-- header: `R4875G1 Charger`, date/time, `v4.0.4`, overall ON/OFF state;
-- AC INPUT and DC OUTPUT cards;
-- three rectifier status lines;
-- local voltage/power/current setpoints;
-- highest temperature and conversion efficiency;
-- IP address and Wi-Fi RSSI;
-- encoder START/STOP reminder.
+The Rectifiers page additionally opens one shared hierarchical Rectifier Detail view for Unit 1, Unit 2 or Unit 3.
 
-The UI differentiates `CAN communication fault`, incomplete telemetry and normal numeric telemetry. Display inactivity still switches the backlight off after five minutes and encoder/button activity restarts the timer.
+The display implementation separates static page layout from periodic runtime updates:
+
+```text
+display/pages/*.yaml
+    static LVGL layout
+
+display/header.yaml
+display/command-state.yaml
+display/battery.yaml
+    persistent/global runtime
+
+display/dashboard.yaml
+display/rectifiers.yaml
+display/rectifier-detail.yaml
+display/cooling.yaml
+display/system.yaml
+display/trends.yaml
+    page-specific runtime
+```
+
+Normal page telemetry is refreshed only while the corresponding page is visible. Persistent header state, command transitions and controller-battery presentation continue independently.
+
+This page-aware runtime architecture reduces unnecessary LVGL workload and stack pressure compared with refreshing all hidden widgets from one global loop.
+
+The Dashboard provides charger-wide telemetry and controls. Rectifiers provides the three-unit overview and hierarchical detail access. Cooling displays rear-compartment environmental data and internal rectifier-fan telemetry. System exposes controller and CAN diagnostics. Trends displays continuously sampled ten-minute telemetry histories.
+
+The persistent header includes charger identity/runtime information, charger run state and controller backup-battery indication.
+
+The display layer does not own charger safety policy. Lifecycle, CAN freshness, thermal protection and START eligibility remain in the rectifier control packages.
 
 # 19. TWAI BUS_OFF recovery
 
@@ -245,7 +304,7 @@ Every 2 seconds the controller checks TWAI state. `BUS_OFF` initiates recovery; 
 
 The 2026-08-27 physical test remains the validated CAN baseline: unplugging CAN while the rectifier stayed powered caused the 3-second watchdog to expire, lifecycle moved to OFFLINE, slow Single-Shot probes continued, reconnect triggered DISCOVERING, the 56-frame property exchange and capability/address discovery completed, active setpoints were restored, and lifecycle returned to ONLINE without an ESP reboot.
 
-The tested reduced-current connector configuration reported a 52 A capability. That trace remains valid protocol evidence; v4's LVGL work does not alter this CAN behavior.
+The tested reduced-current connector configuration reported a 52 A capability. That trace remains valid protocol evidence because the V5 hardware and display migration did not change the validated rectifier CAN protocol and lifecycle model.
 
 # 21. Safety and behavioral invariants
 
@@ -264,14 +323,18 @@ The tested reduced-current connector configuration reported a 52 A capability. T
 13. Property discovery is serialized.
 14. BUS_OFF recovery is a final recovery layer.
 15. LVGL affects presentation only; charger control and safety decisions remain outside the display layer.
+16. Backup encoder inputs do not currently provide charger-control or navigation actions.
 
 ## Source status
 
-Behavior documented from firmware **4.0.4** on branch `main`:
+This document describes the current V5 implementation from:
 
 ```text
 r4875g1-3phase-charger.yaml
 packages/
+trend_helpers.h
 ```
 
-The v4 LVGL UI was physically verified on the ILI9488 on **2026-08-29**. The earlier physical CAN disconnect/reconnect trace remains the validated runtime baseline for the unchanged CAN/lifecycle behavior.
+The firmware version is defined only in `packages/version.yaml`.
+
+The physical CAN disconnect/reconnect test from 2026-08-27 remains the validated protocol and lifecycle baseline for reconnect behavior. Current V5 hardware/display documentation reflects the Waveshare ESP32-S3-Touch-LCD-7 implementation.

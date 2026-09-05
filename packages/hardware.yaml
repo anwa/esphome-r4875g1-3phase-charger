@@ -1,5 +1,25 @@
 # ==============================================================================
-# V5 HARDWARE BUS PACKAGE
+# V5 CONTROLLER HARDWARE PACKAGE
+# ==============================================================================
+#
+# Defines controller-side buses and peripherals not owned by the RGB display
+# driver itself.
+#
+# Included hardware:
+#   - shared I2C bus
+#   - TCA9548A I2C multiplexer
+#   - MCP23017 external I/O expander
+#   - EMC2101 external fan controller
+#   - rotary encoder inputs
+#   - controller backup-battery ADC
+#   - onboard CH422G I/O expander
+#   - GT911 touch controller
+#   - USB/CAN mode selection
+#   - ESP32-S3 CAN controller
+# ==============================================================================
+
+# ==============================================================================
+# SHARED I2C BUS
 # ==============================================================================
 
 i2c:
@@ -12,13 +32,16 @@ i2c:
 # ==============================================================================
 # EXTERNAL I2C MULTIPLEXER
 # ==============================================================================
+#
 # TCA9548A on the shared onboard I2C bus.
 #
 # Channel allocation:
 #   CH0 -> MCP23017 external I/O expander
 #   CH1 -> AHT10 rectifier compartment temperature/humidity
+#   CH2 -> EMC2101 external fan controller
 #
 # Remaining channels are reserved for future external I2C devices.
+# ==============================================================================
 
 tca9548a:
   - id: external_i2c_mux
@@ -32,19 +55,25 @@ tca9548a:
       - bus_id: external_i2c_ch1
         channel: 1
 
+      - bus_id: external_i2c_ch2
+        channel: 2
 
 # ==============================================================================
 # EXTERNAL I/O EXPANDER
 # ==============================================================================
+#
 # MCP23017 on TCA9548A channel 0.
 #
-# Planned allocation:
+# Pin allocation:
 #   GPA0 / pin 0 -> rotary encoder A
 #   GPA1 / pin 1 -> rotary encoder B
 #   GPA2 / pin 2 -> rotary encoder button
+#   GPA3 / pin 3 -> external cooling-fan enable
+#   GPA4 / pin 4 -> cooling fan 1 tachometer
+#   GPA5 / pin 5 -> cooling fan 2 tachometer
 #
-# GPIO6 is used for controller battery voltage measurement via J8 AD.
-# MCP23017 interrupt operation is therefore not used.
+# MCP23017 interrupt operation is not used.
+# ==============================================================================
 
 mcp23017:
   - id: external_io_expander
@@ -54,6 +83,7 @@ mcp23017:
 # ==============================================================================
 # BACKUP ROTARY ENCODER INPUTS
 # ==============================================================================
+#
 # Mechanical rotary encoder connected to the MCP23017 on TCA9548A channel 0.
 #
 # Pin allocation:
@@ -65,7 +95,7 @@ mcp23017:
 # therefore switches the inputs to GND.
 #
 # GPIO6 is dedicated to controller battery voltage measurement.
-# Encoder decoding and button actions will be implemented separately.
+# ==============================================================================
 
 binary_sensor:
   - platform: gpio
@@ -74,7 +104,7 @@ binary_sensor:
 
     pin:
       mcp23xxx: external_io_expander
-      number: 0
+      number: ${mcp_encoder_a_pin}
       mode:
         input: true
         pullup: true
@@ -87,7 +117,7 @@ binary_sensor:
 
     pin:
       mcp23xxx: external_io_expander
-      number: 1
+      number: ${mcp_encoder_b_pin}
       mode:
         input: true
         pullup: true
@@ -100,7 +130,7 @@ binary_sensor:
 
     pin:
       mcp23xxx: external_io_expander
-      number: 2
+      number: ${mcp_encoder_button_pin}
       mode:
         input: true
         pullup: true
@@ -110,16 +140,16 @@ binary_sensor:
       - delayed_on_off: 20ms
 
 # ==============================================================================
-# CONTROLLER BATTERY VOLTAGE
+# CONTROLLER BACKUP BATTERY
 # ==============================================================================
 #
-# A 1S lithium battery is connected to J3.
+# A 1S lithium battery is connected to the Waveshare J3 battery connector.
 #
-# The Waveshare board already provides a battery-voltage divider:
+# The board already contains the required voltage divider:
 #
 #   VBAT -> 200 kΩ -> TP1 -> 100 kΩ -> GND
 #
-# TP1 is wired externally to:
+# TP1 is externally connected to:
 #
 #   J8 pin 3 / AD -> GPIO6
 #
@@ -128,11 +158,16 @@ binary_sensor:
 #   VADC = VBAT * 100 / (200 + 100)
 #        = VBAT / 3
 #
-# Therefore the ADC result is multiplied by 3.0 to recover the actual
-# battery voltage.
+# The ADC value is therefore multiplied by 3.0 to recover the actual battery
+# voltage.
 #
-# No SOC calculation is performed here. Battery voltage will first be
-# calibrated against a multimeter measurement.
+# The measured value was verified against a multimeter and is sufficiently
+# accurate without an additional software calibration.
+#
+# A separate template sensor derives an approximate state of charge from the
+# measured terminal voltage. This SOC value is intended for monitoring only and
+# is not a substitute for coulomb counting or a dedicated fuel-gauge IC.
+# ==============================================================================
 
 sensor:
   - platform: adc
@@ -161,7 +196,7 @@ sensor:
           send_every: 1
 
   # ---------------------------------------------------------------------------
-  # Controller Battery State of Charge
+  # VOLTAGE-BASED STATE OF CHARGE
   # ---------------------------------------------------------------------------
   #
   # Voltage-based estimate for the onboard 1S lithium backup battery.
@@ -172,6 +207,7 @@ sensor:
   #
   # The piecewise curve is therefore intended for useful local monitoring,
   # not precision coulomb counting.
+  # ---------------------------------------------------------------------------
 
   - platform: template
     id: controller_battery_soc
@@ -267,6 +303,7 @@ ch422g:
 # ==============================================================================
 # GT911 TOUCH CONTROLLER
 # ==============================================================================
+#
 # Onboard capacitive touchscreen.
 #
 # Wiring:
@@ -274,6 +311,7 @@ ch422g:
 #   SCL   -> GPIO9
 #   IRQ   -> GPIO4
 #   RESET -> CH422G EXIO1
+# ==============================================================================
 
 touchscreen:
   - platform: gt911
@@ -299,6 +337,13 @@ touchscreen:
             - touch.y
           level: INFO
 
+# ==============================================================================
+# USB / CAN MODE SELECTION
+# ==============================================================================
+#
+# CH422G EXIO5 selects the onboard transceiver routing required for CAN mode.
+# ==============================================================================
+
 switch:
   - platform: gpio
     id: can_mode_select
@@ -310,6 +355,15 @@ switch:
       number: 5
       mode:
         output: true
+
+# ==============================================================================
+# CAN BUS
+# ==============================================================================
+#
+# ESP32-S3 TWAI controller connected to the onboard CAN transceiver.
+#
+# Huawei R4875G1 communication uses extended 29-bit frames at 125 kbit/s.
+# ==============================================================================
 
 canbus:
   - platform: esp32_can

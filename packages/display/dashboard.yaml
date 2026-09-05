@@ -2,8 +2,8 @@
 # V5 DASHBOARD DISPLAY RUNTIME
 # ==============================================================================
 #
-# Only refresh Dashboard widgets while the Dashboard page is visible.
-# The persistent header is updated separately in ui.yaml.
+# Dashboard widgets are refreshed only while page_dashboard is visible.
+# Persistent header updates are handled separately by display/header.yaml.
 # ==============================================================================
 
 interval:
@@ -15,9 +15,11 @@ interval:
               return id(ui_active_page) == 0;
 
           then:
-            # ------------------------------------------------------------------------
-            # AC input power
-            # ------------------------------------------------------------------------
+
+            # ---------------------------------------------------------------------------
+            # AC INPUT POWER
+            # ---------------------------------------------------------------------------
+
             - lvgl.label.update:
                 id: ui_dashboard_ac_power
                 text: !lambda |-
@@ -30,13 +32,14 @@ interval:
                     id(combined_ac_power).state
                   );
 
-
-            # ------------------------------------------------------------------------
-            # AC input voltage
+            # ---------------------------------------------------------------------------
+            # AC INPUT VOLTAGE
+            # ---------------------------------------------------------------------------
             #
             # The three rectifiers are connected to separate AC phases. Display the
             # average voltage of all currently reachable units with valid telemetry.
-            # ------------------------------------------------------------------------
+            # ---------------------------------------------------------------------------
+
             - lvgl.label.update:
                 id: ui_dashboard_ac_voltage
                 text: !lambda |-
@@ -76,14 +79,14 @@ interval:
                     voltage / units
                   );
 
-
-            # ------------------------------------------------------------------------
-            # AC input current
+            # ---------------------------------------------------------------------------
+            # AC INPUT CURRENT
+            # ---------------------------------------------------------------------------
             #
-            # Preserve the proven v4 dashboard behaviour: show the average phase
-            # current of all reachable rectifiers rather than the sum of phase
-            # currents.
-            # ------------------------------------------------------------------------
+            # Display the average phase current of all reachable rectifiers rather
+            # than summing currents from the three independent AC phases.
+            # ---------------------------------------------------------------------------
+
             - lvgl.label.update:
                 id: ui_dashboard_ac_current
                 text: !lambda |-
@@ -123,10 +126,10 @@ interval:
                     current / units
                   );
 
+            # ---------------------------------------------------------------------------
+            # DC OUTPUT POWER
+            # ---------------------------------------------------------------------------
 
-            # ------------------------------------------------------------------------
-            # DC output power
-            # ------------------------------------------------------------------------
             - lvgl.label.update:
                 id: ui_dashboard_dc_power
                 text: !lambda |-
@@ -139,10 +142,10 @@ interval:
                     id(combined_dc_power).state
                   );
 
+            # ---------------------------------------------------------------------------
+            # DC OUTPUT VOLTAGE
+            # ---------------------------------------------------------------------------
 
-            # ------------------------------------------------------------------------
-            # DC output voltage
-            # ------------------------------------------------------------------------
             - lvgl.label.update:
                 id: ui_dashboard_dc_voltage
                 text: !lambda |-
@@ -155,10 +158,10 @@ interval:
                     id(average_dc_voltage).state
                   );
 
+            # ---------------------------------------------------------------------------
+            # COMBINED DC OUTPUT CURRENT
+            # ---------------------------------------------------------------------------
 
-            # ------------------------------------------------------------------------
-            # Combined DC output current
-            # ------------------------------------------------------------------------
             - lvgl.label.update:
                 id: ui_dashboard_dc_current
                 text: !lambda |-
@@ -171,10 +174,10 @@ interval:
                     id(combined_dc_current).state
                   );
 
+            # ---------------------------------------------------------------------------
+            # AVAILABLE UNITS
+            # ---------------------------------------------------------------------------
 
-            # ------------------------------------------------------------------------
-            # Available units
-            # ------------------------------------------------------------------------
             - lvgl.label.update:
                 id: ui_dashboard_units
                 text: !lambda |-
@@ -187,10 +190,10 @@ interval:
                     id(available_units).state
                   );
 
+            # ---------------------------------------------------------------------------
+            # HIGHEST RECTIFIER OUTPUT TEMPERATURE
+            # ---------------------------------------------------------------------------
 
-            # ------------------------------------------------------------------------
-            # Highest rectifier output temperature
-            # ------------------------------------------------------------------------
             - lvgl.label.update:
                 id: ui_dashboard_temperature
                 text: !lambda |-
@@ -203,10 +206,10 @@ interval:
                     id(highest_output_temperature).state
                   );
 
+            # ---------------------------------------------------------------------------
+            # CONVERSION EFFICIENCY
+            # ---------------------------------------------------------------------------
 
-            # ------------------------------------------------------------------------
-            # Conversion efficiency
-            # ------------------------------------------------------------------------
             - lvgl.label.update:
                 id: ui_dashboard_efficiency
                 text: !lambda |-
@@ -219,10 +222,10 @@ interval:
                     id(conversion_efficiency).state
                   );
 
+            # ---------------------------------------------------------------------------
+            # DC VOLTAGE SETPOINT
+            # ---------------------------------------------------------------------------
 
-            # ------------------------------------------------------------------------
-            # DC voltage setpoint
-            # ------------------------------------------------------------------------
             - lvgl.label.update:
                 id: ui_dashboard_set_voltage
                 text: !lambda |-
@@ -235,10 +238,10 @@ interval:
                     id(set_dc_voltage_limit).state
                   );
 
+            # ---------------------------------------------------------------------------
+            # TOTAL DC POWER SETPOINT
+            # ---------------------------------------------------------------------------
 
-            # ------------------------------------------------------------------------
-            # Total DC power setpoint
-            # ------------------------------------------------------------------------
             - lvgl.label.update:
                 id: ui_dashboard_set_power
                 text: !lambda |-
@@ -251,10 +254,10 @@ interval:
                     id(set_dc_sum_power).state
                   );
 
+            # ---------------------------------------------------------------------------
+            # APPLIED PER-UNIT DC CURRENT LIMIT
+            # ---------------------------------------------------------------------------
 
-            # ------------------------------------------------------------------------
-            # Applied per-unit DC current limit
-            # ------------------------------------------------------------------------
             - lvgl.label.update:
                 id: ui_dashboard_set_current
                 text: !lambda |-
@@ -267,9 +270,10 @@ interval:
                     id(applied_dc_current_limit_sensor).state
                   );
 
-            # ------------------------------------------------------------------------
-            # Charger power command transition
-            # ------------------------------------------------------------------------
+            # ---------------------------------------------------------------------------
+            # CHARGER POWER COMMAND TRANSITION
+            # ---------------------------------------------------------------------------
+
             - lambda: |-
                 const uint32_t now = millis();
                 const uint8_t pending = id(ui_charger_power_pending);
@@ -335,9 +339,10 @@ interval:
                   id(ui_charger_power_pending) = 0;
                 }
 
-            # ------------------------------------------------------------------------
-            # Charger power button
-            # ------------------------------------------------------------------------
+            # ---------------------------------------------------------------------------
+            # CHARGER POWER BUTTON
+            # ---------------------------------------------------------------------------
+
             - lvgl.label.update:
                 id: ui_dashboard_power_button_label
                 text: !lambda |-
@@ -368,9 +373,10 @@ interval:
                     ? std::string("STOP CHARGER")
                     : std::string("START CHARGER");
 
-            # ------------------------------------------------------------------------
-            # Charger power button availability
-            # ------------------------------------------------------------------------
+            # ---------------------------------------------------------------------------
+            # CHARGER POWER BUTTON AVAILABILITY
+            # ---------------------------------------------------------------------------
+
             - if:
                 condition:
                   lambda: |-

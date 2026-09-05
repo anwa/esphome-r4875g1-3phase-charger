@@ -17,13 +17,12 @@ interval:
               return id(ui_active_page) == 1;
 
           then:
-            # ========================================================================
-            # RECTIFIER 1 PAGE
-            # ========================================================================
 
-            # ------------------------------------------------------------------------
-            # Lifecycle
-            # ------------------------------------------------------------------------
+            # ---------------------------------------------------------------------------
+            # RECTIFIER 1
+            # ---------------------------------------------------------------------------
+
+            # Lifecycle state.
             - lvgl.label.update:
                 id: ui_rectifier_1_lifecycle
 
@@ -60,10 +59,7 @@ interval:
 
                   return lv_color_hex(0x8B96A0);
 
-
-            # ------------------------------------------------------------------------
             # Power state
-            # ------------------------------------------------------------------------
             - lvgl.label.update:
                 id: ui_rectifier_1_power_state
 
@@ -101,10 +97,7 @@ interval:
 
                   return lv_color_hex(0x8B96A0);
 
-
-            # ------------------------------------------------------------------------
             # AC voltage
-            # ------------------------------------------------------------------------
             - lvgl.label.update:
                 id: ui_rectifier_1_ac_voltage
 
@@ -121,10 +114,7 @@ interval:
                     id(ac_voltage_1).state
                   );
 
-
-            # ------------------------------------------------------------------------
             # AC current
-            # ------------------------------------------------------------------------
             - lvgl.label.update:
                 id: ui_rectifier_1_ac_current
 
@@ -141,10 +131,7 @@ interval:
                     id(ac_current_1).state
                   );
 
-
-            # ------------------------------------------------------------------------
             # DC voltage
-            # ------------------------------------------------------------------------
             - lvgl.label.update:
                 id: ui_rectifier_1_dc_voltage
 
@@ -161,10 +148,7 @@ interval:
                     id(dc_voltage_1).state
                   );
 
-
-            # ------------------------------------------------------------------------
             # DC current
-            # ------------------------------------------------------------------------
             - lvgl.label.update:
                 id: ui_rectifier_1_dc_current
 
@@ -181,10 +165,7 @@ interval:
                     id(dc_current_1).state
                   );
 
-
-            # ------------------------------------------------------------------------
             # DC power
-            # ------------------------------------------------------------------------
             - lvgl.label.update:
                 id: ui_rectifier_1_dc_power
 
@@ -201,10 +182,7 @@ interval:
                     id(dc_power_1).state
                   );
 
-
-            # ------------------------------------------------------------------------
             # Output temperature
-            # ------------------------------------------------------------------------
             - lvgl.label.update:
                 id: ui_rectifier_1_temperature
 
@@ -221,9 +199,7 @@ interval:
                     id(output_temperature_1).state
                   );
 
-            # ------------------------------------------------------------------------
             # Power button label
-            # ------------------------------------------------------------------------
             - lvgl.label.update:
                 id: ui_rectifier_1_power_button_label
 
@@ -249,9 +225,7 @@ interval:
                       ? std::string("STOP")
                       : std::string("START");
 
-            # ------------------------------------------------------------------------
             # Power button availability
-            # ------------------------------------------------------------------------
             - if:
                 condition:
                   lambda: |-
@@ -270,10 +244,11 @@ interval:
                   - lvgl.widget.disable:
                       id: ui_rectifier_1_power_button
 
-            # ========================================================================
-            # RECTIFIER 2 PAGE
-            # ========================================================================
+            # ---------------------------------------------------------------------------
+            # RECTIFIER 2
+            # ---------------------------------------------------------------------------
 
+            # Lifecycle state.
             - lvgl.label.update:
                 id: ui_rectifier_2_lifecycle
                 text: !lambda |-
@@ -309,7 +284,7 @@ interval:
 
                   return lv_color_hex(0x8B96A0);
 
-
+            # Power state
             - lvgl.label.update:
                 id: ui_rectifier_2_power_state
                 text: !lambda |-
@@ -346,7 +321,7 @@ interval:
 
                   return lv_color_hex(0x8B96A0);
 
-
+            # AC voltage
             - lvgl.label.update:
                 id: ui_rectifier_2_ac_voltage
                 text: !lambda |-
@@ -362,7 +337,7 @@ interval:
                     id(ac_voltage_2).state
                   );
 
-
+            # AC current
             - lvgl.label.update:
                 id: ui_rectifier_2_ac_current
                 text: !lambda |-
@@ -378,7 +353,7 @@ interval:
                     id(ac_current_2).state
                   );
 
-
+            # DC voltage
             - lvgl.label.update:
                 id: ui_rectifier_2_dc_voltage
                 text: !lambda |-
@@ -394,7 +369,7 @@ interval:
                     id(dc_voltage_2).state
                   );
 
-
+            # DC current
             - lvgl.label.update:
                 id: ui_rectifier_2_dc_current
                 text: !lambda |-
@@ -410,7 +385,7 @@ interval:
                     id(dc_current_2).state
                   );
 
-
+            # DC power
             - lvgl.label.update:
                 id: ui_rectifier_2_dc_power
                 text: !lambda |-
@@ -426,7 +401,7 @@ interval:
                     id(dc_power_2).state
                   );
 
-
+            # Output temperature
             - lvgl.label.update:
                 id: ui_rectifier_2_temperature
                 text: !lambda |-
@@ -442,6 +417,7 @@ interval:
                     id(output_temperature_2).state
                   );
 
+            # Power button label
             - lvgl.label.update:
                 id: ui_rectifier_2_power_button_label
                 text: !lambda |-
@@ -466,6 +442,7 @@ interval:
                       ? std::string("STOP")
                       : std::string("START");
 
+            # Power button availability
             - if:
                 condition:
                   lambda: |-
@@ -484,10 +461,11 @@ interval:
                   - lvgl.widget.disable:
                       id: ui_rectifier_2_power_button
 
-            # ========================================================================
-            # RECTIFIER 3 PAGE
-            # ========================================================================
+            # ---------------------------------------------------------------------------
+            # RECTIFIER 3
+            # ---------------------------------------------------------------------------
 
+            # Lifecycle state.
             - lvgl.label.update:
                 id: ui_rectifier_3_lifecycle
                 text: !lambda |-
@@ -523,7 +501,7 @@ interval:
 
                   return lv_color_hex(0x8B96A0);
 
-
+            # Power state
             - lvgl.label.update:
                 id: ui_rectifier_3_power_state
                 text: !lambda |-
@@ -560,7 +538,7 @@ interval:
 
                   return lv_color_hex(0x8B96A0);
 
-
+            # AC voltage
             - lvgl.label.update:
                 id: ui_rectifier_3_ac_voltage
                 text: !lambda |-
@@ -576,7 +554,7 @@ interval:
                     id(ac_voltage_3).state
                   );
 
-
+            # AC current
             - lvgl.label.update:
                 id: ui_rectifier_3_ac_current
                 text: !lambda |-
@@ -592,7 +570,7 @@ interval:
                     id(ac_current_3).state
                   );
 
-
+            # DC voltage
             - lvgl.label.update:
                 id: ui_rectifier_3_dc_voltage
                 text: !lambda |-
@@ -608,7 +586,7 @@ interval:
                     id(dc_voltage_3).state
                   );
 
-
+            # DC current
             - lvgl.label.update:
                 id: ui_rectifier_3_dc_current
                 text: !lambda |-
@@ -624,7 +602,7 @@ interval:
                     id(dc_current_3).state
                   );
 
-
+            # DC power
             - lvgl.label.update:
                 id: ui_rectifier_3_dc_power
                 text: !lambda |-
@@ -640,7 +618,7 @@ interval:
                     id(dc_power_3).state
                   );
 
-
+            # Output temperature
             - lvgl.label.update:
                 id: ui_rectifier_3_temperature
                 text: !lambda |-
@@ -656,6 +634,7 @@ interval:
                     id(output_temperature_3).state
                   );
 
+            # Power button label
             - lvgl.label.update:
                 id: ui_rectifier_3_power_button_label
 
@@ -681,6 +660,7 @@ interval:
                       ? std::string("STOP")
                       : std::string("START");
 
+            # Power button availability
             - if:
                 condition:
                   lambda: |-

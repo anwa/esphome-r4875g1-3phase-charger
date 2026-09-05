@@ -1,0 +1,110 @@
+# ==============================================================================
+# V5 PERSISTENT HEADER RUNTIME
+# ==============================================================================
+#
+# Runtime updates for widgets that are permanently visible on every page.
+#
+# Refresh rates:
+#   Charger run state -> 500 ms
+#   Clock             -> 10 s
+#
+# Battery voltage is maintained separately by display/battery.yaml.
+# ==============================================================================
+
+
+# ==============================================================================
+# CHARGER RUN STATE
+# ==============================================================================
+
+interval:
+  - interval: 500ms
+    then:
+      - lvgl.label.update:
+          id: ui_header_run_state
+
+          text: !lambda |-
+            int online = 0;
+
+            if (
+              id(can_com_ok_1).state &&
+              id(power_state_1).state == "ON"
+            ) {
+              online++;
+            }
+
+            if (
+              id(can_com_ok_2).state &&
+              id(power_state_2).state == "ON"
+            ) {
+              online++;
+            }
+
+            if (
+              id(can_com_ok_3).state &&
+              id(power_state_3).state == "ON"
+            ) {
+              online++;
+            }
+
+            if (online == 0) {
+              return std::string("OFF");
+            }
+
+            return str_sprintf(
+              "%d/3 ON",
+              online
+            );
+
+          text_color: !lambda |-
+            int online = 0;
+
+            if (
+              id(can_com_ok_1).state &&
+              id(power_state_1).state == "ON"
+            ) {
+              online++;
+            }
+
+            if (
+              id(can_com_ok_2).state &&
+              id(power_state_2).state == "ON"
+            ) {
+              online++;
+            }
+
+            if (
+              id(can_com_ok_3).state &&
+              id(power_state_3).state == "ON"
+            ) {
+              online++;
+            }
+
+            return online == 3
+              ? lv_color_hex(0x5CFF7A)
+              : lv_color_hex(0xFF3030);
+
+
+# ==============================================================================
+# CLOCK
+# ==============================================================================
+
+  - interval: 10s
+    then:
+      - lvgl.label.update:
+          id: ui_header_clock
+
+          text: !lambda |-
+            auto now = id(sntp_time).now();
+
+            if (!now.is_valid()) {
+              return std::string("--.--.---- --:--");
+            }
+
+            return str_sprintf(
+              "%02d.%02d.%04d  %02d:%02d",
+              now.day_of_month,
+              now.month,
+              now.year,
+              now.hour,
+              now.minute
+            );
