@@ -14,6 +14,7 @@ packages:
   display_theme: !include display/theme.yaml
   display_ui: !include display/ui.yaml
 
+  display_header: !include display/header.yaml
   display_command_state: !include display/command-state.yaml
 
   display_dashboard: !include display/dashboard.yaml
