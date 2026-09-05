@@ -26,7 +26,7 @@ lvgl:
   touchscreens:
     - touchscreen_id: charger_touchscreen
 
-  buffer_size: 100%
+  buffer_size: 30%
   color_depth: 16
   log_level: WARN
   page_wrap: true
