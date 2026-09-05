@@ -12,13 +12,30 @@ They exist to prevent architectural decisions, formatting conventions and releas
 
 ## Repository Language
 
-English is the mandatory language for all repository content.
+All human-readable repository content created or substantially modified in this project MUST be written in English.
 
-This applies to source comments, documentation, rules, commit messages, branch names, pull requests, release notes and other repository-facing text.
+This applies regardless of the language used in development discussions or AI conversations.
 
-The conversation with an AI agent may use another language. Agents MUST translate repository-facing output to English before it is added to the repository.
+This includes, but is not limited to:
 
-Established identifiers, protocol-defined values, hardware names and external names are not subject to translation.
+- source-code comments
+- YAML comments
+- Markdown documentation
+- README files
+- repository rules
+- commit messages
+- branch names
+- pull-request titles and descriptions
+- release notes
+- developer-facing script output
+- developer-facing log and error messages
+- other human-readable project text
+
+Agents MUST translate repository-facing output to English before it is added to the repository.
+
+The language rule does not require translation of protocol-defined strings, external identifiers, entity IDs, hardware or product names, file-format keywords, API-defined values, or other text whose spelling is externally fixed.
+
+Existing non-English content does not need to be translated merely because an unrelated file is edited. However, new or substantially rewritten repository-facing text MUST be English.
 
 ## Rules
 

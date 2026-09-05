@@ -4,7 +4,7 @@ Before modifying this repository, read and follow the applicable rules in `rules
 
 ## Repository Language
 
-All content that becomes part of this Git repository MUST be written in English.
+All human-readable repository content created or substantially modified in this project MUST be written in English.
 
 This requirement applies regardless of the language used in the conversation with the user. The normal conversation language may be German, but repository content must remain English.
 
@@ -19,15 +19,17 @@ This includes, but is not limited to:
 - branch names
 - pull-request titles and descriptions
 - release notes
-- Git tags containing descriptive text
-- user-visible strings added specifically as project documentation or   development metadata
-- scripts and developer-facing log or error messages where new wording is added
+- developer-facing script output
+- developer-facing log and error messages
+- other human-readable project text
 
-Existing protocol-defined strings, external identifiers, entity IDs, hardware names and other values that must retain an established spelling are exempt.
+The language rule does not require translation of protocol-defined strings, external identifiers, entity IDs, hardware or product names, file-format keywords, API-defined values, or other text whose spelling is externally fixed.
 
-Existing non-English content does not need to be translated merely because an unrelated file is edited. However, new or substantially rewritten repository content MUST be English.
+Existing non-English content does not need to be translated merely because an unrelated file is edited. However, new or substantially rewritten repository-facing text MUST be English.
 
 When drafting repository content in a non-English conversation, agents MUST translate the final repository-facing text to English before proposing or committing it.
+
+## Required Rules
 
 At minimum, review:
 
@@ -40,6 +42,8 @@ Depending on the task, also review:
 - `rules/yaml-comments.md` for YAML changes
 - `rules/documentation.md` for documentation changes
 - `rules/versioning.md` for firmware changes and releases
+
+## Rule Application
 
 Repository rules are normative for AI-assisted development unless the current task explicitly specifies otherwise.
 
