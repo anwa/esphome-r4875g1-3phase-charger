@@ -2,9 +2,30 @@
 # V5 DISPLAY HARDWARE
 # ==============================================================================
 #
-# Waveshare ESP32-S3-Touch-LCD-7 with native 800x480 RGB panel and GT911
-# capacitive touch input.
+# Waveshare ESP32-S3-Touch-LCD-7 with native 800x480 RGB panel, CH422G-backed
+# backlight enable and GT911 capacitive touch input.
 # ==============================================================================
+
+# ==============================================================================
+# DISPLAY BACKLIGHT
+# ==============================================================================
+#
+# CH422G EXIO2 drives the onboard DISP / backlight-enable signal.
+# The backlight is enabled after boot and can be disabled by the LVGL idle
+# runtime without stopping the RGB display controller itself.
+# ==============================================================================
+
+switch:
+  - platform: gpio
+    id: display_backlight
+    internal: true
+    restore_mode: ALWAYS_ON
+
+    pin:
+      ch422g: io_expander
+      number: 2
+      mode:
+        output: true
 
 display:
   - platform: mipi_rgb
@@ -25,6 +46,22 @@ lvgl:
 
   touchscreens:
     - touchscreen_id: charger_touchscreen
+
+  # A wake-up touch is handled explicitly by the touchscreen on_release
+  # automation so the first blind touch cannot operate an LVGL control.
+  resume_on_input: false
+
+  on_idle:
+    - timeout: ${display_idle_timeout}
+      then:
+        - logger.log:
+            level: INFO
+            format: "Display idle timeout reached; turning backlight off."
+
+        - lvgl.pause:
+            show_snow: false
+
+        - switch.turn_off: display_backlight
 
   buffer_size: 30%
   color_depth: 16

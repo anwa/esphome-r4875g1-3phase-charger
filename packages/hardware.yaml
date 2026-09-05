@@ -337,6 +337,20 @@ touchscreen:
             - touch.y
           level: INFO
 
+    on_release:
+      - if:
+          condition: lvgl.is_paused
+          then:
+            - logger.log:
+                level: INFO
+                format: "Touch detected while display is asleep; waking display."
+
+            - switch.turn_on: display_backlight
+
+            - lvgl.resume:
+
+            - lvgl.widget.redraw:
+
 # ==============================================================================
 # USB / CAN MODE SELECTION
 # ==============================================================================
