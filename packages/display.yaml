@@ -13,5 +13,13 @@ packages:
   display_hardware: !include display/hardware.yaml
   display_theme: !include display/theme.yaml
   display_ui: !include display/ui.yaml
-  display_trends: !include display/trends.yaml
+
+  display_command_state: !include display/command-state.yaml
+
+  display_dashboard: !include display/dashboard.yaml
+  display_rectifiers: !include display/rectifiers.yaml
   display_rectifier_detail: !include display/rectifier-detail.yaml
+  display_cooling: !include display/cooling.yaml
+  display_system: !include display/system.yaml
+  display_battery: !include display/battery.yaml
+  display_trends: !include display/trends.yaml

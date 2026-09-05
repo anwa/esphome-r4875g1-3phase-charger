@@ -165,6 +165,7 @@ widgets:
             on_short_click:
               - lambda: |-
                   id(rectifier_detail_unit) = 1;
+                  id(ui_active_page) = 2;
 
               - lvgl.page.show: page_rectifier_detail
 
@@ -325,6 +326,7 @@ widgets:
             on_short_click:
               - lambda: |-
                   id(rectifier_detail_unit) = 2;
+                  id(ui_active_page) = 2;
 
               - lvgl.page.show: page_rectifier_detail
 
@@ -485,6 +487,7 @@ widgets:
             on_short_click:
               - lambda: |-
                   id(rectifier_detail_unit) = 3;
+                  id(ui_active_page) = 2;
 
               - lvgl.page.show: page_rectifier_detail
 

@@ -636,4 +636,11 @@ script:
 interval:
   - interval: 1s
     then:
-      - script.execute: trend_chart_refresh
+      - if:
+          condition:
+            lambda: |-
+              return id(ui_active_page) == 5;
+
+          then:
+            - script.execute:
+                id: trend_chart_refresh

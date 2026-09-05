@@ -43,8 +43,8 @@ tca9548a:
 #   GPA1 / pin 1 -> rotary encoder B
 #   GPA2 / pin 2 -> rotary encoder button
 #
-# GPIO6 is reserved as a possible future MCP23017 interrupt input.
-# No interrupt is configured yet.
+# GPIO6 is used for controller battery voltage measurement via J8 AD.
+# MCP23017 interrupt operation is therefore not used.
 
 mcp23017:
   - id: external_io_expander
@@ -64,7 +64,7 @@ mcp23017:
 # All inputs use the MCP23017 internal pull-ups. The mechanical encoder
 # therefore switches the inputs to GND.
 #
-# GPIO6 remains reserved for a possible future MCP23017 interrupt input.
+# GPIO6 is dedicated to controller battery voltage measurement.
 # Encoder decoding and button actions will be implemented separately.
 
 binary_sensor:
@@ -108,6 +108,153 @@ binary_sensor:
 
     filters:
       - delayed_on_off: 20ms
+
+# ==============================================================================
+# CONTROLLER BATTERY VOLTAGE
+# ==============================================================================
+#
+# A 1S lithium battery is connected to J3.
+#
+# The Waveshare board already provides a battery-voltage divider:
+#
+#   VBAT -> 200 kΩ -> TP1 -> 100 kΩ -> GND
+#
+# TP1 is wired externally to:
+#
+#   J8 pin 3 / AD -> GPIO6
+#
+# Divider ratio:
+#
+#   VADC = VBAT * 100 / (200 + 100)
+#        = VBAT / 3
+#
+# Therefore the ADC result is multiplied by 3.0 to recover the actual
+# battery voltage.
+#
+# No SOC calculation is performed here. Battery voltage will first be
+# calibrated against a multimeter measurement.
+
+sensor:
+  - platform: adc
+    pin: ${pin_battery_adc}
+    id: controller_battery_voltage
+    name: "Controller Battery Voltage"
+
+    attenuation: 6db
+    update_interval: 5s
+
+    unit_of_measurement: "V"
+    device_class: voltage
+    state_class: measurement
+    entity_category: diagnostic
+    accuracy_decimals: 2
+    icon: "mdi:battery"
+
+    filters:
+      # Restore the actual battery voltage from the onboard 1:3 divider.
+      - multiply: 3.0
+
+      # Smooth ADC noise while still reacting quickly enough for a battery
+      # monitor. Five 5-second samples represent a 25-second window.
+      - sliding_window_moving_average:
+          window_size: 5
+          send_every: 1
+
+  # ---------------------------------------------------------------------------
+  # Controller Battery State of Charge
+  # ---------------------------------------------------------------------------
+  #
+  # Voltage-based estimate for the onboard 1S lithium backup battery.
+  #
+  # This is intentionally only an estimate. A lithium cell has a nonlinear
+  # voltage/SOC relationship and its terminal voltage also depends on charge
+  # current, load and relaxation time.
+  #
+  # The piecewise curve is therefore intended for useful local monitoring,
+  # not precision coulomb counting.
+
+  - platform: template
+    id: controller_battery_soc
+    name: "Controller Battery State of Charge"
+
+    unit_of_measurement: "%"
+    device_class: battery
+    state_class: measurement
+    entity_category: diagnostic
+    accuracy_decimals: 0
+    icon: "mdi:battery"
+
+    update_interval: 5s
+
+    lambda: |-
+      const float v =
+        id(controller_battery_voltage).state;
+
+      if (isnan(v))
+        return NAN;
+
+      // Approximate resting-voltage curve for a 1S Li-ion cell.
+      //
+      // Voltage   SOC
+      // 4.20 V    100 %
+      // 4.10 V     90 %
+      // 4.00 V     80 %
+      // 3.90 V     65 %
+      // 3.80 V     45 %
+      // 3.70 V     25 %
+      // 3.60 V     10 %
+      // 3.50 V      5 %
+      // 3.30 V      0 %
+
+      struct Point {
+        float voltage;
+        float soc;
+      };
+
+      static const Point curve[] = {
+        {3.30f,   0.0f},
+        {3.50f,   5.0f},
+        {3.60f,  10.0f},
+        {3.70f,  25.0f},
+        {3.80f,  45.0f},
+        {3.90f,  65.0f},
+        {4.00f,  80.0f},
+        {4.10f,  90.0f},
+        {4.20f, 100.0f}
+      };
+
+      if (v <= curve[0].voltage)
+        return 0.0f;
+
+      const size_t count =
+        sizeof(curve) / sizeof(curve[0]);
+
+      if (v >= curve[count - 1].voltage)
+        return 100.0f;
+
+      for (size_t i = 1; i < count; i++) {
+        if (v <= curve[i].voltage) {
+
+          const float v0 =
+            curve[i - 1].voltage;
+
+          const float v1 =
+            curve[i].voltage;
+
+          const float s0 =
+            curve[i - 1].soc;
+
+          const float s1 =
+            curve[i].soc;
+
+          return s0 +
+            (v - v0) *
+            (s1 - s0) /
+            (v1 - v0);
+        }
+      }
+
+      return NAN;
 
 # ==============================================================================
 # INTERNAL I/O EXPANDER
