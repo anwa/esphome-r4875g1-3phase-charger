@@ -10,6 +10,25 @@ This includes README files, architecture documentation, hardware documentation, 
 
 The language used in development discussions does not affect this requirement.
 
+## Markdown Line Wrapping
+
+Markdown prose MUST NOT be hard-wrapped to a fixed line length.
+
+Paragraphs SHOULD be stored as one logical line and allowed to wrap dynamically in the editor or renderer.
+
+Do not introduce manual line breaks solely to enforce limits such as 80 or 100 characters.
+
+Manual line breaks remain appropriate when required by Markdown structure or when they are semantically meaningful, for example:
+
+- lists
+- block quotes
+- tables
+- code blocks
+- intentionally separated lines
+- syntax that depends on line boundaries
+
+When editing an existing Markdown file, agents SHOULD NOT reflow unrelated paragraphs merely to change wrapping style.
+
 ## README Responsibilities
 
 The root `README.md` SHOULD describe the project from a user's and integrator's perspective.
