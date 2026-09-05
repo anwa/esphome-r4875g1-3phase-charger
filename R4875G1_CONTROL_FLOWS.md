@@ -252,6 +252,8 @@ Aggregate AC/DC power, average AC voltage, average AC phase current, DC current,
 
 # 18. V5 LVGL display behavior
 
+The V5 controller uses the Waveshare ESP32-S3-Touch-LCD-7 with a 7-inch 800×480 RGB display and GT911 capacitive touchscreen.
+
 LVGL tracks touchscreen inactivity. After the configured display idle timeout, the firmware pauses LVGL rendering and disables the CH422G-controlled display backlight while charger control and telemetry continue normally. A touchscreen release wakes the display, resumes LVGL and redraws the current interface. Automatic LVGL resume-on-input is disabled so the first blind touch is consumed as a wake-up action instead of operating the underlying control.
 
 The LVGL interface exposes five primary navigation pages:
