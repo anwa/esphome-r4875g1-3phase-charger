@@ -1,19 +1,27 @@
 # ==============================================================================
 # V5 LVGL PAGE: TRENDS
 # ==============================================================================
+#
+# Displays a shared chart for charger power, current, voltage and temperature
+# history.
+#
+# The chart runtime and trend-buffer handling are implemented in
+# display/trends.yaml.
+# ==============================================================================
 
 id: page_trends
 styles: style_page
 
 widgets:
 
-  # ============================================================================
+  # ---------------------------------------------------------------------------
   # TREND SELECTOR
-  # ============================================================================
+  # ---------------------------------------------------------------------------
   #
   # The TabView is intentionally only as high as its tab bar.
-  # Its page content is not used. The chart itself lives independently below
-  # the TabView and therefore remains visible for every selected trend.
+  # Its page content is unused. The chart lives independently below the TabView
+  # and therefore remains visible for every selected trend.
+  # ---------------------------------------------------------------------------
 
   - tabview:
       id: ui_trend_tabview
@@ -86,10 +94,9 @@ widgets:
           id: ui_trend_tab_compartment
           widgets: []
 
-
-  # ============================================================================
+  # ---------------------------------------------------------------------------
   # CHART
-  # ============================================================================
+  # ---------------------------------------------------------------------------
 
   - obj:
       id: ui_trend_chart_host
@@ -102,9 +109,7 @@ widgets:
 
       widgets:
 
-        # ----------------------------------------------------------------------
         # Dynamic Y-axis labels
-        # ----------------------------------------------------------------------
         - label:
             id: ui_trend_y_max
             x: 4
@@ -135,9 +140,7 @@ widgets:
             text_font: montserrat_14
             text_color: 0x8B96A0
 
-        # ----------------------------------------------------------------------
         # Fixed X-axis labels
-        # ----------------------------------------------------------------------
         - label:
             x: 65
             y: 194
@@ -165,10 +168,9 @@ widgets:
             text_font: montserrat_14
             text_color: 0x8B96A0
 
-
-  # ============================================================================
-  # CURRENT / MIN / MAX
-  # ============================================================================
+  # ---------------------------------------------------------------------------
+  # CURRENT, MINIMUM AND MAXIMUM
+  # ---------------------------------------------------------------------------
 
   - obj:
       x: 20
