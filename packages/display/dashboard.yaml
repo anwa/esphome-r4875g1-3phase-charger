@@ -300,12 +300,8 @@ interval:
                   }
 
                   const bool running =
-                    (id(can_com_ok_1).state &&
-                     id(power_state_1).state == "ON") ||
-                    (id(can_com_ok_2).state &&
-                     id(power_state_2).state == "ON") ||
-                    (id(can_com_ok_3).state &&
-                     id(power_state_3).state == "ON");
+                    !isnan(id(running_units).state) &&
+                    id(running_units).state > 0.0f;
 
                   return running
                     ? std::string("STOP CHARGER")

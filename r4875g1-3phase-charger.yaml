@@ -837,6 +837,42 @@ sensor:
     icon: "mdi:server-network"
 
   # ---------------------------------------------------------------------------
+  # RUNNING UNITS
+  # ---------------------------------------------------------------------------
+  #
+  # Number of reachable rectifiers currently reporting their power state as ON.
+  # A unit with stale CAN communication or an unknown power state is not counted
+  # as running.
+  # ---------------------------------------------------------------------------
+
+  - platform: template
+    name: "Running Units"
+    id: running_units
+    state_class: measurement
+    accuracy_decimals: 0
+    update_interval: 500ms
+    lambda: |-
+      int count = 0;
+
+      if (id(can_com_ok_1).state &&
+          id(power_state_1).state == "ON") {
+        count++;
+      }
+
+      if (id(can_com_ok_2).state &&
+          id(power_state_2).state == "ON") {
+        count++;
+      }
+
+      if (id(can_com_ok_3).state &&
+          id(power_state_3).state == "ON") {
+        count++;
+      }
+
+      return count;
+    icon: "mdi:power"
+
+  # ---------------------------------------------------------------------------
   # COMBINED DC CURRENT ALL UNITS
   # ---------------------------------------------------------------------------
   #
