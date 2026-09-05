@@ -8,7 +8,7 @@
 # Included hardware:
 #   - shared I2C bus
 #   - TCA9548A I2C multiplexer
-#   - MCP23017 encoder I/O expander
+#   - MCP23017 external I/O expander
 #   - EMC2101 external fan controller
 #   - rotary encoder inputs
 #   - controller backup-battery ADC
