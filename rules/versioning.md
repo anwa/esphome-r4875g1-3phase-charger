@@ -8,8 +8,7 @@ The canonical firmware version is defined in:
 
 `packages/version.yaml`
 
-No other file should contain an independently maintained current firmware
-version.
+No other file should contain an independently maintained current firmware version.
 
 ## Single Source of Truth
 
@@ -52,8 +51,7 @@ A MINOR release resets PATCH to zero.
 
 ## MAJOR Version
 
-Increment MAJOR for a new firmware generation or intentionally incompatible
-architecture.
+Increment MAJOR for a new firmware generation or intentionally incompatible architecture.
 
 Example:
 

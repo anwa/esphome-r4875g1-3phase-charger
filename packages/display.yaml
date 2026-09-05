@@ -27,21 +27,21 @@
 
 packages:
   # ---------------------------------------------------------------------------
-  # Core display infrastructure
+  # CORE DISPLAY INFRASTRUCTURE
   # ---------------------------------------------------------------------------
   display_hardware: !include display/hardware.yaml
   display_theme: !include display/theme.yaml
   display_ui: !include display/ui.yaml
 
   # ---------------------------------------------------------------------------
-  # Persistent/global runtimes
+  # PERSISTENT/GLOBAL RUNTIMES
   # ---------------------------------------------------------------------------
   display_header: !include display/header.yaml
   display_command_state: !include display/command-state.yaml
   display_battery: !include display/battery.yaml
 
   # ---------------------------------------------------------------------------
-  # Page-specific runtimes
+  # PAGE-SPECIFIC RUNTIMES
   # ---------------------------------------------------------------------------
   display_dashboard: !include display/dashboard.yaml
   display_rectifiers: !include display/rectifiers.yaml

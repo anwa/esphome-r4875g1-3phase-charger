@@ -57,14 +57,16 @@
 #          |
 #          +--> TFT display / Home Assistant / MQTT
 #
-# Local blackstart control path:
+# Local control path:
 #
-#   Rotary encoder + push button via TCA9548A / MCP23017
+#   GT911 touchscreen / LVGL interface
 #          |
-#          +--> choose DC voltage or nominal three-unit DC power target
-#          +--> calculate the common per-unit current setpoint from that target
-#          +--> apply active voltage/current setpoints only to verified ONLINE units
-#          +--> long press starts/stops all units
+#          +--> charger-wide voltage and power setpoints
+#          +--> charger and per-unit START/STOP controls
+#          +--> fallback voltage/current adjustment
+#
+# Backup rotary-encoder inputs are connected through the MCP23017 but currently
+# have no assigned charger-control or navigation actions.
 #
 # Offline operation:
 #

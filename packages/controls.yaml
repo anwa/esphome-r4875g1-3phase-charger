@@ -17,6 +17,7 @@ number:
   # ---------------------------------------------------------------------------
   # INTERNAL RECTIFIER FAN MINIMUM DUTY
   # ---------------------------------------------------------------------------
+  #
   # Broadcasts the minimum duty for the rectifiers' built-in fans using Huawei
   # CAN command selector 0x14. This is not the external chassis-fan PWM.
   # ---------------------------------------------------------------------------
@@ -269,7 +270,7 @@ number:
       then:
         - lambda: |-
             // Fallback voltage uses the same V * 1024 representation as active voltage.
-            float fallback_voltage_value = id(set_dc_voltage_limit_fallback).state;  // Get the fallback voltage value
+            float fallback_voltage_value = id(set_dc_voltage_limit_fallback).state;
             ESP_LOGI(
               "custom",
               "Received fallback DC voltage limit: %.1f V",
@@ -280,12 +281,15 @@ number:
             use_extended_id: true
             can_id: 0x108080FE
             data: !lambda |-
-              std::vector<uint8_t> can_data(8, 0x00);  // Initialize with 8 zeros
-              can_data[0] = 0x01;  // First byte is always 0x01
-              can_data[1] = 0x01;  // Second byte is 0x01 for the Fallback Voltage setting
-              int fallback_scaled_value = (int)(id(set_dc_voltage_limit_fallback).state * id(voltage_scaling_factor));  // Scale the voltage value
-              can_data[6] = (fallback_scaled_value >> 8) & 0xFF;  // Encode the high byte in the 7th byte
-              can_data[7] = fallback_scaled_value & 0xFF;         // Encode the low byte in the 8th byte
+              std::vector<uint8_t> can_data(8, 0x00);
+              can_data[0] = 0x01;
+              can_data[1] = 0x01;
+              int fallback_scaled_value = (int)(
+                id(set_dc_voltage_limit_fallback).state *
+                id(voltage_scaling_factor)
+              );
+              can_data[6] = (fallback_scaled_value >> 8) & 0xFF;
+              can_data[7] = fallback_scaled_value & 0xFF;
               return can_data;
 
   # ---------------------------------------------------------------------------

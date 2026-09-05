@@ -7,5 +7,6 @@
 #
 # Comment-only and documentation-only commits do not require a version bump.
 # ==============================================================================
+
 substitutions:
   firmware_version: "5.3.7"
