@@ -1,13 +1,21 @@
 # ==============================================================================
 # CHARGER CONTROLS PACKAGE
 # ==============================================================================
-# Charger-wide setpoints and broadcast/shared control buttons. Individual
-# per-rectifier controls are instantiated from rectifier-unit.yaml.
+#
+# Charger-wide setpoints and shared control entities.
+#
+# This package contains controls that affect the complete three-rectifier
+# charger. Per-unit controls are instantiated separately from
+# rectifier-unit.yaml.
+#
+# CAN command encoding remains centralized here or in the shared control
+# scripts referenced by these entities.
+# ==============================================================================
 
 number:
-  # --------------------------------------------------------------------------
-  # Internal R4875G1 Fan Minimum Duty
-  # --------------------------------------------------------------------------
+  # ---------------------------------------------------------------------------
+  # INTERNAL RECTIFIER FAN MINIMUM DUTY
+  # ---------------------------------------------------------------------------
   # Broadcasts the minimum duty for the rectifiers' built-in fans using Huawei
   # CAN command selector 0x14. This is not the external chassis-fan PWM.
   - platform: template
@@ -59,13 +67,15 @@ number:
               // Bytes 4..7 remain zero.
               return can_data;
 
-  # DC Voltage Setting
-  # --------------------------------------------------------------------------
-  # Set DC Voltage Limit
-  # Primary broadcast DC voltage setpoint using the centralized project
-  # voltage range and 0.1 V steps.
-  # The value is encoded as V * voltage_scaling_factor and sent in bytes 6..7 of
-  # broadcast CAN ID 0x108080FE.
+  # ---------------------------------------------------------------------------
+  # DC VOLTAGE LIMIT
+  # ---------------------------------------------------------------------------
+  #
+  # Primary charger-wide DC voltage setpoint.
+  #
+  # The requested engineering value uses 0.1 V resolution and is converted to
+  # the Huawei fixed-point CAN representation before being applied to all
+  # eligible ONLINE rectifiers.
   - platform: template
     name: "Set DC Voltage Limit"
     id: set_dc_voltage_limit
@@ -92,12 +102,14 @@ number:
 
         - script.execute: send_active_voltage_to_online_units
 
-  # DC Current Setting
-  # --------------------------------------------------------------------------
-  # Set DC Current Limit
-  # Secondary all-rectifier current setpoint. The requested current is
-  # validated against the detected unit model/capability, encoded using
-  # current_scaling_factor and broadcast with command selector 0x03.
+  # ---------------------------------------------------------------------------
+  # DC CURRENT LIMIT
+  # ---------------------------------------------------------------------------
+  #
+  # Charger-wide per-unit current request.
+  #
+  # The requested current is constrained by detected hardware capability and
+  # thermal derating before the active command is sent to the rectifiers.
   - platform: template
     name: "Set DC Current Limit"
     id: set_dc_current_limit

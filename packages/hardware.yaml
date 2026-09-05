@@ -1,5 +1,21 @@
 # ==============================================================================
-# V5 HARDWARE BUS PACKAGE
+# V5 EXTERNAL HARDWARE PACKAGE
+# ==============================================================================
+#
+# Defines external peripherals connected to the Waveshare controller:
+#
+#   - shared I2C bus
+#   - TCA9548A I2C multiplexer
+#   - MCP23017 encoder I/O expander
+#   - rotary encoder inputs
+#   - controller backup-battery voltage measurement
+#   - voltage-based backup-battery SOC estimate
+#
+# Display-specific onboard hardware is configured separately under display/.
+# ==============================================================================
+
+# ==============================================================================
+# SHARED I2C BUS
 # ==============================================================================
 
 i2c:
@@ -110,16 +126,16 @@ binary_sensor:
       - delayed_on_off: 20ms
 
 # ==============================================================================
-# CONTROLLER BATTERY VOLTAGE
+# CONTROLLER BACKUP BATTERY
 # ==============================================================================
 #
-# A 1S lithium battery is connected to J3.
+# A 1S lithium battery is connected to the Waveshare J3 battery connector.
 #
-# The Waveshare board already provides a battery-voltage divider:
+# The board already contains the required voltage divider:
 #
 #   VBAT -> 200 kΩ -> TP1 -> 100 kΩ -> GND
 #
-# TP1 is wired externally to:
+# TP1 is externally connected to:
 #
 #   J8 pin 3 / AD -> GPIO6
 #
@@ -128,11 +144,16 @@ binary_sensor:
 #   VADC = VBAT * 100 / (200 + 100)
 #        = VBAT / 3
 #
-# Therefore the ADC result is multiplied by 3.0 to recover the actual
-# battery voltage.
+# The ADC value is therefore multiplied by 3.0 to recover the actual battery
+# voltage.
 #
-# No SOC calculation is performed here. Battery voltage will first be
-# calibrated against a multimeter measurement.
+# The measured value was verified against a multimeter and is sufficiently
+# accurate without an additional software calibration.
+#
+# A separate template sensor derives an approximate state of charge from the
+# measured terminal voltage. This SOC value is intended for monitoring only and
+# is not a substitute for coulomb counting or a dedicated fuel-gauge IC.
+# ==============================================================================
 
 sensor:
   - platform: adc
@@ -161,7 +182,7 @@ sensor:
           send_every: 1
 
   # ---------------------------------------------------------------------------
-  # Controller Battery State of Charge
+  # VOLTAGE-BASED STATE OF CHARGE
   # ---------------------------------------------------------------------------
   #
   # Voltage-based estimate for the onboard 1S lithium backup battery.

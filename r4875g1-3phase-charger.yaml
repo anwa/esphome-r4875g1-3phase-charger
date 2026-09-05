@@ -1,34 +1,35 @@
 # ==============================================================================
-# HARDWARE GENERATION: V5
+# R4875G1 THREE-PHASE CHARGER - V5 HARDWARE
 # ==============================================================================
-# Board: Waveshare ESP32-S3-Touch-LCD-7
-# Module: ESP32-S3 N16R8
-# Flash: 16 MB
-# PSRAM: 8 MB
 #
-# Integrated hardware:
+# Target controller:
+#   Waveshare ESP32-S3-Touch-LCD-7
+#   ESP32-S3 N16R8
+#
+# Memory:
+#   Flash -> 16 MB
+#   PSRAM -> 8 MB Octal
+#
+# Integrated board hardware:
 #   - 7-inch 800x480 RGB IPS display
 #   - GT911 capacitive touch controller
 #   - CH422G I/O expander
 #   - onboard CAN transceiver
-#   - onboard RS485
+#   - onboard RS485 interface
 #   - TF card interface
 #   - native USB and USB-to-UART
 #
-# External I2C hardware:
+# External hardware:
 #   - TCA9548A I2C multiplexer @ 0x70
 #   - MCP23017 I/O expander @ 0x20 on TCA channel 0
 #   - AHT10 compartment temperature/humidity sensor @ 0x38 on TCA channel 1
+#   - rotary encoder connected through the MCP23017
+#   - external three/four-pin cooling-fan interface
+#   - 1S lithium controller backup battery on J3
+#   - battery-voltage measurement through TP1 / J8 AD / GPIO6
 #
-# Deferred hardware:
-#   - physical blackstart button
-#   - external cooling fan PWM
-#   - external cooling fan tachometer inputs
-#
-# V5 migration strategy:
-#   Port the proven v4 charger functionality to the new hardware first.
-#   Preserve the existing five-page UI functionality before redesigning it
-#   for the larger 800x480 touch display.
+# The V5 firmware retains the proven three-rectifier CAN control architecture
+# while using the Waveshare display controller as the local standalone UI.
 # ==============================================================================
 
 # ==============================================================================
@@ -57,7 +58,7 @@
 #
 # LOCAL BLACKSTART CONTROL PATH
 # -----------------------------
-#   Rotary encoder + push button
+#   Rotary encoder + push button via TCA9548A / MCP23017
 #          |
 #          +--> choose DC voltage or nominal three-unit DC power target
 #          +--> calculate the common per-unit current setpoint from that target
@@ -179,16 +180,16 @@ substitutions:
   #   TP1  -> J8 pin 3 / GPIO6
   #   ADC voltage = VBAT / 3
 
-  # --------------------------------------------------------------------------
-  # External cooling-fan defaults
-  # --------------------------------------------------------------------------
+  # ------------------------------------------------------------------------------
+  # EXTERNAL COOLING-FAN DEFAULTS
+  # ------------------------------------------------------------------------------
   cooling_fan_pwm_frequency: "25000Hz"
   cooling_fan_default_pwm_percent: "100.0"
   cooling_fan_tach_pulses_per_revolution: "2.0"
 
-  # --------------------------------------------------------------------------
-  # Project-wide operating limits
-  # --------------------------------------------------------------------------
+  # ------------------------------------------------------------------------------
+  # PROJECT-WIDE OPERATING LIMITS
+  # ------------------------------------------------------------------------------
   # Absolute supported project ceiling.
   project_max_dc_current_a: "75.0"
   # Conservative current ceiling until every currently reachable rectifier
@@ -220,15 +221,15 @@ substitutions:
 
   efficiency_min_ac_power_w: "100.0"
 
-  # --------------------------------------------------------------------------
-  # Protocol scaling
-  # --------------------------------------------------------------------------
+  # ------------------------------------------------------------------------------
+  # PROTOCOL SCALING
+  # ------------------------------------------------------------------------------
   protocol_value_scale: "1024"
   fan_duty_counts_per_percent: "256.0"
 
-  # --------------------------------------------------------------------------
-  # Rectifier control-state codes
-  # --------------------------------------------------------------------------
+  # ------------------------------------------------------------------------------
+  # RECTIFIER CONTROL-STATE CODES
+  # ------------------------------------------------------------------------------
   # Internal lifecycle state used independently for each rectifier.
   #
   # OFFLINE:
@@ -245,14 +246,14 @@ substitutions:
   rectifier_state_discovering: "1"
   rectifier_state_online: "2"
 
-  # --------------------------------------------------------------------------
-  # CAN communication buffering
-  # --------------------------------------------------------------------------
+  # ------------------------------------------------------------------------------
+  # CAN COMMUNICATION BUFFERING
+  # ------------------------------------------------------------------------------
   can_rx_queue_len: "64"
 
-  # --------------------------------------------------------------------------
-  # CAN communication timing
-  # --------------------------------------------------------------------------
+  # ------------------------------------------------------------------------------
+  # CAN COMMUNICATION TIMING
+  # ------------------------------------------------------------------------------
   # Normal runtime CAN watchdog.
   can_watchdog_timeout_ms: "3000"
 
@@ -277,7 +278,7 @@ substitutions:
   setpoint_refresh_interval: "30s"
 
   # --------------------------------------------------------------------------
-  # Discovery retry policy
+  # DISCOVERY RETRY POLICY
   # --------------------------------------------------------------------------
   property_discovery_attempts: "3"
   capability_discovery_attempts: "10"

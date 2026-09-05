@@ -1,9 +1,23 @@
 # ==============================================================================
 # EXTERNAL COOLING-FAN PACKAGE
 # ==============================================================================
-# Optional chassis/cooling fans around the rectifier assembly. These GPIO-based
-# fans are separate from the Huawei R4875G1 internal fan CAN telemetry/control.
+#
+# Controls the optional chassis fans surrounding the rectifier assembly.
+#
+# These external fans are independent of the internal Huawei rectifier fans,
+# whose speed, target duty and minimum duty are handled through CAN.
+#
+# Supported external fan operation:
+#   - common switched fan supply
+#   - 25 kHz PWM control for four-pin fans
+#   - three tachometer inputs
+#   - automatic compartment-temperature control
+#   - manual override when automatic mode is disabled
+# ==============================================================================
 
+# ==============================================================================
+# PWM OUTPUT
+# ==============================================================================
 output:
   - platform: ledc
     id: cooling_fan_pwm_output
@@ -12,13 +26,26 @@ output:
       number: ${pin_fan_pwm}
       inverted: true
 
+# ==============================================================================
+# AUTOMATIC CONTROL STATE
+# ==============================================================================
 globals:
+  # Automatic cooling stage:
+  #   0 = OFF
+  #   1 = 35 %
+  #   2 = 45 %
+  #   3 = 60 %
+  #   4 = 80 %
+  #   5 = 100 %
   # 0=OFF, 1=35%, 2=45%, 3=60%, 4=80%, 5=100%.
   - id: cooling_fan_auto_stage
     type: int
     restore_value: no
     initial_value: '0'
 
+# ==============================================================================
+# FAN CONTROL SWITCHES
+# ==============================================================================
 switch:
   # Common external fan-supply enable. Three-pin fans are controlled only by
   # this power switch; they do not use the PWM command below.
@@ -43,6 +70,9 @@ switch:
       then:
         - script.execute: apply_cooling_fan_automatic
 
+# ==============================================================================
+# FAN TACHOMETERS
+# ==============================================================================
 sensor:
   - platform: pulse_counter
     name: "Cooling Fan 1 RPM"
@@ -98,6 +128,9 @@ sensor:
       - lambda: 'return x / ${cooling_fan_tach_pulses_per_revolution}f;'
     icon: "mdi:fan"
 
+# ==============================================================================
+# PWM COMMAND
+# ==============================================================================
 number:
   # Manual PWM command and the visible commanded PWM value. While automatic
   # mode is enabled, the controller updates this value from the temperature
@@ -120,6 +153,9 @@ number:
             const float duty = std::max(0.0f, std::min(100.0f, x));
             id(cooling_fan_pwm_output).set_level(duty / 100.0f);
 
+# ==============================================================================
+# AUTOMATIC TEMPERATURE CONTROL
+# ==============================================================================
 script:
   # Temperature curve with 2 C hysteresis on downward transitions:
   #   <30 C   -> OFF / 0%
@@ -174,6 +210,9 @@ script:
                   call.perform();
                 }
 
+# ==============================================================================
+# PERIODIC AUTOMATIC CONTROL
+# ==============================================================================
 interval:
   - interval: 5s
     then:

@@ -1,4 +1,11 @@
+# ==============================================================================
+# FIRMWARE VERSION
+# ==============================================================================
+#
+# Single source of truth for the firmware version displayed by ESPHome and the
+# local LVGL interface.
+#
+# Comment-only and documentation-only commits do not require a version bump.
+# ==============================================================================
 substitutions:
-  # Single source of truth for the firmware release version.
-  # Every firmware commit increments PATCH by one.
   firmware_version: "5.3.6"
