@@ -53,7 +53,7 @@
 #          |
 #          +--> per-unit CAN watchdogs (can_com_ok_1..3)
 #          |
-#          +--> CAN-aware combined AC/DC power sensors
+#          +--> CAN-aware charger-wide aggregate telemetry
 #          |
 #          +--> TFT display / Home Assistant / MQTT
 #
@@ -373,39 +373,11 @@ sensor:
       entity_category: diagnostic
       icon: "mdi:memory"
 
-      on_value:
-        then:
-          - lvgl.label.update:
-              id: ui_system_heap
-              text: !lambda |-
-                if (isnan(x)) {
-                  return std::string("---- kB");
-                }
-
-                return str_sprintf(
-                  "%.0f kB",
-                  x / 1024.0f
-                );
-
     block:
       name: "Heap Max Block"
       id: debug_heap_max_block
       entity_category: diagnostic
       icon: "mdi:memory"
-
-      on_value:
-        then:
-          - lvgl.label.update:
-              id: ui_system_heap_block
-              text: !lambda |-
-                if (isnan(x)) {
-                  return std::string("---- kB");
-                }
-
-                return str_sprintf(
-                  "%.0f kB",
-                  x / 1024.0f
-                );
 
     loop_time:
       name: "Loop Time"
@@ -413,59 +385,17 @@ sensor:
       entity_category: diagnostic
       icon: "mdi:timer-outline"
 
-      on_value:
-        then:
-          - lvgl.label.update:
-              id: ui_system_loop_time
-              text: !lambda |-
-                if (isnan(x)) {
-                  return std::string("-- ms");
-                }
-
-                return str_sprintf(
-                  "%.0f ms",
-                  x
-                );
-
     psram:
       name: "Free PSRAM"
       id: debug_free_psram
       entity_category: diagnostic
       icon: "mdi:memory"
 
-      on_value:
-        then:
-          - lvgl.label.update:
-              id: ui_system_psram
-              text: !lambda |-
-                if (isnan(x)) {
-                  return std::string("---- kB");
-                }
-
-                return str_sprintf(
-                  "%.0f kB",
-                  x / 1024.0f
-                );
-
     cpu_frequency:
       name: "CPU Frequency"
       id: debug_cpu_frequency
       entity_category: diagnostic
       icon: "mdi:speedometer"
-
-      on_value:
-        then:
-          - lvgl.label.update:
-              id: ui_system_cpu_frequency
-              text: !lambda |-
-                if (isnan(x)) {
-                  return std::string("--- MHz");
-                }
-
-                return str_sprintf(
-                  "%.0f MHz",
-                  x / 1000000.0f
-                );
 
   # ---------------------------------------------------------------------------
   # CONTROLLER CPU TEMPERATURE
@@ -491,42 +421,6 @@ sensor:
     id: debug_uptime
     entity_category: diagnostic
     icon: "mdi:timer-outline"
-
-    on_value:
-      then:
-        - lvgl.label.update:
-            id: ui_system_uptime
-            text: !lambda |-
-              if (isnan(x)) {
-                return std::string("--");
-              }
-
-              const uint32_t seconds =
-                static_cast<uint32_t>(x);
-
-              const uint32_t days =
-                seconds / 86400U;
-
-              const uint32_t hours =
-                (seconds % 86400U) / 3600U;
-
-              const uint32_t minutes =
-                (seconds % 3600U) / 60U;
-
-              if (days > 0) {
-                return str_sprintf(
-                  "%lu d %02lu:%02lu",
-                  static_cast<unsigned long>(days),
-                  static_cast<unsigned long>(hours),
-                  static_cast<unsigned long>(minutes)
-                );
-              }
-
-              return str_sprintf(
-                "%02lu:%02lu",
-                static_cast<unsigned long>(hours),
-                static_cast<unsigned long>(minutes)
-              );
 
   # ---------------------------------------------------------------------------
   # WI-FI RSSI
@@ -668,6 +562,96 @@ sensor:
     icon: "mdi:flash"
 
   # ---------------------------------------------------------------------------
+  # AVERAGE AC VOLTAGE ALL UNITS
+  # ---------------------------------------------------------------------------
+  #
+  # Average AC input voltage across all reachable rectifiers with valid
+  # telemetry. Each rectifier is connected to a separate AC phase.
+  # ---------------------------------------------------------------------------
+
+  - platform: template
+    name: "Average AC Voltage All Units"
+    id: average_ac_voltage
+    unit_of_measurement: "V"
+    device_class: voltage
+    state_class: measurement
+    accuracy_decimals: 3
+    update_interval: 1s
+    lambda: |-
+      float voltage = 0.0f;
+      int valid_units = 0;
+
+      if (id(can_com_ok_1).state &&
+          !isnan(id(ac_voltage_1).state)) {
+        voltage += id(ac_voltage_1).state;
+        valid_units++;
+      }
+
+      if (id(can_com_ok_2).state &&
+          !isnan(id(ac_voltage_2).state)) {
+        voltage += id(ac_voltage_2).state;
+        valid_units++;
+      }
+
+      if (id(can_com_ok_3).state &&
+          !isnan(id(ac_voltage_3).state)) {
+        voltage += id(ac_voltage_3).state;
+        valid_units++;
+      }
+
+      if (valid_units == 0) {
+        return NAN;
+      }
+
+      return voltage / valid_units;
+    icon: "mdi:sine-wave"
+
+  # ---------------------------------------------------------------------------
+  # AVERAGE AC CURRENT ALL UNITS
+  # ---------------------------------------------------------------------------
+  #
+  # Average AC phase current across all reachable rectifiers with valid
+  # telemetry. Currents from the three independent phases are not summed.
+  # ---------------------------------------------------------------------------
+
+  - platform: template
+    name: "Average AC Current All Units"
+    id: average_ac_current
+    unit_of_measurement: "A"
+    device_class: current
+    state_class: measurement
+    accuracy_decimals: 3
+    update_interval: 1s
+    lambda: |-
+      float current = 0.0f;
+      int valid_units = 0;
+
+      if (id(can_com_ok_1).state &&
+          !isnan(id(ac_current_1).state)) {
+        current += id(ac_current_1).state;
+        valid_units++;
+      }
+
+      if (id(can_com_ok_2).state &&
+          !isnan(id(ac_current_2).state)) {
+        current += id(ac_current_2).state;
+        valid_units++;
+      }
+
+      if (id(can_com_ok_3).state &&
+          !isnan(id(ac_current_3).state)) {
+        current += id(ac_current_3).state;
+        valid_units++;
+      }
+
+      if (valid_units == 0) {
+        return NAN;
+      }
+
+      return current / valid_units;
+    icon: "mdi:current-ac"
+
+  # ---------------------------------------------------------------------------
   # COMBINED DC POWER ALL UNITS
   # ---------------------------------------------------------------------------
   #
@@ -745,6 +729,42 @@ sensor:
 
       return count;
     icon: "mdi:server-network"
+
+  # ---------------------------------------------------------------------------
+  # RUNNING UNITS
+  # ---------------------------------------------------------------------------
+  #
+  # Number of reachable rectifiers currently reporting their power state as ON.
+  # A unit with stale CAN communication or an unknown power state is not counted
+  # as running.
+  # ---------------------------------------------------------------------------
+
+  - platform: template
+    name: "Running Units"
+    id: running_units
+    state_class: measurement
+    accuracy_decimals: 0
+    update_interval: 500ms
+    lambda: |-
+      int count = 0;
+
+      if (id(can_com_ok_1).state &&
+          id(power_state_1).state == "ON") {
+        count++;
+      }
+
+      if (id(can_com_ok_2).state &&
+          id(power_state_2).state == "ON") {
+        count++;
+      }
+
+      if (id(can_com_ok_3).state &&
+          id(power_state_3).state == "ON") {
+        count++;
+      }
+
+      return count;
+    icon: "mdi:power"
 
   # ---------------------------------------------------------------------------
   # COMBINED DC CURRENT ALL UNITS

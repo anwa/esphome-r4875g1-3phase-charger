@@ -23,66 +23,30 @@ interval:
           id: ui_header_run_state
 
           text: !lambda |-
-            int online = 0;
+            const float running =
+              id(running_units).state;
 
             if (
-              id(can_com_ok_1).state &&
-              id(power_state_1).state == "ON"
+              isnan(running) ||
+              running < 1.0f
             ) {
-              online++;
-            }
-
-            if (
-              id(can_com_ok_2).state &&
-              id(power_state_2).state == "ON"
-            ) {
-              online++;
-            }
-
-            if (
-              id(can_com_ok_3).state &&
-              id(power_state_3).state == "ON"
-            ) {
-              online++;
-            }
-
-            if (online == 0) {
               return std::string("OFF");
             }
 
             return str_sprintf(
-              "%d/3 ON",
-              online
+              "%.0f/3 ON",
+              running
             );
 
           text_color: !lambda |-
-            int online = 0;
+            const float running =
+              id(running_units).state;
 
-            if (
-              id(can_com_ok_1).state &&
-              id(power_state_1).state == "ON"
-            ) {
-              online++;
-            }
-
-            if (
-              id(can_com_ok_2).state &&
-              id(power_state_2).state == "ON"
-            ) {
-              online++;
-            }
-
-            if (
-              id(can_com_ok_3).state &&
-              id(power_state_3).state == "ON"
-            ) {
-              online++;
-            }
-
-            return online == 3
-              ? lv_color_hex(0x5CFF7A)
-              : lv_color_hex(0xFF3030);
-
+            return
+              !isnan(running) &&
+              running >= 3.0f
+                ? lv_color_hex(0x5CFF7A)
+                : lv_color_hex(0xFF3030);
 
 # ==============================================================================
 # CLOCK

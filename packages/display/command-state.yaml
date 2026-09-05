@@ -14,6 +14,87 @@
 interval:
   - interval: 500ms
     then:
+
+      # ---------------------------------------------------------------------------
+      # CHARGER POWER COMMAND TRANSITION
+      # ---------------------------------------------------------------------------
+      #
+      # Charger-wide START/STOP completion must remain independent of the
+      # currently visible page. START completes when every currently reachable
+      # rectifier reports ON. STOP completes when no reachable rectifier reports
+      # ON. A pending command is cleared after ten seconds if the requested state
+      # has not been reached.
+      # ---------------------------------------------------------------------------
+
+      - lambda: |-
+          const uint32_t now = millis();
+          const uint8_t pending =
+            id(ui_charger_power_pending);
+
+          if (pending == 0) {
+            return;
+          }
+
+          bool any_on = false;
+          bool all_available_on = true;
+          int available = 0;
+
+          if (id(can_com_ok_1).state) {
+            available++;
+
+            if (id(power_state_1).state == "ON") {
+              any_on = true;
+            } else {
+              all_available_on = false;
+            }
+          }
+
+          if (id(can_com_ok_2).state) {
+            available++;
+
+            if (id(power_state_2).state == "ON") {
+              any_on = true;
+            } else {
+              all_available_on = false;
+            }
+          }
+
+          if (id(can_com_ok_3).state) {
+            available++;
+
+            if (id(power_state_3).state == "ON") {
+              any_on = true;
+            } else {
+              all_available_on = false;
+            }
+          }
+
+          bool completed = false;
+
+          if (pending == 1) {
+            completed =
+              available > 0 &&
+              all_available_on;
+          } else if (pending == 2) {
+            completed = !any_on;
+          }
+
+          const bool timed_out =
+            static_cast<uint32_t>(
+              now - id(ui_charger_power_pending_since)
+            ) >= 10000UL;
+
+          if (completed || timed_out) {
+            if (timed_out && !completed) {
+              ESP_LOGW(
+                "ui",
+                "Charger power command UI timeout."
+              );
+            }
+
+            id(ui_charger_power_pending) = 0;
+          }
+
       # ---------------------------------------------------------------------------
       # RECTIFIER POWER COMMAND TRANSITIONS
       # ---------------------------------------------------------------------------

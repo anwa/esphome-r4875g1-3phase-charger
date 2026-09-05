@@ -29,7 +29,7 @@ function Assert-Command([string]$Name) {
     }
 }
 
-function Quote-Sh([string]$Value) {
+function ConvertTo-ShQuotedString([string]$Value) {
     if ($Value.Contains("'")) {
         throw "Remote path must not contain an apostrophe: $Value"
     }
@@ -227,19 +227,19 @@ function Get-ProjectVersion {
     }
 
     $yaml = Get-Content -Raw -LiteralPath $versionPath
-    $matches = [regex]::Matches(
+    $versionMatches = [regex]::Matches(
         $yaml,
         '(?m)^\s*firmware_version:\s*["'']?([0-9]+\.[0-9]+\.[0-9]+)["'']?\s*(?:#.*)?$'
     )
 
-    if ($matches.Count -eq 0) {
+    if ($versionMatches.Count -eq 0) {
         throw "No valid firmware_version entry found in $VersionFile."
     }
-    if ($matches.Count -gt 1) {
+    if ($versionMatches.Count -gt 1) {
         throw "Multiple firmware_version entries found in $VersionFile."
     }
 
-    return $matches[0].Groups[1].Value
+    return $versionMatches[0].Groups[1].Value
 }
 
 function Get-GitInfo {
@@ -254,7 +254,7 @@ function Get-GitInfo {
 }
 
 function Invoke-HaSsh([string]$Command) {
-    $args = @(
+    $sshArgs = @(
         "-i", $KeyPath,
         "-p", $Port,
         "-o", "BatchMode=yes",
@@ -264,15 +264,18 @@ function Invoke-HaSsh([string]$Command) {
         "$HaUser@$HaHost",
         $Command
     )
-    $output = & ssh @args
+
+    $output = & ssh @sshArgs
+
     if ($LASTEXITCODE -ne 0) {
         throw "SSH command failed with exit code $LASTEXITCODE."
     }
+
     return $output
 }
 
 function Send-HaFile([string]$LocalPath, [string]$RemotePath) {
-    $args = @(
+    $scpArgs = @(
         "-i", $KeyPath,
         "-P", $Port,
         "-o", "BatchMode=yes",
@@ -282,7 +285,9 @@ function Send-HaFile([string]$LocalPath, [string]$RemotePath) {
         $LocalPath,
         "$HaUser@${HaHost}:$RemotePath"
     )
-    & scp @args
+
+    & scp @scpArgs
+
     if ($LASTEXITCODE -ne 0) {
         throw "SCP upload failed for '$LocalPath' with exit code $LASTEXITCODE."
     }
@@ -309,9 +314,9 @@ function Get-ParentDirectories([string[]]$RelativePaths) {
 }
 
 function New-RemoteDirectories([string]$Root, [string[]]$RelativePaths) {
-    $commands = @("set -eu", "mkdir -p $(Quote-Sh $Root)")
+    $commands = @("set -eu", "mkdir -p $(ConvertTo-ShQuotedString $Root)")
     foreach ($dir in (Get-ParentDirectories $RelativePaths)) {
-        $commands += "mkdir -p $(Quote-Sh "$Root/$dir")"
+        $commands += "mkdir -p $(ConvertTo-ShQuotedString "$Root/$dir")"
     }
     Invoke-HaSsh ($commands -join "; ") | Out-Null
 }
@@ -425,7 +430,7 @@ Write-Step "Checking SSH connection"
 Invoke-HaSsh "true" | Out-Null
 Write-Ok "SSH connection established"
 
-$qStaging = Quote-Sh $StagingDir
+$qStaging = ConvertTo-ShQuotedString $StagingDir
 
 try {
     Write-Step "Creating remote staging directory tree"
@@ -462,7 +467,7 @@ try {
                 -Algorithm SHA256 `
                 -LiteralPath $DeploymentProjectPath
         ).Hash.ToLowerInvariant()
-    $qProjectStaged = Quote-Sh "$StagingDir/$RemoteProjectFile"
+    $qProjectStaged = ConvertTo-ShQuotedString "$StagingDir/$RemoteProjectFile"
     $remoteProjectHash = ((Invoke-HaSsh "sha256sum $qProjectStaged | cut -d ' ' -f 1") | Out-String).Trim().ToLowerInvariant()
     if ($remoteProjectHash -ne $projectHash) {
         throw "Hash mismatch after upload: $ProjectFile -> $RemoteProjectFile"
@@ -480,7 +485,7 @@ try {
             $RemoteManagedFiles[$relativePath]
 
         $qPath =
-            Quote-Sh "$StagingDir/$remoteRelativePath"
+            ConvertTo-ShQuotedString "$StagingDir/$remoteRelativePath"
 
         $remoteHash =
             (
@@ -504,18 +509,18 @@ try {
             @($RemoteManagedFiles.Values)
 
         $commands = @("set -eu")
-        $projectSource = Quote-Sh "$RemoteDir/$RemoteProjectFile"
-        $projectDest = Quote-Sh "$BackupDir/$RemoteProjectFile"
+        $projectSource = ConvertTo-ShQuotedString "$RemoteDir/$RemoteProjectFile"
+        $projectDest = ConvertTo-ShQuotedString "$BackupDir/$RemoteProjectFile"
         $commands += "if [ -f $projectSource ]; then cp -p $projectSource $projectDest; fi"
         foreach ($relativePath in $ManagedFiles) {
             $remoteRelativePath =
                 $RemoteManagedFiles[$relativePath]
 
             $source =
-                Quote-Sh "$RemoteDir/$remoteRelativePath"
+                ConvertTo-ShQuotedString "$RemoteDir/$remoteRelativePath"
 
             $dest =
-                Quote-Sh "$BackupDir/$remoteRelativePath"
+                ConvertTo-ShQuotedString "$BackupDir/$remoteRelativePath"
 
             $commands +=
                 "if [ -f $source ]; then cp -p $source $dest; fi"
@@ -532,18 +537,18 @@ try {
         @($RemoteManagedFiles.Values)
 
     $commands = @("set -eu")
-    $projectSource = Quote-Sh "$StagingDir/$RemoteProjectFile"
-    $projectDest = Quote-Sh "$RemoteDir/$RemoteProjectFile"
+    $projectSource = ConvertTo-ShQuotedString "$StagingDir/$RemoteProjectFile"
+    $projectDest = ConvertTo-ShQuotedString "$RemoteDir/$RemoteProjectFile"
     $commands += "cp -p $projectSource $projectDest"
     foreach ($relativePath in $ManagedFiles) {
         $remoteRelativePath =
             $RemoteManagedFiles[$relativePath]
 
         $source =
-            Quote-Sh "$StagingDir/$remoteRelativePath"
+            ConvertTo-ShQuotedString "$StagingDir/$remoteRelativePath"
 
         $dest =
-            Quote-Sh "$RemoteDir/$remoteRelativePath"
+            ConvertTo-ShQuotedString "$RemoteDir/$remoteRelativePath"
 
         $commands +=
             "cp -p $source $dest"
@@ -551,7 +556,7 @@ try {
     Invoke-HaSsh ($commands -join "; ") | Out-Null
 
     Write-Step "Verifying installed files"
-    $qProjectInstalled = Quote-Sh "$RemoteDir/$RemoteProjectFile"
+    $qProjectInstalled = ConvertTo-ShQuotedString "$RemoteDir/$RemoteProjectFile"
     $installedProjectHash = ((Invoke-HaSsh "sha256sum $qProjectInstalled | cut -d ' ' -f 1") | Out-String).Trim().ToLowerInvariant()
     if ($installedProjectHash -ne $projectHash) {
         throw "Installed file verification failed: $RemoteProjectFile"
@@ -568,7 +573,7 @@ try {
             $RemoteManagedFiles[$relativePath]
 
         $qPath =
-            Quote-Sh "$RemoteDir/$remoteRelativePath"
+            ConvertTo-ShQuotedString "$RemoteDir/$remoteRelativePath"
 
         $remoteHash =
             (

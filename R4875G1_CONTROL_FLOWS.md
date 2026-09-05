@@ -248,7 +248,7 @@ Applied current is `min(requested, hardware capability limit, thermal limit)`. D
 
 Cyclic selectors include operating hours (`0x0E`), AC power (`0x70`), frequency (`0x71`), AC current (`0x72`), DC power (`0x73`), DC voltage (`0x75`), configured max DC current (`0x76`), AC voltage (`0x78`), output temperature (`0x7F`), input temperature (`0x80`) and DC current (`0x81`). Most engineering values use `raw / 1024`.
 
-Aggregate AC/DC power, DC current, average DC voltage, highest output temperature and efficiency include only CAN-fresh units with valid required telemetry. `Available Units` returns the reachable count.
+Aggregate AC/DC power, average AC voltage, average AC phase current, DC current, average DC voltage, highest output temperature and efficiency include only CAN-fresh units with valid required telemetry. `Available Units` returns the CAN-reachable rectifier count. `Running Units` returns the number of CAN-reachable rectifiers explicitly reporting their power state as `ON`.
 
 # 18. V5 LVGL display behavior
 
