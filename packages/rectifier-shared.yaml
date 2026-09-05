@@ -1528,9 +1528,7 @@ script:
       unit: int
 
     then:
-      # ----------------------------------------------------------------------
-      # FULL THREE-UNIT DISCOVERY
-      # ----------------------------------------------------------------------
+      # Full three-unit discovery
       - if:
           condition:
             lambda: 'return unit == 0;'
@@ -1597,9 +1595,7 @@ script:
                       unit: 1
                       state: ${rectifier_state_offline}
 
-            # --------------------------------------------------------------
-            # UNIT 2
-            # --------------------------------------------------------------
+            # Unit 2
             - logger.log:
                 level: INFO
                 format: "Discovery queue: starting Unit 2 discovery."
@@ -1683,9 +1679,7 @@ script:
                 level: INFO
                 format: "Discovery queue: full three-unit discovery completed."
 
-      # ----------------------------------------------------------------------
-      # UNIT 1 AUTOMATIC / INDIVIDUAL DISCOVERY
-      # ----------------------------------------------------------------------
+      # Unit 1 automatic / individual discovery.
       - if:
           condition:
             lambda: 'return unit == 1;'
@@ -1734,9 +1728,7 @@ script:
                 level: INFO
                 format: "Discovery queue: Unit 1 discovery completed."
 
-      # ----------------------------------------------------------------------
-      # UNIT 2 AUTOMATIC / INDIVIDUAL DISCOVERY
-      # ----------------------------------------------------------------------
+      # Unit 2 automatic / individual discovery.
       - if:
           condition:
             lambda: 'return unit == 2;'
@@ -1785,9 +1777,7 @@ script:
                 level: INFO
                 format: "Discovery queue: Unit 2 discovery completed."
 
-      # ----------------------------------------------------------------------
-      # UNIT 3 AUTOMATIC / INDIVIDUAL DISCOVERY
-      # ----------------------------------------------------------------------
+      # Unit 3 automatic / individual discovery.
       - if:
           condition:
             lambda: 'return unit == 3;'
@@ -1836,9 +1826,7 @@ script:
                 level: INFO
                 format: "Discovery queue: Unit 3 discovery completed."
 
-      # ----------------------------------------------------------------------
-      # INVALID PARAMETER
-      # ----------------------------------------------------------------------
+      # Invalid parameter.
       - if:
           condition:
             lambda: |-

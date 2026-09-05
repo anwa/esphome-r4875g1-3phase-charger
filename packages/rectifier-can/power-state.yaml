@@ -1,7 +1,10 @@
 # R4875G1 power-state response handler for Unit ${ru_unit}.
 #
-# Publishes rectifier ON/OFF/ERROR state and the alternate DC-current value
-# used as communication-freshness telemetry.
+# Required substitution:
+#   ru_unit -> rectifier unit number (1..3)
+#
+# Decodes extended CAN frame 0x100${ru_unit}117E and publishes the rectifier
+# ON/OFF/ERROR state plus the alternate DC-current freshness value.
 
 can_id: 0x100${ru_unit}117E
 use_extended_id: true
