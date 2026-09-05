@@ -2,6 +2,14 @@
 
 Documentation is part of the implementation and must describe the current project accurately.
 
+## Language
+
+All project documentation MUST be written in English.
+
+This includes README files, architecture documentation, hardware documentation, repository rules and documentation embedded in source files.
+
+The language used in development discussions does not affect this requirement.
+
 ## README Responsibilities
 
 The root `README.md` SHOULD describe the project from a user's and integrator's perspective.

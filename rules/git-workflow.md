@@ -63,6 +63,8 @@ Fix CAN recovery after bus-off
 
 Use imperative or concise descriptive wording consistently.
 
+All branch names, commit subjects and commit bodies MUST be written in English.
+
 ## Commit Bodies
 
 For non-trivial changes, a commit body SHOULD summarize the important changes.
@@ -109,6 +111,8 @@ Before merging a development branch into `main`:
 6. update required documentation
 
 A non-fast-forward merge MAY be used when preserving the identity of a feature branch is useful.
+
+Pull-request titles, descriptions and repository-facing review summaries MUST be written in English.
 
 ## Release Tags
 

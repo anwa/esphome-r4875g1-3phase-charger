@@ -10,6 +10,16 @@ These documents define repository-wide conventions that should remain stable acr
 
 They exist to prevent architectural decisions, formatting conventions and release procedures from being rediscovered or inconsistently applied.
 
+## Repository Language
+
+English is the mandatory language for all repository content.
+
+This applies to source comments, documentation, rules, commit messages, branch names, pull requests, release notes and other repository-facing text.
+
+The conversation with an AI agent may use another language. Agents MUST translate repository-facing output to English before it is added to the repository.
+
+Established identifiers, protocol-defined values, hardware names and external names are not subject to translation.
+
 ## Rules
 
 | File | Purpose |

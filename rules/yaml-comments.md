@@ -18,6 +18,10 @@ The goal is a consistent hierarchy of comments without unnecessary noise.
 
 ## General Principles
 
+All YAML comments MUST be written in English.
+
+This applies even when the development conversation or user instructions are in another language.
+
 Comments MUST describe the current implementation.
 
 Comments SHOULD explain:
