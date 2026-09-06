@@ -173,9 +173,6 @@ lvgl:
           y: 410
           styles: style_nav_button
 
-          pressed:
-            bg_color: 0x3A4652
-
           widgets:
             - label:
                 align: CENTER
@@ -192,9 +189,6 @@ lvgl:
           x: 168
           y: 410
           styles: style_nav_button
-
-          pressed:
-            bg_color: 0x3A4652
 
           widgets:
             - label:
@@ -213,9 +207,6 @@ lvgl:
           y: 410
           styles: style_nav_button
 
-          pressed:
-            bg_color: 0x3A4652
-
           widgets:
             - label:
                 align: CENTER
@@ -233,9 +224,6 @@ lvgl:
           y: 410
           styles: style_nav_button
 
-          pressed:
-            bg_color: 0x3A4652
-
           widgets:
             - label:
                 align: CENTER
@@ -252,9 +240,6 @@ lvgl:
           x: 642
           y: 410
           styles: style_nav_button
-
-          pressed:
-            bg_color: 0x3A4652
 
           widgets:
             - label:
@@ -319,9 +304,6 @@ lvgl:
                       y: 55
                       styles: style_dialog_step_button
 
-                      pressed:
-                        bg_color: 0x3A4652
-
                       widgets:
                         - label:
                             align: CENTER
@@ -359,9 +341,6 @@ lvgl:
                       y: 55
                       styles: style_dialog_step_button
 
-                      pressed:
-                        bg_color: 0x3A4652
-
                       widgets:
                         - label:
                             align: CENTER
@@ -385,9 +364,6 @@ lvgl:
                       x: -85
                       y: 115
                       styles: style_dialog_step_button
-
-                      pressed:
-                        bg_color: 0x3A4652
 
                       widgets:
                         - label:
@@ -424,9 +400,6 @@ lvgl:
                       y: 115
                       styles: style_dialog_step_button
 
-                      pressed:
-                        bg_color: 0x3A4652
-
                       widgets:
                         - label:
                             align: CENTER
@@ -444,9 +417,6 @@ lvgl:
                       y: -20
                       styles: style_dialog_button
 
-                      pressed:
-                        bg_color: 0x3A4652
-
                       widgets:
                         - label:
                             align: CENTER
@@ -463,9 +433,6 @@ lvgl:
                       y: -20
                       styles: style_dialog_button
                       border_color: 0x5CFF7A
-
-                      pressed:
-                        bg_color: 0x3A4652
 
                       widgets:
                         - label:
@@ -545,9 +512,6 @@ lvgl:
                       y: -20
                       styles: style_dialog_button
 
-                      pressed:
-                        bg_color: 0x3A4652
-
                       widgets:
                         - label:
                             align: CENTER
@@ -565,9 +529,6 @@ lvgl:
                       y: -20
                       styles: style_dialog_button
                       border_color: 0x5CFF7A
-
-                      pressed:
-                        bg_color: 0x3A4652
 
                       widgets:
                         - label:
@@ -647,9 +608,6 @@ lvgl:
                       y: -20
                       styles: style_dialog_button
 
-                      pressed:
-                        bg_color: 0x3A4652
-
                       widgets:
                         - label:
                             align: CENTER
@@ -667,9 +625,6 @@ lvgl:
                       y: -20
                       styles: style_dialog_button
                       border_color: 0xFF5C5C
-
-                      pressed:
-                        bg_color: 0x3A4652
 
                       widgets:
                         - label:
@@ -748,9 +703,6 @@ lvgl:
                       y: -20
                       styles: style_dialog_button
 
-                      pressed:
-                        bg_color: 0x3A4652
-
                       widgets:
                         - label:
                             align: CENTER
@@ -767,9 +719,6 @@ lvgl:
                       y: -20
                       styles: style_dialog_button
                       border_color: 0x5CFF7A
-
-                      pressed:
-                        bg_color: 0x3A4652
 
                       widgets:
                         - label:
@@ -848,9 +797,6 @@ lvgl:
                       y: -20
                       styles: style_dialog_button
 
-                      pressed:
-                        bg_color: 0x3A4652
-
                       widgets:
                         - label:
                             align: CENTER
@@ -867,9 +813,6 @@ lvgl:
                       y: -20
                       styles: style_dialog_button
                       border_color: 0xFF5C5C
-
-                      pressed:
-                        bg_color: 0x3A4652
 
                       widgets:
                         - label:
@@ -948,9 +891,6 @@ lvgl:
                       y: -20
                       styles: style_dialog_button
 
-                      pressed:
-                        bg_color: 0x3A4652
-
                       widgets:
                         - label:
                             align: CENTER
@@ -967,9 +907,6 @@ lvgl:
                       y: -20
                       styles: style_dialog_button
                       border_color: 0x5CFF7A
-
-                      pressed:
-                        bg_color: 0x3A4652
 
                       widgets:
                         - label:
@@ -1048,9 +985,6 @@ lvgl:
                       y: -20
                       styles: style_dialog_button
 
-                      pressed:
-                        bg_color: 0x3A4652
-
                       widgets:
                         - label:
                             align: CENTER
@@ -1067,9 +1001,6 @@ lvgl:
                       y: -20
                       styles: style_dialog_button
                       border_color: 0xFF5C5C
-
-                      pressed:
-                        bg_color: 0x3A4652
 
                       widgets:
                         - label:
@@ -1148,9 +1079,6 @@ lvgl:
                       y: -20
                       styles: style_dialog_button
 
-                      pressed:
-                        bg_color: 0x3A4652
-
                       widgets:
                         - label:
                             align: CENTER
@@ -1167,9 +1095,6 @@ lvgl:
                       y: -20
                       styles: style_dialog_button
                       border_color: 0x5CFF7A
-
-                      pressed:
-                        bg_color: 0x3A4652
 
                       widgets:
                         - label:
@@ -1248,9 +1173,6 @@ lvgl:
                       y: -20
                       styles: style_dialog_button
 
-                      pressed:
-                        bg_color: 0x3A4652
-
                       widgets:
                         - label:
                             align: CENTER
@@ -1267,9 +1189,6 @@ lvgl:
                       y: -20
                       styles: style_dialog_button
                       border_color: 0xFF5C5C
-
-                      pressed:
-                        bg_color: 0x3A4652
 
                       widgets:
                         - label:
