@@ -20,23 +20,22 @@ widgets:
   # ---------------------------------------------------------------------------
 
   - obj:
-      x: 20
-      y: 75
-      width: 235
-      height: 320
+      x: 10
+      y: 70
+      width: 253
+      height: 330
       styles: style_card
 
       widgets:
         - label:
-            x: 16
-            y: 12
+            x: 10
+            y: 10
+            styles: style_title_label
             text: "RECTIFIER 1"
-            text_font: montserrat_20
-            text_color: 0xFFFFFF
 
         - label:
             id: ui_rectifier_1_lifecycle
-            x: 16
+            x: 10
             y: 43
             text: "OFFLINE"
             text_font: montserrat_16
@@ -44,7 +43,7 @@ widgets:
 
         - label:
             id: ui_rectifier_1_power_state
-            x: 150
+            x: 165
             y: 43
             width: 65
             text_align: RIGHT
@@ -53,15 +52,14 @@ widgets:
             text_color: 0x8B96A0
 
         - label:
-            x: 16
+            x: 10
             y: 82
+            styles: style_desc_label
             text: "AC"
-            text_font: montserrat_16
-            text_color: 0x8B96A0
 
         - label:
             id: ui_rectifier_1_ac_voltage
-            x: 70
+            x: 65
             y: 80
             text: "230 V"
             text_font: montserrat_18
@@ -69,22 +67,21 @@ widgets:
 
         - label:
             id: ui_rectifier_1_ac_current
-            x: 145
+            x: 150
             y: 80
             text: "5.2 A"
             text_font: montserrat_18
             text_color: 0xDDE3E8
 
         - label:
-            x: 16
+            x: 10
             y: 122
+            styles: style_desc_label
             text: "DC"
-            text_font: montserrat_16
-            text_color: 0x8B96A0
 
         - label:
             id: ui_rectifier_1_dc_voltage
-            x: 70
+            x: 65
             y: 120
             text: "53.1 V"
             text_font: montserrat_18
@@ -92,7 +89,7 @@ widgets:
 
         - label:
             id: ui_rectifier_1_dc_current
-            x: 145
+            x: 150
             y: 120
             text: "22.4 A"
             text_font: montserrat_18
@@ -100,22 +97,21 @@ widgets:
 
         - label:
             id: ui_rectifier_1_dc_power
-            x: 70
+            x: 65
             y: 151
             text: "--.-- kW"
             text_font: montserrat_20
             text_color: 0xFFFFFF
 
         - label:
-            x: 16
+            x: 10
             y: 194
+            styles: style_desc_label
             text: "OUT"
-            text_font: montserrat_16
-            text_color: 0x8B96A0
 
         - label:
             id: ui_rectifier_1_temperature
-            x: 70
+            x: 65
             y: 192
             text: "--.- °C"
             text_font: montserrat_18
@@ -123,21 +119,17 @@ widgets:
 
         - button:
             id: ui_rectifier_1_power_button
-            x: 16
-            y: 250
-            width: 125
-            height: 48
-
-            disabled:
-              bg_color: 0x30343A
-              border_color: 0x44484E
+            x: 10
+            y: 270
+            width: 143
+            styles: style_dialog_button
 
             widgets:
               - label:
                   id: ui_rectifier_1_power_button_label
                   align: CENTER
                   text: "UNAVAILABLE"
-                  text_font: montserrat_18
+                  text_font: montserrat_16
                   text_color: 0xFFFFFF
 
             on_short_click:
@@ -155,16 +147,16 @@ widgets:
                     - lvgl.widget.show: ui_start_rectifier_1_dialog
 
         - button:
-            x: 147
-            y: 250
-            width: 72
-            height: 48
+            x: 163
+            y: 270
+            width: 80
+            styles: style_dialog_button
 
             widgets:
               - label:
                   align: CENTER
                   text: "DETAIL"
-                  text_font: montserrat_12
+                  text_font: montserrat_16
 
             on_short_click:
               - lambda: |-
@@ -181,23 +173,22 @@ widgets:
   # ---------------------------------------------------------------------------
 
   - obj:
-      x: 270
-      y: 75
-      width: 235
-      height: 320
+      x: 273
+      y: 70
+      width: 253
+      height: 330
       styles: style_card
 
       widgets:
         - label:
-            x: 16
-            y: 12
+            x: 10
+            y: 10
+            styles: style_title_label
             text: "RECTIFIER 2"
-            text_font: montserrat_20
-            text_color: 0xFFFFFF
 
         - label:
             id: ui_rectifier_2_lifecycle
-            x: 16
+            x: 10
             y: 43
             text: "OFFLINE"
             text_font: montserrat_16
@@ -205,7 +196,7 @@ widgets:
 
         - label:
             id: ui_rectifier_2_power_state
-            x: 150
+            x: 165
             y: 43
             width: 65
             text_align: RIGHT
@@ -214,15 +205,14 @@ widgets:
             text_color: 0x8B96A0
 
         - label:
-            x: 16
+            x: 10
             y: 82
+            styles: style_desc_label
             text: "AC"
-            text_font: montserrat_16
-            text_color: 0x8B96A0
 
         - label:
             id: ui_rectifier_2_ac_voltage
-            x: 70
+            x: 65
             y: 80
             text: "--- V"
             text_font: montserrat_18
@@ -230,22 +220,21 @@ widgets:
 
         - label:
             id: ui_rectifier_2_ac_current
-            x: 145
+            x: 150
             y: 80
             text: "--.- A"
             text_font: montserrat_18
             text_color: 0x8B96A0
 
         - label:
-            x: 16
+            x: 10
             y: 122
+            styles: style_desc_label
             text: "DC"
-            text_font: montserrat_16
-            text_color: 0x8B96A0
 
         - label:
             id: ui_rectifier_2_dc_voltage
-            x: 70
+            x: 65
             y: 120
             text: "--.- V"
             text_font: montserrat_18
@@ -253,7 +242,7 @@ widgets:
 
         - label:
             id: ui_rectifier_2_dc_current
-            x: 145
+            x: 150
             y: 120
             text: "--.- A"
             text_font: montserrat_18
@@ -261,22 +250,21 @@ widgets:
 
         - label:
             id: ui_rectifier_2_dc_power
-            x: 70
+            x: 65
             y: 151
             text: "--.-- kW"
             text_font: montserrat_20
             text_color: 0x8B96A0
 
         - label:
-            x: 16
+            x: 10
             y: 194
+            styles: style_desc_label
             text: "OUT"
-            text_font: montserrat_16
-            text_color: 0x8B96A0
 
         - label:
             id: ui_rectifier_2_temperature
-            x: 70
+            x: 65
             y: 192
             text: "--.- °C"
             text_font: montserrat_18
@@ -284,21 +272,17 @@ widgets:
 
         - button:
             id: ui_rectifier_2_power_button
-            x: 16
-            y: 250
-            width: 125
-            height: 48
-
-            disabled:
-              bg_color: 0x30343A
-              border_color: 0x44484E
+            x: 10
+            y: 270
+            width: 143
+            styles: style_dialog_button
 
             widgets:
               - label:
                   id: ui_rectifier_2_power_button_label
                   align: CENTER
                   text: "UNAVAILABLE"
-                  text_font: montserrat_18
+                  text_font: montserrat_16
                   text_color: 0xFFFFFF
 
             on_short_click:
@@ -316,16 +300,16 @@ widgets:
                     - lvgl.widget.show: ui_start_rectifier_2_dialog
 
         - button:
-            x: 147
-            y: 250
-            width: 72
-            height: 48
+            x: 163
+            y: 270
+            width: 80
+            styles: style_dialog_button
 
             widgets:
               - label:
                   align: CENTER
                   text: "DETAIL"
-                  text_font: montserrat_12
+                  text_font: montserrat_16
 
             on_short_click:
               - lambda: |-
@@ -342,23 +326,22 @@ widgets:
   # ---------------------------------------------------------------------------
 
   - obj:
-      x: 520
-      y: 75
-      width: 260
-      height: 320
+      x: 536
+      y: 70
+      width: 253
+      height: 330
       styles: style_card
 
       widgets:
         - label:
-            x: 16
-            y: 12
+            x: 10
+            y: 10
+            styles: style_title_label
             text: "RECTIFIER 3"
-            text_font: montserrat_20
-            text_color: 0xFFFFFF
 
         - label:
             id: ui_rectifier_3_lifecycle
-            x: 16
+            x: 10
             y: 43
             text: "OFFLINE"
             text_font: montserrat_16
@@ -366,7 +349,7 @@ widgets:
 
         - label:
             id: ui_rectifier_3_power_state
-            x: 175
+            x: 165
             y: 43
             width: 65
             text_align: RIGHT
@@ -375,15 +358,14 @@ widgets:
             text_color: 0x8B96A0
 
         - label:
-            x: 16
+            x: 10
             y: 82
+            styles: style_desc_label
             text: "AC"
-            text_font: montserrat_16
-            text_color: 0x8B96A0
 
         - label:
             id: ui_rectifier_3_ac_voltage
-            x: 75
+            x: 70
             y: 80
             text: "--- V"
             text_font: montserrat_18
@@ -391,22 +373,21 @@ widgets:
 
         - label:
             id: ui_rectifier_3_ac_current
-            x: 165
+            x: 150
             y: 80
             text: "--.- A"
             text_font: montserrat_18
             text_color: 0x8B96A0
 
         - label:
-            x: 16
+            x: 10
             y: 122
+            styles: style_desc_label
             text: "DC"
-            text_font: montserrat_16
-            text_color: 0x8B96A0
 
         - label:
             id: ui_rectifier_3_dc_voltage
-            x: 75
+            x: 70
             y: 120
             text: "--.- V"
             text_font: montserrat_18
@@ -414,7 +395,7 @@ widgets:
 
         - label:
             id: ui_rectifier_3_dc_current
-            x: 165
+            x: 150
             y: 120
             text: "--.- A"
             text_font: montserrat_18
@@ -422,22 +403,21 @@ widgets:
 
         - label:
             id: ui_rectifier_3_dc_power
-            x: 75
+            x: 70
             y: 151
             text: "--.-- kW"
             text_font: montserrat_20
             text_color: 0x8B96A0
 
         - label:
-            x: 16
+            x: 10
             y: 194
+            styles: style_desc_label
             text: "OUT"
-            text_font: montserrat_16
-            text_color: 0x8B96A0
 
         - label:
             id: ui_rectifier_3_temperature
-            x: 75
+            x: 70
             y: 192
             text: "--.- °C"
             text_font: montserrat_18
@@ -445,21 +425,17 @@ widgets:
 
         - button:
             id: ui_rectifier_3_power_button
-            x: 16
-            y: 250
-            width: 145
-            height: 48
-
-            disabled:
-              bg_color: 0x30343A
-              border_color: 0x44484E
+            x: 10
+            y: 270
+            width: 143
+            styles: style_dialog_button
 
             widgets:
               - label:
                   id: ui_rectifier_3_power_button_label
                   align: CENTER
                   text: "UNAVAILABLE"
-                  text_font: montserrat_18
+                  text_font: montserrat_16
                   text_color: 0xFFFFFF
 
             on_short_click:
@@ -477,16 +453,16 @@ widgets:
                     - lvgl.widget.show: ui_start_rectifier_3_dialog
 
         - button:
-            x: 167
-            y: 250
-            width: 77
-            height: 48
+            x: 163
+            y: 270
+            width: 80
+            styles: style_dialog_button
 
             widgets:
               - label:
                   align: CENTER
                   text: "DETAIL"
-                  text_font: montserrat_12
+                  text_font: montserrat_16
 
             on_short_click:
               - lambda: |-

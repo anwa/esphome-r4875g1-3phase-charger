@@ -38,13 +38,13 @@ script:
 
             lv_obj_set_size(
               chart,
-              680,
-              180
+              715,
+              190
             );
 
             lv_obj_set_pos(
               chart,
-              65,
+              55,
               8
             );
 
@@ -258,13 +258,13 @@ script:
           if (isnan(current)) {
 
             current_text =
-              "CURRENT --";
+              "--";
 
           } else if (decimals == 2) {
 
             current_text =
               str_sprintf(
-                "CURRENT %.2f %s",
+                "%.2f %s",
                 current,
                 unit
               );
@@ -273,7 +273,7 @@ script:
 
             current_text =
               str_sprintf(
-                "CURRENT %.2f %s",
+                "%.2f %s",
                 current,
                 unit
               );
@@ -541,13 +541,13 @@ script:
           if (isnan(minimum)) {
 
             minimum_text =
-              "MIN --";
+              "--";
 
           } else if (decimals == 2) {
 
             minimum_text =
               str_sprintf(
-                "MIN %.2f %s",
+                "%.2f %s",
                 minimum,
                 unit
               );
@@ -556,7 +556,7 @@ script:
 
             minimum_text =
               str_sprintf(
-                "MIN %.2f %s",
+                "%.2f %s",
                 minimum,
                 unit
               );
@@ -565,13 +565,13 @@ script:
           if (isnan(maximum)) {
 
             maximum_text =
-              "MAX --";
+              "--";
 
           } else if (decimals == 2) {
 
             maximum_text =
               str_sprintf(
-                "MAX %.2f %s",
+                "%.2f %s",
                 maximum,
                 unit
               );
@@ -580,7 +580,7 @@ script:
 
             maximum_text =
               str_sprintf(
-                "MAX %.2f %s",
+                "%.2f %s",
                 maximum,
                 unit
               );

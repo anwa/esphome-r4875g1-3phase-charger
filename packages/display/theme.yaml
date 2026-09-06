@@ -6,6 +6,22 @@
 # ==============================================================================
 
 lvgl:
+  theme:
+    button:
+      pressed:
+        bg_color: 0x3A4652
+
+      disabled:
+        bg_color: 0x30343A
+        border_color: 0x44484E
+        text_color: 0x777C82
+
+    spinbox:
+      cursor:
+        bg_color: 0x3A4652
+        bg_opa: COVER
+        text_color: 0xFFFFFF
+
   style_definitions:
 
     # ---------------------------------------------------------------------------
@@ -34,12 +50,15 @@ lvgl:
     # ---------------------------------------------------------------------------
 
     - id: style_nav_button
+      width: 148
+      height: 58
       bg_color: 0x202830
       bg_opa: COVER
       border_color: 0x3B4652
       border_width: 1
       radius: 8
       text_color: 0xDDE3E8
+      text_font: montserrat_18
 
     # ---------------------------------------------------------------------------
     # GENERIC CONTENT CARD
@@ -52,3 +71,83 @@ lvgl:
       border_width: 1
       radius: 12
       pad_all: 0
+
+    # ---------------------------------------------------------------------------
+    # DIALOG PANEL
+    # ---------------------------------------------------------------------------
+
+    - id: style_dialog_panel
+      bg_color: 0x202830
+      bg_opa: COVER
+      border_color: 0x4A5662
+      border_width: 2
+      radius: 10
+      pad_all: 0
+
+    # ---------------------------------------------------------------------------
+    # SHARED ACTION BUTTON
+    # ---------------------------------------------------------------------------
+
+    - id: style_dialog_button
+      width: 140
+      height: 50
+      bg_color: 0x202830
+      bg_opa: COVER
+      border_color: 0x4A5662
+      border_width: 1
+      radius: 8
+      text_color: 0xFFFFFF
+      text_font: montserrat_16
+
+    # ---------------------------------------------------------------------------
+    # SHARED STEP BUTTON
+    # ---------------------------------------------------------------------------
+
+    - id: style_dialog_step_button
+      width: 50
+      height: 50
+      bg_color: 0x202830
+      bg_opa: COVER
+      border_color: 0x4A5662
+      border_width: 1
+      radius: 8
+      text_color: 0xFFFFFF
+      text_font: montserrat_20
+
+    # ---------------------------------------------------------------------------
+    # DIALOG SPINBOX
+    # ---------------------------------------------------------------------------
+
+    - id: style_dialog_spinbox
+      bg_color: 0x171D23
+      bg_opa: COVER
+      border_color: 0x4A5662
+      border_width: 1
+      radius: 8
+      text_color: 0xFFFFFF
+      text_font: montserrat_18
+
+    # ---------------------------------------------------------------------------
+    # TITLE LABEL
+    # ---------------------------------------------------------------------------
+
+    - id: style_title_label
+      text_color: 0x8B96A0
+      text_font: montserrat_18
+
+    # ---------------------------------------------------------------------------
+    # DESC LABEL
+    # ---------------------------------------------------------------------------
+
+    - id: style_desc_label
+      text_color: 0x8B96A0
+      text_font: montserrat_14
+
+    # ---------------------------------------------------------------------------
+    # VALUE LABEL
+    # ---------------------------------------------------------------------------
+
+    - id: style_value_label
+      text_color: 0xFFFFFF
+      text_font: montserrat_18
+      text_align: RIGHT

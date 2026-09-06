@@ -21,24 +21,23 @@ widgets:
   # ---------------------------------------------------------------------------
 
   - obj:
-      x: 20
-      y: 75
-      width: 760
-      height: 75
+      x: 10
+      y: 70
+      width: 780
+      height: 55
       styles: style_card
 
       widgets:
         - label:
-            x: 16
+            x: 10
             y: 10
-            text: "RECTIFIER COMPARTMENT"
-            text_font: montserrat_18
-            text_color: 0x8B96A0
+            styles: style_title_label
+            text: "COMPARTMENT"
 
         - label:
             id: ui_cooling_compartment_temperature
-            x: 260
-            y: 21
+            x: 270
+            y: 13
             width: 180
             text_align: CENTER
             text: "--.- °C"
@@ -47,8 +46,8 @@ widgets:
 
         - label:
             id: ui_cooling_compartment_humidity
-            x: 520
-            y: 21
+            x: 530
+            y: 13
             width: 180
             text_align: CENTER
             text: "--.- %"
@@ -60,128 +59,113 @@ widgets:
   # ---------------------------------------------------------------------------
 
   - obj:
-      x: 20
-      y: 165
-      width: 235
-      height: 230
+      x: 10
+      y: 135
+      width: 253
+      height: 265
       styles: style_card
 
       widgets:
         - label:
-            x: 16
+            x: 10
             y: 10
+            styles: style_title_label
             text: "RECTIFIER 1 FAN"
-            text_font: montserrat_18
-            text_color: 0xFFFFFF
 
         - label:
             id: ui_cooling_r1_state
-            x: 16
+            x: 10
             y: 38
-            width: 203
+            width: 230
             text: "OFFLINE"
             text_font: montserrat_14
             text_color: 0x8B96A0
 
         - label:
             id: ui_cooling_r1_rpm
-            x: 16
+            x: 10
             y: 68
-            width: 203
+            width: 230
             text_align: CENTER
             text: "---- RPM"
             text_font: montserrat_24
             text_color: 0xFFFFFF
 
         - label:
-            x: 16
+            x: 10
             y: 108
+            styles: style_desc_label
             text: "Minimum"
-            text_font: montserrat_14
-            text_color: 0x8B96A0
 
         - label:
             id: ui_cooling_r1_min_duty
-            x: 115
+            x: 130
             y: 106
-            width: 100
-            text_align: RIGHT
+            width: 110
+            styles: style_value_label
             text: "--.- %"
-            text_font: montserrat_16
-            text_color: 0xDDE3E8
 
         - label:
-            x: 16
-            y: 134
+            x: 10
+            y: 136
+            styles: style_desc_label
             text: "Target"
-            text_font: montserrat_14
-            text_color: 0x8B96A0
 
         - label:
             id: ui_cooling_r1_target_duty
-            x: 115
-            y: 132
-            width: 100
-            text_align: RIGHT
+            x: 130
+            y: 134
+            width: 110
+            styles: style_value_label
             text: "--.- %"
-            text_font: montserrat_16
-            text_color: 0xDDE3E8
 
         - label:
             id: ui_cooling_r1_temperature
-            x: 16
-            y: 160
-            width: 95
+            x: 10
+            y: 164
+            width: 110
             text: "--.- °C"
             text_font: montserrat_16
             text_color: 0xDDE3E8
 
         - label:
             id: ui_cooling_r1_thermal
-            x: 115
-            y: 160
-            width: 100
+            x: 130
+            y: 164
+            width: 110
             text_align: RIGHT
             text: "--"
-            text_font: montserrat_14
+            text_font: montserrat_16
             text_color: 0x8B96A0
 
         - button:
             id: ui_cooling_r1_auto_button
-            x: 16
-            y: 188
-            width: 94
-            height: 32
-
-            disabled:
-              bg_color: 0x30343A
-              border_color: 0x44484E
+            x: 10
+            y: 205
+            width: 110
+            styles: style_dialog_button
 
             widgets:
               - label:
                   align: CENTER
                   text: "AUTO"
-                  text_font: montserrat_14
+                  text_font: montserrat_16
 
             on_short_click:
               - button.press: fan_auto_mode_button_1
 
         - button:
             id: ui_cooling_r1_full_button
-            x: 125
-            y: 188
-            width: 94
-            height: 32
-
-            disabled:
-              bg_color: 0x30343A
-              border_color: 0x44484E
+            x: 130
+            y: 205
+            width: 110
+            styles: style_dialog_button
 
             widgets:
               - label:
                   align: CENTER
                   text: "FULL"
-                  text_font: montserrat_14
+                  text_font: montserrat_16
 
             on_short_click:
               - button.press: fan_full_speed_button_1
@@ -191,128 +175,113 @@ widgets:
   # ---------------------------------------------------------------------------
 
   - obj:
-      x: 270
-      y: 165
-      width: 235
-      height: 230
+      x: 273
+      y: 135
+      width: 253
+      height: 265
       styles: style_card
 
       widgets:
         - label:
-            x: 16
+            x: 10
             y: 10
+            styles: style_title_label
             text: "RECTIFIER 2 FAN"
-            text_font: montserrat_18
-            text_color: 0xFFFFFF
 
         - label:
             id: ui_cooling_r2_state
-            x: 16
+            x: 10
             y: 38
-            width: 203
+            width: 230
             text: "OFFLINE"
             text_font: montserrat_14
             text_color: 0x8B96A0
 
         - label:
             id: ui_cooling_r2_rpm
-            x: 16
+            x: 10
             y: 68
-            width: 203
+            width: 230
             text_align: CENTER
             text: "---- RPM"
             text_font: montserrat_24
             text_color: 0xFFFFFF
 
         - label:
-            x: 16
+            x: 10
             y: 108
+            styles: style_desc_label
             text: "Minimum"
-            text_font: montserrat_14
-            text_color: 0x8B96A0
 
         - label:
             id: ui_cooling_r2_min_duty
-            x: 115
+            x: 130
             y: 106
-            width: 100
-            text_align: RIGHT
+            width: 110
+            styles: style_value_label
             text: "--.- %"
-            text_font: montserrat_16
-            text_color: 0xDDE3E8
 
         - label:
-            x: 16
-            y: 134
+            x: 10
+            y: 136
+            styles: style_desc_label
             text: "Target"
-            text_font: montserrat_14
-            text_color: 0x8B96A0
 
         - label:
             id: ui_cooling_r2_target_duty
-            x: 115
-            y: 132
-            width: 100
-            text_align: RIGHT
+            x: 130
+            y: 134
+            width: 110
+            styles: style_value_label
             text: "--.- %"
-            text_font: montserrat_16
-            text_color: 0xDDE3E8
 
         - label:
             id: ui_cooling_r2_temperature
-            x: 16
-            y: 160
-            width: 95
+            x: 10
+            y: 164
+            width: 110
             text: "--.- °C"
             text_font: montserrat_16
             text_color: 0xDDE3E8
 
         - label:
             id: ui_cooling_r2_thermal
-            x: 115
-            y: 160
-            width: 100
+            x: 130
+            y: 164
+            width: 110
             text_align: RIGHT
             text: "--"
-            text_font: montserrat_14
+            text_font: montserrat_16
             text_color: 0x8B96A0
 
         - button:
             id: ui_cooling_r2_auto_button
-            x: 16
-            y: 188
-            width: 94
-            height: 32
-
-            disabled:
-              bg_color: 0x30343A
-              border_color: 0x44484E
+            x: 10
+            y: 205
+            width: 110
+            styles: style_dialog_button
 
             widgets:
               - label:
                   align: CENTER
                   text: "AUTO"
-                  text_font: montserrat_14
+                  text_font: montserrat_16
 
             on_short_click:
               - button.press: fan_auto_mode_button_2
 
         - button:
             id: ui_cooling_r2_full_button
-            x: 125
-            y: 188
-            width: 94
-            height: 32
-
-            disabled:
-              bg_color: 0x30343A
-              border_color: 0x44484E
+            x: 130
+            y: 205
+            width: 110
+            styles: style_dialog_button
 
             widgets:
               - label:
                   align: CENTER
                   text: "FULL"
-                  text_font: montserrat_14
+                  text_font: montserrat_16
 
             on_short_click:
               - button.press: fan_full_speed_button_2
@@ -322,128 +291,113 @@ widgets:
   # ---------------------------------------------------------------------------
 
   - obj:
-      x: 520
-      y: 165
-      width: 260
-      height: 230
+      x: 536
+      y: 135
+      width: 253
+      height: 265
       styles: style_card
 
       widgets:
         - label:
-            x: 16
+            x: 10
             y: 10
+            styles: style_title_label
             text: "RECTIFIER 3 FAN"
-            text_font: montserrat_18
-            text_color: 0xFFFFFF
 
         - label:
             id: ui_cooling_r3_state
-            x: 16
+            x: 10
             y: 38
-            width: 228
+            width: 230
             text: "OFFLINE"
             text_font: montserrat_14
             text_color: 0x8B96A0
 
         - label:
             id: ui_cooling_r3_rpm
-            x: 16
+            x: 10
             y: 68
-            width: 228
+            width: 230
             text_align: CENTER
             text: "---- RPM"
             text_font: montserrat_24
             text_color: 0xFFFFFF
 
         - label:
-            x: 16
+            x: 10
             y: 108
+            styles: style_desc_label
             text: "Minimum"
-            text_font: montserrat_14
-            text_color: 0x8B96A0
 
         - label:
             id: ui_cooling_r3_min_duty
             x: 130
             y: 106
             width: 110
-            text_align: RIGHT
+            styles: style_value_label
             text: "--.- %"
-            text_font: montserrat_16
-            text_color: 0xDDE3E8
 
         - label:
-            x: 16
-            y: 134
+            x: 10
+            y: 136
+            styles: style_desc_label
             text: "Target"
-            text_font: montserrat_14
-            text_color: 0x8B96A0
 
         - label:
             id: ui_cooling_r3_target_duty
             x: 130
-            y: 132
+            y: 134
             width: 110
-            text_align: RIGHT
+            styles: style_value_label
             text: "--.- %"
-            text_font: montserrat_16
-            text_color: 0xDDE3E8
 
         - label:
             id: ui_cooling_r3_temperature
-            x: 16
-            y: 160
-            width: 105
+            x: 10
+            y: 164
+            width: 110
             text: "--.- °C"
             text_font: montserrat_16
             text_color: 0xDDE3E8
 
         - label:
             id: ui_cooling_r3_thermal
-            x: 125
-            y: 160
-            width: 115
+            x: 130
+            y: 164
+            width: 110
             text_align: RIGHT
             text: "--"
-            text_font: montserrat_14
+            text_font: montserrat_16
             text_color: 0x8B96A0
 
         - button:
             id: ui_cooling_r3_auto_button
-            x: 16
-            y: 188
-            width: 106
-            height: 32
-
-            disabled:
-              bg_color: 0x30343A
-              border_color: 0x44484E
+            x: 10
+            y: 205
+            width: 110
+            styles: style_dialog_button
 
             widgets:
               - label:
                   align: CENTER
                   text: "AUTO"
-                  text_font: montserrat_14
+                  text_font: montserrat_16
 
             on_short_click:
               - button.press: fan_auto_mode_button_3
 
         - button:
             id: ui_cooling_r3_full_button
-            x: 138
-            y: 188
-            width: 106
-            height: 32
-
-            disabled:
-              bg_color: 0x30343A
-              border_color: 0x44484E
+            x: 130
+            y: 205
+            width: 110
+            styles: style_dialog_button
 
             widgets:
               - label:
                   align: CENTER
                   text: "FULL"
-                  text_font: montserrat_14
+                  text_font: montserrat_16
 
             on_short_click:
               - button.press: fan_full_speed_button_3

@@ -18,19 +18,18 @@ widgets:
   # ---------------------------------------------------------------------------
 
   - obj:
-      x: 20
-      y: 75
-      width: 235
-      height: 205
+      x: 10
+      y: 70
+      width: 253
+      height: 220
       styles: style_card
 
       widgets:
         - label:
-            x: 16
-            y: 12
+            x: 10
+            y: 10
+            styles: style_title_label
             text: "AC INPUT"
-            text_font: montserrat_20
-            text_color: 0x8B96A0
 
         - label:
             id: ui_dashboard_ac_power
@@ -61,19 +60,18 @@ widgets:
   # ---------------------------------------------------------------------------
 
   - obj:
-      x: 270
-      y: 75
-      width: 235
-      height: 205
+      x: 273
+      y: 70
+      width: 253
+      height: 220
       styles: style_card
 
       widgets:
         - label:
-            x: 16
-            y: 12
+            x: 10
+            y: 10
+            styles: style_title_label
             text: "DC OUTPUT"
-            text_font: montserrat_20
-            text_color: 0x8B96A0
 
         - label:
             id: ui_dashboard_dc_power
@@ -104,83 +102,65 @@ widgets:
   # ---------------------------------------------------------------------------
 
   - obj:
-      x: 520
-      y: 75
-      width: 260
-      height: 205
+      x: 536
+      y: 70
+      width: 253
+      height: 220
       styles: style_card
 
       widgets:
         - label:
-            x: 16
-            y: 12
+            x: 10
+            y: 10
+            styles: style_title_label
             text: "CHARGER"
-            text_font: montserrat_20
-            text_color: 0x8B96A0
 
         - label:
-            x: 16
-            y: 55
+            x: 10
+            y: 44
+            styles: style_desc_label
             text: "Units"
-            text_font: montserrat_18
-            text_color: 0x8B96A0
 
         - label:
             id: ui_dashboard_units
             x: 145
-            y: 55
+            y: 41
+            styles: style_value_label
             text: "- / 3"
-            text_font: montserrat_20
-            text_color: 0xFFFFFF
 
         - label:
-            x: 16
-            y: 94
+            x: 10
+            y: 76
+            styles: style_desc_label
             text: "Max Temp"
-            text_font: montserrat_18
-            text_color: 0x8B96A0
 
         - label:
             id: ui_dashboard_temperature
             x: 145
-            y: 94
+            y: 73
+            styles: style_value_label
             text: "--.- °C"
-            text_font: montserrat_20
-            text_color: 0xFFFFFF
 
         - label:
-            x: 16
-            y: 133
+            x: 10
+            y: 108
+            styles: style_desc_label
             text: "Efficiency"
-            text_font: montserrat_18
-            text_color: 0x8B96A0
 
         - label:
             id: ui_dashboard_efficiency
             x: 145
-            y: 133
+            y: 106
+            styles: style_value_label
             text: "--.- %"
-            text_font: montserrat_20
-            text_color: 0xFFFFFF
 
         # Charger-wide START/STOP control.
         - button:
             id: ui_dashboard_power_button
-            x: 16
-            y: 162
-            width: 228
-            height: 34
-            bg_color: 0x202830
-            border_color: 0x3B4652
-            border_width: 1
-            radius: 8
-            disabled:
-              bg_color: 0x30343A
-              border_color: 0x44484E
-              text_color: 0x777C82
-
-            pressed:
-              bg_color: 0x3A4652
+            x: 10
+            y: 160
+            styles: style_dialog_button
+            width: 233
 
             widgets:
               - label:
@@ -209,39 +189,37 @@ widgets:
   # ---------------------------------------------------------------------------
 
   - obj:
-      x: 20
-      y: 295
-      width: 760
+      x: 10
+      y: 300
+      width: 780
       height: 100
       styles: style_card
 
       widgets:
         - label:
-            x: 16
-            y: 8
+            x: 10
+            y: 10
+            styles: style_title_label
             text: "SETPOINTS"
-            text_font: montserrat_18
-            text_color: 0x8B96A0
 
         # DC voltage setpoint.
         - label:
-            x: 35
-            y: 45
+            x: 20
+            y: 55
             text: "Voltage"
-            text_font: montserrat_18
+            text_font: montserrat_16
             text_color: 0x8B96A0
 
         - button:
-            x: 115
-            y: 31
-            width: 48
-            height: 48
+            x: 100
+            y: 40
+            styles: style_dialog_step_button
 
             widgets:
               - label:
                   align: CENTER
                   text: "-"
-                  text_font: montserrat_24
+                  text_font: montserrat_20
 
             on_short_click:
               - number.decrement:
@@ -250,25 +228,24 @@ widgets:
 
         - label:
             id: ui_dashboard_set_voltage
-            x: 170
-            y: 44
-            width: 85
+            x: 150
+            y: 55
+            width: 90
             text_align: CENTER
             text: "--.- V"
             text_font: montserrat_20
             text_color: 0xFFFFFF
 
         - button:
-            x: 260
-            y: 31
-            width: 48
-            height: 48
+            x: 240
+            y: 40
+            styles: style_dialog_step_button
 
             widgets:
               - label:
                   align: CENTER
                   text: "+"
-                  text_font: montserrat_24
+                  text_font: montserrat_20
 
             on_short_click:
               - number.increment:
@@ -278,23 +255,22 @@ widgets:
 
         # Total DC power setpoint.
         - label:
-            x: 335
-            y: 45
+            x: 310
+            y: 55
             text: "Power"
-            text_font: montserrat_18
+            text_font: montserrat_16
             text_color: 0x8B96A0
 
         - button:
-            x: 395
-            y: 31
-            width: 48
-            height: 48
+            x: 380
+            y: 40
+            styles: style_dialog_step_button
 
             widgets:
               - label:
                   align: CENTER
                   text: "-"
-                  text_font: montserrat_24
+                  text_font: montserrat_20
 
             on_short_click:
               - number.decrement:
@@ -303,25 +279,24 @@ widgets:
 
         - label:
             id: ui_dashboard_set_power
-            x: 450
-            y: 44
-            width: 95
+            x: 430
+            y: 55
+            width: 105
             text_align: CENTER
             text: "--.-- kW"
             text_font: montserrat_20
             text_color: 0xFFFFFF
 
         - button:
-            x: 550
-            y: 31
-            width: 48
-            height: 48
+            x: 535
+            y: 40
+            styles: style_dialog_step_button
 
             widgets:
               - label:
                   align: CENTER
                   text: "+"
-                  text_font: montserrat_24
+                  text_font: montserrat_20
 
             on_short_click:
               - number.increment:
@@ -332,14 +307,16 @@ widgets:
         - label:
             x: 625
             y: 25
+            width: 120
+            text_align: CENTER
             text: "Applied"
-            text_font: montserrat_16
+            text_font: montserrat_14
             text_color: 0x8B96A0
 
         - label:
             id: ui_dashboard_set_current
-            x: 615
-            y: 52
+            x: 625
+            y: 55
             width: 120
             text_align: CENTER
             text: "--.- A"

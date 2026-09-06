@@ -73,6 +73,41 @@ Examples:
 
 Do not duplicate logic merely because duplication is easier locally.
 
+## Prefer Architectural Consistency Over Minimal Patches
+
+When multiple implementation approaches are viable, prefer the one that preserves or improves a coherent project-wide architecture over the one that requires the least immediate code churn.
+
+Agents MUST NOT introduce an isolated workaround, parallel mechanism or special-case implementation merely because it is faster or requires fewer edits when an established project pattern can be extended consistently.
+
+Components that belong to the same functional family SHOULD follow the same structural pattern, ownership model, styling approach and state-management strategy unless there is a concrete technical reason to differ.
+
+Examples include:
+
+- dialogs and modal overlays
+- page-specific display runtimes
+- shared UI state
+- aggregate telemetry
+- charger-wide controls
+- per-unit rectifier behavior
+- hardware abstractions
+
+A larger refactor is acceptable and SHOULD be preferred when it:
+
+- restores architectural consistency
+- removes competing implementation patterns
+- reduces special-case logic
+- improves maintainability
+- makes future extensions simpler and more predictable
+
+Before choosing a minimal local workaround, explicitly consider:
+
+- whether an existing project pattern can be reused or generalized
+- whether the proposed change would create two different ways to solve the same problem
+- whether the solution would require future maintainers to remember a special case
+- whether a somewhat larger refactor would produce a cleaner long-term design
+
+If a deviation from the established architecture is genuinely necessary, the technical reason MUST be identified explicitly before proceeding.
+
 ## Keep Ownership Clear
 
 Each piece of runtime behavior SHOULD have one obvious owner.

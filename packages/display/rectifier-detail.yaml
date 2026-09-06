@@ -324,8 +324,8 @@ script:
                   }
 
                   return isnan(value)
-                    ? std::string("IN  --.- °C")
-                    : str_sprintf("IN  %.1f °C", value);
+                    ? std::string("--.- °C")
+                    : str_sprintf("%.1f °C", value);
 
             - lvgl.label.update:
                 id: ui_rectifier_detail_output_temp
@@ -348,8 +348,8 @@ script:
                   }
 
                   return isnan(value)
-                    ? std::string("OUT  --.- °C")
-                    : str_sprintf("OUT  %.1f °C", value);
+                    ? std::string("--.- °C")
+                    : str_sprintf("%.1f °C", value);
 
             - lvgl.label.update:
                 id: ui_rectifier_detail_fan_rpm
@@ -372,8 +372,8 @@ script:
                   }
 
                   return isnan(value)
-                    ? std::string("FAN  ---- RPM")
-                    : str_sprintf("FAN  %.0f RPM", value);
+                    ? std::string("----")
+                    : str_sprintf("%.0f", value);
 
             - lvgl.label.update:
                 id: ui_rectifier_detail_fan_duty
@@ -396,8 +396,8 @@ script:
                   }
 
                   return isnan(value)
-                    ? std::string("MIN  --.- %")
-                    : str_sprintf("MIN  %.1f %%", value);
+                    ? std::string("--.- %")
+                    : str_sprintf("%.1f %%", value);
 
             - lvgl.label.update:
                 id: ui_rectifier_detail_fan_min
@@ -420,8 +420,8 @@ script:
                   }
 
                   return isnan(value)
-                    ? std::string("TARGET --.- %")
-                    : str_sprintf("TARGET %.1f %%", value);
+                    ? std::string("--.- %")
+                    : str_sprintf("%.1f %%", value);
 
             - lvgl.label.update:
                 id: ui_rectifier_detail_capability
@@ -444,8 +444,8 @@ script:
                   }
 
                   return isnan(value)
-                    ? std::string("CAP  --.- A")
-                    : str_sprintf("CAP  %.1f A", value);
+                    ? std::string("--.- A")
+                    : str_sprintf("%.1f A", value);
 
             # ---------------------------------------------------------------------------
             # FALLBACK SETTINGS
