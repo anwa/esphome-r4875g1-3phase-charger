@@ -18,294 +18,263 @@ widgets:
   # ---------------------------------------------------------------------------
 
   - obj:
-      x: 20
-      y: 75
-      width: 370
-      height: 145
+      x: 10
+      y: 70
+      width: 385
+      height: 160
       styles: style_card
 
       widgets:
         - label:
-            x: 16
-            y: 12
+            x: 10
+            y: 10
+            styles: style_title_label
             text: "NETWORK"
-            text_font: montserrat_18
-            text_color: 0x8B96A0
 
         - label:
-            x: 16
-            y: 50
+            x: 10
+            y: 44
+            width: 180
+            styles: style_desc_label
             text: "IP Address"
-            text_font: montserrat_16
-            text_color: 0x8B96A0
 
         - label:
             id: ui_system_ip
-            x: 130
-            y: 47
-            width: 215
-            text_align: RIGHT
+            x: 195
+            y: 41
+            width: 180
+            styles: style_value_label
             text: "--"
-            text_font: montserrat_20
-            text_color: 0xFFFFFF
 
         - label:
-            x: 16
-            y: 88
+            x: 10
+            y: 76
+            styles: style_desc_label
             text: "WiFi RSSI"
-            text_font: montserrat_16
-            text_color: 0x8B96A0
 
         - label:
             id: ui_system_wifi
-            x: 210
-            y: 86
-            width: 135
-            text_align: RIGHT
+            x: 195
+            y: 73
+            width: 180
+            styles: style_value_label
             text: "-- dBm"
-            text_font: montserrat_18
-            text_color: 0xFFFFFF
 
   # ---------------------------------------------------------------------------
   # CONTROLLER
   # ---------------------------------------------------------------------------
 
   - obj:
-      x: 410
-      y: 75
-      width: 370
-      height: 145
+      x: 405
+      y: 70
+      width: 385
+      height: 160
       styles: style_card
 
       widgets:
         - label:
-            x: 16
-            y: 12
+            x: 10
+            y: 10
+            styles: style_title_label
             text: "CONTROLLER"
-            text_font: montserrat_18
-            text_color: 0x8B96A0
 
         - label:
-            x: 16
-            y: 43
+            x: 10
+            y: 44
+            width: 180
+            styles: style_desc_label
             text: "Uptime"
-            text_font: montserrat_16
-            text_color: 0x8B96A0
 
         - label:
             id: ui_system_uptime
-            x: 130
-            y: 40
-            width: 215
-            text_align: RIGHT
+            x: 195
+            y: 41
+            width: 180
+            styles: style_value_label
             text: "--"
-            text_font: montserrat_20
-            text_color: 0xFFFFFF
 
         - label:
-            x: 16
-            y: 72
+            x: 10
+            y: 76
+            width: 180
+            styles: style_desc_label
             text: "CPU Temp"
-            text_font: montserrat_16
-            text_color: 0x8B96A0
 
         - label:
             id: ui_system_cpu
-            x: 210
-            y: 70
-            width: 135
-            text_align: RIGHT
+            x: 195
+            y: 73
+            width: 180
+            styles: style_value_label
             text: "--.- °C"
-            text_font: montserrat_18
-            text_color: 0xFFFFFF
 
         - label:
-            x: 16
-            y: 101
+            x: 10
+            y: 108
+            width: 180
+            styles: style_desc_label
             text: "Battery"
-            text_font: montserrat_16
-            text_color: 0x8B96A0
 
         - label:
             id: ui_system_battery
-            x: 145
-            y: 99
-            width: 200
-            text_align: RIGHT
+            x: 195
+            y: 106
+            width: 180
+            styles: style_value_label
             text: "--.-- V / -- %"
-            text_font: montserrat_18
-            text_color: 0xFFFFFF
 
   # ---------------------------------------------------------------------------
   # MEMORY AND RUNTIME DEBUG
   # ---------------------------------------------------------------------------
 
   - obj:
-      x: 20
-      y: 235
-      width: 370
+      x: 10
+      y: 240
+      width: 385
       height: 160
       styles: style_card
 
       widgets:
         - label:
-            x: 16
+            x: 10
             y: 10
+            styles: style_title_label
             text: "MEMORY / RUNTIME"
-            text_font: montserrat_18
-            text_color: 0x8B96A0
 
         - label:
-            x: 16
-            y: 38
+            x: 10
+            y: 44
+            width: 180
+            styles: style_desc_label
             text: "Heap Free"
-            text_font: montserrat_14
-            text_color: 0x8B96A0
 
         - label:
             id: ui_system_heap
             x: 190
-            y: 36
-            width: 155
-            text_align: RIGHT
+            y: 41
+            width: 180
+            styles: style_value_label
             text: "---- kB"
-            text_font: montserrat_16
-            text_color: 0xFFFFFF
 
         - label:
-            x: 16
-            y: 62
+            x: 10
+            y: 76
+            width: 180
+            styles: style_desc_label
             text: "Heap Max Block"
-            text_font: montserrat_14
-            text_color: 0x8B96A0
 
         - label:
             id: ui_system_heap_block
             x: 190
-            y: 60
-            width: 155
-            text_align: RIGHT
+            y: 73
+            width: 180
+            styles: style_value_label
             text: "---- kB"
-            text_font: montserrat_16
-            text_color: 0xFFFFFF
 
         - label:
-            x: 16
-            y: 86
+            x: 10
+            y: 108
+            width: 180
+            styles: style_desc_label
             text: "PSRAM Free"
-            text_font: montserrat_14
-            text_color: 0x8B96A0
 
         - label:
             id: ui_system_psram
             x: 190
-            y: 84
-            width: 155
-            text_align: RIGHT
+            y: 106
+            width: 180
+            styles: style_value_label
             text: "---- kB"
-            text_font: montserrat_16
-            text_color: 0xFFFFFF
 
         - label:
-            x: 16
-            y: 110
+            x: 10
+            y: 140
+            width: 180
+            styles: style_desc_label
             text: "Loop Time"
-            text_font: montserrat_14
-            text_color: 0x8B96A0
 
         - label:
             id: ui_system_loop_time
             x: 190
-            y: 108
-            width: 155
+            y: 137
+            styles: style_value_label
             text_align: RIGHT
             text: "-- ms"
-            text_font: montserrat_16
-            text_color: 0xFFFFFF
 
         - label:
-            x: 16
-            y: 134
+            x: 10
+            y: 172
+            width: 180
+            styles: style_desc_label
             text: "CPU Frequency"
-            text_font: montserrat_14
-            text_color: 0x8B96A0
 
         - label:
             id: ui_system_cpu_frequency
             x: 190
-            y: 132
-            width: 155
-            text_align: RIGHT
+            y: 169
+            width: 180
+            styles: style_value_label
             text: "--- MHz"
-            text_font: montserrat_16
-            text_color: 0xFFFFFF
 
   # ---------------------------------------------------------------------------
   # CAN AND RECTIFIER STATUS
   # ---------------------------------------------------------------------------
 
   - obj:
-      x: 410
-      y: 235
-      width: 370
+      x: 405
+      y: 240
+      width: 385
       height: 160
       styles: style_card
 
       widgets:
         - label:
-            x: 16
-            y: 12
+            x: 10
+            y: 10
+            styles: style_title_label
             text: "CAN / RECTIFIERS"
-            text_font: montserrat_18
-            text_color: 0x8B96A0
 
         - label:
-            x: 16
-            y: 51
+            x: 10
+            y: 44
+            width: 180
+            styles: style_desc_label
             text: "Unit 1"
-            text_font: montserrat_16
-            text_color: 0x8B96A0
 
         - label:
             id: ui_system_unit_1
-            x: 115
-            y: 49
-            width: 230
-            text_align: RIGHT
+            x: 190
+            y: 41
+            width: 180
+            styles: style_value_label
             text: "OFFLINE"
-            text_font: montserrat_18
-            text_color: 0x8B96A0
 
         - label:
-            x: 16
-            y: 87
+            x: 10
+            y: 76
+            width: 180
+            styles: style_desc_label
             text: "Unit 2"
-            text_font: montserrat_16
-            text_color: 0x8B96A0
 
         - label:
             id: ui_system_unit_2
-            x: 115
-            y: 85
-            width: 230
-            text_align: RIGHT
+            x: 190
+            y: 73
+            width: 180
+            styles: style_value_label
             text: "OFFLINE"
-            text_font: montserrat_18
-            text_color: 0x8B96A0
 
         - label:
-            x: 16
-            y: 123
+            x: 10
+            y: 108
+            width: 180
+            styles: style_desc_label
             text: "Unit 3"
-            text_font: montserrat_16
-            text_color: 0x8B96A0
 
         - label:
             id: ui_system_unit_3
-            x: 115
-            y: 121
-            width: 230
-            text_align: RIGHT
+            x: 190
+            y: 106
+            width: 180
+            styles: style_value_label
             text: "OFFLINE"
-            text_font: montserrat_18
-            text_color: 0x8B96A0

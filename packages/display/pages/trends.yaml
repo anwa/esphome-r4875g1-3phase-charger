@@ -25,9 +25,9 @@ widgets:
 
   - tabview:
       id: ui_trend_tabview
-      x: 20
-      y: 75
-      width: 760
+      x: 10
+      y: 70
+      width: 780
       height: 42
 
       position: TOP
@@ -100,10 +100,10 @@ widgets:
 
   - obj:
       id: ui_trend_chart_host
-      x: 20
-      y: 122
-      width: 760
-      height: 220
+      x: 10
+      y: 117
+      width: 780
+      height: 228
       styles: style_card
       pad_all: 0
 
@@ -173,41 +173,58 @@ widgets:
   # ---------------------------------------------------------------------------
 
   - obj:
-      x: 20
-      y: 350
-      width: 760
+      x: 10
+      y: 355
+      width: 780
       height: 45
       styles: style_card
       pad_all: 0
 
       widgets:
+        - label:
+            x: 10
+            y: 12
+            width: 100
+            styles: style_desc_label
+            text: "CURRENT:"
 
         - label:
             id: ui_trend_current
-            x: 5
+            x: 110
             y: 11
-            width: 245
+            width: 120
+            styles: style_value_label
             text_align: CENTER
-            text: "CURRENT --"
-            text_font: montserrat_16
-            text_color: 0x5CFF7A
+            text: "--"
+
+        - label:
+            x: 265
+            y: 13
+            width: 100
+            styles: style_desc_label
+            text: "MINIMUM:"
 
         - label:
             id: ui_trend_min
-            x: 255
+            x: 365
             y: 11
-            width: 245
+            width: 120
+            styles: style_value_label
             text_align: CENTER
             text: "MIN --"
-            text_font: montserrat_16
-            text_color: 0xDDE3E8
+
+        - label:
+            x: 517
+            y: 14
+            width: 100
+            styles: style_desc_label
+            text: "MAXIMUM:"
 
         - label:
             id: ui_trend_max
-            x: 505
+            x: 617
             y: 11
-            width: 245
+            width: 120
+            styles: style_value_label
             text_align: CENTER
             text: "MAX --"
-            text_font: montserrat_16
-            text_color: 0xDDE3E8

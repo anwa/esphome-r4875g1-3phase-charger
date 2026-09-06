@@ -23,16 +23,16 @@ widgets:
   # ---------------------------------------------------------------------------
 
   - obj:
-      x: 20
-      y: 75
-      width: 760
+      x: 10
+      y: 70
+      width: 780
       height: 60
       styles: style_card
 
       widgets:
         - label:
             id: ui_rectifier_detail_title
-            x: 16
+            x: 10
             align: LEFT_MID
             width: 330
             text: "RECTIFIER --    ---- h"
@@ -41,7 +41,7 @@ widgets:
 
         - label:
             id: ui_rectifier_detail_status
-            x: -16
+            x: -10
             align: RIGHT_MID
             width: 380
             text_align: RIGHT
@@ -54,311 +54,312 @@ widgets:
   # ---------------------------------------------------------------------------
 
   - obj:
-      x: 20
-      y: 145
-      width: 370
-      height: 112
+      x: 10
+      y: 140
+      width: 385
+      height: 110
       styles: style_card
 
       widgets:
         - label:
-            x: 16
+            x: 10
             y: 10
+            styles: style_title_label
             text: "AC INPUT"
-            text_font: montserrat_18
-            text_color: 0x8B96A0
 
         - label:
-            x: 16
+            x: 10
             y: 44
-            width: 75
+            width: 85
+            styles: style_desc_label
             text: "Voltage"
-            text_font: montserrat_14
-            text_color: 0x8B96A0
 
         - label:
             id: ui_rectifier_detail_ac_voltage
-            x: 92
+            x: 97
             y: 41
-            width: 80
-            text_align: RIGHT
+            width: 85
+            styles: style_value_label
             text: "--.- V"
-            text_font: montserrat_18
-            text_color: 0xFFFFFF
 
         - label:
-            x: 190
+            x: 203
             y: 44
-            width: 75
+            width: 85
+            styles: style_desc_label
             text: "Current"
-            text_font: montserrat_14
-            text_color: 0x8B96A0
 
         - label:
             id: ui_rectifier_detail_ac_current
-            x: 266
+            x: 290
             y: 41
-            width: 80
-            text_align: RIGHT
+            width: 85
+            styles: style_value_label
             text: "--.- A"
-            text_font: montserrat_18
-            text_color: 0xFFFFFF
 
         - label:
-            x: 16
+            x: 10
             y: 76
-            width: 75
+            width: 85
+            styles: style_desc_label
             text: "Power"
-            text_font: montserrat_14
-            text_color: 0x8B96A0
 
         - label:
             id: ui_rectifier_detail_ac_power
-            x: 92
+            x: 97
             y: 73
-            width: 80
-            text_align: RIGHT
+            width: 85
+            styles: style_value_label
             text: "---- W"
-            text_font: montserrat_18
-            text_color: 0xFFFFFF
 
         - label:
-            x: 190
+            x: 203
             y: 76
-            width: 75
+            width: 85
+            styles: style_desc_label
             text: "Frequency"
-            text_font: montserrat_14
-            text_color: 0x8B96A0
 
         - label:
             id: ui_rectifier_detail_ac_frequency
-            x: 266
+            x: 290
             y: 73
-            width: 80
-            text_align: RIGHT
+            width: 85
+            styles: style_value_label
             text: "--.-- Hz"
-            text_font: montserrat_18
-            text_color: 0xFFFFFF
 
   # ---------------------------------------------------------------------------
   # DC OUTPUT
   # ---------------------------------------------------------------------------
 
   - obj:
-      x: 410
-      y: 145
-      width: 370
-      height: 112
+      x: 405
+      y: 140
+      width: 385
+      height: 110
       styles: style_card
 
       widgets:
         - label:
-            x: 16
+            x: 10
             y: 10
+            styles: style_title_label
             text: "DC OUTPUT"
-            text_font: montserrat_18
-            text_color: 0x8B96A0
 
         - label:
-            x: 16
+            x: 10
             y: 44
-            width: 75
+            width: 85
+            styles: style_desc_label
             text: "Voltage"
-            text_font: montserrat_14
-            text_color: 0x8B96A0
 
         - label:
             id: ui_rectifier_detail_dc_voltage
-            x: 92
+            x: 97
             y: 41
-            width: 80
-            text_align: RIGHT
+            width: 85
+            styles: style_value_label
             text: "--.- V"
-            text_font: montserrat_18
-            text_color: 0xFFFFFF
 
         - label:
-            x: 190
+            x: 203
             y: 44
-            width: 75
+            width: 85
+            styles: style_desc_label
             text: "Current"
-            text_font: montserrat_14
-            text_color: 0x8B96A0
 
         - label:
             id: ui_rectifier_detail_dc_current
-            x: 266
+            x: 290
             y: 41
-            width: 80
-            text_align: RIGHT
+            width: 85
+            styles: style_value_label
             text: "--.- A"
-            text_font: montserrat_18
-            text_color: 0xFFFFFF
 
         - label:
-            x: 16
+            x: 10
             y: 76
-            width: 75
+            width: 85
+            styles: style_desc_label
             text: "Power"
-            text_font: montserrat_14
-            text_color: 0x8B96A0
 
         - label:
             id: ui_rectifier_detail_dc_power
-            x: 92
+            x: 97
             y: 73
-            width: 80
-            text_align: RIGHT
+            width: 85
+            styles: style_value_label
             text: "---- W"
-            text_font: montserrat_18
-            text_color: 0xFFFFFF
 
         - label:
-            x: 190
+            x: 203
             y: 76
-            width: 75
+            width: 85
+            styles: style_desc_label
             text: "Setpoint"
-            text_font: montserrat_14
-            text_color: 0x8B96A0
 
         - label:
             id: ui_rectifier_detail_dc_setpoint
-            x: 266
+            x: 290
             y: 73
-            width: 80
-            text_align: RIGHT
+            width: 85
+            styles: style_value_label
             text: "--.- A"
-            text_font: montserrat_18
-            text_color: 0xFFFFFF
 
   # ---------------------------------------------------------------------------
   # THERMAL AND INTERNAL FAN
   # ---------------------------------------------------------------------------
 
   - obj:
-      x: 20
-      y: 267
-      width: 370
-      height: 128
+      x: 10
+      y: 260
+      width: 385
+      height: 140
       styles: style_card
 
       widgets:
         - label:
-            x: 16
+            x: 10
             y: 10
+            styles: style_title_label
             text: "THERMAL / INTERNAL FAN"
-            text_font: montserrat_18
-            text_color: 0x8B96A0
+
+        - label:
+            x: 10
+            y: 44
+            width: 85
+            styles: style_desc_label
+            text: "IN"
 
         - label:
             id: ui_rectifier_detail_input_temp
-            x: 16
-            y: 45
-            width: 150
-            text: "IN  --.- °C"
-            text_font: montserrat_16
-            text_color: 0xFFFFFF
+            x: 97
+            y: 41
+            width: 85
+            styles: style_value_label
+            text: "--.- °C"
+
+        - label:
+            x: 203
+            y: 44
+            width: 85
+            styles: style_desc_label
+            text: "OUT"
 
         - label:
             id: ui_rectifier_detail_output_temp
-            x: 190
-            y: 45
-            width: 155
-            text_align: RIGHT
-            text: "OUT  --.- °C"
-            text_font: montserrat_16
-            text_color: 0xFFFFFF
+            x: 290
+            y: 41
+            width: 85
+            styles: style_value_label
+            text: "--.- °C"
+
+        - label:
+            x: 10
+            y: 76
+            width: 85
+            styles: style_desc_label
+            text: "FAN RPM"
 
         - label:
             id: ui_rectifier_detail_fan_rpm
-            x: 16
-            y: 75
-            width: 150
-            text: "FAN  ---- RPM"
-            text_font: montserrat_16
-            text_color: 0xFFFFFF
+            x: 97
+            y: 73
+            width: 85
+            styles: style_value_label
+            text: "----"
+
+        - label:
+            x: 203
+            y: 76
+            width: 85
+            styles: style_desc_label
+            text: "MIN"
 
         - label:
             id: ui_rectifier_detail_fan_duty
-            x: 190
-            y: 75
-            width: 155
-            text_align: RIGHT
-            text: "MIN  --.- %"
-            text_font: montserrat_16
-            text_color: 0xFFFFFF
+            x: 290
+            y: 73
+            width: 85
+            styles: style_value_label
+            text: "--.- %"
+
+        - label:
+            x: 10
+            y: 108
+            width: 85
+            styles: style_desc_label
+            text: "TARGET"
 
         - label:
             id: ui_rectifier_detail_fan_min
-            x: 16
-            y: 102
-            width: 150
-            text: "TARGET --.- %"
-            text_font: montserrat_16
-            text_color: 0xFFFFFF
+            x: 97
+            y: 105
+            width: 85
+            styles: style_value_label
+            text: "--.- %"
+
+        - label:
+            x: 203
+            y: 108
+            width: 85
+            styles: style_desc_label
+            text: "CAP"
 
         - label:
             id: ui_rectifier_detail_capability
-            x: 190
-            y: 102
-            width: 155
-            text_align: RIGHT
-            text: "CAP  --.- A"
-            text_font: montserrat_16
-            text_color: 0xFFFFFF
+            x: 290
+            y: 105
+            width: 85
+            styles: style_value_label
+            text: "--.- A"
 
   # ---------------------------------------------------------------------------
   # FALLBACK AND CONTROL
   # ---------------------------------------------------------------------------
 
   - obj:
-      x: 410
-      y: 267
-      width: 370
-      height: 128
+      x: 405
+      y: 260
+      width: 385
+      height: 140
       styles: style_card
 
       widgets:
         - label:
-            x: 16
+            x: 10
             y: 10
+            styles: style_title_label
             text: "FALLBACK / CONTROL"
-            text_font: montserrat_18
-            text_color: 0x8B96A0
 
         - label:
-            x: 16
+            x: 10
             y: 47
+            width: 85
+            styles: style_desc_label
             text: "Voltage"
-            text_font: montserrat_16
-            text_color: 0x8B96A0
 
         - label:
             id: ui_rectifier_detail_fallback_voltage
-            x: 120
+            x: 97
             y: 44
-            width: 90
-            text_align: RIGHT
+            width: 85
+            styles: style_value_label
             text: "--.- V"
-            text_font: montserrat_18
-            text_color: 0xFFFFFF
 
         - label:
-            x: 16
+            x: 10
             y: 82
+            width: 85
+            styles: style_desc_label
             text: "Current"
-            text_font: montserrat_16
-            text_color: 0x8B96A0
 
         - label:
             id: ui_rectifier_detail_fallback_current
-            x: 120
+            x: 97
             y: 79
-            width: 90
-            text_align: RIGHT
+            width: 85
+            styles: style_value_label
             text: "--.- A"
-            text_font: montserrat_18
-            text_color: 0xFFFFFF
 
         - button:
             id: ui_rectifier_detail_fallback_edit
