@@ -120,7 +120,7 @@ widgets:
 
         - label:
             x: 16
-            y: 55
+            y: 48
             text: "Units"
             text_font: montserrat_18
             text_color: 0x8B96A0
@@ -128,14 +128,14 @@ widgets:
         - label:
             id: ui_dashboard_units
             x: 145
-            y: 55
+            y: 48
             text: "- / 3"
             text_font: montserrat_20
             text_color: 0xFFFFFF
 
         - label:
             x: 16
-            y: 94
+            y: 83
             text: "Max Temp"
             text_font: montserrat_18
             text_color: 0x8B96A0
@@ -143,14 +143,14 @@ widgets:
         - label:
             id: ui_dashboard_temperature
             x: 145
-            y: 94
+            y: 83
             text: "--.- °C"
             text_font: montserrat_20
             text_color: 0xFFFFFF
 
         - label:
             x: 16
-            y: 133
+            y: 118
             text: "Efficiency"
             text_font: montserrat_18
             text_color: 0x8B96A0
@@ -158,7 +158,7 @@ widgets:
         - label:
             id: ui_dashboard_efficiency
             x: 145
-            y: 133
+            y: 118
             text: "--.- %"
             text_font: montserrat_20
             text_color: 0xFFFFFF
@@ -167,20 +167,9 @@ widgets:
         - button:
             id: ui_dashboard_power_button
             x: 16
-            y: 162
+            y: 145
+            styles: style_dialog_button
             width: 228
-            height: 34
-            bg_color: 0x202830
-            border_color: 0x3B4652
-            border_width: 1
-            radius: 8
-            disabled:
-              bg_color: 0x30343A
-              border_color: 0x44484E
-              text_color: 0x777C82
-
-            pressed:
-              bg_color: 0x3A4652
 
             widgets:
               - label:
@@ -232,16 +221,15 @@ widgets:
             text_color: 0x8B96A0
 
         - button:
-            x: 115
-            y: 31
-            width: 48
-            height: 48
+            x: 114
+            y: 30
+            styles: style_dialog_step_button
 
             widgets:
               - label:
                   align: CENTER
                   text: "-"
-                  text_font: montserrat_24
+                  text_font: montserrat_20
 
             on_short_click:
               - number.decrement:
@@ -259,16 +247,15 @@ widgets:
             text_color: 0xFFFFFF
 
         - button:
-            x: 260
-            y: 31
-            width: 48
-            height: 48
+            x: 259
+            y: 30
+            styles: style_dialog_step_button
 
             widgets:
               - label:
                   align: CENTER
                   text: "+"
-                  text_font: montserrat_24
+                  text_font: montserrat_20
 
             on_short_click:
               - number.increment:
@@ -285,16 +272,15 @@ widgets:
             text_color: 0x8B96A0
 
         - button:
-            x: 395
-            y: 31
-            width: 48
-            height: 48
+            x: 394
+            y: 30
+            styles: style_dialog_step_button
 
             widgets:
               - label:
                   align: CENTER
                   text: "-"
-                  text_font: montserrat_24
+                  text_font: montserrat_20
 
             on_short_click:
               - number.decrement:
@@ -312,16 +298,15 @@ widgets:
             text_color: 0xFFFFFF
 
         - button:
-            x: 550
-            y: 31
-            width: 48
-            height: 48
+            x: 549
+            y: 30
+            styles: style_dialog_step_button
 
             widgets:
               - label:
                   align: CENTER
                   text: "+"
-                  text_font: montserrat_24
+                  text_font: montserrat_20
 
             on_short_click:
               - number.increment:

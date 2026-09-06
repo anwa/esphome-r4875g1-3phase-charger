@@ -171,8 +171,6 @@ lvgl:
       - button:
           x: 10
           y: 410
-          width: 148
-          height: 58
           styles: style_nav_button
 
           pressed:
@@ -193,8 +191,6 @@ lvgl:
       - button:
           x: 168
           y: 410
-          width: 148
-          height: 58
           styles: style_nav_button
 
           pressed:
@@ -215,8 +211,6 @@ lvgl:
       - button:
           x: 326
           y: 410
-          width: 148
-          height: 58
           styles: style_nav_button
 
           pressed:
@@ -237,8 +231,6 @@ lvgl:
       - button:
           x: 484
           y: 410
-          width: 148
-          height: 58
           styles: style_nav_button
 
           pressed:
@@ -259,8 +251,6 @@ lvgl:
       - button:
           x: 642
           y: 410
-          width: 148
-          height: 58
           styles: style_nav_button
 
           pressed:
@@ -327,8 +317,6 @@ lvgl:
                       align: TOP_MID
                       x: -85
                       y: 55
-                      width: 50
-                      height: 45
                       styles: style_dialog_step_button
 
                       pressed:
@@ -369,8 +357,6 @@ lvgl:
                       align: TOP_MID
                       x: 85
                       y: 55
-                      width: 50
-                      height: 45
                       styles: style_dialog_step_button
 
                       pressed:
@@ -398,8 +384,6 @@ lvgl:
                       align: TOP_MID
                       x: -85
                       y: 115
-                      width: 50
-                      height: 45
                       styles: style_dialog_step_button
 
                       pressed:
@@ -438,8 +422,6 @@ lvgl:
                       align: TOP_MID
                       x: 85
                       y: 115
-                      width: 50
-                      height: 45
                       styles: style_dialog_step_button
 
                       pressed:
@@ -460,8 +442,6 @@ lvgl:
                       align: BOTTOM_MID
                       x: -85
                       y: -20
-                      width: 140
-                      height: 50
                       styles: style_dialog_button
 
                       pressed:
@@ -481,8 +461,6 @@ lvgl:
                       align: BOTTOM_MID
                       x: 85
                       y: -20
-                      width: 140
-                      height: 50
                       styles: style_dialog_button
                       border_color: 0x5CFF7A
 
@@ -565,8 +543,6 @@ lvgl:
                       align: BOTTOM_MID
                       x: -85
                       y: -20
-                      width: 140
-                      height: 50
                       styles: style_dialog_button
 
                       pressed:
@@ -587,8 +563,6 @@ lvgl:
                       align: BOTTOM_MID
                       x: 85
                       y: -20
-                      width: 140
-                      height: 50
                       styles: style_dialog_button
                       border_color: 0x5CFF7A
 
@@ -671,8 +645,6 @@ lvgl:
                       align: BOTTOM_MID
                       x: -85
                       y: -20
-                      width: 140
-                      height: 50
                       styles: style_dialog_button
 
                       pressed:
@@ -693,8 +665,6 @@ lvgl:
                       align: BOTTOM_MID
                       x: 85
                       y: -20
-                      width: 140
-                      height: 50
                       styles: style_dialog_button
                       border_color: 0xFF5C5C
 
@@ -776,8 +746,6 @@ lvgl:
                       align: BOTTOM_MID
                       x: -85
                       y: -20
-                      width: 140
-                      height: 50
                       styles: style_dialog_button
 
                       pressed:
@@ -797,8 +765,6 @@ lvgl:
                       align: BOTTOM_MID
                       x: 85
                       y: -20
-                      width: 140
-                      height: 50
                       styles: style_dialog_button
                       border_color: 0x5CFF7A
 
@@ -880,8 +846,6 @@ lvgl:
                       align: BOTTOM_MID
                       x: -85
                       y: -20
-                      width: 140
-                      height: 50
                       styles: style_dialog_button
 
                       pressed:
@@ -901,8 +865,6 @@ lvgl:
                       align: BOTTOM_MID
                       x: 85
                       y: -20
-                      width: 140
-                      height: 50
                       styles: style_dialog_button
                       border_color: 0xFF5C5C
 
@@ -984,8 +946,6 @@ lvgl:
                       align: BOTTOM_MID
                       x: -85
                       y: -20
-                      width: 140
-                      height: 50
                       styles: style_dialog_button
 
                       pressed:
@@ -1005,8 +965,6 @@ lvgl:
                       align: BOTTOM_MID
                       x: 85
                       y: -20
-                      width: 140
-                      height: 50
                       styles: style_dialog_button
                       border_color: 0x5CFF7A
 
@@ -1088,8 +1046,6 @@ lvgl:
                       align: BOTTOM_MID
                       x: -85
                       y: -20
-                      width: 140
-                      height: 50
                       styles: style_dialog_button
 
                       pressed:
@@ -1109,8 +1065,6 @@ lvgl:
                       align: BOTTOM_MID
                       x: 85
                       y: -20
-                      width: 140
-                      height: 50
                       styles: style_dialog_button
                       border_color: 0xFF5C5C
 
@@ -1192,8 +1146,6 @@ lvgl:
                       align: BOTTOM_MID
                       x: -85
                       y: -20
-                      width: 140
-                      height: 50
                       styles: style_dialog_button
 
                       pressed:
@@ -1213,8 +1165,6 @@ lvgl:
                       align: BOTTOM_MID
                       x: 85
                       y: -20
-                      width: 140
-                      height: 50
                       styles: style_dialog_button
                       border_color: 0x5CFF7A
 
@@ -1296,8 +1246,6 @@ lvgl:
                       align: BOTTOM_MID
                       x: -85
                       y: -20
-                      width: 140
-                      height: 50
                       styles: style_dialog_button
 
                       pressed:
@@ -1317,8 +1265,6 @@ lvgl:
                       align: BOTTOM_MID
                       x: 85
                       y: -20
-                      width: 140
-                      height: 50
                       styles: style_dialog_button
                       border_color: 0xFF5C5C
 

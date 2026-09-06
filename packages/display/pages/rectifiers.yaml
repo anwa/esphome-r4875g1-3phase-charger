@@ -124,20 +124,16 @@ widgets:
         - button:
             id: ui_rectifier_1_power_button
             x: 16
-            y: 250
+            y: 249
             width: 125
-            height: 48
-
-            disabled:
-              bg_color: 0x30343A
-              border_color: 0x44484E
+            styles: style_dialog_button
 
             widgets:
               - label:
                   id: ui_rectifier_1_power_button_label
                   align: CENTER
                   text: "UNAVAILABLE"
-                  text_font: montserrat_18
+                  text_font: montserrat_16
                   text_color: 0xFFFFFF
 
             on_short_click:
@@ -156,15 +152,15 @@ widgets:
 
         - button:
             x: 147
-            y: 250
+            y: 249
             width: 72
-            height: 48
+            styles: style_dialog_button
 
             widgets:
               - label:
                   align: CENTER
                   text: "DETAIL"
-                  text_font: montserrat_12
+                  text_font: montserrat_16
 
             on_short_click:
               - lambda: |-
@@ -285,20 +281,16 @@ widgets:
         - button:
             id: ui_rectifier_2_power_button
             x: 16
-            y: 250
+            y: 249
             width: 125
-            height: 48
-
-            disabled:
-              bg_color: 0x30343A
-              border_color: 0x44484E
+            styles: style_dialog_button
 
             widgets:
               - label:
                   id: ui_rectifier_2_power_button_label
                   align: CENTER
                   text: "UNAVAILABLE"
-                  text_font: montserrat_18
+                  text_font: montserrat_16
                   text_color: 0xFFFFFF
 
             on_short_click:
@@ -317,15 +309,15 @@ widgets:
 
         - button:
             x: 147
-            y: 250
+            y: 249
             width: 72
-            height: 48
+            styles: style_dialog_button
 
             widgets:
               - label:
                   align: CENTER
                   text: "DETAIL"
-                  text_font: montserrat_12
+                  text_font: montserrat_16
 
             on_short_click:
               - lambda: |-
@@ -446,20 +438,16 @@ widgets:
         - button:
             id: ui_rectifier_3_power_button
             x: 16
-            y: 250
+            y: 249
             width: 145
-            height: 48
-
-            disabled:
-              bg_color: 0x30343A
-              border_color: 0x44484E
+            styles: style_dialog_button
 
             widgets:
               - label:
                   id: ui_rectifier_3_power_button_label
                   align: CENTER
                   text: "UNAVAILABLE"
-                  text_font: montserrat_18
+                  text_font: montserrat_16
                   text_color: 0xFFFFFF
 
             on_short_click:
@@ -478,15 +466,15 @@ widgets:
 
         - button:
             x: 167
-            y: 250
+            y: 249
             width: 77
-            height: 48
+            styles: style_dialog_button
 
             widgets:
               - label:
                   align: CENTER
                   text: "DETAIL"
-                  text_font: montserrat_12
+                  text_font: montserrat_16
 
             on_short_click:
               - lambda: |-

@@ -149,19 +149,15 @@ widgets:
         - button:
             id: ui_cooling_r1_auto_button
             x: 16
-            y: 188
+            y: 174
             width: 94
-            height: 32
-
-            disabled:
-              bg_color: 0x30343A
-              border_color: 0x44484E
+            styles: style_dialog_button
 
             widgets:
               - label:
                   align: CENTER
                   text: "AUTO"
-                  text_font: montserrat_14
+                  text_font: montserrat_16
 
             on_short_click:
               - button.press: fan_auto_mode_button_1
@@ -169,19 +165,15 @@ widgets:
         - button:
             id: ui_cooling_r1_full_button
             x: 125
-            y: 188
+            y: 174
             width: 94
-            height: 32
-
-            disabled:
-              bg_color: 0x30343A
-              border_color: 0x44484E
+            styles: style_dialog_button
 
             widgets:
               - label:
                   align: CENTER
                   text: "FULL"
-                  text_font: montserrat_14
+                  text_font: montserrat_16
 
             on_short_click:
               - button.press: fan_full_speed_button_1
@@ -280,19 +272,15 @@ widgets:
         - button:
             id: ui_cooling_r2_auto_button
             x: 16
-            y: 188
+            y: 174
             width: 94
-            height: 32
-
-            disabled:
-              bg_color: 0x30343A
-              border_color: 0x44484E
+            styles: style_dialog_button
 
             widgets:
               - label:
                   align: CENTER
                   text: "AUTO"
-                  text_font: montserrat_14
+                  text_font: montserrat_16
 
             on_short_click:
               - button.press: fan_auto_mode_button_2
@@ -300,19 +288,15 @@ widgets:
         - button:
             id: ui_cooling_r2_full_button
             x: 125
-            y: 188
+            y: 174
             width: 94
-            height: 32
-
-            disabled:
-              bg_color: 0x30343A
-              border_color: 0x44484E
+            styles: style_dialog_button
 
             widgets:
               - label:
                   align: CENTER
                   text: "FULL"
-                  text_font: montserrat_14
+                  text_font: montserrat_16
 
             on_short_click:
               - button.press: fan_full_speed_button_2
@@ -411,19 +395,15 @@ widgets:
         - button:
             id: ui_cooling_r3_auto_button
             x: 16
-            y: 188
+            y: 174
             width: 106
-            height: 32
-
-            disabled:
-              bg_color: 0x30343A
-              border_color: 0x44484E
+            styles: style_dialog_button
 
             widgets:
               - label:
                   align: CENTER
                   text: "AUTO"
-                  text_font: montserrat_14
+                  text_font: montserrat_16
 
             on_short_click:
               - button.press: fan_auto_mode_button_3
@@ -431,19 +411,15 @@ widgets:
         - button:
             id: ui_cooling_r3_full_button
             x: 138
-            y: 188
+            y: 174
             width: 106
-            height: 32
-
-            disabled:
-              bg_color: 0x30343A
-              border_color: 0x44484E
+            styles: style_dialog_button
 
             widgets:
               - label:
                   align: CENTER
                   text: "FULL"
-                  text_font: montserrat_14
+                  text_font: montserrat_16
 
             on_short_click:
               - button.press: fan_full_speed_button_3

@@ -363,9 +363,9 @@ widgets:
         - button:
             id: ui_rectifier_detail_fallback_edit
             x: 235
-            y: 47
+            y: 46
             width: 110
-            height: 48
+            styles: style_dialog_button
 
             widgets:
               - label:
