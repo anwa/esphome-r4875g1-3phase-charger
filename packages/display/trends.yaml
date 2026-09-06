@@ -38,13 +38,13 @@ script:
 
             lv_obj_set_size(
               chart,
-              680,
-              180
+              715,
+              190
             );
 
             lv_obj_set_pos(
               chart,
-              65,
+              55,
               8
             );
 

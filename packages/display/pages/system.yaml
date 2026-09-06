@@ -21,7 +21,7 @@ widgets:
       x: 10
       y: 70
       width: 385
-      height: 160
+      height: 110
       styles: style_card
 
       widgets:
@@ -129,9 +129,9 @@ widgets:
 
   - obj:
       x: 10
-      y: 240
+      y: 190
       width: 385
-      height: 160
+      height: 210
       styles: style_card
 
       widgets:
@@ -198,7 +198,6 @@ widgets:
             x: 190
             y: 137
             styles: style_value_label
-            text_align: RIGHT
             text: "-- ms"
 
         - label:
