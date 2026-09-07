@@ -166,8 +166,8 @@ The current controller target is the Waveshare ESP32-S3-Touch-LCD-7.
 
 Responsibilities include:
 
-- shared I2C bus
-- TCA9548A external I2C multiplexer
+- onboard I2C bus
+- dedicated external I2C bus
 - MCP23017 external I/O expander
 - GT911 touchscreen
 - CH422G onboard I/O expander
@@ -176,21 +176,28 @@ Responsibilities include:
 - backup rotary-encoder inputs
 - controller backup-battery ADC and SOC estimate
 
-### Shared I2C Topology
+### I2C Topology
+
+The controller uses two independent physical I2C buses. The onboard bus is reserved for Waveshare peripherals, while external peripherals use a dedicated bus to avoid address collisions with the onboard CH422G.
 
 ```text
 ESP32-S3
 │
-├── GPIO8 -> SDA
-├── GPIO9 -> SCL
+├── Onboard I2C bus
+│   ├── SDA -> GPIO8
+│   ├── SCL -> GPIO9
+│   ├── CH422G
+│   └── GT911 touchscreen
 │
-└── TCA9548A @ 0x70
-    ├── CH0 -> MCP23017 @ 0x20
-    ├── CH1 -> AHT10 @ 0x38
-    └── CH2 -> EMC2101 @ 0x4C
+└── External I2C bus
+    ├── SDA -> GPIO44
+    ├── SCL -> GPIO43
+    ├── MCP23017 @ 0x20
+    ├── AHT10 @ 0x38
+    └── EMC2101 @ 0x4C
 ```
 
-The EMC2101 component itself is configured in `cooling.yaml`, but its I2C bus is provided by `hardware.yaml`.
+The physical I2C buses and MCP23017 are configured in `hardware.yaml`. The AHT10 sensor is configured in the root `r4875g1-3phase-charger.yaml`, while the EMC2101 fan controller is configured in `cooling.yaml`.
 
 ### MCP23017 Allocation
 

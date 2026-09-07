@@ -28,7 +28,7 @@
 # EMC2101 FAN CONTROLLER
 # ==============================================================================
 #
-# The EMC2101 is connected through TCA9548A channel 2.
+# The EMC2101 is connected directly to the dedicated external I2C bus.
 #
 # It provides the common PWM signal for all connected four-pin chassis fans.
 # Its dedicated tachometer input monitors Cooling Fan 3, which ventilates the
@@ -40,7 +40,7 @@
 
 emc2101:
   id: cooling_fan_controller
-  i2c_id: external_i2c_ch2
+  i2c_id: external_i2c_bus
   address: 0x4C
   inverted: false
 

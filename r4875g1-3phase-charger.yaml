@@ -20,9 +20,10 @@
 #   - native USB and USB-to-UART
 #
 # External hardware:
-#   - TCA9548A I2C multiplexer @ 0x70
-#   - MCP23017 I/O expander @ 0x20 on TCA channel 0
-#   - AHT10 compartment temperature/humidity sensor @ 0x38 on TCA channel 1
+#   - dedicated external I2C bus on GPIO44 / GPIO43
+#   - MCP23017 I/O expander @ 0x20
+#   - AHT10 compartment temperature/humidity sensor @ 0x38
+#   - EMC2101 external cooling-fan controller @ 0x4C
 #   - rotary encoder connected through the MCP23017
 #   - external three/four-pin cooling-fan interface
 #   - 1S lithium controller backup battery on J3
@@ -120,6 +121,8 @@ substitutions:
   pin_touch_irq: "GPIO4"
   pin_i2c_sda: "GPIO8"
   pin_i2c_scl: "GPIO9"
+  pin_external_i2c_sda: "GPIO44"
+  pin_external_i2c_scl: "GPIO43"
   pin_can_tx: "GPIO20"
   pin_can_rx: "GPIO19"
   pin_battery_adc: "GPIO6"
@@ -449,13 +452,12 @@ sensor:
   # AHT10 installed in the shared rear connection compartment behind the
   # three rectifier units.
   #
-  # Connected through:
-  #   main I2C -> TCA9548A channel 1 -> AHT10 @ 0x38
+  # Connected directly to the dedicated external I2C bus.
   # ---------------------------------------------------------------------------
 
   - platform: aht10
     variant: AHT10
-    i2c_id: external_i2c_ch1
+    i2c_id: external_i2c_bus
     update_interval: 60s
 
     temperature:
