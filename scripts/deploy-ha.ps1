@@ -19,6 +19,12 @@ $RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $Timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
 $DeploymentProjectPath = $null
 
+# Bound every SSH/SCP process so a stalled network or remote command cannot
+# block deployment indefinitely.
+$NetworkCommandTimeoutSeconds = 30
+$HashVerifyAttempts = 3
+$HashVerifyRetryDelaySeconds = 2
+
 function Write-Step([string]$Message) { Write-Host "[DEPLOY] $Message" -ForegroundColor Cyan }
 function Write-Ok([string]$Message)   { Write-Host "[  OK  ] $Message" -ForegroundColor Green }
 function Write-Warn([string]$Message) { Write-Host "[ WARN ] $Message" -ForegroundColor Yellow }
@@ -253,43 +259,316 @@ function Get-GitInfo {
     return $info
 }
 
+function Invoke-ExternalProcess(
+    [string]$FileName,
+    [string[]]$Arguments,
+    [int]$TimeoutSeconds
+) {
+    $startInfo =
+        [System.Diagnostics.ProcessStartInfo]::new()
+
+    $startInfo.FileName = $FileName
+    $startInfo.UseShellExecute = $false
+    $startInfo.RedirectStandardOutput = $true
+    $startInfo.RedirectStandardError = $true
+    $startInfo.CreateNoWindow = $true
+
+    foreach ($argument in $Arguments) {
+        [void]$startInfo.ArgumentList.Add($argument)
+    }
+
+    $process =
+        [System.Diagnostics.Process]::new()
+
+    $process.StartInfo = $startInfo
+
+    try {
+        if (-not $process.Start()) {
+            throw "Could not start process '$FileName'."
+        }
+
+        # Read both streams asynchronously so a full output buffer cannot
+        # deadlock the child process.
+        $stdoutTask =
+            $process.StandardOutput.ReadToEndAsync()
+
+        $stderrTask =
+            $process.StandardError.ReadToEndAsync()
+
+        if (
+            -not $process.WaitForExit(
+                $TimeoutSeconds * 1000
+            )
+        ) {
+            try {
+                $process.Kill($true)
+            } catch {
+                try {
+                    $process.Kill()
+                } catch { }
+            }
+
+            $process.WaitForExit()
+
+            $stderr =
+                $stderrTask.GetAwaiter().GetResult().Trim()
+
+            $detail =
+                if ([string]::IsNullOrWhiteSpace($stderr)) {
+                    ""
+                } else {
+                    " Remote error: $stderr"
+                }
+
+            throw (
+                "Process '$FileName' timed out after " +
+                "$TimeoutSeconds seconds.$detail"
+            )
+        }
+
+        return [pscustomobject]@{
+            ExitCode = $process.ExitCode
+            StdOut   = $stdoutTask.GetAwaiter().GetResult()
+            StdErr   = $stderrTask.GetAwaiter().GetResult()
+        }
+    }
+    finally {
+        $process.Dispose()
+    }
+}
+
+
 function Invoke-HaSsh([string]$Command) {
     $sshArgs = @(
         "-i", $KeyPath,
         "-p", $Port,
         "-o", "BatchMode=yes",
         "-o", "ConnectTimeout=8",
+        "-o", "ConnectionAttempts=1",
+        "-o", "ServerAliveInterval=5",
+        "-o", "ServerAliveCountMax=3",
         "-o", "StrictHostKeyChecking=accept-new",
         "-o", "MACs=$MacAlgorithm",
         "$HaUser@$HaHost",
         $Command
     )
 
-    $output = & ssh @sshArgs
+    $result =
+        Invoke-ExternalProcess `
+            -FileName "ssh" `
+            -Arguments $sshArgs `
+            -TimeoutSeconds $NetworkCommandTimeoutSeconds
 
-    if ($LASTEXITCODE -ne 0) {
-        throw "SSH command failed with exit code $LASTEXITCODE."
+    if ($result.ExitCode -ne 0) {
+        $stderr = $result.StdErr.Trim()
+
+        $detail =
+            if ([string]::IsNullOrWhiteSpace($stderr)) {
+                ""
+            } else {
+                " Remote error: $stderr"
+            }
+
+        throw (
+            "SSH command failed with exit code " +
+            "$($result.ExitCode).$detail"
+        )
     }
 
-    return $output
+    return @(
+        $result.StdOut -split "\r?\n" |
+            Where-Object {
+                -not [string]::IsNullOrWhiteSpace($_)
+            }
+    )
 }
 
-function Send-HaFile([string]$LocalPath, [string]$RemotePath) {
+
+function Send-HaFile(
+    [string]$LocalPath,
+    [string]$RemotePath
+) {
     $scpArgs = @(
         "-i", $KeyPath,
         "-P", $Port,
         "-o", "BatchMode=yes",
         "-o", "ConnectTimeout=8",
+        "-o", "ConnectionAttempts=1",
+        "-o", "ServerAliveInterval=5",
+        "-o", "ServerAliveCountMax=3",
         "-o", "StrictHostKeyChecking=accept-new",
         "-o", "MACs=$MacAlgorithm",
         $LocalPath,
         "$HaUser@${HaHost}:$RemotePath"
     )
 
-    & scp @scpArgs
+    $result =
+        Invoke-ExternalProcess `
+            -FileName "scp" `
+            -Arguments $scpArgs `
+            -TimeoutSeconds $NetworkCommandTimeoutSeconds
 
-    if ($LASTEXITCODE -ne 0) {
-        throw "SCP upload failed for '$LocalPath' with exit code $LASTEXITCODE."
+    if ($result.ExitCode -ne 0) {
+        $stderr = $result.StdErr.Trim()
+
+        $detail =
+            if ([string]::IsNullOrWhiteSpace($stderr)) {
+                ""
+            } else {
+                " Remote error: $stderr"
+            }
+
+        throw (
+            "SCP upload failed for '$LocalPath' with exit code " +
+            "$($result.ExitCode).$detail"
+        )
+    }
+}
+
+function Get-RemoteSha256Hashes(
+    [string[]]$RemotePaths
+) {
+    if ($RemotePaths.Count -eq 0) {
+        return @()
+    }
+
+    $quotedPaths = @(
+        $RemotePaths |
+            ForEach-Object {
+                ConvertTo-ShQuotedString $_
+            }
+    )
+
+    # Hash the complete file set through one SSH session instead of opening
+    # one independent SSH connection for every managed file.
+    $command =
+        "set -eu; sha256sum " +
+        ($quotedPaths -join " ")
+
+    for (
+        $attempt = 1;
+        $attempt -le $HashVerifyAttempts;
+        $attempt++
+    ) {
+        try {
+            $output =
+                @(Invoke-HaSsh $command)
+
+            $hashes = @()
+
+            foreach ($line in $output) {
+                if (
+                    $line -match
+                    '^([0-9a-fA-F]{64})\s+'
+                ) {
+                    $hashes +=
+                        $Matches[1].ToLowerInvariant()
+                }
+            }
+
+            if (
+                $hashes.Count -ne
+                $RemotePaths.Count
+            ) {
+                throw (
+                    "Remote hash output count mismatch: " +
+                    "expected $($RemotePaths.Count), " +
+                    "received $($hashes.Count)."
+                )
+            }
+
+            return $hashes
+        }
+        catch {
+            if ($attempt -ge $HashVerifyAttempts) {
+                throw
+            }
+
+            Write-Warn (
+                "Remote SHA-256 verification attempt " +
+                "$attempt/$HashVerifyAttempts failed: " +
+                $_.Exception.Message
+            )
+
+            Start-Sleep `
+                -Seconds $HashVerifyRetryDelaySeconds
+        }
+    }
+}
+
+
+function Assert-RemoteFileSetMatchesLocal(
+    [string]$ProjectLocalPath,
+    [string]$ProjectRemotePath,
+    [string]$ProjectDisplayPath,
+    [string]$RemoteRoot,
+    [string[]]$ManagedFiles,
+    [hashtable]$RemoteManagedFiles,
+    [string]$FailurePrefix
+) {
+    $entries = @(
+        [pscustomobject]@{
+            LocalPath   = $ProjectLocalPath
+            RemotePath  = $ProjectRemotePath
+            DisplayPath = $ProjectDisplayPath
+        }
+    )
+
+    foreach ($relativePath in $ManagedFiles) {
+        $remoteRelativePath =
+            $RemoteManagedFiles[$relativePath]
+
+        $entries +=
+            [pscustomobject]@{
+                LocalPath =
+                    Join-Path `
+                        $RepoRoot `
+                        $relativePath
+
+                RemotePath =
+                    "$RemoteRoot/$remoteRelativePath"
+
+                DisplayPath =
+                    "$relativePath -> $remoteRelativePath"
+            }
+    }
+
+    Write-Host (
+        "  Hashing $($entries.Count) remote files " +
+        "in one SSH session"
+    )
+
+    $remotePaths = @(
+        $entries |
+            ForEach-Object {
+                $_.RemotePath
+            }
+    )
+
+    $remoteHashes =
+        @(Get-RemoteSha256Hashes $remotePaths)
+
+    for (
+        $index = 0;
+        $index -lt $entries.Count;
+        $index++
+    ) {
+        $localHash =
+            (
+                Get-FileHash `
+                    -Algorithm SHA256 `
+                    -LiteralPath $entries[$index].LocalPath
+            ).Hash.ToLowerInvariant()
+
+        if (
+            $remoteHashes[$index] -ne
+            $localHash
+        ) {
+            throw (
+                "$FailurePrefix`: " +
+                $entries[$index].DisplayPath
+            )
+        }
     }
 }
 
@@ -461,45 +740,16 @@ try {
     Write-Ok "Upload complete"
 
     Write-Step "Verifying staged SHA-256 hashes"
-    $projectHash =
-        (
-            Get-FileHash `
-                -Algorithm SHA256 `
-                -LiteralPath $DeploymentProjectPath
-        ).Hash.ToLowerInvariant()
-    $qProjectStaged = ConvertTo-ShQuotedString "$StagingDir/$RemoteProjectFile"
-    $remoteProjectHash = ((Invoke-HaSsh "sha256sum $qProjectStaged | cut -d ' ' -f 1") | Out-String).Trim().ToLowerInvariant()
-    if ($remoteProjectHash -ne $projectHash) {
-        throw "Hash mismatch after upload: $ProjectFile -> $RemoteProjectFile"
-    }
 
-    foreach ($relativePath in $ManagedFiles) {
-        $localHash =
-            (
-                Get-FileHash `
-                    -Algorithm SHA256 `
-                    -LiteralPath (Join-Path $RepoRoot $relativePath)
-            ).Hash.ToLowerInvariant()
+    Assert-RemoteFileSetMatchesLocal `
+        -ProjectLocalPath $DeploymentProjectPath `
+        -ProjectRemotePath "$StagingDir/$RemoteProjectFile" `
+        -ProjectDisplayPath "$ProjectFile -> $RemoteProjectFile" `
+        -RemoteRoot $StagingDir `
+        -ManagedFiles $ManagedFiles `
+        -RemoteManagedFiles $RemoteManagedFiles `
+        -FailurePrefix "Hash mismatch after upload"
 
-        $remoteRelativePath =
-            $RemoteManagedFiles[$relativePath]
-
-        $qPath =
-            ConvertTo-ShQuotedString "$StagingDir/$remoteRelativePath"
-
-        $remoteHash =
-            (
-                (
-                    Invoke-HaSsh `
-                        "sha256sum $qPath | cut -d ' ' -f 1"
-                ) |
-                Out-String
-            ).Trim().ToLowerInvariant()
-
-        if ($remoteHash -ne $localHash) {
-            throw "Hash mismatch after upload: $relativePath -> $remoteRelativePath"
-        }
-    }
     Write-Ok "Staged files match local source"
 
     if (-not $NoBackup) {
@@ -556,39 +806,18 @@ try {
     Invoke-HaSsh ($commands -join "; ") | Out-Null
 
     Write-Step "Verifying installed files"
-    $qProjectInstalled = ConvertTo-ShQuotedString "$RemoteDir/$RemoteProjectFile"
-    $installedProjectHash = ((Invoke-HaSsh "sha256sum $qProjectInstalled | cut -d ' ' -f 1") | Out-String).Trim().ToLowerInvariant()
-    if ($installedProjectHash -ne $projectHash) {
-        throw "Installed file verification failed: $RemoteProjectFile"
-    }
-    foreach ($relativePath in $ManagedFiles) {
-        $localHash =
-            (
-                Get-FileHash `
-                    -Algorithm SHA256 `
-                    -LiteralPath (Join-Path $RepoRoot $relativePath)
-            ).Hash.ToLowerInvariant()
-
-        $remoteRelativePath =
-            $RemoteManagedFiles[$relativePath]
-
-        $qPath =
-            ConvertTo-ShQuotedString "$RemoteDir/$remoteRelativePath"
-
-        $remoteHash =
-            (
-                (
-                    Invoke-HaSsh `
-                        "sha256sum $qPath | cut -d ' ' -f 1"
-                ) |
-                Out-String
-            ).Trim().ToLowerInvariant()
-
-        if ($remoteHash -ne $localHash) {
-            throw "Installed file verification failed: $relativePath -> $remoteRelativePath"
-        }
-    }
+    
+    Assert-RemoteFileSetMatchesLocal `
+        -ProjectLocalPath $DeploymentProjectPath `
+        -ProjectRemotePath "$RemoteDir/$RemoteProjectFile" `
+        -ProjectDisplayPath $RemoteProjectFile `
+        -RemoteRoot $RemoteDir `
+        -ManagedFiles $ManagedFiles `
+        -RemoteManagedFiles $RemoteManagedFiles `
+        -FailurePrefix "Installed file verification failed"
+    
     Write-Ok "Installed files match local source"
+
 }
 finally {
     try { Invoke-HaSsh "rm -rf $qStaging" | Out-Null }
