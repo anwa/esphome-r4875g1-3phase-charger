@@ -293,7 +293,7 @@ The controller uses the Waveshare 7-inch 800 × 480 RGB display with GT911 capac
 
 The display backlight is automatically disabled after the configured LVGL idle timeout while charger control and telemetry continue running normally. Touching and releasing the sleeping touchscreen wakes the display without activating the control underneath the wake-up touch.
 
-The LVGL interface contains five primary functional pages:
+The LVGL interface contains six primary functional pages:
 
 ```text
 Dashboard
@@ -333,7 +333,7 @@ solar battery-bank voltage
 solar battery-bank current
 solar battery-bank temperature
 solar battery-bank operating state
-````
+```
 
 AC and DC setpoints are edited through dedicated modal dialogs opened from the corresponding Dashboard cards.
 
@@ -397,7 +397,7 @@ temperature
 cell drift
 warning state
 fault state
-````
+```
 
 A consolidated per-battery status shows:
 
@@ -563,7 +563,7 @@ All configurable Home Assistant entity mappings are centralized in:
 
 ```text
 packages/battery-bank.yaml
-````
+```
 
 The imported aggregate bank data includes:
 
