@@ -161,54 +161,6 @@ interval:
                   );
 
             # ---------------------------------------------------------------------------
-            # DC VOLTAGE SETPOINT
-            # ---------------------------------------------------------------------------
-
-            - lvgl.label.update:
-                id: ui_dashboard_set_voltage
-                text: !lambda |-
-                  if (isnan(id(set_dc_voltage_limit).state)) {
-                    return std::string("--.- V");
-                  }
-
-                  return str_sprintf(
-                    "%.1f V",
-                    id(set_dc_voltage_limit).state
-                  );
-
-            # ---------------------------------------------------------------------------
-            # TOTAL DC POWER SETPOINT
-            # ---------------------------------------------------------------------------
-
-            - lvgl.label.update:
-                id: ui_dashboard_set_power
-                text: !lambda |-
-                  if (isnan(id(set_dc_sum_power).state)) {
-                    return std::string("--.-- kW");
-                  }
-
-                  return str_sprintf(
-                    "%.2f kW",
-                    id(set_dc_sum_power).state
-                  );
-
-            # ---------------------------------------------------------------------------
-            # APPLIED PER-UNIT DC CURRENT LIMIT
-            # ---------------------------------------------------------------------------
-
-            - lvgl.label.update:
-                id: ui_dashboard_set_current
-                text: !lambda |-
-                  if (isnan(id(applied_dc_current_limit_sensor).state)) {
-                    return std::string("--.- A");
-                  }
-
-                  return str_sprintf(
-                    "%.1f A",
-                    id(applied_dc_current_limit_sensor).state
-                  );
-
-            # ---------------------------------------------------------------------------
             # CHARGER POWER BUTTON
             # ---------------------------------------------------------------------------
 
