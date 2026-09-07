@@ -5,8 +5,9 @@
 # Updates the four individual solar-battery cards while the Battery page is
 # visible.
 #
-# Imported battery values are monitoring-only. Missing Home Assistant data is
-# represented explicitly instead of retaining apparently valid stale values.
+# Imported battery values are monitoring-only. Home Assistant connection loss
+# and incomplete battery telemetry are represented separately instead of
+# retaining apparently valid stale values.
 # ==============================================================================
 
 interval:
@@ -25,9 +26,13 @@ interval:
 
             - lvgl.label.update:
                 id: ui_battery_1_status
+
                 text: !lambda |-
+                  if (!id(battery_ha_connected).state)
+                    return std::string("HA OFFLINE");
+
                   if (!id(battery_1_data_available).state)
-                    return std::string("NO HA DATA");
+                    return std::string("NO DATA");
 
                   if (id(battery_1_fault_state).state == "on")
                     return std::string("FAULT");
@@ -38,6 +43,9 @@ interval:
                   return std::string("OK");
 
                 text_color: !lambda |-
+                  if (!id(battery_ha_connected).state)
+                    return lv_color_hex(0xFFC04A);
+
                   if (!id(battery_1_data_available).state)
                     return lv_color_hex(0x8B96A0);
 
@@ -75,10 +83,10 @@ interval:
                 id: ui_battery_1_power
                 text: !lambda |-
                   if (!id(battery_1_data_available).state)
-                    return std::string("--.-- kW");
+                    return std::string("--.--- kW");
 
                   return str_sprintf(
-                    "%.2f kW",
+                    "%.3f kW",
                     id(battery_1_power).state
                   );
 
@@ -143,9 +151,13 @@ interval:
 
             - lvgl.label.update:
                 id: ui_battery_2_status
+
                 text: !lambda |-
+                  if (!id(battery_ha_connected).state)
+                    return std::string("HA OFFLINE");
+
                   if (!id(battery_2_data_available).state)
-                    return std::string("NO HA DATA");
+                    return std::string("NO DATA");
 
                   if (id(battery_2_fault_state).state == "on")
                     return std::string("FAULT");
@@ -156,6 +168,9 @@ interval:
                   return std::string("OK");
 
                 text_color: !lambda |-
+                  if (!id(battery_ha_connected).state)
+                    return lv_color_hex(0xFFC04A);
+
                   if (!id(battery_2_data_available).state)
                     return lv_color_hex(0x8B96A0);
 
@@ -193,10 +208,10 @@ interval:
                 id: ui_battery_2_power
                 text: !lambda |-
                   if (!id(battery_2_data_available).state)
-                    return std::string("--.-- kW");
+                    return std::string("--.--- kW");
 
                   return str_sprintf(
-                    "%.2f kW",
+                    "%.3f kW",
                     id(battery_2_power).state
                   );
 
@@ -261,9 +276,13 @@ interval:
 
             - lvgl.label.update:
                 id: ui_battery_3_status
+
                 text: !lambda |-
+                  if (!id(battery_ha_connected).state)
+                    return std::string("HA OFFLINE");
+
                   if (!id(battery_3_data_available).state)
-                    return std::string("NO HA DATA");
+                    return std::string("NO DATA");
 
                   if (id(battery_3_fault_state).state == "on")
                     return std::string("FAULT");
@@ -274,6 +293,9 @@ interval:
                   return std::string("OK");
 
                 text_color: !lambda |-
+                  if (!id(battery_ha_connected).state)
+                    return lv_color_hex(0xFFC04A);
+
                   if (!id(battery_3_data_available).state)
                     return lv_color_hex(0x8B96A0);
 
@@ -311,10 +333,10 @@ interval:
                 id: ui_battery_3_power
                 text: !lambda |-
                   if (!id(battery_3_data_available).state)
-                    return std::string("--.-- kW");
+                    return std::string("--.--- kW");
 
                   return str_sprintf(
-                    "%.2f kW",
+                    "%.3f kW",
                     id(battery_3_power).state
                   );
 
@@ -379,9 +401,13 @@ interval:
 
             - lvgl.label.update:
                 id: ui_battery_4_status
+
                 text: !lambda |-
+                  if (!id(battery_ha_connected).state)
+                    return std::string("HA OFFLINE");
+
                   if (!id(battery_4_data_available).state)
-                    return std::string("NO HA DATA");
+                    return std::string("NO DATA");
 
                   if (id(battery_4_fault_state).state == "on")
                     return std::string("FAULT");
@@ -392,6 +418,9 @@ interval:
                   return std::string("OK");
 
                 text_color: !lambda |-
+                  if (!id(battery_ha_connected).state)
+                    return lv_color_hex(0xFFC04A);
+
                   if (!id(battery_4_data_available).state)
                     return lv_color_hex(0x8B96A0);
 
@@ -429,10 +458,10 @@ interval:
                 id: ui_battery_4_power
                 text: !lambda |-
                   if (!id(battery_4_data_available).state)
-                    return std::string("--.-- kW");
+                    return std::string("--.--- kW");
 
                   return str_sprintf(
-                    "%.2f kW",
+                    "%.3f kW",
                     id(battery_4_power).state
                   );
 

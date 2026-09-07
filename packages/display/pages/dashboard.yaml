@@ -41,7 +41,7 @@ widgets:
 
         - label:
             x: 10
-            y: 113
+            y: 110
             width: 95
             styles: style_desc_label
             text: "Voltage"
@@ -49,14 +49,14 @@ widgets:
         - label:
             id: ui_dashboard_ac_voltage
             x: 105
-            y: 110
+            y: 107
             width: 74
             styles: style_value_label
             text: "--- V"
 
         - label:
             x: 10
-            y: 151
+            y: 142
             width: 95
             styles: style_desc_label
             text: "Current"
@@ -64,22 +64,22 @@ widgets:
         - label:
             id: ui_dashboard_ac_current
             x: 105
-            y: 148
+            y: 139
             width: 74
             styles: style_value_label
             text: "--.- A"
 
         - label:
             x: 10
-            y: 189
+            y: 174
             width: 95
             styles: style_desc_label
-            text: "Current Limit"
+            text: "I Limit"
 
         - label:
             id: ui_dashboard_ac_current_limit
             x: 105
-            y: 186
+            y: 171
             width: 74
             styles: style_value_label
             text: "--.- A"
@@ -137,7 +137,7 @@ widgets:
 
         - label:
             x: 10
-            y: 105
+            y: 110
             width: 95
             styles: style_desc_label
             text: "Voltage"
@@ -145,14 +145,14 @@ widgets:
         - label:
             id: ui_dashboard_dc_voltage
             x: 105
-            y: 102
+            y: 107
             width: 74
             styles: style_value_label
             text: "--.-- V"
 
         - label:
             x: 10
-            y: 137
+            y: 142
             width: 95
             styles: style_desc_label
             text: "Current"
@@ -160,29 +160,29 @@ widgets:
         - label:
             id: ui_dashboard_dc_current
             x: 105
-            y: 134
+            y: 139
             width: 74
             styles: style_value_label
             text: "--.- A"
 
         - label:
             x: 10
-            y: 169
+            y: 174
             width: 95
             styles: style_desc_label
-            text: "Voltage Limit"
+            text: "V Limit"
 
         - label:
             id: ui_dashboard_dc_voltage_limit
             x: 105
-            y: 166
+            y: 171
             width: 74
             styles: style_value_label
             text: "--.- V"
 
         - label:
             x: 10
-            y: 201
+            y: 206
             width: 95
             styles: style_desc_label
             text: "Sum Power"
@@ -190,7 +190,7 @@ widgets:
         - label:
             id: ui_dashboard_dc_sum_power
             x: 105
-            y: 198
+            y: 203
             width: 74
             styles: style_value_label
             text: "--.- kW"
@@ -248,7 +248,7 @@ widgets:
 
         - label:
             x: 10
-            y: 80
+            y: 110
             width: 95
             styles: style_desc_label
             text: "Available"
@@ -256,14 +256,14 @@ widgets:
         - label:
             id: ui_dashboard_units
             x: 105
-            y: 77
+            y: 107
             width: 74
             styles: style_value_label
             text: "- / 3"
 
         - label:
             x: 10
-            y: 120
+            y: 142
             width: 95
             styles: style_desc_label
             text: "Running"
@@ -271,14 +271,14 @@ widgets:
         - label:
             id: ui_dashboard_running_units
             x: 105
-            y: 117
+            y: 139
             width: 74
             styles: style_value_label
             text: "- / 3"
 
         - label:
             x: 10
-            y: 160
+            y: 174
             width: 95
             styles: style_desc_label
             text: "Max Temp"
@@ -286,14 +286,14 @@ widgets:
         - label:
             id: ui_dashboard_temperature
             x: 105
-            y: 157
+            y: 171
             width: 74
             styles: style_value_label
             text: "--.- °C"
 
         - label:
             x: 10
-            y: 200
+            y: 206
             width: 95
             styles: style_desc_label
             text: "Efficiency"
@@ -301,7 +301,7 @@ widgets:
         - label:
             id: ui_dashboard_efficiency
             x: 105
-            y: 197
+            y: 203
             width: 74
             styles: style_value_label
             text: "--.- %"
@@ -354,38 +354,38 @@ widgets:
             styles: style_title_label
             text: "BATTERY BANK"
 
-        - label:
-            x: 10
-            y: 48
-            styles: style_desc_label
-            text: "SOC"
+#        - label:
+#            x: 10
+#            y: 48
+#            styles: style_desc_label
+#            text: "SOC"
 
         - label:
             id: ui_dashboard_battery_soc
             align: TOP_MID
-            y: 67
+            y: 53
             text: "--.- %"
             text_font: montserrat_32
             text_color: 0xFFFFFF
 
         - label:
             x: 10
-            y: 125
+            y: 110
             width: 95
             styles: style_desc_label
             text: "Power"
 
         - label:
             id: ui_dashboard_battery_power
-            x: 105
-            y: 122
-            width: 74
+            x: 65
+            y: 107
+            width: 114
             styles: style_value_label
-            text: "--.-- kW"
+            text: "--.--- kW"
 
         - label:
             x: 10
-            y: 157
+            y: 142
             width: 95
             styles: style_desc_label
             text: "Voltage"
@@ -393,14 +393,14 @@ widgets:
         - label:
             id: ui_dashboard_battery_voltage
             x: 105
-            y: 154
+            y: 139
             width: 74
             styles: style_value_label
             text: "--.-- V"
 
         - label:
             x: 10
-            y: 189
+            y: 174
             width: 95
             styles: style_desc_label
             text: "Current"
@@ -408,14 +408,14 @@ widgets:
         - label:
             id: ui_dashboard_battery_current
             x: 105
-            y: 186
+            y: 171
             width: 74
             styles: style_value_label
             text: "--.- A"
 
         - label:
             x: 10
-            y: 221
+            y: 206
             width: 95
             styles: style_desc_label
             text: "Temperature"
@@ -423,7 +423,7 @@ widgets:
         - label:
             id: ui_dashboard_battery_temperature
             x: 105
-            y: 218
+            y: 203
             width: 74
             styles: style_value_label
             text: "--.- °C"
@@ -431,9 +431,9 @@ widgets:
         - label:
             id: ui_dashboard_battery_state
             align: TOP_MID
-            y: 270
+            y: 284
             width: 169
             text_align: CENTER
-            text: "NO HA DATA"
+            text: "HA OFFLINE"
             text_font: montserrat_18
             text_color: 0x8B96A0

@@ -402,11 +402,15 @@ fault state
 A consolidated per-battery status shows:
 
 ```text
+HA OFFLINE
+NO DATA
 OK
 WARNING
 FAULT
-NO HA DATA
 ```
+
+`HA OFFLINE` indicates that no Home Assistant state-subscription connection is available.
+`NO DATA` indicates that Home Assistant is connected but one or more required battery entities are unavailable or invalid.
 
 Fault has priority over warning. Missing or invalid Home Assistant data is displayed explicitly instead of being treated as a healthy battery state.
 
@@ -589,7 +593,9 @@ warning state
 fault state
 ```
 
-The individual Home Assistant power entities are normalized internally from watts to kilowatts. Battery warning and fault entities are imported as text states so `on`, `off`, `unknown` and `unavailable` remain distinguishable.
+The Home Assistant battery-bank and individual battery power entities are normalized internally from watts to kilowatts.
+
+Battery warning and fault entities are imported as text states so `on`, `off`, `unknown` and `unavailable` remain distinguishable.
 
 Home Assistant battery telemetry is intentionally isolated from charger control. The charger remains locally operational when Wi-Fi or Home Assistant is unavailable.
 

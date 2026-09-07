@@ -251,11 +251,11 @@ interval:
                 id: ui_dashboard_battery_power
                 text: !lambda |-
                   if (!id(battery_bank_data_available).state) {
-                    return std::string("--.-- kW");
+                    return std::string("--.--- kW");
                   }
 
                   return str_sprintf(
-                    "%.2f kW",
+                    "%.3f kW",
                     id(battery_bank_power).state
                   );
 
@@ -315,13 +315,21 @@ interval:
                 id: ui_dashboard_battery_state
 
                 text: !lambda |-
+                  if (!id(battery_ha_connected).state) {
+                    return std::string("HA OFFLINE");
+                  }
+
                   if (!id(battery_bank_data_available).state) {
-                    return std::string("NO HA DATA");
+                    return std::string("NO DATA");
                   }
 
                   return id(battery_bank_state).state;
 
                 text_color: !lambda |-
+                  if (!id(battery_ha_connected).state) {
+                    return lv_color_hex(0xFFC04A);
+                  }
+
                   if (!id(battery_bank_data_available).state) {
                     return lv_color_hex(0x8B96A0);
                   }

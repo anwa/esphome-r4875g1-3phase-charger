@@ -40,7 +40,7 @@ widgets:
             y: 45
             width: 169
             text_align: CENTER
-            text: "NO HA DATA"
+            text: "HA OFFLINE"
             text_font: montserrat_18
             text_color: 0x8B96A0
 
@@ -83,11 +83,11 @@ widgets:
 
         - label:
             id: ui_battery_1_power
-            x: 95
+            x: 65
             y: 135
-            width: 84
+            width: 114
             styles: style_value_label
-            text: "--.-- kW"
+            text: "--.--- kW"
 
         - label:
             x: 10
@@ -109,7 +109,7 @@ widgets:
             y: 194
             width: 85
             styles: style_desc_label
-            text: "Temperature"
+            text: "Temp."
 
         - label:
             id: ui_battery_1_temperature
@@ -188,7 +188,7 @@ widgets:
             y: 45
             width: 169
             text_align: CENTER
-            text: "NO HA DATA"
+            text: "HA OFFLINE"
             text_font: montserrat_18
             text_color: 0x8B96A0
 
@@ -231,11 +231,11 @@ widgets:
 
         - label:
             id: ui_battery_2_power
-            x: 95
+            x: 65
             y: 135
-            width: 84
+            width: 114
             styles: style_value_label
-            text: "--.-- kW"
+            text: "--.--- kW"
 
         - label:
             x: 10
@@ -257,7 +257,7 @@ widgets:
             y: 194
             width: 85
             styles: style_desc_label
-            text: "Temperature"
+            text: "Temp."
 
         - label:
             id: ui_battery_2_temperature
@@ -336,7 +336,7 @@ widgets:
             y: 45
             width: 169
             text_align: CENTER
-            text: "NO HA DATA"
+            text: "HA OFFLINE"
             text_font: montserrat_18
             text_color: 0x8B96A0
 
@@ -379,11 +379,11 @@ widgets:
 
         - label:
             id: ui_battery_3_power
-            x: 95
+            x: 65
             y: 135
-            width: 84
+            width: 114
             styles: style_value_label
-            text: "--.-- kW"
+            text: "--.--- kW"
 
         - label:
             x: 10
@@ -405,7 +405,7 @@ widgets:
             y: 194
             width: 85
             styles: style_desc_label
-            text: "Temperature"
+            text: "Temp."
 
         - label:
             id: ui_battery_3_temperature
@@ -484,7 +484,7 @@ widgets:
             y: 45
             width: 169
             text_align: CENTER
-            text: "NO HA DATA"
+            text: "HA OFFLINE"
             text_font: montserrat_18
             text_color: 0x8B96A0
 
@@ -527,11 +527,11 @@ widgets:
 
         - label:
             id: ui_battery_4_power
-            x: 95
+            x: 65
             y: 135
-            width: 84
+            width: 114
             styles: style_value_label
-            text: "--.-- kW"
+            text: "--.--- kW"
 
         - label:
             x: 10
@@ -553,7 +553,7 @@ widgets:
             y: 194
             width: 85
             styles: style_desc_label
-            text: "Temperature"
+            text: "Temp."
 
         - label:
             id: ui_battery_4_temperature

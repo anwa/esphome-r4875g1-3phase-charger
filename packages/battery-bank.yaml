@@ -26,9 +26,9 @@ substitutions:
   battery_bank_temperature_entity: "sensor.solar_battery_bank_reported_bank_temperature"
   battery_bank_state_entity: "sensor.solar_battery_bank_reported_bank_state"
 
-  # Set to 1.0 when the Home Assistant power entity reports kW.
-  # Use 0.001 when the source entity reports W.
-  battery_bank_power_scale_to_kw: "1.0"
+  # The aggregate Home Assistant power entity reports W.
+  # Normalize the imported value to kW for display use.
+  battery_bank_power_scale_to_kw: "0.001"
 
   # ---------------------------------------------------------------------------
   # BATTERY 1 ENTITY MAPPING
@@ -181,6 +181,8 @@ sensor:
     internal: true
     unit_of_measurement: "mV"
     accuracy_decimals: 1
+    filters:
+      - multiply: 1000.0
 
   # ---------------------------------------------------------------------------
   # BATTERY 2
@@ -229,6 +231,8 @@ sensor:
     internal: true
     unit_of_measurement: "mV"
     accuracy_decimals: 1
+    filters:
+      - multiply: 1000.0
 
   # ---------------------------------------------------------------------------
   # BATTERY 3
@@ -277,6 +281,8 @@ sensor:
     internal: true
     unit_of_measurement: "mV"
     accuracy_decimals: 1
+    filters:
+      - multiply: 1000.0
 
   # ---------------------------------------------------------------------------
   # BATTERY 4
@@ -325,7 +331,8 @@ sensor:
     internal: true
     unit_of_measurement: "mV"
     accuracy_decimals: 1
-
+    filters:
+      - multiply: 1000.0
 
 # ==============================================================================
 # TEXT BATTERY STATES
