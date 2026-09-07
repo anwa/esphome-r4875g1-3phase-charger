@@ -192,7 +192,7 @@ If present, insert one comment-only blank line after the title separator:
   # three rectifier units.
   #
   # Connected through:
-  #   main I2C -> TCA9548A channel 1 -> AHT10 @ 0x38
+  #   external I2C -> AHT10 @ 0x38
   # ---------------------------------------------------------------------------
 
   - platform: aht10
@@ -435,8 +435,8 @@ Example:
 # driver itself.
 #
 # Included hardware:
-#   - shared I2C bus
-#   - TCA9548A I2C multiplexer
+#   - onboard I2C bus
+#   - dedicated external I2C bus
 #   - MCP23017 I/O expander
 #   - controller backup-battery ADC
 #   - GT911 touch controller
