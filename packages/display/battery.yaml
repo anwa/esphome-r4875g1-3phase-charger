@@ -1,85 +1,492 @@
 # ==============================================================================
-# CONTROLLER BATTERY DISPLAY RUNTIME
+# SOLAR BATTERY DISPLAY RUNTIME
 # ==============================================================================
 #
-# Updates the persistent header battery indication and the detailed battery
-# value on the System page.
+# Updates the four individual solar-battery cards while the Battery page is
+# visible.
 #
-# The controller backup battery changes slowly, so both widgets are refreshed
-# independently from the faster page-specific display runtimes every 5 seconds.
+# Imported battery values are monitoring-only. Missing Home Assistant data is
+# represented explicitly instead of retaining apparently valid stale values.
 # ==============================================================================
 
 interval:
-  - interval: 5s
+  - interval: 1s
     then:
+      - if:
+          condition:
+            lambda: |-
+              return id(ui_active_page) == 3;
 
-      - lvgl.label.update:
-          id: ui_header_battery
+          then:
 
-          text: !lambda |-
-            const float voltage =
-              id(controller_battery_voltage).state;
+            # ---------------------------------------------------------------------------
+            # BATTERY 1
+            # ---------------------------------------------------------------------------
 
-            if (isnan(voltage))
-              return std::string("BAT --.-- V");
+            - lvgl.label.update:
+                id: ui_battery_1_status
+                text: !lambda |-
+                  if (!id(battery_1_data_available).state)
+                    return std::string("NO HA DATA");
 
-            return str_sprintf(
-              "BAT %.2f V",
-              voltage
-            );
+                  if (id(battery_1_fault_state).state == "on")
+                    return std::string("FAULT");
 
-          text_color: !lambda |-
-            const float voltage =
-              id(controller_battery_voltage).state;
+                  if (id(battery_1_warning_state).state == "on")
+                    return std::string("WARNING");
 
-            if (isnan(voltage))
-              return lv_color_hex(0x8B96A0);
+                  return std::string("OK");
 
-            if (voltage < 3.50f)
-              return lv_color_hex(0xFF3030);
+                text_color: !lambda |-
+                  if (!id(battery_1_data_available).state)
+                    return lv_color_hex(0x8B96A0);
 
-            if (voltage < 3.70f)
-              return lv_color_hex(0xFFC04A);
+                  if (id(battery_1_fault_state).state == "on")
+                    return lv_color_hex(0xFF3030);
 
-            return lv_color_hex(0x5CFF7A);
+                  if (id(battery_1_warning_state).state == "on")
+                    return lv_color_hex(0xFFC04A);
 
+                  return lv_color_hex(0x5CFF7A);
 
-      - lvgl.label.update:
-          id: ui_system_battery
+            - lvgl.label.update:
+                id: ui_battery_1_voltage
+                text: !lambda |-
+                  if (!id(battery_1_data_available).state)
+                    return std::string("--.-- V");
 
-          text: !lambda |-
-            const float voltage =
-              id(controller_battery_voltage).state;
+                  return str_sprintf(
+                    "%.2f V",
+                    id(battery_1_voltage).state
+                  );
 
-            const float soc =
-              id(controller_battery_soc).state;
+            - lvgl.label.update:
+                id: ui_battery_1_current
+                text: !lambda |-
+                  if (!id(battery_1_data_available).state)
+                    return std::string("--.- A");
 
-            if (
-              isnan(voltage) ||
-              isnan(soc)
-            ) {
-              return std::string(
-                "--.-- V / -- %"
-              );
-            }
+                  return str_sprintf(
+                    "%.1f A",
+                    id(battery_1_current).state
+                  );
 
-            return str_sprintf(
-              "%.2f V / %.0f %%",
-              voltage,
-              soc
-            );
+            - lvgl.label.update:
+                id: ui_battery_1_power
+                text: !lambda |-
+                  if (!id(battery_1_data_available).state)
+                    return std::string("--.-- kW");
 
-          text_color: !lambda |-
-            const float voltage =
-              id(controller_battery_voltage).state;
+                  return str_sprintf(
+                    "%.2f kW",
+                    id(battery_1_power).state
+                  );
 
-            if (isnan(voltage))
-              return lv_color_hex(0x8B96A0);
+            - lvgl.label.update:
+                id: ui_battery_1_soc
+                text: !lambda |-
+                  if (!id(battery_1_data_available).state)
+                    return std::string("--.- %");
 
-            if (voltage < 3.50f)
-              return lv_color_hex(0xFF3030);
+                  return str_sprintf(
+                    "%.1f %%",
+                    id(battery_1_soc).state
+                  );
 
-            if (voltage < 3.70f)
-              return lv_color_hex(0xFFC04A);
+            - lvgl.label.update:
+                id: ui_battery_1_temperature
+                text: !lambda |-
+                  if (!id(battery_1_data_available).state)
+                    return std::string("--.- °C");
 
-            return lv_color_hex(0x5CFF7A);
+                  return str_sprintf(
+                    "%.1f °C",
+                    id(battery_1_temperature).state
+                  );
+
+            - lvgl.label.update:
+                id: ui_battery_1_cell_drift
+                text: !lambda |-
+                  if (!id(battery_1_data_available).state)
+                    return std::string("--.- mV");
+
+                  return str_sprintf(
+                    "%.1f mV",
+                    id(battery_1_cell_drift).state
+                  );
+
+            - lvgl.label.update:
+                id: ui_battery_1_warning
+                text: !lambda |-
+                  if (!id(battery_1_data_available).state)
+                    return std::string("--");
+
+                  return
+                    id(battery_1_warning_state).state == "on"
+                      ? std::string("ACTIVE")
+                      : std::string("OK");
+
+            - lvgl.label.update:
+                id: ui_battery_1_fault
+                text: !lambda |-
+                  if (!id(battery_1_data_available).state)
+                    return std::string("--");
+
+                  return
+                    id(battery_1_fault_state).state == "on"
+                      ? std::string("ACTIVE")
+                      : std::string("OK");
+
+            # ---------------------------------------------------------------------------
+            # BATTERY 2
+            # ---------------------------------------------------------------------------
+
+            - lvgl.label.update:
+                id: ui_battery_2_status
+                text: !lambda |-
+                  if (!id(battery_2_data_available).state)
+                    return std::string("NO HA DATA");
+
+                  if (id(battery_2_fault_state).state == "on")
+                    return std::string("FAULT");
+
+                  if (id(battery_2_warning_state).state == "on")
+                    return std::string("WARNING");
+
+                  return std::string("OK");
+
+                text_color: !lambda |-
+                  if (!id(battery_2_data_available).state)
+                    return lv_color_hex(0x8B96A0);
+
+                  if (id(battery_2_fault_state).state == "on")
+                    return lv_color_hex(0xFF3030);
+
+                  if (id(battery_2_warning_state).state == "on")
+                    return lv_color_hex(0xFFC04A);
+
+                  return lv_color_hex(0x5CFF7A);
+
+            - lvgl.label.update:
+                id: ui_battery_2_voltage
+                text: !lambda |-
+                  if (!id(battery_2_data_available).state)
+                    return std::string("--.-- V");
+
+                  return str_sprintf(
+                    "%.2f V",
+                    id(battery_2_voltage).state
+                  );
+
+            - lvgl.label.update:
+                id: ui_battery_2_current
+                text: !lambda |-
+                  if (!id(battery_2_data_available).state)
+                    return std::string("--.- A");
+
+                  return str_sprintf(
+                    "%.1f A",
+                    id(battery_2_current).state
+                  );
+
+            - lvgl.label.update:
+                id: ui_battery_2_power
+                text: !lambda |-
+                  if (!id(battery_2_data_available).state)
+                    return std::string("--.-- kW");
+
+                  return str_sprintf(
+                    "%.2f kW",
+                    id(battery_2_power).state
+                  );
+
+            - lvgl.label.update:
+                id: ui_battery_2_soc
+                text: !lambda |-
+                  if (!id(battery_2_data_available).state)
+                    return std::string("--.- %");
+
+                  return str_sprintf(
+                    "%.1f %%",
+                    id(battery_2_soc).state
+                  );
+
+            - lvgl.label.update:
+                id: ui_battery_2_temperature
+                text: !lambda |-
+                  if (!id(battery_2_data_available).state)
+                    return std::string("--.- °C");
+
+                  return str_sprintf(
+                    "%.1f °C",
+                    id(battery_2_temperature).state
+                  );
+
+            - lvgl.label.update:
+                id: ui_battery_2_cell_drift
+                text: !lambda |-
+                  if (!id(battery_2_data_available).state)
+                    return std::string("--.- mV");
+
+                  return str_sprintf(
+                    "%.1f mV",
+                    id(battery_2_cell_drift).state
+                  );
+
+            - lvgl.label.update:
+                id: ui_battery_2_warning
+                text: !lambda |-
+                  if (!id(battery_2_data_available).state)
+                    return std::string("--");
+
+                  return
+                    id(battery_2_warning_state).state == "on"
+                      ? std::string("ACTIVE")
+                      : std::string("OK");
+
+            - lvgl.label.update:
+                id: ui_battery_2_fault
+                text: !lambda |-
+                  if (!id(battery_2_data_available).state)
+                    return std::string("--");
+
+                  return
+                    id(battery_2_fault_state).state == "on"
+                      ? std::string("ACTIVE")
+                      : std::string("OK");
+
+            # ---------------------------------------------------------------------------
+            # BATTERY 3
+            # ---------------------------------------------------------------------------
+
+            - lvgl.label.update:
+                id: ui_battery_3_status
+                text: !lambda |-
+                  if (!id(battery_3_data_available).state)
+                    return std::string("NO HA DATA");
+
+                  if (id(battery_3_fault_state).state == "on")
+                    return std::string("FAULT");
+
+                  if (id(battery_3_warning_state).state == "on")
+                    return std::string("WARNING");
+
+                  return std::string("OK");
+
+                text_color: !lambda |-
+                  if (!id(battery_3_data_available).state)
+                    return lv_color_hex(0x8B96A0);
+
+                  if (id(battery_3_fault_state).state == "on")
+                    return lv_color_hex(0xFF3030);
+
+                  if (id(battery_3_warning_state).state == "on")
+                    return lv_color_hex(0xFFC04A);
+
+                  return lv_color_hex(0x5CFF7A);
+
+            - lvgl.label.update:
+                id: ui_battery_3_voltage
+                text: !lambda |-
+                  if (!id(battery_3_data_available).state)
+                    return std::string("--.-- V");
+
+                  return str_sprintf(
+                    "%.2f V",
+                    id(battery_3_voltage).state
+                  );
+
+            - lvgl.label.update:
+                id: ui_battery_3_current
+                text: !lambda |-
+                  if (!id(battery_3_data_available).state)
+                    return std::string("--.- A");
+
+                  return str_sprintf(
+                    "%.1f A",
+                    id(battery_3_current).state
+                  );
+
+            - lvgl.label.update:
+                id: ui_battery_3_power
+                text: !lambda |-
+                  if (!id(battery_3_data_available).state)
+                    return std::string("--.-- kW");
+
+                  return str_sprintf(
+                    "%.2f kW",
+                    id(battery_3_power).state
+                  );
+
+            - lvgl.label.update:
+                id: ui_battery_3_soc
+                text: !lambda |-
+                  if (!id(battery_3_data_available).state)
+                    return std::string("--.- %");
+
+                  return str_sprintf(
+                    "%.1f %%",
+                    id(battery_3_soc).state
+                  );
+
+            - lvgl.label.update:
+                id: ui_battery_3_temperature
+                text: !lambda |-
+                  if (!id(battery_3_data_available).state)
+                    return std::string("--.- °C");
+
+                  return str_sprintf(
+                    "%.1f °C",
+                    id(battery_3_temperature).state
+                  );
+
+            - lvgl.label.update:
+                id: ui_battery_3_cell_drift
+                text: !lambda |-
+                  if (!id(battery_3_data_available).state)
+                    return std::string("--.- mV");
+
+                  return str_sprintf(
+                    "%.1f mV",
+                    id(battery_3_cell_drift).state
+                  );
+
+            - lvgl.label.update:
+                id: ui_battery_3_warning
+                text: !lambda |-
+                  if (!id(battery_3_data_available).state)
+                    return std::string("--");
+
+                  return
+                    id(battery_3_warning_state).state == "on"
+                      ? std::string("ACTIVE")
+                      : std::string("OK");
+
+            - lvgl.label.update:
+                id: ui_battery_3_fault
+                text: !lambda |-
+                  if (!id(battery_3_data_available).state)
+                    return std::string("--");
+
+                  return
+                    id(battery_3_fault_state).state == "on"
+                      ? std::string("ACTIVE")
+                      : std::string("OK");
+
+            # ---------------------------------------------------------------------------
+            # BATTERY 4
+            # ---------------------------------------------------------------------------
+
+            - lvgl.label.update:
+                id: ui_battery_4_status
+                text: !lambda |-
+                  if (!id(battery_4_data_available).state)
+                    return std::string("NO HA DATA");
+
+                  if (id(battery_4_fault_state).state == "on")
+                    return std::string("FAULT");
+
+                  if (id(battery_4_warning_state).state == "on")
+                    return std::string("WARNING");
+
+                  return std::string("OK");
+
+                text_color: !lambda |-
+                  if (!id(battery_4_data_available).state)
+                    return lv_color_hex(0x8B96A0);
+
+                  if (id(battery_4_fault_state).state == "on")
+                    return lv_color_hex(0xFF3030);
+
+                  if (id(battery_4_warning_state).state == "on")
+                    return lv_color_hex(0xFFC04A);
+
+                  return lv_color_hex(0x5CFF7A);
+
+            - lvgl.label.update:
+                id: ui_battery_4_voltage
+                text: !lambda |-
+                  if (!id(battery_4_data_available).state)
+                    return std::string("--.-- V");
+
+                  return str_sprintf(
+                    "%.2f V",
+                    id(battery_4_voltage).state
+                  );
+
+            - lvgl.label.update:
+                id: ui_battery_4_current
+                text: !lambda |-
+                  if (!id(battery_4_data_available).state)
+                    return std::string("--.- A");
+
+                  return str_sprintf(
+                    "%.1f A",
+                    id(battery_4_current).state
+                  );
+
+            - lvgl.label.update:
+                id: ui_battery_4_power
+                text: !lambda |-
+                  if (!id(battery_4_data_available).state)
+                    return std::string("--.-- kW");
+
+                  return str_sprintf(
+                    "%.2f kW",
+                    id(battery_4_power).state
+                  );
+
+            - lvgl.label.update:
+                id: ui_battery_4_soc
+                text: !lambda |-
+                  if (!id(battery_4_data_available).state)
+                    return std::string("--.- %");
+
+                  return str_sprintf(
+                    "%.1f %%",
+                    id(battery_4_soc).state
+                  );
+
+            - lvgl.label.update:
+                id: ui_battery_4_temperature
+                text: !lambda |-
+                  if (!id(battery_4_data_available).state)
+                    return std::string("--.- °C");
+
+                  return str_sprintf(
+                    "%.1f °C",
+                    id(battery_4_temperature).state
+                  );
+
+            - lvgl.label.update:
+                id: ui_battery_4_cell_drift
+                text: !lambda |-
+                  if (!id(battery_4_data_available).state)
+                    return std::string("--.- mV");
+
+                  return str_sprintf(
+                    "%.1f mV",
+                    id(battery_4_cell_drift).state
+                  );
+
+            - lvgl.label.update:
+                id: ui_battery_4_warning
+                text: !lambda |-
+                  if (!id(battery_4_data_available).state)
+                    return std::string("--");
+
+                  return
+                    id(battery_4_warning_state).state == "on"
+                      ? std::string("ACTIVE")
+                      : std::string("OK");
+
+            - lvgl.label.update:
+                id: ui_battery_4_fault
+                text: !lambda |-
+                  if (!id(battery_4_data_available).state)
+                    return std::string("--");
+
+                  return
+                    id(battery_4_fault_state).state == "on"
+                      ? std::string("ACTIVE")
+                      : std::string("OK");

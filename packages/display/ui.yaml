@@ -28,9 +28,10 @@ globals:
   #   0 = Dashboard
   #   1 = Rectifiers
   #   2 = Rectifier Detail
-  #   3 = Cooling
-  #   4 = System
-  #   5 = Trends
+  #   3 = Battery
+  #   4 = Cooling
+  #   5 = System
+  #   6 = Trends
   # ---------------------------------------------------------------------------
 
   - id: ui_active_page
@@ -126,6 +127,7 @@ lvgl:
     - !include pages/dashboard.yaml
     - !include pages/rectifiers.yaml
     - !include pages/rectifier-detail.yaml
+    - !include pages/battery.yaml
     - !include pages/cooling.yaml
     - !include pages/system.yaml
     - !include pages/trends.yaml
@@ -176,7 +178,7 @@ lvgl:
                 align: RIGHT_MID
                 width: 130
                 text_align: RIGHT
-                text: "BAT --.-- V"
+                text: "CTRL --.-- V"
                 text_font: montserrat_16
                 text_color: 0x8B96A0
 
@@ -209,7 +211,7 @@ lvgl:
             - lvgl.page.show: page_dashboard
 
       - button:
-          x: 168
+          x: 142
           y: 410
           styles: style_nav_button
 
@@ -226,7 +228,24 @@ lvgl:
             - lvgl.page.show: page_rectifiers
 
       - button:
-          x: 326
+          x: 274
+          y: 410
+          styles: style_nav_button
+
+          widgets:
+            - label:
+                align: CENTER
+                text: "Battery"
+                text_font: montserrat_18
+
+          on_short_click:
+            - lambda: |-
+                id(rectifier_detail_unit) = 0;
+                id(ui_active_page) = 3;
+            - lvgl.page.show: page_battery
+
+      - button:
+          x: 406
           y: 410
           styles: style_nav_button
 
@@ -239,11 +258,11 @@ lvgl:
           on_short_click:
             - lambda: |-
                 id(rectifier_detail_unit) = 0;
-                id(ui_active_page) = 3;
+                id(ui_active_page) = 4;
             - lvgl.page.show: page_cooling
 
       - button:
-          x: 484
+          x: 538
           y: 410
           styles: style_nav_button
 
@@ -256,11 +275,11 @@ lvgl:
           on_short_click:
             - lambda: |-
                 id(rectifier_detail_unit) = 0;
-                id(ui_active_page) = 4;
+                id(ui_active_page) = 5;
             - lvgl.page.show: page_system
 
       - button:
-          x: 642
+          x: 670
           y: 410
           styles: style_nav_button
 
@@ -273,7 +292,7 @@ lvgl:
           on_short_click:
             - lambda: |-
                 id(rectifier_detail_unit) = 0;
-                id(ui_active_page) = 5;
+                id(ui_active_page) = 6;
             - lvgl.page.show: page_trends
 
       # ---------------------------------------------------------------------------

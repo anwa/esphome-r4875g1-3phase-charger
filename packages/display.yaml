@@ -5,11 +5,12 @@
 # Collects the complete LVGL display implementation.
 #
 # Core display packages:
-#   hardware.yaml       -> RGB panel and LVGL runtime configuration
-#   theme.yaml          -> shared visual styles
-#   ui.yaml             -> pages, navigation, dialogs and persistent widgets
-#   header.yaml         -> persistent header runtime
-#   command-state.yaml  -> global START/STOP pending-state handling
+#   hardware.yaml             -> RGB panel and LVGL runtime configuration
+#   theme.yaml                -> shared visual styles
+#   ui.yaml                   -> pages, navigation, dialogs and persistent widgets
+#   header.yaml               -> persistent header runtime
+#   command-state.yaml        -> global START/STOP pending-state handling
+#   controller-battery.yaml   -> persistent controller backup-battery display
 #
 # Page layouts:
 #   display/pages/*.yaml
@@ -18,11 +19,10 @@
 #   dashboard.yaml
 #   rectifiers.yaml
 #   rectifier-detail.yaml
+#   battery.yaml
 #   cooling.yaml
 #   system.yaml
 #   trends.yaml
-#
-# Battery display updates are handled independently by battery.yaml.
 # ==============================================================================
 
 packages:
@@ -38,7 +38,7 @@ packages:
   # ---------------------------------------------------------------------------
   display_header: !include display/header.yaml
   display_command_state: !include display/command-state.yaml
-  display_battery: !include display/battery.yaml
+  display_controller_battery: !include display/controller-battery.yaml
 
   # ---------------------------------------------------------------------------
   # PAGE-SPECIFIC RUNTIMES
@@ -46,6 +46,7 @@ packages:
   display_dashboard: !include display/dashboard.yaml
   display_rectifiers: !include display/rectifiers.yaml
   display_rectifier_detail: !include display/rectifier-detail.yaml
+  display_battery: !include display/battery.yaml
   display_cooling: !include display/cooling.yaml
   display_system: !include display/system.yaml
   display_trends: !include display/trends.yaml

@@ -5,7 +5,7 @@
 # Controller, network, memory/runtime and rectifier communication diagnostics.
 #
 # Runtime updates are handled by display/system.yaml. Controller battery values
-# are updated independently by display/battery.yaml.
+# are updated independently by display/controller-battery.yaml.
 # ==============================================================================
 
 id: page_system
@@ -113,7 +113,7 @@ widgets:
             y: 108
             width: 180
             styles: style_desc_label
-            text: "Battery"
+            text: "Backup  Battery"
 
         - label:
             id: ui_system_battery
