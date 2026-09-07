@@ -8,7 +8,8 @@
 #   Charger run state -> 500 ms
 #   Clock             -> 10 s
 #
-# Battery voltage is maintained separately by display/battery.yaml.
+# Controller backup-battery voltage is maintained separately by
+# display/controller-battery.yaml.
 # ==============================================================================
 
 

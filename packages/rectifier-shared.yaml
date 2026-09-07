@@ -12,42 +12,13 @@ globals:
   # LOCAL ENCODER UI STATE
   # ---------------------------------------------------------------------------
   #
-  # Pages:
-  #   0 = Dashboard
-  #   1 = Rectifiers
-  #   2 = Cooling
-  #   3 = System
-  #   4 = Trends
+  # The backup rotary-encoder inputs are exposed by the controller hardware,
+  # but the current firmware does not assign navigation or charger-control
+  # actions to them.
   #
-  # SELECT mode:
-  #   encoder_selection identifies the selected editable parameter on the
-  #   current page.
-  #
-  # EDIT mode:
-  #   encoder_edit_value contains a temporary working copy. Rotation changes
-  #   only this value. The real ESPHome entity is updated only after a short
-  #   confirmation press.
-  #
-  # Editable parameters:
-  #
-  # Dashboard:
-  #   0 = DC Voltage
-  #   1 = Total DC Power
-  #
-  # Rectifiers overview:
-  #   0 = Unit 1 / L1
-  #   1 = Unit 2 / L2
-  #   2 = Unit 3 / L3
-  #
-  # A short press opens the selected rectifier detail view.
-  #
-  # Cooling:
-  #   0 = Automatic
-  #   1 = Fan Power   (manual mode only)
-  #   2 = Fan PWM     (manual mode only)
-  #
-  # System:
-  #   none
+  # These globals are therefore not part of the active touchscreen navigation
+  # or charger-control path.
+  # ---------------------------------------------------------------------------
 
   - id: encoder_page
     type: int
