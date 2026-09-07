@@ -13,7 +13,7 @@ interval:
       - if:
           condition:
             lambda: |-
-              return id(ui_active_page) == 4;
+              return id(ui_active_page) == 5;
 
           then:
 

@@ -74,6 +74,7 @@ The V5 firmware keeps charger-control, hardware, per-unit rectifier state and di
 | `packages/hardware.yaml` | controller buses, TCA9548A, MCP23017, touch, CAN, backup encoder inputs and controller battery |
 | `packages/controls.yaml` | charger-wide controls and setpoints |
 | `packages/cooling.yaml` | external chassis-fan control, EMC2101 and RPM monitoring |
+| `packages/battery-bank.yaml` | Home Assistant solar-battery telemetry import and availability state |
 | `packages/rectifier-unit.yaml` | parameterized per-unit state, telemetry and discovery |
 | `packages/rectifier-shared.yaml` | cross-unit lifecycle, limits, CAN scheduling, recovery and control |
 | `packages/rectifier-can/*.yaml` | parameterized CAN receive handlers |
@@ -84,8 +85,8 @@ The V5 firmware keeps charger-control, hardware, per-unit rectifier state and di
 | `packages/display/pages/*.yaml` | static LVGL page layouts |
 | `packages/display/header.yaml` | persistent header runtime |
 | `packages/display/command-state.yaml` | asynchronous START/STOP transition runtime |
-| `packages/display/battery.yaml` | controller battery display runtime |
-| `packages/display/{dashboard,rectifiers,rectifier-detail,cooling,system,trends}.yaml` | page-specific display runtimes |
+| `packages/display/controller-battery.yaml` | controller backup-battery display runtime |
+| `packages/display/{dashboard,rectifiers,rectifier-detail,battery,cooling,system,trends}.yaml` | page-specific display runtimes |
 
 # 3. Rectifier lifecycle
 
@@ -250,17 +251,20 @@ Cyclic selectors include operating hours (`0x0E`), AC power (`0x70`), frequency 
 
 Aggregate AC/DC power, average AC voltage, average AC phase current, DC current, average DC voltage, highest output temperature and efficiency include only CAN-fresh units with valid required telemetry. `Available Units` returns the CAN-reachable rectifier count. `Running Units` returns the number of CAN-reachable rectifiers explicitly reporting their power state as `ON`.
 
+Solar-battery telemetry is imported independently from Home Assistant through `packages/battery-bank.yaml`. Aggregate bank data and four per-battery data sets are used exclusively for display monitoring. Home Assistant battery availability does not participate in rectifier lifecycle, current limiting, START eligibility or CAN control.
+
 # 18. V5 LVGL display behavior
 
 The V5 controller uses the Waveshare ESP32-S3-Touch-LCD-7 with a 7-inch 800×480 RGB display and GT911 capacitive touchscreen.
 
 LVGL tracks touchscreen inactivity. After the configured display idle timeout, the firmware pauses LVGL rendering and disables the CH422G-controlled display backlight while charger control and telemetry continue normally. A touchscreen release wakes the display, resumes LVGL and redraws the current interface. Automatic LVGL resume-on-input is disabled so the first blind touch is consumed as a wake-up action instead of operating the underlying control.
 
-The LVGL interface exposes five primary navigation pages:
+The LVGL interface exposes six primary navigation pages:
 
 ```text
 Dashboard
 Rectifiers
+Battery
 Cooling
 System
 Trends
@@ -276,23 +280,24 @@ display/pages/*.yaml
 
 display/header.yaml
 display/command-state.yaml
-display/battery.yaml
+display/controller-battery.yaml
     persistent/global runtime
 
 display/dashboard.yaml
 display/rectifiers.yaml
 display/rectifier-detail.yaml
+display/battery.yaml
 display/cooling.yaml
 display/system.yaml
 display/trends.yaml
     page-specific runtime
 ```
 
-Normal page telemetry is refreshed only while the corresponding page is visible. Persistent header state, command transitions and controller-battery presentation continue independently.
+Normal page telemetry is refreshed only while the corresponding page is visible. Persistent header state, command transitions and controller backup-battery presentation continue independently.
 
 This page-aware runtime architecture reduces unnecessary LVGL workload and stack pressure compared with refreshing all hidden widgets from one global loop.
 
-The Dashboard provides charger-wide telemetry and controls. Rectifiers provides the three-unit overview and hierarchical detail access. Cooling displays rear-compartment environmental data and internal rectifier-fan telemetry. System exposes controller and CAN diagnostics. Trends displays continuously sampled ten-minute telemetry histories.
+The Dashboard provides charger-wide telemetry, charger controls and aggregate solar-battery-bank monitoring. Rectifiers provides the three-unit overview and hierarchical detail access. Battery provides detailed monitoring of the four external battery units. Cooling displays rear-compartment environmental data and internal rectifier-fan telemetry. System exposes controller and CAN diagnostics. Trends displays continuously sampled ten-minute charger telemetry histories.
 
 The persistent header includes charger identity/runtime information, charger run state and controller backup-battery indication.
 
@@ -326,6 +331,7 @@ The tested reduced-current connector configuration reported a 52 A capability. T
 14. BUS_OFF recovery is a final recovery layer.
 15. LVGL affects presentation only; charger control and safety decisions remain outside the display layer.
 16. Backup encoder inputs do not currently provide charger-control or navigation actions.
+17. Home Assistant solar-battery telemetry is monitoring-only and cannot affect charger control or safety behavior.
 
 ## Source status
 

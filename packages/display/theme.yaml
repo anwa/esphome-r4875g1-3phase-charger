@@ -50,7 +50,7 @@ lvgl:
     # ---------------------------------------------------------------------------
 
     - id: style_nav_button
-      width: 148
+      width: 120
       height: 58
       bg_color: 0x202830
       bg_opa: COVER

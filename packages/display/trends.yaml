@@ -610,7 +610,7 @@ interval:
       - if:
           condition:
             lambda: |-
-              return id(ui_active_page) == 5;
+              return id(ui_active_page) == 6;
 
           then:
             - script.execute:

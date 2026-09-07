@@ -15,6 +15,7 @@ The current V5 hardware platform is based on the
 - backup rotary-encoder hardware inputs
 - external compartment cooling
 - controller backup-battery monitoring
+- Home Assistant solar-battery-bank monitoring
 - Home Assistant, MQTT and ESPHome web integration
 
 The charger core is intentionally designed to remain operational without Wi-Fi, Home Assistant, MQTT or Internet access.
@@ -292,11 +293,12 @@ The controller uses the Waveshare 7-inch 800 × 480 RGB display with GT911 capac
 
 The display backlight is automatically disabled after the configured LVGL idle timeout while charger control and telemetry continue running normally. Touching and releasing the sleeping touchscreen wakes the display without activating the control underneath the wake-up touch.
 
-The LVGL interface contains five primary functional pages:
+The LVGL interface contains six primary functional pages:
 
 ```text
 Dashboard
 Rectifiers
+Battery
 Cooling
 System
 Trends
@@ -306,24 +308,36 @@ The Rectifiers page also provides one shared hierarchical detail view for Units 
 
 ### Dashboard
 
-The Dashboard provides charger-wide operating information including:
+The Dashboard uses four equal-width overview cards for AC input, DC output, charger state and the external solar battery bank.
+
+It provides charger-wide operating information including:
 
 ```text
 AC input power
 AC voltage
 AC current
+AC current limit
 DC output power
 DC voltage
 combined DC current
+active DC voltage limit
+nominal total DC power target
 available rectifier count
+running rectifier count
 highest rectifier output temperature
 conversion efficiency
-active DC voltage setpoint
-nominal total DC power target
-applied per-unit current limit
 charger START/STOP state
-controller backup-battery indication
+solar battery-bank SOC
+solar battery-bank power
+solar battery-bank voltage
+solar battery-bank current
+solar battery-bank temperature
+solar battery-bank operating state
 ```
+
+AC and DC setpoints are edited through dedicated modal dialogs opened from the corresponding Dashboard cards.
+
+Solar battery-bank information is imported from Home Assistant for monitoring only. Missing Home Assistant battery telemetry is shown explicitly and does not affect charger control or safety behavior.
 
 ### Rectifiers
 
@@ -367,6 +381,40 @@ fallback current
 ```
 
 One LVGL page is reused dynamically for all three rectifiers.
+
+### Battery
+
+The Battery page provides one monitoring card for each of four parallel solar-battery units.
+
+Each card displays:
+
+```text
+voltage
+current
+power
+state of charge
+temperature
+cell drift
+warning state
+fault state
+```
+
+A consolidated per-battery status shows:
+
+```text
+HA OFFLINE
+NO DATA
+OK
+WARNING
+FAULT
+```
+
+`HA OFFLINE` indicates that no Home Assistant state-subscription connection is available.
+`NO DATA` indicates that Home Assistant is connected but one or more required battery entities are unavailable or invalid.
+
+Fault has priority over warning. Missing or invalid Home Assistant data is displayed explicitly instead of being treated as a healthy battery state.
+
+All solar-battery telemetry is monitoring-only. It does not participate in charger setpoint calculation, START eligibility, thermal protection, CAN control or other charger safety decisions.
 
 ### Cooling
 
@@ -511,6 +559,48 @@ The SOC value is intended for monitoring only. It is not a replacement for coulo
 
 ---
 
+## Solar Battery Bank Monitoring
+
+The controller can import monitoring data for an external four-unit solar battery bank from Home Assistant through the ESPHome native API.
+
+All configurable Home Assistant entity mappings are centralized in:
+
+```text
+packages/battery-bank.yaml
+```
+
+The imported aggregate bank data includes:
+
+```text
+voltage
+current
+power
+state of charge
+temperature
+operating state
+```
+
+Each of the four individual battery units provides:
+
+```text
+voltage
+current
+power
+state of charge
+temperature
+cell drift
+warning state
+fault state
+```
+
+The Home Assistant battery-bank and individual battery power entities are normalized internally from watts to kilowatts.
+
+Battery warning and fault entities are imported as text states so `on`, `off`, `unknown` and `unavailable` remain distinguishable.
+
+Home Assistant battery telemetry is intentionally isolated from charger control. The charger remains locally operational when Wi-Fi or Home Assistant is unavailable.
+
+---
+
 ## Network Interfaces
 
 Network services provide additional monitoring and control but are not part of the local charger safety path.
@@ -543,6 +633,7 @@ packages/
 ├── hardware.yaml
 ├── controls.yaml
 ├── cooling.yaml
+├── battery-bank.yaml
 ├── display.yaml
 ├── rectifier-shared.yaml
 ├── rectifier-unit.yaml
@@ -553,10 +644,11 @@ packages/
 │   ├── ui.yaml
 │   ├── header.yaml
 │   ├── command-state.yaml
-│   ├── battery.yaml
+│   ├── controller-battery.yaml
 │   ├── dashboard.yaml
 │   ├── rectifiers.yaml
 │   ├── rectifier-detail.yaml
+│   ├── battery.yaml
 │   ├── cooling.yaml
 │   ├── system.yaml
 │   ├── trends.yaml
@@ -565,6 +657,7 @@ packages/
 │       ├── dashboard.yaml
 │       ├── rectifiers.yaml
 │       ├── rectifier-detail.yaml
+│       ├── battery.yaml
 │       ├── cooling.yaml
 │       ├── system.yaml
 │       └── trends.yaml
@@ -592,6 +685,7 @@ packages/
 | `rectifier-unit.yaml` | parameterized per-unit state and telemetry |
 | `rectifier-can/*.yaml` | parameterized CAN receive handlers |
 | `trend_helpers.h` | native LVGL chart support |
+| `battery-bank.yaml` | Home Assistant solar-battery telemetry import and availability state |
 
 The detailed ownership model is documented in [`packages/README.md`](packages/README.md).
 
@@ -611,12 +705,13 @@ display.yaml
 ├── persistent runtimes
 │   ├── header.yaml
 │   ├── command-state.yaml
-│   └── battery.yaml
+│   └── controller-battery.yaml
 │
 ├── page runtimes
 │   ├── dashboard.yaml
 │   ├── rectifiers.yaml
 │   ├── rectifier-detail.yaml
+│   ├── battery.yaml
 │   ├── cooling.yaml
 │   ├── system.yaml
 │   └── trends.yaml
@@ -627,7 +722,7 @@ display.yaml
 
 Only the currently visible page receives its normal page-specific runtime updates.
 
-Persistent header and command-state handling continue independently.
+Persistent header, command-state handling and controller backup-battery presentation continue independently.
 
 This reduces unnecessary LVGL update load and keeps the controller responsive.
 

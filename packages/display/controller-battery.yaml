@@ -1,0 +1,85 @@
+# ==============================================================================
+# CONTROLLER BATTERY DISPLAY RUNTIME
+# ==============================================================================
+#
+# Updates the persistent header battery indication and the detailed battery
+# value on the System page.
+#
+# The controller backup battery changes slowly, so both widgets are refreshed
+# independently from the faster page-specific display runtimes every 5 seconds.
+# ==============================================================================
+
+interval:
+  - interval: 5s
+    then:
+
+      - lvgl.label.update:
+          id: ui_header_battery
+
+          text: !lambda |-
+            const float voltage =
+              id(controller_battery_voltage).state;
+
+            if (isnan(voltage))
+              return std::string("CTRL --.-- V");
+
+            return str_sprintf(
+              "CTRL %.2f V",
+              voltage
+            );
+
+          text_color: !lambda |-
+            const float voltage =
+              id(controller_battery_voltage).state;
+
+            if (isnan(voltage))
+              return lv_color_hex(0x8B96A0);
+
+            if (voltage < 3.50f)
+              return lv_color_hex(0xFF3030);
+
+            if (voltage < 3.70f)
+              return lv_color_hex(0xFFC04A);
+
+            return lv_color_hex(0x5CFF7A);
+
+
+      - lvgl.label.update:
+          id: ui_system_battery
+
+          text: !lambda |-
+            const float voltage =
+              id(controller_battery_voltage).state;
+
+            const float soc =
+              id(controller_battery_soc).state;
+
+            if (
+              isnan(voltage) ||
+              isnan(soc)
+            ) {
+              return std::string(
+                "--.-- V / -- %"
+              );
+            }
+
+            return str_sprintf(
+              "%.2f V / %.0f %%",
+              voltage,
+              soc
+            );
+
+          text_color: !lambda |-
+            const float voltage =
+              id(controller_battery_voltage).state;
+
+            if (isnan(voltage))
+              return lv_color_hex(0x8B96A0);
+
+            if (voltage < 3.50f)
+              return lv_color_hex(0xFF3030);
+
+            if (voltage < 3.70f)
+              return lv_color_hex(0xFFC04A);
+
+            return lv_color_hex(0x5CFF7A);

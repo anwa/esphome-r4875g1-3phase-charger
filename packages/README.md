@@ -36,6 +36,7 @@ packages/
 ├── hardware.yaml
 ├── controls.yaml
 ├── cooling.yaml
+├── battery-bank.yaml
 ├── display.yaml
 ├── rectifier-shared.yaml
 ├── rectifier-unit.yaml
@@ -47,6 +48,7 @@ packages/
 │   ├── ui.yaml
 │   ├── header.yaml
 │   ├── command-state.yaml
+│   ├── controller-battery.yaml
 │   ├── battery.yaml
 │   ├── dashboard.yaml
 │   ├── rectifiers.yaml
@@ -59,6 +61,7 @@ packages/
 │       ├── dashboard.yaml
 │       ├── rectifiers.yaml
 │       ├── rectifier-detail.yaml
+│       ├── battery.yaml
 │       ├── cooling.yaml
 │       ├── system.yaml
 │       └── trends.yaml
@@ -92,6 +95,9 @@ controls.yaml
 
 cooling.yaml
     external chassis cooling
+
+battery-bank.yaml
+    Home Assistant solar-battery telemetry import and availability state
 
 rectifier-shared.yaml
     cross-unit lifecycle, safety and CAN scheduling
@@ -252,6 +258,26 @@ Responsibilities include:
 Cooling Fan 3 ventilates the rear rectifier compartment monitored by the AHT10.
 
 Automatic cooling fails safe to enabled fan power and maximum PWM if the compartment temperature becomes unavailable.
+
+---
+
+## `battery-bank.yaml`
+
+Owns Home Assistant telemetry import for the external solar battery bank.
+
+The package centralizes all configurable Home Assistant entity mappings so display code does not contain installation-specific entity IDs.
+
+Responsibilities include:
+
+- aggregate battery-bank voltage, current, power, state of charge, temperature and operating state
+- per-battery voltage, current, power, state of charge, temperature and cell drift
+- per-battery warning and fault states
+- power-unit normalization for imported battery telemetry
+- Home Assistant connection and data-availability states
+
+Warning and fault entities are intentionally imported as text so unavailable source data remains distinguishable from a genuine inactive warning or fault.
+
+This package is monitoring-only and MUST NOT participate in charger control, CAN commands, lifecycle decisions or safety limits.
 
 ---
 
@@ -471,12 +497,13 @@ display.yaml
 ├── persistent/global runtime
 │   ├── display/header.yaml
 │   ├── display/command-state.yaml
-│   └── display/battery.yaml
+│   └── display/controller-battery.yaml
 │
 ├── page-specific runtime
 │   ├── display/dashboard.yaml
 │   ├── display/rectifiers.yaml
 │   ├── display/rectifier-detail.yaml
+│   ├── display/battery.yaml
 │   ├── display/cooling.yaml
 │   ├── display/system.yaml
 │   └── display/trends.yaml
@@ -581,7 +608,7 @@ This prevents command-completion handling from depending on one visible page.
 
 ---
 
-## `display/battery.yaml`
+## `display/controller-battery.yaml`
 
 Updates controller backup-battery presentation.
 
@@ -629,6 +656,23 @@ Runtime selects the corresponding telemetry dynamically.
 
 ---
 
+## `display/battery.yaml`
+
+Updates the four individual solar-battery cards.
+
+Runtime executes only while the Battery page is visible.
+
+The runtime consumes the centralized battery telemetry and availability state from `battery-bank.yaml` and renders:
+
+- per-battery measurements
+- warning and fault state
+- consolidated battery status
+- explicit missing-data presentation
+
+It does not own battery acquisition or charger-control behavior.
+
+---
+
 ## `display/cooling.yaml`
 
 Updates the Cooling page.
@@ -652,7 +696,7 @@ Updates controller diagnostics including:
 - memory information
 - CAN / rectifier status
 
-Controller battery values are updated separately by `display/battery.yaml`.
+Controller battery values are updated separately by `display/controller-battery.yaml`.
 
 ---
 
@@ -696,6 +740,7 @@ Current pages:
 dashboard.yaml
 rectifiers.yaml
 rectifier-detail.yaml
+battery.yaml
 cooling.yaml
 system.yaml
 trends.yaml
@@ -706,6 +751,7 @@ The main navigation exposes:
 ```text
 Dashboard
 Rectifiers
+Battery
 Cooling
 System
 Trends

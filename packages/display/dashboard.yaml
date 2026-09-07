@@ -4,6 +4,9 @@
 #
 # Dashboard widgets are refreshed only while page_dashboard is visible.
 # Persistent header updates are handled separately by display/header.yaml.
+#
+# Battery-bank telemetry is monitoring-only and never participates in charger
+# control or safety decisions.
 # ==============================================================================
 
 interval:
@@ -65,6 +68,22 @@ interval:
                   );
 
             # ---------------------------------------------------------------------------
+            # AC INPUT CURRENT LIMIT
+            # ---------------------------------------------------------------------------
+
+            - lvgl.label.update:
+                id: ui_dashboard_ac_current_limit
+                text: !lambda |-
+                  if (isnan(id(set_ac_current_limit).state)) {
+                    return std::string("--.- A");
+                  }
+
+                  return str_sprintf(
+                    "%.1f A",
+                    id(set_ac_current_limit).state
+                  );
+
+            # ---------------------------------------------------------------------------
             # DC OUTPUT POWER
             # ---------------------------------------------------------------------------
 
@@ -113,6 +132,38 @@ interval:
                   );
 
             # ---------------------------------------------------------------------------
+            # DC VOLTAGE LIMIT
+            # ---------------------------------------------------------------------------
+
+            - lvgl.label.update:
+                id: ui_dashboard_dc_voltage_limit
+                text: !lambda |-
+                  if (isnan(id(set_dc_voltage_limit).state)) {
+                    return std::string("--.- V");
+                  }
+
+                  return str_sprintf(
+                    "%.1f V",
+                    id(set_dc_voltage_limit).state
+                  );
+
+            # ---------------------------------------------------------------------------
+            # DC SUM POWER
+            # ---------------------------------------------------------------------------
+
+            - lvgl.label.update:
+                id: ui_dashboard_dc_sum_power
+                text: !lambda |-
+                  if (isnan(id(set_dc_sum_power).state)) {
+                    return std::string("--.- kW");
+                  }
+
+                  return str_sprintf(
+                    "%.1f kW",
+                    id(set_dc_sum_power).state
+                  );
+
+            # ---------------------------------------------------------------------------
             # AVAILABLE UNITS
             # ---------------------------------------------------------------------------
 
@@ -126,6 +177,22 @@ interval:
                   return str_sprintf(
                     "%.0f / 3",
                     id(available_units).state
+                  );
+
+            # ---------------------------------------------------------------------------
+            # RUNNING UNITS
+            # ---------------------------------------------------------------------------
+
+            - lvgl.label.update:
+                id: ui_dashboard_running_units
+                text: !lambda |-
+                  if (isnan(id(running_units).state)) {
+                    return std::string("- / 3");
+                  }
+
+                  return str_sprintf(
+                    "%.0f / 3",
+                    id(running_units).state
                   );
 
             # ---------------------------------------------------------------------------
@@ -161,52 +228,139 @@ interval:
                   );
 
             # ---------------------------------------------------------------------------
-            # DC VOLTAGE SETPOINT
+            # BATTERY BANK STATE OF CHARGE
             # ---------------------------------------------------------------------------
 
             - lvgl.label.update:
-                id: ui_dashboard_set_voltage
+                id: ui_dashboard_battery_soc
                 text: !lambda |-
-                  if (isnan(id(set_dc_voltage_limit).state)) {
-                    return std::string("--.- V");
+                  if (!id(battery_bank_data_available).state) {
+                    return std::string("--.- %");
                   }
 
                   return str_sprintf(
-                    "%.1f V",
-                    id(set_dc_voltage_limit).state
+                    "%.1f %%",
+                    id(battery_bank_soc).state
                   );
 
             # ---------------------------------------------------------------------------
-            # TOTAL DC POWER SETPOINT
+            # BATTERY BANK POWER
             # ---------------------------------------------------------------------------
 
             - lvgl.label.update:
-                id: ui_dashboard_set_power
+                id: ui_dashboard_battery_power
                 text: !lambda |-
-                  if (isnan(id(set_dc_sum_power).state)) {
-                    return std::string("--.-- kW");
+                  if (!id(battery_bank_data_available).state) {
+                    return std::string("--.--- kW");
                   }
 
                   return str_sprintf(
-                    "%.2f kW",
-                    id(set_dc_sum_power).state
+                    "%.3f kW",
+                    id(battery_bank_power).state
                   );
 
             # ---------------------------------------------------------------------------
-            # APPLIED PER-UNIT DC CURRENT LIMIT
+            # BATTERY BANK VOLTAGE
             # ---------------------------------------------------------------------------
 
             - lvgl.label.update:
-                id: ui_dashboard_set_current
+                id: ui_dashboard_battery_voltage
                 text: !lambda |-
-                  if (isnan(id(applied_dc_current_limit_sensor).state)) {
+                  if (!id(battery_bank_data_available).state) {
+                    return std::string("--.-- V");
+                  }
+
+                  return str_sprintf(
+                    "%.2f V",
+                    id(battery_bank_voltage).state
+                  );
+
+            # ---------------------------------------------------------------------------
+            # BATTERY BANK CURRENT
+            # ---------------------------------------------------------------------------
+
+            - lvgl.label.update:
+                id: ui_dashboard_battery_current
+                text: !lambda |-
+                  if (!id(battery_bank_data_available).state) {
                     return std::string("--.- A");
                   }
 
                   return str_sprintf(
                     "%.1f A",
-                    id(applied_dc_current_limit_sensor).state
+                    id(battery_bank_current).state
                   );
+
+            # ---------------------------------------------------------------------------
+            # BATTERY BANK TEMPERATURE
+            # ---------------------------------------------------------------------------
+
+            - lvgl.label.update:
+                id: ui_dashboard_battery_temperature
+                text: !lambda |-
+                  if (!id(battery_bank_data_available).state) {
+                    return std::string("--.- °C");
+                  }
+
+                  return str_sprintf(
+                    "%.1f °C",
+                    id(battery_bank_temperature).state
+                  );
+
+            # ---------------------------------------------------------------------------
+            # BATTERY BANK OPERATING STATE
+            # ---------------------------------------------------------------------------
+
+            - lvgl.label.update:
+                id: ui_dashboard_battery_state
+
+                text: !lambda |-
+                  if (!id(battery_ha_connected).state) {
+                    return std::string("HA OFFLINE");
+                  }
+
+                  if (!id(battery_bank_data_available).state) {
+                    return std::string("NO DATA");
+                  }
+
+                  return id(battery_bank_state).state;
+
+                text_color: !lambda |-
+                  if (!id(battery_ha_connected).state) {
+                    return lv_color_hex(0xFFC04A);
+                  }
+
+                  if (!id(battery_bank_data_available).state) {
+                    return lv_color_hex(0x8B96A0);
+                  }
+
+                  const std::string state =
+                    id(battery_bank_state).state;
+
+                  if (
+                    state == "Charging" ||
+                    state == "charging"
+                  ) {
+                    return lv_color_hex(0x5CFF7A);
+                  }
+
+                  if (
+                    state == "Discharging" ||
+                    state == "discharging"
+                  ) {
+                    return lv_color_hex(0xDDE3E8);
+                  }
+
+                  if (
+                    state == "Idle" ||
+                    state == "idle" ||
+                    state == "Standby" ||
+                    state == "standby"
+                  ) {
+                    return lv_color_hex(0x8B96A0);
+                  }
+
+                  return lv_color_hex(0xFFC04A);
 
             # ---------------------------------------------------------------------------
             # CHARGER POWER BUTTON

@@ -1,0 +1,609 @@
+# ==============================================================================
+# V5 LVGL PAGE: BATTERY
+# ==============================================================================
+#
+# Detailed monitoring view for the four parallel solar-battery units imported
+# from Home Assistant.
+#
+# Battery telemetry is monitoring-only and does not participate in charger
+# control or safety decisions.
+#
+# Runtime updates are handled by display/battery.yaml.
+# ==============================================================================
+
+id: page_battery
+styles: style_page
+
+widgets:
+
+  # ---------------------------------------------------------------------------
+  # BATTERY 1
+  # ---------------------------------------------------------------------------
+
+  - obj:
+      x: 10
+      y: 70
+      width: 189
+      height: 330
+      styles: style_card
+
+      widgets:
+        - label:
+            x: 10
+            y: 10
+            styles: style_title_label
+            text: "BATTERY 1"
+
+        - label:
+            id: ui_battery_1_status
+            align: TOP_MID
+            y: 45
+            width: 169
+            text_align: CENTER
+            text: "HA OFFLINE"
+            text_font: montserrat_18
+            text_color: 0x8B96A0
+
+        - label:
+            x: 10
+            y: 82
+            width: 85
+            styles: style_desc_label
+            text: "Voltage"
+
+        - label:
+            id: ui_battery_1_voltage
+            x: 95
+            y: 79
+            width: 84
+            styles: style_value_label
+            text: "--.-- V"
+
+        - label:
+            x: 10
+            y: 110
+            width: 85
+            styles: style_desc_label
+            text: "Current"
+
+        - label:
+            id: ui_battery_1_current
+            x: 95
+            y: 107
+            width: 84
+            styles: style_value_label
+            text: "--.- A"
+
+        - label:
+            x: 10
+            y: 138
+            width: 85
+            styles: style_desc_label
+            text: "Power"
+
+        - label:
+            id: ui_battery_1_power
+            x: 65
+            y: 135
+            width: 114
+            styles: style_value_label
+            text: "--.--- kW"
+
+        - label:
+            x: 10
+            y: 166
+            width: 85
+            styles: style_desc_label
+            text: "SOC"
+
+        - label:
+            id: ui_battery_1_soc
+            x: 95
+            y: 163
+            width: 84
+            styles: style_value_label
+            text: "--.- %"
+
+        - label:
+            x: 10
+            y: 194
+            width: 85
+            styles: style_desc_label
+            text: "Temp."
+
+        - label:
+            id: ui_battery_1_temperature
+            x: 95
+            y: 191
+            width: 84
+            styles: style_value_label
+            text: "--.- °C"
+
+        - label:
+            x: 10
+            y: 222
+            width: 85
+            styles: style_desc_label
+            text: "Cell Drift"
+
+        - label:
+            id: ui_battery_1_cell_drift
+            x: 95
+            y: 219
+            width: 84
+            styles: style_value_label
+            text: "--.- mV"
+
+        - label:
+            x: 10
+            y: 250
+            width: 85
+            styles: style_desc_label
+            text: "Warning"
+
+        - label:
+            id: ui_battery_1_warning
+            x: 95
+            y: 247
+            width: 84
+            styles: style_value_label
+            text: "--"
+
+        - label:
+            x: 10
+            y: 278
+            width: 85
+            styles: style_desc_label
+            text: "Fault"
+
+        - label:
+            id: ui_battery_1_fault
+            x: 95
+            y: 275
+            width: 84
+            styles: style_value_label
+            text: "--"
+
+  # ---------------------------------------------------------------------------
+  # BATTERY 2
+  # ---------------------------------------------------------------------------
+
+  - obj:
+      x: 207
+      y: 70
+      width: 189
+      height: 330
+      styles: style_card
+
+      widgets:
+        - label:
+            x: 10
+            y: 10
+            styles: style_title_label
+            text: "BATTERY 2"
+
+        - label:
+            id: ui_battery_2_status
+            align: TOP_MID
+            y: 45
+            width: 169
+            text_align: CENTER
+            text: "HA OFFLINE"
+            text_font: montserrat_18
+            text_color: 0x8B96A0
+
+        - label:
+            x: 10
+            y: 82
+            width: 85
+            styles: style_desc_label
+            text: "Voltage"
+
+        - label:
+            id: ui_battery_2_voltage
+            x: 95
+            y: 79
+            width: 84
+            styles: style_value_label
+            text: "--.-- V"
+
+        - label:
+            x: 10
+            y: 110
+            width: 85
+            styles: style_desc_label
+            text: "Current"
+
+        - label:
+            id: ui_battery_2_current
+            x: 95
+            y: 107
+            width: 84
+            styles: style_value_label
+            text: "--.- A"
+
+        - label:
+            x: 10
+            y: 138
+            width: 85
+            styles: style_desc_label
+            text: "Power"
+
+        - label:
+            id: ui_battery_2_power
+            x: 65
+            y: 135
+            width: 114
+            styles: style_value_label
+            text: "--.--- kW"
+
+        - label:
+            x: 10
+            y: 166
+            width: 85
+            styles: style_desc_label
+            text: "SOC"
+
+        - label:
+            id: ui_battery_2_soc
+            x: 95
+            y: 163
+            width: 84
+            styles: style_value_label
+            text: "--.- %"
+
+        - label:
+            x: 10
+            y: 194
+            width: 85
+            styles: style_desc_label
+            text: "Temp."
+
+        - label:
+            id: ui_battery_2_temperature
+            x: 95
+            y: 191
+            width: 84
+            styles: style_value_label
+            text: "--.- °C"
+
+        - label:
+            x: 10
+            y: 222
+            width: 85
+            styles: style_desc_label
+            text: "Cell Drift"
+
+        - label:
+            id: ui_battery_2_cell_drift
+            x: 95
+            y: 219
+            width: 84
+            styles: style_value_label
+            text: "--.- mV"
+
+        - label:
+            x: 10
+            y: 250
+            width: 85
+            styles: style_desc_label
+            text: "Warning"
+
+        - label:
+            id: ui_battery_2_warning
+            x: 95
+            y: 247
+            width: 84
+            styles: style_value_label
+            text: "--"
+
+        - label:
+            x: 10
+            y: 278
+            width: 85
+            styles: style_desc_label
+            text: "Fault"
+
+        - label:
+            id: ui_battery_2_fault
+            x: 95
+            y: 275
+            width: 84
+            styles: style_value_label
+            text: "--"
+
+  # ---------------------------------------------------------------------------
+  # BATTERY 3
+  # ---------------------------------------------------------------------------
+
+  - obj:
+      x: 404
+      y: 70
+      width: 189
+      height: 330
+      styles: style_card
+
+      widgets:
+        - label:
+            x: 10
+            y: 10
+            styles: style_title_label
+            text: "BATTERY 3"
+
+        - label:
+            id: ui_battery_3_status
+            align: TOP_MID
+            y: 45
+            width: 169
+            text_align: CENTER
+            text: "HA OFFLINE"
+            text_font: montserrat_18
+            text_color: 0x8B96A0
+
+        - label:
+            x: 10
+            y: 82
+            width: 85
+            styles: style_desc_label
+            text: "Voltage"
+
+        - label:
+            id: ui_battery_3_voltage
+            x: 95
+            y: 79
+            width: 84
+            styles: style_value_label
+            text: "--.-- V"
+
+        - label:
+            x: 10
+            y: 110
+            width: 85
+            styles: style_desc_label
+            text: "Current"
+
+        - label:
+            id: ui_battery_3_current
+            x: 95
+            y: 107
+            width: 84
+            styles: style_value_label
+            text: "--.- A"
+
+        - label:
+            x: 10
+            y: 138
+            width: 85
+            styles: style_desc_label
+            text: "Power"
+
+        - label:
+            id: ui_battery_3_power
+            x: 65
+            y: 135
+            width: 114
+            styles: style_value_label
+            text: "--.--- kW"
+
+        - label:
+            x: 10
+            y: 166
+            width: 85
+            styles: style_desc_label
+            text: "SOC"
+
+        - label:
+            id: ui_battery_3_soc
+            x: 95
+            y: 163
+            width: 84
+            styles: style_value_label
+            text: "--.- %"
+
+        - label:
+            x: 10
+            y: 194
+            width: 85
+            styles: style_desc_label
+            text: "Temp."
+
+        - label:
+            id: ui_battery_3_temperature
+            x: 95
+            y: 191
+            width: 84
+            styles: style_value_label
+            text: "--.- °C"
+
+        - label:
+            x: 10
+            y: 222
+            width: 85
+            styles: style_desc_label
+            text: "Cell Drift"
+
+        - label:
+            id: ui_battery_3_cell_drift
+            x: 95
+            y: 219
+            width: 84
+            styles: style_value_label
+            text: "--.- mV"
+
+        - label:
+            x: 10
+            y: 250
+            width: 85
+            styles: style_desc_label
+            text: "Warning"
+
+        - label:
+            id: ui_battery_3_warning
+            x: 95
+            y: 247
+            width: 84
+            styles: style_value_label
+            text: "--"
+
+        - label:
+            x: 10
+            y: 278
+            width: 85
+            styles: style_desc_label
+            text: "Fault"
+
+        - label:
+            id: ui_battery_3_fault
+            x: 95
+            y: 275
+            width: 84
+            styles: style_value_label
+            text: "--"
+
+  # ---------------------------------------------------------------------------
+  # BATTERY 4
+  # ---------------------------------------------------------------------------
+
+  - obj:
+      x: 601
+      y: 70
+      width: 189
+      height: 330
+      styles: style_card
+
+      widgets:
+        - label:
+            x: 10
+            y: 10
+            styles: style_title_label
+            text: "BATTERY 4"
+
+        - label:
+            id: ui_battery_4_status
+            align: TOP_MID
+            y: 45
+            width: 169
+            text_align: CENTER
+            text: "HA OFFLINE"
+            text_font: montserrat_18
+            text_color: 0x8B96A0
+
+        - label:
+            x: 10
+            y: 82
+            width: 85
+            styles: style_desc_label
+            text: "Voltage"
+
+        - label:
+            id: ui_battery_4_voltage
+            x: 95
+            y: 79
+            width: 84
+            styles: style_value_label
+            text: "--.-- V"
+
+        - label:
+            x: 10
+            y: 110
+            width: 85
+            styles: style_desc_label
+            text: "Current"
+
+        - label:
+            id: ui_battery_4_current
+            x: 95
+            y: 107
+            width: 84
+            styles: style_value_label
+            text: "--.- A"
+
+        - label:
+            x: 10
+            y: 138
+            width: 85
+            styles: style_desc_label
+            text: "Power"
+
+        - label:
+            id: ui_battery_4_power
+            x: 65
+            y: 135
+            width: 114
+            styles: style_value_label
+            text: "--.--- kW"
+
+        - label:
+            x: 10
+            y: 166
+            width: 85
+            styles: style_desc_label
+            text: "SOC"
+
+        - label:
+            id: ui_battery_4_soc
+            x: 95
+            y: 163
+            width: 84
+            styles: style_value_label
+            text: "--.- %"
+
+        - label:
+            x: 10
+            y: 194
+            width: 85
+            styles: style_desc_label
+            text: "Temp."
+
+        - label:
+            id: ui_battery_4_temperature
+            x: 95
+            y: 191
+            width: 84
+            styles: style_value_label
+            text: "--.- °C"
+
+        - label:
+            x: 10
+            y: 222
+            width: 85
+            styles: style_desc_label
+            text: "Cell Drift"
+
+        - label:
+            id: ui_battery_4_cell_drift
+            x: 95
+            y: 219
+            width: 84
+            styles: style_value_label
+            text: "--.- mV"
+
+        - label:
+            x: 10
+            y: 250
+            width: 85
+            styles: style_desc_label
+            text: "Warning"
+
+        - label:
+            id: ui_battery_4_warning
+            x: 95
+            y: 247
+            width: 84
+            styles: style_value_label
+            text: "--"
+
+        - label:
+            x: 10
+            y: 278
+            width: 85
+            styles: style_desc_label
+            text: "Fault"
+
+        - label:
+            id: ui_battery_4_fault
+            x: 95
+            y: 275
+            width: 84
+            styles: style_value_label
+            text: "--"
