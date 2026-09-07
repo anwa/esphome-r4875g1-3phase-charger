@@ -2,8 +2,8 @@
 # V5 LVGL PAGE: DASHBOARD
 # ==============================================================================
 #
-# Main charger overview with aggregate AC/DC telemetry, charger status and
-# charger-wide setpoint controls.
+# Main charger overview with aggregate AC/DC telemetry, charger status,
+# battery-bank telemetry and access to charger-wide setpoint dialogs.
 #
 # Runtime updates are handled by display/dashboard.yaml.
 # ==============================================================================
@@ -20,8 +20,8 @@ widgets:
   - obj:
       x: 10
       y: 70
-      width: 253
-      height: 220
+      width: 189
+      height: 330
       styles: style_card
 
       widgets:
@@ -36,30 +36,59 @@ widgets:
             align: TOP_MID
             y: 53
             text: "--.-- kW"
-            text_font: montserrat_32
+            text_font: montserrat_28
             text_color: 0xFFFFFF
 
         - label:
+            x: 10
+            y: 113
+            width: 95
+            styles: style_desc_label
+            text: "Voltage"
+
+        - label:
             id: ui_dashboard_ac_voltage
-            align: TOP_MID
-            y: 105
+            x: 105
+            y: 110
+            width: 74
+            styles: style_value_label
             text: "--- V"
-            text_font: montserrat_20
-            text_color: 0xDDE3E8
+
+        - label:
+            x: 10
+            y: 151
+            width: 95
+            styles: style_desc_label
+            text: "Current"
 
         - label:
             id: ui_dashboard_ac_current
-            align: TOP_MID
-            y: 139
+            x: 105
+            y: 148
+            width: 74
+            styles: style_value_label
             text: "--.- A"
-            text_font: montserrat_20
-            text_color: 0xDDE3E8
+
+        - label:
+            x: 10
+            y: 189
+            width: 95
+            styles: style_desc_label
+            text: "Current Limit"
+
+        - label:
+            id: ui_dashboard_ac_current_limit
+            x: 105
+            y: 186
+            width: 74
+            styles: style_value_label
+            text: "--.- A"
 
         - button:
             id: ui_dashboard_ac_setpoints_button
             x: 10
-            y: 160
-            width: 233
+            y: 270
+            width: 169
             styles: style_dialog_button
 
             widgets:
@@ -85,10 +114,10 @@ widgets:
   # ---------------------------------------------------------------------------
 
   - obj:
-      x: 273
+      x: 207
       y: 70
-      width: 253
-      height: 220
+      width: 189
+      height: 330
       styles: style_card
 
       widgets:
@@ -103,30 +132,74 @@ widgets:
             align: TOP_MID
             y: 53
             text: "--.-- kW"
-            text_font: montserrat_32
+            text_font: montserrat_28
             text_color: 0xFFFFFF
 
         - label:
-            id: ui_dashboard_dc_voltage
-            align: TOP_MID
+            x: 10
             y: 105
+            width: 95
+            styles: style_desc_label
+            text: "Voltage"
+
+        - label:
+            id: ui_dashboard_dc_voltage
+            x: 105
+            y: 102
+            width: 74
+            styles: style_value_label
             text: "--.-- V"
-            text_font: montserrat_20
-            text_color: 0xDDE3E8
+
+        - label:
+            x: 10
+            y: 137
+            width: 95
+            styles: style_desc_label
+            text: "Current"
 
         - label:
             id: ui_dashboard_dc_current
-            align: TOP_MID
-            y: 139
+            x: 105
+            y: 134
+            width: 74
+            styles: style_value_label
             text: "--.- A"
-            text_font: montserrat_20
-            text_color: 0xDDE3E8
+
+        - label:
+            x: 10
+            y: 169
+            width: 95
+            styles: style_desc_label
+            text: "Voltage Limit"
+
+        - label:
+            id: ui_dashboard_dc_voltage_limit
+            x: 105
+            y: 166
+            width: 74
+            styles: style_value_label
+            text: "--.- V"
+
+        - label:
+            x: 10
+            y: 201
+            width: 95
+            styles: style_desc_label
+            text: "Sum Power"
+
+        - label:
+            id: ui_dashboard_dc_sum_power
+            x: 105
+            y: 198
+            width: 74
+            styles: style_value_label
+            text: "--.- kW"
 
         - button:
             id: ui_dashboard_dc_setpoints_button
             x: 10
-            y: 160
-            width: 233
+            y: 270
+            width: 169
             styles: style_dialog_button
 
             widgets:
@@ -160,10 +233,10 @@ widgets:
   # ---------------------------------------------------------------------------
 
   - obj:
-      x: 536
+      x: 404
       y: 70
-      width: 253
-      height: 220
+      width: 189
+      height: 330
       styles: style_card
 
       widgets:
@@ -175,40 +248,61 @@ widgets:
 
         - label:
             x: 10
-            y: 44
+            y: 80
+            width: 95
             styles: style_desc_label
-            text: "Units"
+            text: "Available"
 
         - label:
             id: ui_dashboard_units
-            x: 145
-            y: 41
+            x: 105
+            y: 77
+            width: 74
             styles: style_value_label
             text: "- / 3"
 
         - label:
             x: 10
-            y: 76
+            y: 120
+            width: 95
+            styles: style_desc_label
+            text: "Running"
+
+        - label:
+            id: ui_dashboard_running_units
+            x: 105
+            y: 117
+            width: 74
+            styles: style_value_label
+            text: "- / 3"
+
+        - label:
+            x: 10
+            y: 160
+            width: 95
             styles: style_desc_label
             text: "Max Temp"
 
         - label:
             id: ui_dashboard_temperature
-            x: 145
-            y: 73
+            x: 105
+            y: 157
+            width: 74
             styles: style_value_label
             text: "--.- °C"
 
         - label:
             x: 10
-            y: 108
+            y: 200
+            width: 95
             styles: style_desc_label
             text: "Efficiency"
 
         - label:
             id: ui_dashboard_efficiency
-            x: 145
-            y: 106
+            x: 105
+            y: 197
+            width: 74
             styles: style_value_label
             text: "--.- %"
 
@@ -216,9 +310,9 @@ widgets:
         - button:
             id: ui_dashboard_power_button
             x: 10
-            y: 160
+            y: 270
+            width: 169
             styles: style_dialog_button
-            width: 233
 
             widgets:
               - label:
@@ -241,3 +335,105 @@ widgets:
 
                   else:
                     - lvgl.widget.show: ui_start_charger_dialog
+
+  # ---------------------------------------------------------------------------
+  # BATTERY BANK
+  # ---------------------------------------------------------------------------
+
+  - obj:
+      x: 601
+      y: 70
+      width: 189
+      height: 330
+      styles: style_card
+
+      widgets:
+        - label:
+            x: 10
+            y: 10
+            styles: style_title_label
+            text: "BATTERY BANK"
+
+        - label:
+            x: 10
+            y: 48
+            styles: style_desc_label
+            text: "SOC"
+
+        - label:
+            id: ui_dashboard_battery_soc
+            align: TOP_MID
+            y: 67
+            text: "--.- %"
+            text_font: montserrat_32
+            text_color: 0xFFFFFF
+
+        - label:
+            x: 10
+            y: 125
+            width: 95
+            styles: style_desc_label
+            text: "Power"
+
+        - label:
+            id: ui_dashboard_battery_power
+            x: 105
+            y: 122
+            width: 74
+            styles: style_value_label
+            text: "--.-- kW"
+
+        - label:
+            x: 10
+            y: 157
+            width: 95
+            styles: style_desc_label
+            text: "Voltage"
+
+        - label:
+            id: ui_dashboard_battery_voltage
+            x: 105
+            y: 154
+            width: 74
+            styles: style_value_label
+            text: "--.-- V"
+
+        - label:
+            x: 10
+            y: 189
+            width: 95
+            styles: style_desc_label
+            text: "Current"
+
+        - label:
+            id: ui_dashboard_battery_current
+            x: 105
+            y: 186
+            width: 74
+            styles: style_value_label
+            text: "--.- A"
+
+        - label:
+            x: 10
+            y: 221
+            width: 95
+            styles: style_desc_label
+            text: "Temperature"
+
+        - label:
+            id: ui_dashboard_battery_temperature
+            x: 105
+            y: 218
+            width: 74
+            styles: style_value_label
+            text: "--.- °C"
+
+        - label:
+            id: ui_dashboard_battery_state
+            align: TOP_MID
+            y: 270
+            width: 169
+            text_align: CENTER
+            text: "NO HA DATA"
+            text_font: montserrat_18
+            text_color: 0x8B96A0
