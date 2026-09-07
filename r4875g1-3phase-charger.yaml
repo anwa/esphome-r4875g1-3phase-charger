@@ -276,6 +276,7 @@ packages:
   version: !include packages/version.yaml
   core: !include packages/core.yaml
   hardware: !include packages/hardware.yaml
+  battery_bank: !include packages/battery-bank.yaml
   display: !include packages/display.yaml
 
   controls: !include packages/controls.yaml

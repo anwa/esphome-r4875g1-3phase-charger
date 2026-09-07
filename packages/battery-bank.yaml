@@ -1,0 +1,655 @@
+# ==============================================================================
+# SOLAR BATTERY BANK DATA
+# ==============================================================================
+#
+# Imports the aggregate solar-battery bank telemetry and the individual values
+# of four parallel battery units from Home Assistant through the native API.
+#
+# These values are monitoring-only. Charger control, safety limits and offline
+# operation must remain independent of Home Assistant availability.
+#
+# Home Assistant entity IDs are centralized in the substitutions below so an
+# installation can adapt the battery integration without modifying display or
+# runtime logic.
+# ==============================================================================
+
+substitutions:
+
+  # ---------------------------------------------------------------------------
+  # BATTERY BANK ENTITY MAPPING
+  # ---------------------------------------------------------------------------
+
+  battery_bank_voltage_entity: "sensor.solar_battery_bank_reported_bank_voltage"
+  battery_bank_current_entity: "sensor.solar_battery_bank_reported_bank_current"
+  battery_bank_power_entity: "sensor.solar_battery_bank_reported_bank_power"
+  battery_bank_soc_entity: "sensor.solar_battery_bank_reported_bank_state_of_charge"
+  battery_bank_temperature_entity: "sensor.solar_battery_bank_reported_bank_temperature"
+  battery_bank_state_entity: "sensor.solar_battery_bank_reported_bank_state"
+
+  # Set to 1.0 when the Home Assistant power entity reports kW.
+  # Use 0.001 when the source entity reports W.
+  battery_bank_power_scale_to_kw: "1.0"
+
+  # ---------------------------------------------------------------------------
+  # BATTERY 1 ENTITY MAPPING
+  # ---------------------------------------------------------------------------
+
+  battery_1_voltage_entity: "sensor.solar_battery_fs1_battery_voltage"
+  battery_1_current_entity: "sensor.solar_battery_fs1_battery_current"
+  battery_1_power_entity: "sensor.solar_battery_fs1_battery_power"
+  battery_1_soc_entity: "sensor.solar_battery_fs1_state_of_charge"
+  battery_1_temperature_entity: "sensor.solar_battery_fs1_battery_temperature"
+  battery_1_cell_drift_entity: "sensor.solar_battery_fs1_battery_cell_drift"
+  battery_1_warning_entity: "binary_sensor.solar_battery_fs1_battery_warning"
+  battery_1_fault_entity: "binary_sensor.solar_battery_fs1_battery_fault"
+
+  # ---------------------------------------------------------------------------
+  # BATTERY 2 ENTITY MAPPING
+  # ---------------------------------------------------------------------------
+
+  battery_2_voltage_entity: "sensor.solar_battery_fs2_battery_voltage"
+  battery_2_current_entity: "sensor.solar_battery_fs2_battery_current"
+  battery_2_power_entity: "sensor.solar_battery_fs2_battery_power"
+  battery_2_soc_entity: "sensor.solar_battery_fs2_state_of_charge"
+  battery_2_temperature_entity: "sensor.solar_battery_fs2_battery_temperature"
+  battery_2_cell_drift_entity: "sensor.solar_battery_fs2_battery_cell_drift"
+  battery_2_warning_entity: "binary_sensor.solar_battery_fs2_battery_warning"
+  battery_2_fault_entity: "binary_sensor.solar_battery_fs2_battery_fault"
+
+  # ---------------------------------------------------------------------------
+  # BATTERY 3 ENTITY MAPPING
+  # ---------------------------------------------------------------------------
+
+  battery_3_voltage_entity: "sensor.solar_battery_fs3_battery_voltage"
+  battery_3_current_entity: "sensor.solar_battery_fs3_battery_current"
+  battery_3_power_entity: "sensor.solar_battery_fs3_battery_power"
+  battery_3_soc_entity: "sensor.solar_battery_fs3_state_of_charge"
+  battery_3_temperature_entity: "sensor.solar_battery_fs3_battery_temperature"
+  battery_3_cell_drift_entity: "sensor.solar_battery_fs3_battery_cell_drift"
+  battery_3_warning_entity: "binary_sensor.solar_battery_fs3_battery_warning"
+  battery_3_fault_entity: "binary_sensor.solar_battery_fs3_battery_fault"
+
+  # ---------------------------------------------------------------------------
+  # BATTERY 4 ENTITY MAPPING
+  # ---------------------------------------------------------------------------
+
+  battery_4_voltage_entity: "sensor.solar_battery_fs4_battery_voltage"
+  battery_4_current_entity: "sensor.solar_battery_fs4_battery_current"
+  battery_4_power_entity: "sensor.solar_battery_fs4_battery_power"
+  battery_4_soc_entity: "sensor.solar_battery_fs4_state_of_charge"
+  battery_4_temperature_entity: "sensor.solar_battery_fs4_battery_temperature"
+  battery_4_cell_drift_entity: "sensor.solar_battery_fs4_battery_cell_drift"
+  battery_4_warning_entity: "binary_sensor.solar_battery_fs4_battery_warning"
+  battery_4_fault_entity: "binary_sensor.solar_battery_fs4_battery_fault"
+
+  # All four individual battery power entities are expected to use the same
+  # source unit. Set to 0.001 if Home Assistant reports these values in W.
+  battery_unit_power_scale_to_kw: "0.001"
+
+
+# ==============================================================================
+# NUMERIC BATTERY TELEMETRY
+# ==============================================================================
+
+sensor:
+
+  # ---------------------------------------------------------------------------
+  # BATTERY BANK
+  # ---------------------------------------------------------------------------
+
+  - platform: homeassistant
+    id: battery_bank_voltage
+    entity_id: ${battery_bank_voltage_entity}
+    internal: true
+    unit_of_measurement: "V"
+    accuracy_decimals: 2
+
+  - platform: homeassistant
+    id: battery_bank_current
+    entity_id: ${battery_bank_current_entity}
+    internal: true
+    unit_of_measurement: "A"
+    accuracy_decimals: 1
+
+  - platform: homeassistant
+    id: battery_bank_power
+    entity_id: ${battery_bank_power_entity}
+    internal: true
+    unit_of_measurement: "kW"
+    accuracy_decimals: 3
+    filters:
+      - multiply: ${battery_bank_power_scale_to_kw}
+
+  - platform: homeassistant
+    id: battery_bank_soc
+    entity_id: ${battery_bank_soc_entity}
+    internal: true
+    unit_of_measurement: "%"
+    accuracy_decimals: 1
+
+  - platform: homeassistant
+    id: battery_bank_temperature
+    entity_id: ${battery_bank_temperature_entity}
+    internal: true
+    unit_of_measurement: "°C"
+    accuracy_decimals: 1
+
+  # ---------------------------------------------------------------------------
+  # BATTERY 1
+  # ---------------------------------------------------------------------------
+
+  - platform: homeassistant
+    id: battery_1_voltage
+    entity_id: ${battery_1_voltage_entity}
+    internal: true
+    unit_of_measurement: "V"
+    accuracy_decimals: 2
+
+  - platform: homeassistant
+    id: battery_1_current
+    entity_id: ${battery_1_current_entity}
+    internal: true
+    unit_of_measurement: "A"
+    accuracy_decimals: 1
+
+  - platform: homeassistant
+    id: battery_1_power
+    entity_id: ${battery_1_power_entity}
+    internal: true
+    unit_of_measurement: "kW"
+    accuracy_decimals: 3
+    filters:
+      - multiply: ${battery_unit_power_scale_to_kw}
+
+  - platform: homeassistant
+    id: battery_1_soc
+    entity_id: ${battery_1_soc_entity}
+    internal: true
+    unit_of_measurement: "%"
+    accuracy_decimals: 1
+
+  - platform: homeassistant
+    id: battery_1_temperature
+    entity_id: ${battery_1_temperature_entity}
+    internal: true
+    unit_of_measurement: "°C"
+    accuracy_decimals: 1
+
+  - platform: homeassistant
+    id: battery_1_cell_drift
+    entity_id: ${battery_1_cell_drift_entity}
+    internal: true
+    unit_of_measurement: "mV"
+    accuracy_decimals: 1
+
+  # ---------------------------------------------------------------------------
+  # BATTERY 2
+  # ---------------------------------------------------------------------------
+
+  - platform: homeassistant
+    id: battery_2_voltage
+    entity_id: ${battery_2_voltage_entity}
+    internal: true
+    unit_of_measurement: "V"
+    accuracy_decimals: 2
+
+  - platform: homeassistant
+    id: battery_2_current
+    entity_id: ${battery_2_current_entity}
+    internal: true
+    unit_of_measurement: "A"
+    accuracy_decimals: 1
+
+  - platform: homeassistant
+    id: battery_2_power
+    entity_id: ${battery_2_power_entity}
+    internal: true
+    unit_of_measurement: "kW"
+    accuracy_decimals: 3
+    filters:
+      - multiply: ${battery_unit_power_scale_to_kw}
+
+  - platform: homeassistant
+    id: battery_2_soc
+    entity_id: ${battery_2_soc_entity}
+    internal: true
+    unit_of_measurement: "%"
+    accuracy_decimals: 1
+
+  - platform: homeassistant
+    id: battery_2_temperature
+    entity_id: ${battery_2_temperature_entity}
+    internal: true
+    unit_of_measurement: "°C"
+    accuracy_decimals: 1
+
+  - platform: homeassistant
+    id: battery_2_cell_drift
+    entity_id: ${battery_2_cell_drift_entity}
+    internal: true
+    unit_of_measurement: "mV"
+    accuracy_decimals: 1
+
+  # ---------------------------------------------------------------------------
+  # BATTERY 3
+  # ---------------------------------------------------------------------------
+
+  - platform: homeassistant
+    id: battery_3_voltage
+    entity_id: ${battery_3_voltage_entity}
+    internal: true
+    unit_of_measurement: "V"
+    accuracy_decimals: 2
+
+  - platform: homeassistant
+    id: battery_3_current
+    entity_id: ${battery_3_current_entity}
+    internal: true
+    unit_of_measurement: "A"
+    accuracy_decimals: 1
+
+  - platform: homeassistant
+    id: battery_3_power
+    entity_id: ${battery_3_power_entity}
+    internal: true
+    unit_of_measurement: "kW"
+    accuracy_decimals: 3
+    filters:
+      - multiply: ${battery_unit_power_scale_to_kw}
+
+  - platform: homeassistant
+    id: battery_3_soc
+    entity_id: ${battery_3_soc_entity}
+    internal: true
+    unit_of_measurement: "%"
+    accuracy_decimals: 1
+
+  - platform: homeassistant
+    id: battery_3_temperature
+    entity_id: ${battery_3_temperature_entity}
+    internal: true
+    unit_of_measurement: "°C"
+    accuracy_decimals: 1
+
+  - platform: homeassistant
+    id: battery_3_cell_drift
+    entity_id: ${battery_3_cell_drift_entity}
+    internal: true
+    unit_of_measurement: "mV"
+    accuracy_decimals: 1
+
+  # ---------------------------------------------------------------------------
+  # BATTERY 4
+  # ---------------------------------------------------------------------------
+
+  - platform: homeassistant
+    id: battery_4_voltage
+    entity_id: ${battery_4_voltage_entity}
+    internal: true
+    unit_of_measurement: "V"
+    accuracy_decimals: 2
+
+  - platform: homeassistant
+    id: battery_4_current
+    entity_id: ${battery_4_current_entity}
+    internal: true
+    unit_of_measurement: "A"
+    accuracy_decimals: 1
+
+  - platform: homeassistant
+    id: battery_4_power
+    entity_id: ${battery_4_power_entity}
+    internal: true
+    unit_of_measurement: "kW"
+    accuracy_decimals: 3
+    filters:
+      - multiply: ${battery_unit_power_scale_to_kw}
+
+  - platform: homeassistant
+    id: battery_4_soc
+    entity_id: ${battery_4_soc_entity}
+    internal: true
+    unit_of_measurement: "%"
+    accuracy_decimals: 1
+
+  - platform: homeassistant
+    id: battery_4_temperature
+    entity_id: ${battery_4_temperature_entity}
+    internal: true
+    unit_of_measurement: "°C"
+    accuracy_decimals: 1
+
+  - platform: homeassistant
+    id: battery_4_cell_drift
+    entity_id: ${battery_4_cell_drift_entity}
+    internal: true
+    unit_of_measurement: "mV"
+    accuracy_decimals: 1
+
+
+# ==============================================================================
+# TEXT BATTERY STATES
+# ==============================================================================
+#
+# Warning and fault entities are intentionally imported as text instead of
+# Home Assistant binary sensors. This preserves the raw "unavailable" state so
+# the display can distinguish a genuine OFF condition from missing HA data.
+# ==============================================================================
+
+text_sensor:
+
+  # ---------------------------------------------------------------------------
+  # BATTERY BANK
+  # ---------------------------------------------------------------------------
+
+  - platform: homeassistant
+    id: battery_bank_state
+    entity_id: ${battery_bank_state_entity}
+    internal: true
+
+  # ---------------------------------------------------------------------------
+  # BATTERY 1
+  # ---------------------------------------------------------------------------
+
+  - platform: homeassistant
+    id: battery_1_warning_state
+    entity_id: ${battery_1_warning_entity}
+    internal: true
+
+  - platform: homeassistant
+    id: battery_1_fault_state
+    entity_id: ${battery_1_fault_entity}
+    internal: true
+
+  # ---------------------------------------------------------------------------
+  # BATTERY 2
+  # ---------------------------------------------------------------------------
+
+  - platform: homeassistant
+    id: battery_2_warning_state
+    entity_id: ${battery_2_warning_entity}
+    internal: true
+
+  - platform: homeassistant
+    id: battery_2_fault_state
+    entity_id: ${battery_2_fault_entity}
+    internal: true
+
+  # ---------------------------------------------------------------------------
+  # BATTERY 3
+  # ---------------------------------------------------------------------------
+
+  - platform: homeassistant
+    id: battery_3_warning_state
+    entity_id: ${battery_3_warning_entity}
+    internal: true
+
+  - platform: homeassistant
+    id: battery_3_fault_state
+    entity_id: ${battery_3_fault_entity}
+    internal: true
+
+  # ---------------------------------------------------------------------------
+  # BATTERY 4
+  # ---------------------------------------------------------------------------
+
+  - platform: homeassistant
+    id: battery_4_warning_state
+    entity_id: ${battery_4_warning_entity}
+    internal: true
+
+  - platform: homeassistant
+    id: battery_4_fault_state
+    entity_id: ${battery_4_fault_entity}
+    internal: true
+
+
+# ==============================================================================
+# BATTERY DATA AVAILABILITY
+# ==============================================================================
+#
+# Native API connection state and source validity are kept separate from charger
+# control. These internal binary sensors exist only so display code has one
+# canonical way to decide whether HA battery telemetry is usable.
+# ==============================================================================
+
+binary_sensor:
+
+  # ---------------------------------------------------------------------------
+  # HOME ASSISTANT CONNECTION
+  # ---------------------------------------------------------------------------
+
+  - platform: template
+    id: battery_ha_connected
+    internal: true
+    condition:
+      api.connected:
+        state_subscription_only: true
+
+  # ---------------------------------------------------------------------------
+  # BATTERY BANK DATA
+  # ---------------------------------------------------------------------------
+
+  - platform: template
+    id: battery_bank_data_available
+    internal: true
+    lambda: |-
+      if (!id(battery_ha_connected).state) {
+        return false;
+      }
+
+      if (
+        !id(battery_bank_voltage).has_state() ||
+        !id(battery_bank_current).has_state() ||
+        !id(battery_bank_power).has_state() ||
+        !id(battery_bank_soc).has_state() ||
+        !id(battery_bank_temperature).has_state()
+      ) {
+        return false;
+      }
+
+      if (
+        isnan(id(battery_bank_voltage).state) ||
+        isnan(id(battery_bank_current).state) ||
+        isnan(id(battery_bank_power).state) ||
+        isnan(id(battery_bank_soc).state) ||
+        isnan(id(battery_bank_temperature).state)
+      ) {
+        return false;
+      }
+
+      if (!id(battery_bank_state).has_state()) {
+        return false;
+      }
+
+      const std::string state =
+        id(battery_bank_state).state;
+
+      return
+        !state.empty() &&
+        state != "unknown" &&
+        state != "unavailable";
+
+  # ---------------------------------------------------------------------------
+  # BATTERY 1 DATA
+  # ---------------------------------------------------------------------------
+
+  - platform: template
+    id: battery_1_data_available
+    internal: true
+    lambda: |-
+      if (!id(battery_ha_connected).state) {
+        return false;
+      }
+
+      if (
+        !id(battery_1_voltage).has_state() ||
+        !id(battery_1_current).has_state() ||
+        !id(battery_1_power).has_state() ||
+        !id(battery_1_soc).has_state() ||
+        !id(battery_1_temperature).has_state() ||
+        !id(battery_1_cell_drift).has_state() ||
+        !id(battery_1_warning_state).has_state() ||
+        !id(battery_1_fault_state).has_state()
+      ) {
+        return false;
+      }
+
+      if (
+        isnan(id(battery_1_voltage).state) ||
+        isnan(id(battery_1_current).state) ||
+        isnan(id(battery_1_power).state) ||
+        isnan(id(battery_1_soc).state) ||
+        isnan(id(battery_1_temperature).state) ||
+        isnan(id(battery_1_cell_drift).state)
+      ) {
+        return false;
+      }
+
+      const std::string warning =
+        id(battery_1_warning_state).state;
+
+      const std::string fault =
+        id(battery_1_fault_state).state;
+
+      return
+        (warning == "on" || warning == "off") &&
+        (fault == "on" || fault == "off");
+
+  # ---------------------------------------------------------------------------
+  # BATTERY 2 DATA
+  # ---------------------------------------------------------------------------
+
+  - platform: template
+    id: battery_2_data_available
+    internal: true
+    lambda: |-
+      if (!id(battery_ha_connected).state) {
+        return false;
+      }
+
+      if (
+        !id(battery_2_voltage).has_state() ||
+        !id(battery_2_current).has_state() ||
+        !id(battery_2_power).has_state() ||
+        !id(battery_2_soc).has_state() ||
+        !id(battery_2_temperature).has_state() ||
+        !id(battery_2_cell_drift).has_state() ||
+        !id(battery_2_warning_state).has_state() ||
+        !id(battery_2_fault_state).has_state()
+      ) {
+        return false;
+      }
+
+      if (
+        isnan(id(battery_2_voltage).state) ||
+        isnan(id(battery_2_current).state) ||
+        isnan(id(battery_2_power).state) ||
+        isnan(id(battery_2_soc).state) ||
+        isnan(id(battery_2_temperature).state) ||
+        isnan(id(battery_2_cell_drift).state)
+      ) {
+        return false;
+      }
+
+      const std::string warning =
+        id(battery_2_warning_state).state;
+
+      const std::string fault =
+        id(battery_2_fault_state).state;
+
+      return
+        (warning == "on" || warning == "off") &&
+        (fault == "on" || fault == "off");
+
+  # ---------------------------------------------------------------------------
+  # BATTERY 3 DATA
+  # ---------------------------------------------------------------------------
+
+  - platform: template
+    id: battery_3_data_available
+    internal: true
+    lambda: |-
+      if (!id(battery_ha_connected).state) {
+        return false;
+      }
+
+      if (
+        !id(battery_3_voltage).has_state() ||
+        !id(battery_3_current).has_state() ||
+        !id(battery_3_power).has_state() ||
+        !id(battery_3_soc).has_state() ||
+        !id(battery_3_temperature).has_state() ||
+        !id(battery_3_cell_drift).has_state() ||
+        !id(battery_3_warning_state).has_state() ||
+        !id(battery_3_fault_state).has_state()
+      ) {
+        return false;
+      }
+
+      if (
+        isnan(id(battery_3_voltage).state) ||
+        isnan(id(battery_3_current).state) ||
+        isnan(id(battery_3_power).state) ||
+        isnan(id(battery_3_soc).state) ||
+        isnan(id(battery_3_temperature).state) ||
+        isnan(id(battery_3_cell_drift).state)
+      ) {
+        return false;
+      }
+
+      const std::string warning =
+        id(battery_3_warning_state).state;
+
+      const std::string fault =
+        id(battery_3_fault_state).state;
+
+      return
+        (warning == "on" || warning == "off") &&
+        (fault == "on" || fault == "off");
+
+  # ---------------------------------------------------------------------------
+  # BATTERY 4 DATA
+  # ---------------------------------------------------------------------------
+
+  - platform: template
+    id: battery_4_data_available
+    internal: true
+    lambda: |-
+      if (!id(battery_ha_connected).state) {
+        return false;
+      }
+
+      if (
+        !id(battery_4_voltage).has_state() ||
+        !id(battery_4_current).has_state() ||
+        !id(battery_4_power).has_state() ||
+        !id(battery_4_soc).has_state() ||
+        !id(battery_4_temperature).has_state() ||
+        !id(battery_4_cell_drift).has_state() ||
+        !id(battery_4_warning_state).has_state() ||
+        !id(battery_4_fault_state).has_state()
+      ) {
+        return false;
+      }
+
+      if (
+        isnan(id(battery_4_voltage).state) ||
+        isnan(id(battery_4_current).state) ||
+        isnan(id(battery_4_power).state) ||
+        isnan(id(battery_4_soc).state) ||
+        isnan(id(battery_4_temperature).state) ||
+        isnan(id(battery_4_cell_drift).state)
+      ) {
+        return false;
+      }
+
+      const std::string warning =
+        id(battery_4_warning_state).state;
+
+      const std::string fault =
+        id(battery_4_fault_state).state;
+
+      return
+        (warning == "on" || warning == "off") &&
+        (fault == "on" || fault == "off");
