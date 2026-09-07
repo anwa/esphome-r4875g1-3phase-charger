@@ -49,13 +49,14 @@ flowchart LR
     CTRL --> LCD[7-inch 800×480 RGB LCD]
     TOUCH[GT911 touchscreen] --> CTRL
 
-    CTRL <--> I2C[TCA9548A I2C expansion]
-    I2C --> MCP[MCP23017]
-    I2C --> AHT[AHT10]
-    I2C --> EMC[EMC2101]
-
     ENC[Backup rotary encoder inputs] --> MCP
+    CTRL <--> EXT_I2C[External I2C bus]
+    EXT_I2C --> MCP[MCP23017]
+    EXT_I2C --> EMC[EMC2101]
+    EXT_I2C --> AHT[AHT10]
+
     EMC --> FANS[External chassis fans]
+    MCP --> FANS
 
     CTRL <--> HA[Home Assistant]
     CTRL <--> MQTT[MQTT]
@@ -71,7 +72,7 @@ The V5 firmware keeps charger-control, hardware, per-unit rectifier state and di
 |---|---|
 | `r4875g1-3phase-charger.yaml` | substitutions, unit instances, identity, boot sequence and aggregate entities |
 | `packages/core.yaml` | ESP32, network, API, MQTT, web, OTA and time services |
-| `packages/hardware.yaml` | controller buses, TCA9548A, MCP23017, touch, CAN, backup encoder inputs and controller battery |
+| `packages/hardware.yaml` | onboard and external I2C buses, MCP23017, touch, CAN, backup encoder inputs and controller battery |
 | `packages/controls.yaml` | charger-wide controls and setpoints |
 | `packages/cooling.yaml` | external chassis-fan control, EMC2101 and RPM monitoring |
 | `packages/battery-bank.yaml` | Home Assistant solar-battery telemetry import and availability state |

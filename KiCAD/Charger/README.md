@@ -53,7 +53,7 @@ Important architectural differences include:
 | Fan 1 / Fan 2 tachometer | Direct ESP32 GPIOs | MCP23017 |
 | Fan 3 tachometer | Direct ESP32 GPIO | EMC2101 |
 | External fan PWM | ESP32 PWM | EMC2101 |
-| External I2C expansion | None | TCA9548A |
+| External I2C bus | Shared main bus | Dedicated second ESP32 I2C bus |
 
 The V5 hardware architecture is documented in the repository root `README.md` and `packages/README.md`.
 

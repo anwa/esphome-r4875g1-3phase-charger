@@ -97,34 +97,30 @@ GPIO9  -> SCL
 400 kHz
 ```
 
-External devices are separated through a TCA9548A multiplexer:
+External I2C peripherals use a dedicated second physical I2C bus. This isolates their addresses from the Waveshare onboard CH422G and allows the onboard display/touch bus to remain at 400 kHz.
 
 ```text
-Shared I2C
+ESP32-S3
 │
-└── TCA9548A @ 0x70
-    │
-    ├── Channel 0
-    │   └── MCP23017 @ 0x20
-    │       ├── GPA0 -> Rotary encoder A
-    │       ├── GPA1 -> Rotary encoder B
-    │       ├── GPA2 -> Rotary encoder button
-    │       ├── GPA3 -> External fan supply enable
-    │       ├── GPA4 -> Cooling Fan 1 tachometer
-    │       └── GPA5 -> Cooling Fan 2 tachometer
-    │
-    ├── Channel 1
-    │   └── AHT10 @ 0x38
-    │       ├── Rectifier-compartment temperature
-    │       └── Rectifier-compartment humidity
-    │
-    └── Channel 2
-        └── EMC2101 @ 0x4C
-            ├── Common external fan PWM
-            └── Cooling Fan 3 tachometer
+├── Onboard I2C — GPIO8 / GPIO9 — 400 kHz
+│   ├── CH422G
+│   └── GT911 touchscreen
+│
+└── External I2C — GPIO44 / GPIO43
+    ├── MCP23017 @ 0x20
+    │   ├── backup rotary encoder
+    │   ├── external fan power enable
+    │   ├── Cooling Fan 1 tachometer
+    │   └── Cooling Fan 2 tachometer
+    ├── AHT10 @ 0x38
+    │   ├── rectifier-compartment temperature
+    │   └── rectifier-compartment humidity
+    └── EMC2101 @ 0x4C
+        ├── external fan PWM
+        └── Cooling Fan 3 tachometer
 ```
 
-Unused TCA9548A channels and MCP23017 pins remain available for future expansion.
+Unused MCP23017 pins remain available for future expansion.
 
 ---
 

@@ -6,8 +6,8 @@
 # driver itself.
 #
 # Included hardware:
-#   - shared I2C bus
-#   - TCA9548A I2C multiplexer
+#   - onboard I2C bus
+#   - dedicated external I2C bus
 #   - MCP23017 external I/O expander
 #   - EMC2101 external fan controller
 #   - rotary encoder inputs
@@ -19,7 +19,15 @@
 # ==============================================================================
 
 # ==============================================================================
-# SHARED I2C BUS
+# I2C BUSES
+# ==============================================================================
+#
+# The Waveshare onboard peripherals remain on the original GPIO8/GPIO9 bus.
+# This bus must operate at 400 kHz for reliable display/touch operation.
+#
+# External I2C peripherals use a separate physical bus. This prevents address
+# collisions with the onboard CH422G, whose register addresses overlap with
+# devices such as the MCP23017 at 0x20 and AHT10 at 0x38.
 # ==============================================================================
 
 i2c:
@@ -29,40 +37,17 @@ i2c:
     scan: true
     frequency: 400kHz
 
-# ==============================================================================
-# EXTERNAL I2C MULTIPLEXER
-# ==============================================================================
-#
-# TCA9548A on the shared onboard I2C bus.
-#
-# Channel allocation:
-#   CH0 -> MCP23017 external I/O expander
-#   CH1 -> AHT10 rectifier compartment temperature/humidity
-#   CH2 -> EMC2101 external fan controller
-#
-# Remaining channels are reserved for future external I2C devices.
-# ==============================================================================
-
-tca9548a:
-  - id: external_i2c_mux
-    i2c_id: i2c_bus
-    address: 0x70
-
-    channels:
-      - bus_id: external_i2c_ch0
-        channel: 0
-
-      - bus_id: external_i2c_ch1
-        channel: 1
-
-      - bus_id: external_i2c_ch2
-        channel: 2
+  - id: external_i2c_bus
+    sda: ${pin_external_i2c_sda}
+    scl: ${pin_external_i2c_scl}
+    scan: true
+    frequency: 100kHz
 
 # ==============================================================================
 # EXTERNAL I/O EXPANDER
 # ==============================================================================
 #
-# MCP23017 on TCA9548A channel 0.
+# MCP23017 on the dedicated external I2C bus.
 #
 # Pin allocation:
 #   GPA0 / pin 0 -> rotary encoder A
@@ -77,14 +62,15 @@ tca9548a:
 
 mcp23017:
   - id: external_io_expander
-    i2c_id: external_i2c_ch0
+    i2c_id: external_i2c_bus
     address: 0x20
 
 # ==============================================================================
 # BACKUP ROTARY ENCODER INPUTS
 # ==============================================================================
 #
-# Mechanical rotary encoder connected to the MCP23017 on TCA9548A channel 0.
+# Mechanical rotary encoder connected through the MCP23017 on the dedicated
+# external I2C bus.
 #
 # Pin allocation:
 #   GPA0 / pin 0 -> Encoder A
