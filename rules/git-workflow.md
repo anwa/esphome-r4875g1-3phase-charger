@@ -6,13 +6,23 @@ The goals are readable history, safe experimentation and preservation of useful 
 
 ## Long-Lived Branches
 
-`main` contains the current V5 firmware.
+`v5-maintenance` contains the maintained V5 firmware generation.
 
-`v4-maintenance` is a long-lived maintenance branch for the V4 hardware variant.
+`v4-maintenance` contains the maintained V4 firmware generation.
 
-V4 remains separate because it targets different hardware.
+`main` contains the current primary development line and may advance to newer firmware generations independently from the maintenance branches.
 
-Relevant shared fixes, especially CAN protocol fixes, MAY be backported from V5 to `v4-maintenance` when appropriate.
+Maintenance branches preserve older firmware generations so fixes can be made without importing unrelated architectural changes from newer generations.
+
+When working on `v5-maintenance`, the V5 branch is the source of truth for the V5 implementation.
+
+Changes intended for V5 MUST be developed from an appropriate current `v5-maintenance` base and merged back into `v5-maintenance`, not into `main`.
+
+Relevant fixes made on V5 SHOULD be evaluated for the current primary generation and other maintained generations when the affected subsystem is shared.
+
+Likewise, fixes made on newer generations SHOULD be evaluated for V5 when the underlying defect also exists there.
+
+Fixes MUST NOT be mechanically copied between generations when hardware, ownership, APIs or architecture differ.
 
 ## Feature and Refactor Branches
 
@@ -35,6 +45,22 @@ refactor/v5-code-cleanup
 fix/can-recovery
 docs/readme-refresh
 ```
+
+## Maintenance Development Branches
+
+Meaningful V5 maintenance work SHOULD use a dedicated branch created from `v5-maintenance`.
+
+Examples:
+
+```text
+fix/v5-can-recovery
+fix/v5-display-state
+docs/v5-maintenance-rules
+```
+
+A V5 maintenance branch SHOULD be merged back into `v5-maintenance` after validation.
+
+Do not base V5 maintenance work on `main` merely because a newer implementation of the same subsystem exists there.
 
 ## Branch Lifetime
 
@@ -101,16 +127,19 @@ Intermediate commits are valuable when they represent:
 
 ## Merging
 
-Before merging a development branch into `main`:
+Before merging a V5 maintenance branch into `v5-maintenance`:
 
-1. ensure the branch is based on an appropriate current `main`
-2. verify intended changes
-3. compile the final firmware when firmware is affected
-4. perform appropriate hardware/runtime testing
-5. confirm the firmware version
-6. update required documentation
+1. ensure the branch is based on an appropriate current `v5-maintenance`
+2. verify the intended V5 changes
+3. compile the final V5 firmware when firmware is affected
+4. perform appropriate V5 hardware/runtime testing
+5. confirm the V5 firmware version
+6. update required V5 documentation
+7. evaluate whether the same defect or improvement affects the current primary generation or another maintained generation
 
-A non-fast-forward merge MAY be used when preserving the identity of a feature branch is useful.
+Forward-port and backport work SHOULD normally be performed as separate commits or branches so generation-specific changes remain reviewable.
+
+A non-fast-forward merge MAY be used when preserving the identity of a maintenance branch is useful.
 
 Pull-request titles, descriptions and repository-facing review summaries MUST be written in English.
 
