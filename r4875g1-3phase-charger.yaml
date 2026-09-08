@@ -271,14 +271,17 @@ substitutions:
 # FIRMWARE PACKAGE ASSEMBLY
 # ==============================================================================
 #
-# Assembles the shared controller packages and instantiates the parameterized
-# rectifier package once for each of the three charger units.
+# Composes shared board hardware, Charger Controller hardware and the charger
+# runtime packages, then instantiates one rectifier package per charger unit.
 # ==============================================================================
 
 packages:
   version: !include packages/version.yaml
   core: !include packages/core.yaml
-  hardware: !include packages/hardware.yaml
+
+  shared_hardware: !include packages/shared/hardware.yaml
+  controller_hardware: !include packages/controller/hardware.yaml
+
   battery_bank: !include packages/battery-bank.yaml
   cooling: !include packages/cooling.yaml
   display: !include packages/display.yaml

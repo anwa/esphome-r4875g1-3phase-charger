@@ -1,0 +1,151 @@
+# ==============================================================================
+# CHARGER CONTROLLER HARDWARE
+# ==============================================================================
+#
+# Defines hardware that exists only on the Charger Controller target.
+#
+# Charger-side hardware:
+#   - dedicated external I2C bus
+#   - MCP23017 external I/O expander
+#   - backup rotary encoder inputs
+#   - USB/CAN routing selection
+#   - ESP32-S3 CAN controller
+#
+# Target-neutral Waveshare board hardware is owned by shared/hardware.yaml.
+# ==============================================================================
+
+# ==============================================================================
+# EXTERNAL I2C BUS
+# ==============================================================================
+#
+# Charger-side external peripherals use a dedicated physical bus so their
+# addresses remain isolated from the onboard CH422G.
+# ==============================================================================
+
+i2c:
+  - id: external_i2c_bus
+    sda: ${pin_external_i2c_sda}
+    scl: ${pin_external_i2c_scl}
+    scan: true
+    frequency: 100kHz
+
+# ==============================================================================
+# EXTERNAL I/O EXPANDER
+# ==============================================================================
+#
+# MCP23017 on the dedicated charger-side external I2C bus.
+#
+# Pin allocation:
+#   GPA0 / pin 0 -> rotary encoder A
+#   GPA1 / pin 1 -> rotary encoder B
+#   GPA2 / pin 2 -> rotary encoder button
+#   GPA3 / pin 3 -> external cooling-fan enable
+#   GPA4 / pin 4 -> cooling fan 1 tachometer
+#   GPA5 / pin 5 -> cooling fan 2 tachometer
+#
+# MCP23017 interrupt operation is not used.
+# ==============================================================================
+
+mcp23017:
+  - id: external_io_expander
+    i2c_id: external_i2c_bus
+    address: 0x20
+
+# ==============================================================================
+# BACKUP ROTARY ENCODER INPUTS
+# ==============================================================================
+#
+# Mechanical rotary encoder connected through the MCP23017 on the dedicated
+# external I2C bus.
+#
+# Pin allocation:
+#   GPA0 / pin 0 -> Encoder A
+#   GPA1 / pin 1 -> Encoder B
+#   GPA2 / pin 2 -> Encoder push button
+#
+# All inputs use the MCP23017 internal pull-ups. The mechanical encoder
+# therefore switches the inputs to GND.
+#
+# GPIO6 is dedicated to controller battery voltage measurement.
+# ==============================================================================
+
+binary_sensor:
+  - platform: gpio
+    id: backup_encoder_a
+    internal: true
+
+    pin:
+      mcp23xxx: external_io_expander
+      number: ${mcp_encoder_a_pin}
+      mode:
+        input: true
+        pullup: true
+      inverted: true
+
+
+  - platform: gpio
+    id: backup_encoder_b
+    internal: true
+
+    pin:
+      mcp23xxx: external_io_expander
+      number: ${mcp_encoder_b_pin}
+      mode:
+        input: true
+        pullup: true
+      inverted: true
+
+
+  - platform: gpio
+    id: backup_encoder_button
+    internal: true
+
+    pin:
+      mcp23xxx: external_io_expander
+      number: ${mcp_encoder_button_pin}
+      mode:
+        input: true
+        pullup: true
+      inverted: true
+
+    filters:
+      - delayed_on_off: 20ms
+
+
+# ==============================================================================
+# USB / CAN MODE SELECTION
+# ==============================================================================
+#
+# CH422G EXIO5 selects the onboard transceiver routing required for CAN mode.
+# ==============================================================================
+
+switch:
+  - platform: gpio
+    id: can_mode_select
+    internal: true
+    restore_mode: ALWAYS_ON
+
+    pin:
+      ch422g: io_expander
+      number: 5
+      mode:
+        output: true
+
+# ==============================================================================
+# CAN BUS
+# ==============================================================================
+#
+# ESP32-S3 TWAI controller connected to the onboard CAN transceiver.
+#
+# Huawei R4875G1 communication uses extended 29-bit frames at 125 kbit/s.
+# ==============================================================================
+
+canbus:
+  - platform: esp32_can
+    id: charger_can
+    tx_pin: ${pin_can_tx}
+    rx_pin: ${pin_can_rx}
+    bit_rate: 125kbps
+    can_id: 0xE5F32E5
+    use_extended_id: true
+    rx_queue_len: ${can_rx_queue_len}

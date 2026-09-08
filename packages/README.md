@@ -31,9 +31,17 @@ The firmware version is intentionally not duplicated here.
 
 ```text
 packages/
+packages/
 ├── version.yaml
 ├── core.yaml
-├── hardware.yaml
+│
+├── shared/
+│   └── hardware.yaml
+│
+├── controller/
+│   └── hardware.yaml
+│
+├── controls.yaml
 ├── controls.yaml
 ├── cooling.yaml
 ├── battery-bank.yaml
@@ -87,8 +95,11 @@ The main ownership boundaries are:
 core.yaml
     controller-wide ESPHome infrastructure
 
-hardware.yaml
-    physical controller buses and peripherals
+shared/hardware.yaml
+    target-neutral Waveshare board peripherals
+
+controller/hardware.yaml
+    Charger Controller buses and charger-side peripherals
 
 controls.yaml
     charger-wide user setpoints and controls
@@ -158,23 +169,32 @@ Hardware-specific charger logic does not belong in this package.
 
 ---
 
-## `hardware.yaml`
+## `shared/hardware.yaml`
 
-Owns the physical V5 controller hardware that is shared across multiple functional packages.
-
-The current controller target is the Waveshare ESP32-S3-Touch-LCD-7.
+Owns physical Waveshare ESP32-S3-Touch-LCD-7 hardware that is independent of the charger-side backend.
 
 Responsibilities include:
 
 - onboard I2C bus
-- dedicated external I2C bus
-- MCP23017 external I/O expander
 - GT911 touchscreen
 - CH422G onboard I/O expander
+- controller backup-battery ADC and SOC estimate
+
+This package contains board hardware that can be reused by multiple firmware targets without requiring charger-side peripherals.
+
+---
+
+## `controller/hardware.yaml`
+
+Owns physical hardware that exists only on the Charger Controller.
+
+Responsibilities include:
+
+- dedicated charger-side external I2C bus
+- MCP23017 external I/O expander
+- backup rotary-encoder inputs
 - USB/CAN routing selection
 - ESP32-S3 TWAI / onboard CAN interface
-- backup rotary-encoder inputs
-- controller backup-battery ADC and SOC estimate
 
 ### I2C Topology
 
@@ -197,7 +217,7 @@ ESP32-S3
     └── EMC2101 @ 0x4C
 ```
 
-The physical I2C buses and MCP23017 are configured in `hardware.yaml`. The AHT10 sensor is configured in the root `r4875g1-3phase-charger.yaml`, while the EMC2101 fan controller is configured in `cooling.yaml`.
+The onboard I2C bus is configured in `shared/hardware.yaml`. The charger-side external I2C bus and MCP23017 are configured in `controller/hardware.yaml`. The AHT10 sensor remains configured in the root `r4875g1-3phase-charger.yaml`, while the EMC2101 fan controller is configured in `cooling.yaml`.
 
 ### MCP23017 Allocation
 
