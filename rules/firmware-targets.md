@@ -184,7 +184,7 @@ At minimum:
 
 A target-specific change MUST validate and compile the affected target.
 
-Before a V6 release or merge that changes shared target contracts, both targets MUST compile successfully.
+Once both V6 targets are buildable, a merge that changes shared target contracts MUST validate and compile both targets successfully.
 
 ## V6 Bootstrap and Staged Migration
 
