@@ -46,7 +46,9 @@ The Remote HMI is a convenience interface and MUST NOT be treated as an independ
 
 ## Shared HMI Architecture
 
-The Charger Controller and Remote HMI SHOULD use the same LVGL presentation implementation wherever their user-visible behavior is intended to match.
+The Charger Controller and Remote HMI MUST use the same shared LVGL presentation implementation for screens whose user-visible behavior is intended to match.
+
+Target-specific differences MUST be isolated behind target-specific backends, composition or explicitly target-specific UI fragments rather than by copying shared page files.
 
 Shared HMI code includes, where practical:
 
@@ -171,7 +173,7 @@ Hardware physically shared by both target devices MAY remain in common packages 
 
 ## Validation
 
-A change to shared V6 UI, shared UI-model code or other shared runtime behavior MUST validate both V6 firmware targets.
+Once both V6 targets are buildable, a change to shared V6 UI, shared UI-model code or other shared runtime behavior MUST validate both V6 firmware targets.
 
 At minimum:
 
@@ -183,6 +185,25 @@ At minimum:
 A target-specific change MUST validate and compile the affected target.
 
 Before a V6 release or merge that changes shared target contracts, both targets MUST compile successfully.
+
+## V6 Bootstrap and Staged Migration
+
+The initial V6 architecture migration MAY use intermediate development checkpoints in which the Remote HMI target is not yet fully buildable.
+
+This exception exists to preserve small, testable and reversible migration steps while the existing Charger Controller is moved behind the shared UI-model boundary and the Remote HMI backend is being introduced.
+
+A bootstrap checkpoint:
+
+- MUST remain on the V6 development branch
+- MUST preserve a working and testable Charger Controller when the changed checkpoint affects it
+- SHOULD identify the temporary target limitation in the commit message or development plan
+- MUST continue toward a buildable dual-target architecture
+- MUST NOT be treated as a complete V6 release state
+- MUST NOT replace the primary generation on `main` while either V6 target is incomplete
+
+Once both V6 root targets are buildable and consume production shared UI code, changes to shared UI, the shared UI model or shared target contracts MUST validate and compile both targets.
+
+Before V6 replaces the primary firmware generation on `main`, both the Charger Controller and Remote HMI targets MUST validate and compile successfully, and appropriate runtime testing MUST have been completed for the affected behavior.
 
 ## Cross-Target Compatibility
 
