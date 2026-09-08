@@ -12,9 +12,15 @@ lvgl:
         bg_color: 0x3A4652
 
       disabled:
-        bg_color: 0x30343A
-        border_color: 0x44484E
-        text_color: 0x777C82
+        # Keep disabled buttons visually muted without the additional LVGL
+        # default-theme filter brightening the configured colors.
+        bg_color: 0x161B20
+        bg_opa: COVER
+        border_color: 0x2C353D
+        border_opa: COVER
+        text_color: 0x68727B
+        color_filter_opa: TRANSP
+        recolor_opa: TRANSP
 
     spinbox:
       cursor:
