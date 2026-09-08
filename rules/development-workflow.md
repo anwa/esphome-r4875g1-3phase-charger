@@ -60,6 +60,32 @@ Do not assume that an earlier architecture or file location is still current.
 
 For repository work, the current branch is the source of truth.
 
+## Maintenance Generation Awareness
+
+When working on a maintenance branch, that branch remains the source of truth for its firmware generation.
+
+Do not replace a maintenance implementation with code from a newer generation merely because the newer implementation appears cleaner or more current.
+
+For every meaningful bug fix or compatibility improvement on V5, evaluate whether the same underlying issue also affects:
+
+- the current primary firmware generation
+- other maintained firmware generations
+
+This evaluation does not require identical code changes across generations.
+
+Forward ports and backports MUST respect generation-specific:
+
+- hardware
+- package ownership
+- entity contracts
+- control flow
+- safety behavior
+- user-interface architecture
+
+A maintenance fix SHOULD remain narrowly scoped unless a larger V5-specific refactor is required for correctness or maintainability.
+
+New-generation architectural work SHOULD NOT be introduced into V5 solely to keep V5 structurally identical to the current primary generation.
+
 ## Reuse Existing Architecture
 
 Prefer existing project abstractions and patterns over introducing parallel implementations.
@@ -135,6 +161,10 @@ After a meaningful structural change:
 6. observe runtime stability when appropriate
 
 A successful compile does not prove runtime correctness.
+
+For V5 maintenance work, validation is performed against the V5 firmware and hardware.
+
+Testing a newer firmware generation does not substitute for validating the V5 implementation when V5 behavior changes.
 
 ## Runtime Stability
 
