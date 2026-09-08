@@ -4,7 +4,8 @@ param(
     [int]$Port = 80,
     [string]$Username = "",
     [string]$OutputDirectory = "",
-    [switch]$KeepAnsi
+    [switch]$KeepAnsi,
+    [switch]$NoStates
 )
 
 Set-StrictMode -Version Latest
@@ -56,6 +57,9 @@ try {
 
     Write-Host "Source : $EventsUrl"
     Write-Host "Output : $LogFile"
+    if ($NoStates) {
+        Write-Host "Filter : ESPHome entity state updates ([S]) suppressed"
+    }
     Write-Host ""
     Write-Host "Capturing live ESPHome log. Press Ctrl+C to stop." -ForegroundColor Cyan
     Write-Host "Each saved line receives the Windows receive timestamp for CAN correlation." -ForegroundColor DarkGray
@@ -80,9 +84,27 @@ try {
             }
             if ($EventType -eq "log" -and $Line.StartsWith("data:")) {
                 $LogLine = $Line.Substring(5)
-                if ($LogLine.StartsWith(" ")) { $LogLine = $LogLine.Substring(1) }
-                if (-not $KeepAnsi) { $LogLine = Remove-Ansi $LogLine }
-
+                if ($LogLine.StartsWith(" ")) {
+                    $LogLine = $LogLine.Substring(1)
+                }
+            
+                # Always create an ANSI-free copy for filtering. This keeps state
+                # suppression reliable even when the saved log retains ANSI sequences.
+                $FilterLine = Remove-Ansi $LogLine
+            
+                # ESPHome entity state updates use the [S] severity marker. These updates
+                # are useful for normal monitoring but can overwhelm focused diagnostics.
+                if (
+                    $NoStates -and
+                    $FilterLine -match '^\s*\[[^\]]+\]\[S\]\['
+                ) {
+                    return
+                }
+            
+                if (-not $KeepAnsi) {
+                    $LogLine = $FilterLine
+                }
+            
                 # Wall-clock receive time enables practical correlation with the
                 # Waveshare USB-CAN autosave timestamps. Millisecond resolution is
                 # sufficient; normal network/processing latency remains visible.

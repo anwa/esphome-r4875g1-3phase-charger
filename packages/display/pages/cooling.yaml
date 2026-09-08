@@ -144,6 +144,8 @@ widgets:
             y: 205
             width: 110
             styles: style_dialog_button
+            state:
+              disabled: true
 
             widgets:
               - label:
@@ -160,6 +162,8 @@ widgets:
             y: 205
             width: 110
             styles: style_dialog_button
+            state:
+              disabled: true
 
             widgets:
               - label:
@@ -260,6 +264,8 @@ widgets:
             y: 205
             width: 110
             styles: style_dialog_button
+            state:
+              disabled: true
 
             widgets:
               - label:
@@ -276,6 +282,8 @@ widgets:
             y: 205
             width: 110
             styles: style_dialog_button
+            state:
+              disabled: true
 
             widgets:
               - label:
@@ -376,6 +384,8 @@ widgets:
             y: 205
             width: 110
             styles: style_dialog_button
+            state:
+              disabled: true
 
             widgets:
               - label:
@@ -392,6 +402,8 @@ widgets:
             y: 205
             width: 110
             styles: style_dialog_button
+            state:
+              disabled: true
 
             widgets:
               - label:
