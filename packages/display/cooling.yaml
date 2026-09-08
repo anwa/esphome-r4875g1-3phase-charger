@@ -155,7 +155,8 @@ interval:
                     return
                       id(can_com_ok_1).state &&
                       id(rectifier_control_state_1) ==
-                        ${rectifier_state_online};
+                        ${rectifier_state_online} &&
+                      id(power_state_1).state == "ON";
 
                 then:
                   - lvgl.widget.enable:
@@ -272,7 +273,8 @@ interval:
                     return
                       id(can_com_ok_2).state &&
                       id(rectifier_control_state_2) ==
-                        ${rectifier_state_online};
+                        ${rectifier_state_online} &&
+                      id(power_state_2).state == "ON";
 
                 then:
                   - lvgl.widget.enable:
@@ -389,7 +391,8 @@ interval:
                     return
                       id(can_com_ok_3).state &&
                       id(rectifier_control_state_3) ==
-                        ${rectifier_state_online};
+                        ${rectifier_state_online} &&
+                      id(power_state_3).state == "ON";
 
                 then:
                   - lvgl.widget.enable:
