@@ -46,8 +46,7 @@ packages/
 │
 ├── remote-hmi/
 │   └── bootstrap-ui.yaml
-|
-├── controls.yaml
+│
 ├── controls.yaml
 ├── cooling.yaml
 ├── battery-bank.yaml
@@ -110,6 +109,9 @@ controller/hardware.yaml
 controller/mqtt.yaml
     Charger Controller MQTT transport
 
+remote-hmi/bootstrap-ui.yaml
+    temporary Remote HMI hardware-validation UI
+
 controls.yaml
     charger-wide user setpoints and controls
 
@@ -137,9 +139,6 @@ display/pages/*.yaml
 display/*.yaml
     persistent and page-specific display runtime
 ```
-remote-hmi/bootstrap-ui.yaml
-    temporary Remote HMI hardware-validation UI
-
 A package SHOULD own one coherent responsibility and SHOULD NOT duplicate runtime state or hardware definitions owned elsewhere.
 
 ---
