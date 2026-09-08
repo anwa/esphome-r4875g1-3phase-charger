@@ -113,6 +113,7 @@ substitutions:
   # ---------------------------------------------------------------------------
 
   mqtt_command_prefix: "HG/DG/Technik/Charger"
+  fallback_ap_ssid: "Charger Fallback Hotspot"
 
   # ---------------------------------------------------------------------------
   # V5 ACTIVE GPIO MAP
@@ -277,10 +278,12 @@ substitutions:
 
 packages:
   version: !include packages/version.yaml
-  core: !include packages/core.yaml
 
+  shared_core: !include packages/shared/core.yaml
   shared_hardware: !include packages/shared/hardware.yaml
+
   controller_hardware: !include packages/controller/hardware.yaml
+  controller_mqtt: !include packages/controller/mqtt.yaml
 
   battery_bank: !include packages/battery-bank.yaml
   cooling: !include packages/cooling.yaml

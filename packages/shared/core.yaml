@@ -1,12 +1,23 @@
 # ==============================================================================
-# CORE PLATFORM AND NETWORK PACKAGE
+# SHARED ESP32-S3 PLATFORM AND NETWORK PACKAGE
 # ==============================================================================
 #
-# Defines the ESP32-S3 platform, memory configuration and all controller-wide
-# network services.
+# Defines platform, memory and network services shared by the Charger Controller
+# and Remote HMI targets.
 #
-# Core charger operation is intentionally independent of Wi-Fi, MQTT and
-# Home Assistant so the controller remains usable during offline blackstart.
+# Shared services:
+#   - ESP32-S3 and PSRAM configuration
+#   - logging
+#   - local ESPHome web server
+#   - Home Assistant native API
+#   - OTA
+#   - Wi-Fi and fallback access point
+#   - captive portal
+#   - SNTP time synchronization
+#   - ESPHome runtime diagnostics
+#
+# Target-specific transports such as Charger Controller MQTT are owned by their
+# corresponding target packages.
 # ==============================================================================
 
 esp32:
@@ -65,8 +76,7 @@ psram:
 # LOGGING
 # ==============================================================================
 #
-# Debug logging is enabled for charger diagnostics, CAN troubleshooting and
-# controller runtime analysis.
+# Debug logging is enabled for firmware, hardware and runtime diagnostics.
 # ==============================================================================
 
 logger:
@@ -76,8 +86,8 @@ logger:
 # LOCAL ESPHOME WEB SERVER
 # ==============================================================================
 #
-# Provides direct browser access to charger entities and controls whenever
-# local IP networking is available.
+# Provides direct browser access to the target's exposed entities and controls
+# whenever local IP networking is available.
 #
 # All web assets are stored locally so the interface does not depend on
 # internet access.
@@ -111,8 +121,7 @@ web_server:
 #
 # Provides the encrypted native ESPHome integration for Home Assistant.
 #
-# reboot_timeout is deliberately disabled because loss of Home Assistant must
-# never restart or disable an otherwise operational charger.
+# Network loss must not cause either target to reboot automatically.
 # ==============================================================================
 
 api:
@@ -136,9 +145,9 @@ ota:
 #
 # Wi-Fi credentials are provided through secrets.yaml.
 #
-# Power saving and automatic reboot on connection loss are disabled to keep
-# controller networking responsive without making charger operation dependent
-# on infrastructure Wi-Fi.
+# Power saving and automatic reboot on connection loss are disabled because
+# both targets are permanently powered and should remain locally stable when
+# infrastructure Wi-Fi is unavailable.
 # ==============================================================================
 
 wifi:
@@ -153,7 +162,7 @@ wifi:
   reboot_timeout: 0s
 
   ap:
-    ssid: Charger Fallback Hotspot
+    ssid: ${fallback_ap_ssid}
     password: !secret fallback_ap_password
 
 # ==============================================================================
@@ -170,8 +179,8 @@ captive_portal:
 # TIME SYNCHRONIZATION
 # ==============================================================================
 #
-# SNTP provides Europe/Berlin local time for the persistent display header and
-# any time-dependent controller functions.
+# SNTP provides Europe/Berlin local time for shared HMI presentation and other
+# time-dependent target functions.
 #
 # Header rendering is handled separately by display/header.yaml.
 # ==============================================================================
@@ -211,30 +220,3 @@ time:
 
 debug:
   update_interval: 5s
-
-# ==============================================================================
-# MQTT CLIENT
-# ==============================================================================
-#
-# Provides additional command and state transport alongside the native ESPHome
-# API.
-#
-# MQTT discovery is disabled because Home Assistant uses the native ESPHome API
-# as the canonical integration. Broker availability must never affect local
-# charger operation.
-# ==============================================================================
-
-mqtt:
-  id: mqtt_client
-  broker: !secret mqtt_host
-  username: !secret mqtt_username
-  password: !secret mqtt_password
-
-  # Home Assistant uses the native ESPHome API as the canonical integration.
-  # Keep MQTT available for external command/state transport without creating
-  # duplicate MQTT-discovered entities in Home Assistant.
-  discovery: false
-  discover_ip: true
-
-  # MQTT availability must never affect local charger operation.
-  reboot_timeout: 0s

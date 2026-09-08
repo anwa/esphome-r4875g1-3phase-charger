@@ -31,15 +31,15 @@ The firmware version is intentionally not duplicated here.
 
 ```text
 packages/
-packages/
 ├── version.yaml
-├── core.yaml
 │
 ├── shared/
+│   ├── core.yaml
 │   └── hardware.yaml
 │
 ├── controller/
-│   └── hardware.yaml
+│   ├── hardware.yaml
+│   └── mqtt.yaml
 │
 ├── controls.yaml
 ├── controls.yaml
@@ -92,14 +92,17 @@ Package ownership is intentionally separated so that hardware, shared charger lo
 The main ownership boundaries are:
 
 ```text
-core.yaml
-    controller-wide ESPHome infrastructure
+shared/core.yaml
+    target-neutral ESP32-S3 platform and network services
 
 shared/hardware.yaml
     target-neutral Waveshare board peripherals
 
 controller/hardware.yaml
     Charger Controller buses and charger-side peripherals
+
+controller/mqtt.yaml
+    Charger Controller MQTT transport
 
 controls.yaml
     charger-wide user setpoints and controls
@@ -149,23 +152,33 @@ Documentation-only and repository-cleanup commits do not require a firmware vers
 
 ---
 
-## `core.yaml`
+## `shared/core.yaml`
 
-Owns controller-wide ESPHome infrastructure.
+Owns target-neutral ESP32-S3 platform and network infrastructure shared by the Charger Controller and Remote HMI.
 
 Responsibilities include:
 
 - ESP32-S3 platform and framework configuration
 - Flash and PSRAM configuration
+- logging
 - Wi-Fi
 - ESPHome native API
-- MQTT
 - web server
 - OTA
 - time synchronization
-- general controller services
+- runtime diagnostics
 
-Hardware-specific charger logic does not belong in this package.
+Target-specific command and telemetry transports do not belong in this package.
+
+---
+
+## `controller/mqtt.yaml`
+
+Owns the Charger Controller MQTT transport.
+
+MQTT remains optional for charger operation and is independent from the native ESPHome API used by Home Assistant.
+
+The Remote HMI does not require this package.
 
 ---
 
