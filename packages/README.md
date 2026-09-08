@@ -38,11 +38,13 @@ packages/
 │
 ├── shared/
 │   ├── core.yaml
-│   └── hardware.yaml
+│   ├── hardware.yaml
+│   └── ui-model.yaml
 │
 ├── controller/
 │   ├── hardware.yaml
-│   └── mqtt.yaml
+│   ├── mqtt.yaml
+│   └── ui-backend.yaml
 │
 ├── remote-hmi/
 │   └── bootstrap-ui.yaml
@@ -103,11 +105,17 @@ shared/core.yaml
 shared/hardware.yaml
     target-neutral Waveshare board peripherals
 
+shared/ui-model.yaml
+    target-neutral state contract consumed by the HMI
+
 controller/hardware.yaml
     Charger Controller buses and charger-side peripherals
 
 controller/mqtt.yaml
     Charger Controller MQTT transport
+
+controller/ui-backend.yaml
+    publishes authoritative local charger state into the shared UI model
 
 remote-hmi/bootstrap-ui.yaml
     temporary Remote HMI hardware-validation UI
@@ -121,23 +129,24 @@ cooling.yaml
 battery-bank.yaml
     Home Assistant solar-battery telemetry import and availability state
 
+display.yaml
+    display package aggregation
+
 rectifier-shared.yaml
     cross-unit lifecycle, safety and CAN scheduling
 
 rectifier-unit.yaml
     parameterized per-unit state and telemetry
 
-rectifier-can/*.yaml
-    parameterized CAN receive fragments
-
-display.yaml
-    display package aggregation
+display/*.yaml
+    persistent and page-specific display runtime
 
 display/pages/*.yaml
     static LVGL page layouts
 
-display/*.yaml
-    persistent and page-specific display runtime
+rectifier-can/*.yaml
+    parameterized CAN receive fragments
+
 ```
 A package SHOULD own one coherent responsibility and SHOULD NOT duplicate runtime state or hardware definitions owned elsewhere.
 
@@ -179,16 +188,6 @@ Target-specific command and telemetry transports do not belong in this package.
 
 ---
 
-## `controller/mqtt.yaml`
-
-Owns the Charger Controller MQTT transport.
-
-MQTT remains optional for charger operation and is independent from the native ESPHome API used by Home Assistant.
-
-The Remote HMI does not require this package.
-
----
-
 ## `shared/hardware.yaml`
 
 Owns physical Waveshare ESP32-S3-Touch-LCD-7 hardware that is independent of the charger-side backend.
@@ -204,6 +203,14 @@ This package contains board hardware that can be reused by multiple firmware tar
 
 ---
 
+## `shared/ui-model.yaml`
+
+Owns the target-neutral runtime state consumed by shared HMI code.
+
+The model isolates LVGL presentation from the source of charger data. Charger Controller and Remote HMI backends publish into the same model IDs so shared display code does not need target-specific telemetry paths.
+
+---
+
 ## `controller/hardware.yaml`
 
 Owns physical hardware that exists only on the Charger Controller.
@@ -215,6 +222,26 @@ Responsibilities include:
 - backup rotary-encoder inputs
 - USB/CAN routing selection
 - ESP32-S3 TWAI / onboard CAN interface
+
+---
+
+## `controller/mqtt.yaml`
+
+Owns the Charger Controller MQTT transport.
+
+MQTT remains optional for charger operation and is independent from the native ESPHome API used by Home Assistant.
+
+The Remote HMI does not require this package.
+
+---
+
+## `controller/ui-backend.yaml`
+
+Owns translation from authoritative local Charger Controller runtime state into the shared UI model.
+
+This backend does not own charger state itself. The existing controller runtime remains authoritative.
+
+---
 
 ### I2C Topology
 

@@ -14,10 +14,14 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 $ProjectFile = "r4875g1-3phase-charger.yaml"
+$HmiProjectFile = "r4875g1-remote-hmi.yaml"
+
 $VersionFile = "packages/version.yaml"
 $RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $Timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
+
 $DeploymentProjectPath = $null
+$DeploymentHmiProjectPath = $null
 
 # Bound every SSH/SCP process so a stalled network or remote command cannot
 # block deployment indefinitely.
@@ -152,9 +156,14 @@ function New-DeploymentProjectFile(
         "`${1}packages/$NodeName/trend_helpers.h`${2}"
     )
 
+    $sourceBaseName =
+        [System.IO.Path]::GetFileNameWithoutExtension(
+            $SourcePath
+        )
+
     $tempPath = Join-Path `
         ([System.IO.Path]::GetTempPath()) `
-        "$NodeName-$Timestamp-deploy.yaml"
+        "$sourceBaseName-$NodeName-$Timestamp-deploy.yaml"
 
     Set-Content `
         -LiteralPath $tempPath `
@@ -165,22 +174,30 @@ function New-DeploymentProjectFile(
     return $tempPath
 }
 
-function Remove-DeploymentProjectFile {
-    if (
-        $null -ne $script:DeploymentProjectPath -and
-        (Test-Path -LiteralPath $script:DeploymentProjectPath)
-    ) {
-        Remove-Item `
-            -LiteralPath $script:DeploymentProjectPath `
-            -Force `
-            -ErrorAction SilentlyContinue
+function Remove-DeploymentProjectFiles {
+    $temporaryFiles = @(
+        $script:DeploymentProjectPath
+        $script:DeploymentHmiProjectPath
+    )
 
-        $script:DeploymentProjectPath = $null
+    foreach ($path in $temporaryFiles) {
+        if (
+            $null -ne $path -and
+            (Test-Path -LiteralPath $path)
+        ) {
+            Remove-Item `
+                -LiteralPath $path `
+                -Force `
+                -ErrorAction SilentlyContinue
+        }
     }
+
+    $script:DeploymentProjectPath = $null
+    $script:DeploymentHmiProjectPath = $null
 }
 
-function Get-ESPHomeNodeName {
-    $projectPath = Join-Path $RepoRoot $ProjectFile
+function Get-ESPHomeNodeName([string]$ProjectFileName) {
+    $projectPath = Join-Path $RepoRoot $ProjectFileName
     $lines = Get-Content -LiteralPath $projectPath
 
     $inESPHomeBlock = $false
@@ -190,8 +207,9 @@ function Get-ESPHomeNodeName {
     foreach ($line in $lines) {
         if ($line -match '^([ ]*)esphome:\s*(?:#.*)?$') {
             if ($inESPHomeBlock) {
-                throw "Multiple top-level 'esphome:' blocks found in $ProjectFile."
+                throw "Multiple top-level 'esphome:' blocks found in $ProjectFileName."
             }
+
             $inESPHomeBlock = $true
             $esphomeIndent = $Matches[1].Length
             continue
@@ -201,24 +219,33 @@ function Get-ESPHomeNodeName {
         if ($line -match '^\s*$' -or $line -match '^\s*#') { continue }
 
         $indent = ([regex]::Match($line, '^ *')).Value.Length
-        if ($indent -le $esphomeIndent) { break }
 
-        if ($line -match '^\s*name:\s*["'']?([a-zA-Z0-9_-]+)["'']?\s*(?:#.*)?$') {
+        if ($indent -le $esphomeIndent) {
+            break
+        }
+
+        if (
+            $line -match
+            '^\s*name:\s*["'']?([a-zA-Z0-9_-]+)["'']?\s*(?:#.*)?$'
+        ) {
             $foundNames += $Matches[1]
         }
     }
 
     if (-not $inESPHomeBlock) {
-        throw "No top-level 'esphome:' block found in $ProjectFile."
+        throw "No top-level 'esphome:' block found in $ProjectFileName."
     }
+
     if ($foundNames.Count -eq 0) {
-        throw "No 'name:' entry found inside the 'esphome:' block in $ProjectFile."
+        throw "No 'name:' entry found inside the 'esphome:' block in $ProjectFileName."
     }
+
     if ($foundNames.Count -gt 1) {
-        throw "Multiple 'name:' entries found inside the 'esphome:' block in $ProjectFile."
+        throw "Multiple 'name:' entries found inside the 'esphome:' block in $ProjectFileName."
     }
 
     $nodeName = $foundNames[0]
+
     if ($nodeName -notmatch '^[a-z0-9][a-z0-9_-]*$') {
         throw "ESPHome node name '$nodeName' is not valid for automatic deployment filename generation."
     }
@@ -620,10 +647,13 @@ foreach ($relativePath in $ManagedFiles) {
         throw "Required deployment file is missing: $relativePath"
     }
 }
-Write-Ok "$($ManagedFiles.Count + 1) managed files found"
+Write-Ok "$($ManagedFiles.Count + 2) managed files found"
 
-$nodeName = Get-ESPHomeNodeName
+$nodeName = Get-ESPHomeNodeName $ProjectFile
+$hmiNodeName = Get-ESPHomeNodeName $HmiProjectFile
 $RemoteProjectFile = "$nodeName.yaml"
+$RemoteHmiProjectFile = "$hmiNodeName.yaml"
+# Both targets intentionally use the same deployed package snapshot.
 $RemotePackageRoot = "packages/$nodeName"
 $RemoteManagedFiles = @{}
 foreach ($relativePath in $ManagedFiles) {
@@ -640,14 +670,16 @@ $gitInfo = Get-GitInfo
 Write-Host ""
 Write-Host "Source:" -ForegroundColor White
 Write-Host "  Firmware version : $version"
-Write-Host "  ESPHome name     : $nodeName"
+Write-Host "  Charger name     : $nodeName"
+Write-Host "  Remote HMI name  : $hmiNodeName"
 Write-Host "  Git branch       : $($gitInfo.Branch)"
 Write-Host "  Git commit       : $($gitInfo.Commit)"
 Write-Host "  Working tree     : $(if ($gitInfo.Dirty) { 'DIRTY' } else { 'clean' })"
 Write-Host "  Package files    : $($ManagedFiles.Count)"
 Write-Host "Target:" -ForegroundColor White
 Write-Host "  ESPHome directory: $RemoteDir"
-Write-Host "  Main YAML remote : $RemoteProjectFile"
+Write-Host "  Charger YAML     : $RemoteProjectFile"
+Write-Host "  Remote HMI YAML  : $RemoteHmiProjectFile"
 Write-Host "  Package namespace: $RemotePackageRoot"
 Write-Host "  SSH              : $HaUser@$HaHost`:$Port"
 Write-Host "  SSH key          : $KeyPath"
@@ -665,6 +697,7 @@ if ($DryRun) {
     Write-Step "Dry run - no network connection and no remote changes"
 
     Write-Host "  $ProjectFile -> $RemoteDir/$RemoteProjectFile"
+    Write-Host "  $HmiProjectFile -> $RemoteDir/$RemoteHmiProjectFile"
 
     foreach ($relativePath in $ManagedFiles) {
         $remoteRelativePath =
@@ -692,7 +725,7 @@ if ($DryRun) {
             Write-Host "  $($_.Trim())"
         }
 
-    Remove-DeploymentProjectFile
+    Remove-DeploymentProjectFiles
 
     Write-Ok "Dry run complete"
     return
@@ -703,7 +736,17 @@ if (-not (Test-Path -LiteralPath $KeyPath -PathType Leaf)) {
 }
 
 $DeploymentProjectPath =
-    New-DeploymentProjectFile $projectPath $nodeName
+    New-DeploymentProjectFile `
+        $projectPath `
+        $nodeName
+
+$hmiProjectPath =
+    Join-Path $RepoRoot $HmiProjectFile
+
+$DeploymentHmiProjectPath =
+    New-DeploymentProjectFile `
+        $hmiProjectPath `
+        $nodeName
 
 Write-Step "Checking SSH connection"
 Invoke-HaSsh "true" | Out-Null
@@ -718,6 +761,7 @@ try {
         $StagingDir `
         @($RemoteManagedFiles.Values)
     Write-Host "  $ProjectFile -> $RemoteProjectFile"
+    Write-Host "  $HmiProjectFile -> $RemoteHmiProjectFile"
 
     foreach ($relativePath in $ManagedFiles) {
         $remoteRelativePath =
@@ -729,6 +773,9 @@ try {
     Send-HaFile `
         $DeploymentProjectPath `
         "$StagingDir/$RemoteProjectFile"
+    Send-HaFile `
+        $DeploymentHmiProjectPath `
+        "$StagingDir/$RemoteHmiProjectFile"
     foreach ($relativePath in $ManagedFiles) {
         $remoteRelativePath =
             $RemoteManagedFiles[$relativePath]
@@ -750,6 +797,15 @@ try {
         -RemoteManagedFiles $RemoteManagedFiles `
         -FailurePrefix "Hash mismatch after upload"
 
+    Assert-RemoteFileSetMatchesLocal `
+        -ProjectLocalPath $DeploymentHmiProjectPath `
+        -ProjectRemotePath "$StagingDir/$RemoteHmiProjectFile" `
+        -ProjectDisplayPath "$HmiProjectFile -> $RemoteHmiProjectFile" `
+        -RemoteRoot $StagingDir `
+        -ManagedFiles @() `
+        -RemoteManagedFiles @{} `
+        -FailurePrefix "HMI hash mismatch after upload"
+
     Write-Ok "Staged files match local source"
 
     if (-not $NoBackup) {
@@ -759,9 +815,32 @@ try {
             @($RemoteManagedFiles.Values)
 
         $commands = @("set -eu")
-        $projectSource = ConvertTo-ShQuotedString "$RemoteDir/$RemoteProjectFile"
-        $projectDest = ConvertTo-ShQuotedString "$BackupDir/$RemoteProjectFile"
-        $commands += "if [ -f $projectSource ]; then cp -p $projectSource $projectDest; fi"
+        $projectSource =
+            ConvertTo-ShQuotedString `
+            "$RemoteDir/$RemoteProjectFile"
+
+        $projectDest =
+            ConvertTo-ShQuotedString `
+            "$BackupDir/$RemoteProjectFile"
+
+        $commands +=
+            "if [ -f $projectSource ]; then cp -p $projectSource $projectDest; fi"
+
+        $hmiProjectSource =
+            ConvertTo-ShQuotedString `
+            "$RemoteDir/$RemoteHmiProjectFile"
+
+        $hmiProjectDest =
+            ConvertTo-ShQuotedString `
+            "$BackupDir/$RemoteHmiProjectFile"
+
+        $commands +=
+            "if [ -f $hmiProjectSource ]; then cp -p $hmiProjectSource $hmiProjectDest; fi"
+
+        $projectSource =
+            ConvertTo-ShQuotedString `
+            "$RemoteDir/$RemoteProjectFile"
+
         foreach ($relativePath in $ManagedFiles) {
             $remoteRelativePath =
                 $RemoteManagedFiles[$relativePath]
@@ -787,9 +866,29 @@ try {
         @($RemoteManagedFiles.Values)
 
     $commands = @("set -eu")
-    $projectSource = ConvertTo-ShQuotedString "$StagingDir/$RemoteProjectFile"
-    $projectDest = ConvertTo-ShQuotedString "$RemoteDir/$RemoteProjectFile"
-    $commands += "cp -p $projectSource $projectDest"
+
+    $projectSource =
+        ConvertTo-ShQuotedString `
+        "$StagingDir/$RemoteProjectFile"
+
+    $projectDest =
+        ConvertTo-ShQuotedString `
+        "$RemoteDir/$RemoteProjectFile"
+
+    $commands +=
+        "cp -p $projectSource $projectDest"
+
+    $hmiProjectSource =
+        ConvertTo-ShQuotedString `
+            "$StagingDir/$RemoteHmiProjectFile"
+
+    $hmiProjectDest =
+        ConvertTo-ShQuotedString `
+            "$RemoteDir/$RemoteHmiProjectFile"
+
+    $commands +=
+        "cp -p $hmiProjectSource $hmiProjectDest"
+
     foreach ($relativePath in $ManagedFiles) {
         $remoteRelativePath =
             $RemoteManagedFiles[$relativePath]
@@ -806,7 +905,7 @@ try {
     Invoke-HaSsh ($commands -join "; ") | Out-Null
 
     Write-Step "Verifying installed files"
-    
+
     Assert-RemoteFileSetMatchesLocal `
         -ProjectLocalPath $DeploymentProjectPath `
         -ProjectRemotePath "$RemoteDir/$RemoteProjectFile" `
@@ -815,22 +914,34 @@ try {
         -ManagedFiles $ManagedFiles `
         -RemoteManagedFiles $RemoteManagedFiles `
         -FailurePrefix "Installed file verification failed"
-    
+
+    Assert-RemoteFileSetMatchesLocal `
+        -ProjectLocalPath $DeploymentHmiProjectPath `
+        -ProjectRemotePath "$RemoteDir/$RemoteHmiProjectFile" `
+        -ProjectDisplayPath $RemoteHmiProjectFile `
+        -RemoteRoot $RemoteDir `
+        -ManagedFiles @() `
+        -RemoteManagedFiles @{} `
+        -FailurePrefix "Installed HMI file verification failed"
+
     Write-Ok "Installed files match local source"
 
 }
 finally {
     try { Invoke-HaSsh "rm -rf $qStaging" | Out-Null }
     catch { Write-Warn "Could not remove staging directory: $StagingDir" }
-    Remove-DeploymentProjectFile
+    Remove-DeploymentProjectFiles
 }
 
 Write-Host ""
 Write-Host "Deployment successful" -ForegroundColor Green
 Write-Host "  Firmware version : $version"
-Write-Host "  ESPHome name     : $nodeName"
+Write-Host "  Charger name     : $nodeName"
+Write-Host "  Remote HMI name  : $hmiNodeName"
+Write-Host "  Charger YAML     : $RemoteProjectFile"
+Write-Host "  Remote HMI YAML  : $RemoteHmiProjectFile"
+Write-Host "  Target           : $HaUser@$HaHost`:$RemoteDir"
 Write-Host "  Git commit       : $($gitInfo.Commit)"
-Write-Host "  Target           : $HaUser@$HaHost`:$RemoteProjectFile"
 if (-not $NoBackup) { Write-Host "  Backup           : $BackupDir" }
 Write-Host ""
-Write-Host "Next: validate/install the charger firmware in the ESPHome add-on." -ForegroundColor White
+Write-Host "Next: validate/install the Charger Controller or Remote HMI firmware in the ESPHome add-on." -ForegroundColor White

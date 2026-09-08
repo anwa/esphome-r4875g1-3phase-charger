@@ -1,5 +1,5 @@
 # ==============================================================================
-# V5 LVGL PAGE: DASHBOARD
+# LVGL PAGE: DASHBOARD
 # ==============================================================================
 #
 # Main charger overview with aggregate AC/DC telemetry, charger status,
@@ -326,8 +326,8 @@ widgets:
                   condition:
                     lambda: |-
                       return
-                        !isnan(id(running_units).state) &&
-                        id(running_units).state > 0.0f;
+                        !isnan(id(ui_model_running_units).state) &&
+                        id(ui_model_running_units).state > 0.0f;
 
                   then:
                     - lvgl.widget.show: ui_stop_charger_dialog

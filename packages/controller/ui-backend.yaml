@@ -1,0 +1,23 @@
+# ==============================================================================
+# CHARGER CONTROLLER UI BACKEND
+# ==============================================================================
+#
+# Publishes authoritative local Charger Controller state into the shared V6 UI
+# model.
+#
+# The shared LVGL implementation consumes only the UI-model entities and does
+# not need to know whether their values originate locally or through Home
+# Assistant on the Remote HMI target.
+# ==============================================================================
+
+interval:
+  - interval: 500ms
+    then:
+      - lambda: |-
+          id(ui_model_available_units).publish_state(
+            id(available_units).state
+          );
+
+          id(ui_model_running_units).publish_state(
+            id(running_units).state
+          );

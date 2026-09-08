@@ -1,0 +1,39 @@
+# ==============================================================================
+# SHARED V6 UI MODEL
+# ==============================================================================
+#
+# Defines target-neutral charger state consumed by the shared LVGL interface.
+#
+# Target backends publish authoritative state into these internal entities.
+#
+# Charger Controller:
+#   local charger runtime -> Controller UI backend -> shared UI model
+#
+# Remote HMI:
+#   Home Assistant -> Remote HMI backend -> shared UI model
+#
+# Shared display code must consume these model entities instead of accessing
+# target-specific transport or hardware state directly.
+# ==============================================================================
+
+sensor:
+
+  # ---------------------------------------------------------------------------
+  # RECTIFIER AVAILABILITY
+  # ---------------------------------------------------------------------------
+
+  - platform: template
+    id: ui_model_available_units
+    internal: true
+    update_interval: never
+    accuracy_decimals: 0
+
+  # ---------------------------------------------------------------------------
+  # RECTIFIER RUN STATE
+  # ---------------------------------------------------------------------------
+
+  - platform: template
+    id: ui_model_running_units
+    internal: true
+    update_interval: never
+    accuracy_decimals: 0

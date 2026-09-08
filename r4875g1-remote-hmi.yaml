@@ -56,6 +56,7 @@ packages:
 
   shared_core: !include packages/shared/core.yaml
   shared_hardware: !include packages/shared/hardware.yaml
+  shared_ui_model: !include packages/shared/ui-model.yaml
 
   display_hardware: !include packages/display/hardware.yaml
   display_theme: !include packages/display/theme.yaml

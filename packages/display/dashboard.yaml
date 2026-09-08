@@ -1,5 +1,5 @@
 # ==============================================================================
-# V5 DASHBOARD DISPLAY RUNTIME
+# DASHBOARD DISPLAY RUNTIME
 # ==============================================================================
 #
 # Dashboard widgets are refreshed only while page_dashboard is visible.
@@ -170,13 +170,13 @@ interval:
             - lvgl.label.update:
                 id: ui_dashboard_units
                 text: !lambda |-
-                  if (isnan(id(available_units).state)) {
+                  if (isnan(id(ui_model_available_units).state)) {
                     return std::string("- / 3");
                   }
 
                   return str_sprintf(
                     "%.0f / 3",
-                    id(available_units).state
+                    id(ui_model_available_units).state
                   );
 
             # ---------------------------------------------------------------------------
@@ -186,13 +186,13 @@ interval:
             - lvgl.label.update:
                 id: ui_dashboard_running_units
                 text: !lambda |-
-                  if (isnan(id(running_units).state)) {
+                  if (isnan(id(ui_model_running_units).state)) {
                     return std::string("- / 3");
                   }
 
                   return str_sprintf(
                     "%.0f / 3",
-                    id(running_units).state
+                    id(ui_model_running_units).state
                   );
 
             # ---------------------------------------------------------------------------
@@ -378,15 +378,15 @@ interval:
                   }
 
                   if (
-                    isnan(id(available_units).state) ||
-                    id(available_units).state < 1
+                    isnan(id(ui_model_available_units).state) ||
+                    id(ui_model_available_units).state < 1
                   ) {
                     return std::string("NO RECTIFIERS");
                   }
 
                   const bool running =
-                    !isnan(id(running_units).state) &&
-                    id(running_units).state > 0.0f;
+                    !isnan(id(ui_model_running_units).state) &&
+                    id(ui_model_running_units).state > 0.0f;
 
                   return running
                     ? std::string("STOP CHARGER")
@@ -404,8 +404,8 @@ interval:
                       id(ui_rectifier_1_power_pending) == 0 &&
                       id(ui_rectifier_2_power_pending) == 0 &&
                       id(ui_rectifier_3_power_pending) == 0 &&
-                      !isnan(id(available_units).state) &&
-                      id(available_units).state > 0;
+                      !isnan(id(ui_model_available_units).state) &&
+                      id(ui_model_available_units).state > 0;
 
                 then:
                   - lvgl.widget.enable:

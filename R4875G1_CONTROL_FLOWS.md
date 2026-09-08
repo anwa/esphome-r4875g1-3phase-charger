@@ -73,8 +73,10 @@ The V5 firmware keeps charger-control, hardware, per-unit rectifier state and di
 | `r4875g1-3phase-charger.yaml` | substitutions, unit instances, identity, boot sequence and aggregate entities |
 | `packages/shared/core.yaml` | shared ESP32-S3 platform, Wi-Fi, API, web, OTA, time and diagnostics |
 | `packages/shared/hardware.yaml` | onboard I2C, CH422G, touch and controller backup-battery hardware |
+| `packages/shared/ui-model.yaml` | target-neutral charger state consumed by shared HMI code |
 | `packages/controller/hardware.yaml` | charger-side external I2C, MCP23017, backup encoder inputs and CAN |
 | `packages/controller/mqtt.yaml` | Charger Controller MQTT command and state transport |
+| `packages/controller/ui-backend.yaml` | maps authoritative local Controller state into the shared UI model |
 | `packages/controls.yaml` | charger-wide controls and setpoints |
 | `packages/cooling.yaml` | external chassis-fan control, EMC2101 telemetry, PWM management and RPM monitoring |
 | `packages/battery-bank.yaml` | Home Assistant solar-battery telemetry import and availability state |
