@@ -1,0 +1,76 @@
+# ==============================================================================
+# R4875G1 REMOTE HMI - V6 BOOTSTRAP TARGET
+# ==============================================================================
+#
+# Remote touchscreen interface for the R4875G1 three-phase charger.
+#
+# Hardware:
+#   - Waveshare ESP32-S3-Touch-LCD-7
+#   - ESP32-S3 N16R8
+#   - 7-inch 800x480 RGB display
+#   - GT911 capacitive touchscreen
+#   - CH422G onboard I/O expander
+#   - 1S backup battery
+#
+# The Remote HMI has no direct connection to charger-side CAN or external
+# charger peripherals.
+#
+# During this bootstrap checkpoint the target validates only the shared board,
+# network and display infrastructure. Charger telemetry and commands will be
+# added through the Home Assistant backend and shared V6 UI model.
+# ==============================================================================
+
+substitutions:
+
+  # ---------------------------------------------------------------------------
+  # TARGET IDENTITY
+  # ---------------------------------------------------------------------------
+
+  fallback_ap_ssid: "Charger HMI Fallback"
+
+  # ---------------------------------------------------------------------------
+  # SHARED WAVESHARE GPIO MAP
+  # ---------------------------------------------------------------------------
+
+  pin_touch_irq: "GPIO4"
+  pin_i2c_sda: "GPIO8"
+  pin_i2c_scl: "GPIO9"
+  pin_battery_adc: "GPIO6"
+
+  # ---------------------------------------------------------------------------
+  # DISPLAY DEFAULTS
+  # ---------------------------------------------------------------------------
+
+  display_idle_timeout: "5min"
+
+# ==============================================================================
+# FIRMWARE PACKAGE ASSEMBLY
+# ==============================================================================
+#
+# Assembles only target-neutral Waveshare hardware, shared platform services
+# and the temporary Remote HMI bootstrap display.
+# ==============================================================================
+
+packages:
+  version: !include packages/version.yaml
+
+  shared_core: !include packages/shared/core.yaml
+  shared_hardware: !include packages/shared/hardware.yaml
+
+  display_hardware: !include packages/display/hardware.yaml
+  display_theme: !include packages/display/theme.yaml
+
+  remote_bootstrap_ui: !include packages/remote-hmi/bootstrap-ui.yaml
+
+# ==============================================================================
+# ESPHOME DEVICE IDENTITY
+# ==============================================================================
+
+esphome:
+  name: hg-dg-technik-charger-hmi
+  friendly_name: HG|DG|Technik|Charger HMI
+  min_version: 2026.8.2
+
+  project:
+    name: "anwa.r4875-remote-hmi"
+    version: "${firmware_version}"

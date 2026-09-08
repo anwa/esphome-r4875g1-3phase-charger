@@ -2,13 +2,16 @@
 
 This directory contains the modular ESPHome implementation of the three-phase Huawei R4875G1 charger controller.
 
-The root configuration:
+The V6 architecture contains two ESPHome root configurations:
 
 ```text
 ../r4875g1-3phase-charger.yaml
+../r4875g1-remote-hmi.yaml
 ```
 
-assembles these packages into the complete firmware.
+r4875g1-3phase-charger.yaml assembles the locally attached Charger Controller.
+
+r4875g1-remote-hmi.yaml assembles the Remote HMI target without charger-side CAN or external peripherals.
 
 For project-level hardware, operation and safety documentation, see:
 
@@ -41,6 +44,9 @@ packages/
 │   ├── hardware.yaml
 │   └── mqtt.yaml
 │
+├── remote-hmi/
+│   └── bootstrap-ui.yaml
+|
 ├── controls.yaml
 ├── controls.yaml
 ├── cooling.yaml
@@ -131,6 +137,8 @@ display/pages/*.yaml
 display/*.yaml
     persistent and page-specific display runtime
 ```
+remote-hmi/bootstrap-ui.yaml
+    temporary Remote HMI hardware-validation UI
 
 A package SHOULD own one coherent responsibility and SHOULD NOT duplicate runtime state or hardware definitions owned elsewhere.
 

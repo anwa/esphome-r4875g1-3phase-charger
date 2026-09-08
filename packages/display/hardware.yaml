@@ -1,9 +1,9 @@
 # ==============================================================================
-# V5 DISPLAY HARDWARE
+# SHARED DISPLAY HARDWARE
 # ==============================================================================
 #
-# Waveshare ESP32-S3-Touch-LCD-7 with native 800x480 RGB panel, CH422G-backed
-# backlight enable and GT911 capacitive touch input.
+# Defines the Waveshare ESP32-S3-Touch-LCD-7 display, backlight and LVGL
+# hardware integration shared by the Charger Controller and Remote HMI.
 # ==============================================================================
 
 # ==============================================================================
