@@ -36,6 +36,7 @@ At minimum, review:
 - `rules/README.md`
 - `rules/development-workflow.md`
 - `rules/git-workflow.md`
+- `rules/firmware-targets.md` for firmware architecture and target-specific changes
 
 Depending on the task, also review:
 

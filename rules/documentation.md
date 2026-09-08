@@ -61,6 +61,38 @@ Package documentation SHOULD explain:
 - shared vs. per-unit behavior
 - important data/control paths
 
+## Multi-Target Documentation
+
+When the current firmware generation contains multiple targets, documentation MUST distinguish clearly between:
+
+```text
+shared generation behavior
+Charger Controller behavior
+Remote HMI behavior
+```
+
+Do not describe target-specific hardware or behavior as if it exists on every target.
+
+The root README SHOULD explain the user-visible purpose and relationship of the firmware targets.
+
+Detailed package documentation SHOULD describe:
+
+* shared packages
+* target-specific packages
+* backend ownership
+* shared UI-model boundaries
+* target-specific hardware
+* target-specific data and command paths
+
+Shared UI behavior SHOULD be documented once where practical rather than duplicated independently for each target.
+
+Documentation for the Remote HMI MUST make clear that:
+
+* charger state is obtained through Home Assistant
+* charger commands are transported through Home Assistant
+* the Charger Controller remains authoritative for charger safety and command execution
+* the Remote HMI is not an independent blackstart or safety controller
+
 ## Keep Documentation Current
 
 When a functional change makes existing documentation incorrect, update the documentation as part of the same feature or immediately following it.

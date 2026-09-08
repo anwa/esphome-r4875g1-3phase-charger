@@ -123,6 +123,28 @@ Examples:
 
 When moving responsibility, update comments and documentation in the same change.
 
+## Multi-Target Firmware Development
+
+When the active firmware generation contains multiple targets, shared and target-specific responsibilities MUST remain explicit.
+
+The target architecture is defined in:
+
+```text
+rules/firmware-targets.md
+```
+
+Shared code SHOULD contain behavior that is genuinely common to all participating targets.
+
+Target-specific hardware access, telemetry acquisition and command transport SHOULD remain behind target-specific ownership boundaries.
+
+A shared HMI implementation SHOULD depend on a target-neutral UI model rather than directly consuming controller-only or Remote-HMI-only transport entities.
+
+When modifying shared UI or shared UI-model behavior, agents MUST inspect the effect on every active target that consumes that shared code.
+
+Do not solve a target-specific problem by adding widespread target-condition checks throughout common code when a clean backend or composition boundary can preserve the shared architecture.
+
+When a shared interface changes, update all affected target backends in the same coherent development step unless an explicitly planned intermediate compatibility layer is required.
+
 ## Validate Incrementally
 
 After a meaningful structural change:
@@ -133,6 +155,15 @@ After a meaningful structural change:
 4. verify the changed function
 5. verify important adjacent functions
 6. observe runtime stability when appropriate
+
+For multi-target firmware, validation scope depends on ownership:
+
+- shared UI or shared UI-model change -> validate and compile every consuming target
+- Charger-Controller-specific change -> validate and compile the Charger Controller
+- Remote-HMI-specific change -> validate and compile the Remote HMI
+- shared target contract change -> validate and compile all affected targets
+
+Before merging a release-level V6 change, both V6 targets MUST compile successfully.
 
 A successful compile does not prove runtime correctness.
 

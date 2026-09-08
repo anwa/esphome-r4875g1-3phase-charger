@@ -16,6 +16,34 @@ Firmware and UI version displays MUST reference `firmware_version` from `package
 
 Do not duplicate the current version as a hard-coded value elsewhere.
 
+## Multi-Target Generation Versioning
+
+All firmware targets that belong to the same current firmware generation share one generation version unless the architecture is explicitly changed to support independently versioned products.
+
+For V6, the Charger Controller and Remote HMI use the same firmware version.
+
+Both targets MUST consume the canonical version from:
+
+```text
+packages/version.yaml
+```
+
+The two targets MAY use different ESPHome device names, friendly names and project identifiers, but they MUST NOT maintain independent V6 firmware-version constants.
+
+A V6 release therefore identifies one compatible repository state containing both targets.
+
+Maintenance branches retain their own branch-local version history.
+
+For example:
+
+```text
+main / V6        -> V6 version history
+v5-maintenance   -> V5 version history
+v4-maintenance   -> V4 version history
+```
+
+A maintenance release does not change the version of another branch.
+
 ## PATCH Version
 
 Increment PATCH for normal tested firmware changes that alter the shipped firmware implementation.
@@ -53,11 +81,19 @@ A MINOR release resets PATCH to zero.
 
 Increment MAJOR for a new firmware generation or intentionally incompatible architecture.
 
+Examples include:
+
+- a new hardware generation
+- a fundamental firmware architecture change
+- introduction of a coordinated multi-target architecture
+
 Example:
 
-`4.x -> 5.0.0`
+`5.x -> 6.0.0`
 
 MAJOR changes are exceptional and should be planned explicitly.
+
+The V6 dual-target architecture starts at `6.0.0` when the first functional V6 firmware state is created. Rule-only and documentation-only preparation for V6 does not itself require a firmware version bump.
 
 ## Documentation-Only Changes
 

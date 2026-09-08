@@ -6,13 +6,36 @@ The goals are readable history, safe experimentation and preservation of useful 
 
 ## Long-Lived Branches
 
-`main` contains the current V5 firmware.
+`main` contains the current primary firmware generation.
 
-`v4-maintenance` is a long-lived maintenance branch for the V4 hardware variant.
+Maintained older firmware generations use dedicated long-lived maintenance branches.
 
-V4 remains separate because it targets different hardware.
+Current maintenance branches are:
 
-Relevant shared fixes, especially CAN protocol fixes, MAY be backported from V5 to `v4-maintenance` when appropriate.
+```text
+v5-maintenance
+v4-maintenance
+```
+
+`v5-maintenance` contains the maintained V5 firmware generation.
+
+`v4-maintenance` contains the maintained V4 firmware generation.
+
+Maintenance branches remain separate because firmware generations may target different hardware and architecture.
+
+A new major firmware generation SHOULD normally be developed on a dedicated development branch before it replaces the primary generation on `main`.
+
+For example:
+
+```text
+feature/v6-dual-hmi-architecture
+```
+
+Once a new generation becomes the primary implementation on `main`, the previous generation SHOULD remain available through its maintenance branch when continued maintenance is useful.
+
+Relevant fixes made on the primary generation SHOULD be evaluated for backport to maintained older generations when the affected subsystem is shared.
+
+A fix MUST NOT be mechanically backported when architectural differences make the implementation inappropriate for the older generation.
 
 ## Feature and Refactor Branches
 
@@ -103,12 +126,16 @@ Intermediate commits are valuable when they represent:
 
 Before merging a development branch into `main`:
 
-1. ensure the branch is based on an appropriate current `main`
+1. ensure the branch is based on an appropriate current base branch
 2. verify intended changes
-3. compile the final firmware when firmware is affected
-4. perform appropriate hardware/runtime testing
-5. confirm the firmware version
-6. update required documentation
+3. validate every firmware target affected by the change
+4. compile every required firmware target
+5. perform appropriate hardware/runtime testing
+6. confirm the firmware version
+7. update required documentation
+8. evaluate whether the change should be backported to maintained older generations
+
+For shared V6 UI or shared target-contract changes, both V6 firmware targets MUST compile before merge.
 
 A non-fast-forward merge MAY be used when preserving the identity of a feature branch is useful.
 
