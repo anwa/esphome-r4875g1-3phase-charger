@@ -9,7 +9,6 @@
 #   - onboard I2C bus
 #   - dedicated external I2C bus
 #   - MCP23017 external I/O expander
-#   - EMC2101 external fan controller
 #   - rotary encoder inputs
 #   - controller backup-battery ADC
 #   - onboard CH422G I/O expander

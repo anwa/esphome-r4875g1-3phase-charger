@@ -256,11 +256,17 @@ AHT10         -> rear-compartment temperature and humidity
 Responsibilities include:
 
 - EMC2101 fan-controller configuration
+- EMC2101 internal-temperature and PWM-duty telemetry
 - common external fan PWM
+- persistent manual PWM setpoint
 - common fan-supply enable
 - three independent RPM measurements
 - automatic temperature-based cooling
-- manual fan-power and PWM override
+- manual fan-power and PWM control
+
+Automatic and manual PWM ownership is intentionally separated. Automatic mode writes the temperature-derived duty cycle directly to the EMC2101 output without modifying the stored manual PWM setpoint. Disabling automatic mode immediately applies the stored manual setpoint, and subsequent manual slider changes control the output directly.
+
+`Cooling Fan PWM Actual` is the EMC2101 duty-cycle register readback and therefore represents the controller's programmed PWM setting rather than an independently measured waveform.
 
 Cooling Fan 3 ventilates the rear rectifier compartment monitored by the AHT10.
 
