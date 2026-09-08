@@ -74,7 +74,7 @@ The V5 firmware keeps charger-control, hardware, per-unit rectifier state and di
 | `packages/core.yaml` | ESP32, network, API, MQTT, web, OTA and time services |
 | `packages/hardware.yaml` | onboard and external I2C buses, MCP23017, touch, CAN, backup encoder inputs and controller battery |
 | `packages/controls.yaml` | charger-wide controls and setpoints |
-| `packages/cooling.yaml` | external chassis-fan control, EMC2101 and RPM monitoring |
+| `packages/cooling.yaml` | external chassis-fan control, EMC2101 telemetry, PWM management and RPM monitoring |
 | `packages/battery-bank.yaml` | Home Assistant solar-battery telemetry import and availability state |
 | `packages/rectifier-unit.yaml` | parameterized per-unit state, telemetry and discovery |
 | `packages/rectifier-shared.yaml` | cross-unit lifecycle, limits, CAN scheduling, recovery and control |

@@ -498,6 +498,27 @@ The EMC2101 generates the shared hardware PWM signal at approximately:
 
 Cooling Fan 3 ventilates the rear rectifier compartment where the AHT10 temperature/humidity sensor is installed.
 
+### Web Controls and EMC2101 Telemetry
+
+The ESPHome Web UI exposes the external cooling controls and EMC2101 telemetry:
+
+```text
+Cooling Fan Automatic
+Cooling Fan Power
+Cooling Fan Manual PWM
+Cooling Fan PWM Actual
+Cooling Fan Controller Temperature
+Cooling Fan 1 RPM
+Cooling Fan 2 RPM
+Cooling Fan 3 RPM
+```
+
+`Cooling Fan Controller Temperature` reports the EMC2101 internal chip temperature. `Cooling Fan PWM Actual` reports the PWM duty cycle read back from the EMC2101 controller; it represents the programmed hardware setting rather than an independent measurement of the electrical PWM waveform.
+
+Automatic and manual PWM control maintain separate state. While `Cooling Fan Automatic` is enabled, the compartment-temperature controller drives the EMC2101 PWM output directly and the manual PWM value remains stored without affecting the active output. When automatic mode is disabled, the stored `Cooling Fan Manual PWM` value is applied immediately and subsequent slider changes control the PWM output directly.
+
+`Cooling Fan Power` controls the common external fan supply independently and remains available for manual operation when automatic mode is disabled.
+
 ### Automatic Cooling
 
 Automatic cooling is enabled by default.
@@ -516,8 +537,6 @@ The current temperature curve is:
 Downward transitions use hysteresis.
 
 If compartment-temperature telemetry becomes unavailable, the cooling system fails safe by enabling the external fans at 100 %.
-
-Automatic mode can be disabled for manual fan-power and PWM control.
 
 ---
 
