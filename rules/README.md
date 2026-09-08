@@ -43,6 +43,7 @@ Existing non-English content does not need to be translated merely because an un
 |---|---|
 | `yaml-comments.md` | YAML comment hierarchy, formatting and documentation style |
 | `development-workflow.md` | General rules for making and validating changes |
+| `firmware-targets.md` | Multi-target firmware architecture, ownership and validation |
 | `versioning.md` | Firmware versioning and version-bump policy |
 | `documentation.md` | README and project-documentation maintenance |
 | `git-workflow.md` | Branch, commit, merge and repository-history conventions |
