@@ -116,6 +116,21 @@ switch:
     on_turn_on:
       then:
         - script.execute: apply_cooling_fan_automatic
+    on_turn_off:
+      then:
+        - lambda: |-
+            const float duty =
+              std::max(
+                0.0f,
+                std::min(
+                  100.0f,
+                  id(cooling_fan_pwm_percent).state
+                )
+              );
+
+            id(cooling_fan_pwm_output).set_level(
+              duty / 100.0f
+            );
 
 # ==============================================================================
 # MCP23017 FAN TACHOMETER INPUTS
@@ -196,7 +211,6 @@ sensor:
         (60.0f / 5.0f) /
         ${cooling_fan_tach_pulses_per_revolution}f;
 
-
   # ---------------------------------------------------------------------------
   # COOLING FAN 2 RPM
   # ---------------------------------------------------------------------------
@@ -223,35 +237,54 @@ sensor:
         (60.0f / 5.0f) /
         ${cooling_fan_tach_pulses_per_revolution}f;
 
-
   # ---------------------------------------------------------------------------
-  # COOLING FAN 3 RPM
+  # EMC2101 MONITORING
   # ---------------------------------------------------------------------------
   #
-  # Fan 3 ventilates the rear rectifier compartment and uses the dedicated
-  # EMC2101 tachometer input.
+  # Exposes the EMC2101 controller temperature, Fan 3 tachometer and the
+  # actual PWM duty cycle programmed in the controller.
   # ---------------------------------------------------------------------------
 
   - platform: emc2101
+    internal_temperature:
+      name: "Cooling Fan Controller Temperature"
+      id: cooling_fan_controller_temperature
+      unit_of_measurement: "°C"
+      device_class: temperature
+      state_class: measurement
+      accuracy_decimals: 0
+      icon: "mdi:thermometer"
+
     speed:
       name: "Cooling Fan 3 RPM"
       id: cooling_fan_3_rpm
       unit_of_measurement: "RPM"
+      state_class: measurement
       accuracy_decimals: 0
       icon: "mdi:fan"
 
+    duty_cycle:
+      name: "Cooling Fan PWM Actual"
+      id: cooling_fan_pwm_actual_percent
+      unit_of_measurement: "%"
+      state_class: measurement
+      accuracy_decimals: 1
+      icon: "mdi:fan-speed-3"
+
     update_interval: 5s
 
+# ==============================================================================
+# MANUAL PWM COMMAND
+# ==============================================================================
 # ==============================================================================
 # PWM COMMAND
 # ==============================================================================
 
 number:
-  # Manual PWM command and the visible commanded PWM value. While automatic
-  # mode is enabled, the controller updates this value from the temperature
-  # curve. Disable Cooling Fan Automatic to use it as a manual override.
+  # Manual PWM setpoint retained independently from automatic control.
+  # The value is applied to the EMC2101 only while automatic mode is disabled.
   - platform: template
-    name: "Cooling Fan PWM"
+    name: "Cooling Fan Manual PWM"
     id: cooling_fan_pwm_percent
     min_value: 0
     max_value: 100
@@ -262,11 +295,20 @@ number:
     initial_value: ${cooling_fan_default_pwm_percent}
     mode: SLIDER
     icon: "mdi:fan-speed-3"
+
     on_value:
       then:
-        - lambda: |-
-            const float duty = std::max(0.0f, std::min(100.0f, x));
-            id(cooling_fan_pwm_output).set_level(duty / 100.0f);
+        - if:
+            condition:
+              switch.is_off: cooling_fan_auto
+            then:
+              - lambda: |-
+                  const float duty =
+                    std::max(0.0f, std::min(100.0f, x));
+
+                  id(cooling_fan_pwm_output).set_level(
+                    duty / 100.0f
+                  );
 
 # ==============================================================================
 # AUTOMATIC TEMPERATURE CONTROL
@@ -320,11 +362,9 @@ script:
                   id(cooling_fan_enable).turn_on();
                 }
 
-                if (fabsf(id(cooling_fan_pwm_percent).state - duty) > 0.5f) {
-                  auto call = id(cooling_fan_pwm_percent).make_call();
-                  call.set_value(duty);
-                  call.perform();
-                }
+                id(cooling_fan_pwm_output).set_level(
+                  duty / 100.0f
+                );
 
 # ==============================================================================
 # PERIODIC AUTOMATIC CONTROL
