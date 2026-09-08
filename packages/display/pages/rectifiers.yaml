@@ -130,7 +130,6 @@ widgets:
                   align: CENTER
                   text: "UNAVAILABLE"
                   text_font: montserrat_16
-                  text_color: 0xFFFFFF
 
             on_short_click:
               - if:
@@ -283,7 +282,6 @@ widgets:
                   align: CENTER
                   text: "UNAVAILABLE"
                   text_font: montserrat_16
-                  text_color: 0xFFFFFF
 
             on_short_click:
               - if:
@@ -436,7 +434,6 @@ widgets:
                   align: CENTER
                   text: "UNAVAILABLE"
                   text_font: montserrat_16
-                  text_color: 0xFFFFFF
 
             on_short_click:
               - if:
