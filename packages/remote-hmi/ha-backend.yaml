@@ -1,0 +1,112 @@
+# ==============================================================================
+# REMOTE HMI HOME ASSISTANT BACKEND
+# ==============================================================================
+#
+# Imports authoritative Charger Controller state from Home Assistant and
+# publishes it into the shared V6 UI model.
+#
+# Imported Home Assistant entities remain internal to the Remote HMI. Shared
+# LVGL code consumes only the target-neutral ui_model_* entities.
+#
+# Charger state is invalidated when the Home Assistant state-subscription
+# connection is unavailable so stale values cannot appear as live telemetry.
+# ==============================================================================
+
+globals:
+
+  # ---------------------------------------------------------------------------
+  # SOURCE-STATE FRESHNESS
+  # ---------------------------------------------------------------------------
+
+  - id: remote_ha_available_units_received
+    type: bool
+    restore_value: false
+    initial_value: "false"
+
+  - id: remote_ha_running_units_received
+    type: bool
+    restore_value: false
+    initial_value: "false"
+
+# ==============================================================================
+# HOME ASSISTANT CHARGER STATE
+# ==============================================================================
+
+sensor:
+
+  # ---------------------------------------------------------------------------
+  # AVAILABLE RECTIFIERS
+  # ---------------------------------------------------------------------------
+
+  - platform: homeassistant
+    id: remote_ha_available_units
+    entity_id: ${ha_charger_available_units_entity}
+
+    on_value:
+      then:
+        - lambda: |-
+            if (isnan(x)) {
+              id(remote_ha_available_units_received) = false;
+              id(ui_model_available_units).publish_state(NAN);
+              return;
+            }
+
+            id(remote_ha_available_units_received) = true;
+            id(ui_model_available_units).publish_state(x);
+
+  # ---------------------------------------------------------------------------
+  # RUNNING RECTIFIERS
+  # ---------------------------------------------------------------------------
+
+  - platform: homeassistant
+    id: remote_ha_running_units
+    entity_id: ${ha_charger_running_units_entity}
+
+    on_value:
+      then:
+        - lambda: |-
+            if (isnan(x)) {
+              id(remote_ha_running_units_received) = false;
+              id(ui_model_running_units).publish_state(NAN);
+              return;
+            }
+
+            id(remote_ha_running_units_received) = true;
+            id(ui_model_running_units).publish_state(x);
+
+# ==============================================================================
+# BACKEND AVAILABILITY
+# ==============================================================================
+#
+# A state-subscription connection is required so logger-only API connections
+# cannot make charger telemetry appear available.
+#
+# After a disconnect, both source values must be received again before the
+# shared UI model becomes available.
+# ==============================================================================
+
+interval:
+  - interval: 1s
+    then:
+      - lambda: |-
+          const bool ha_connected =
+            id(native_api).is_connected_with_state_subscription();
+
+          if (!ha_connected) {
+            id(remote_ha_available_units_received) = false;
+            id(remote_ha_running_units_received) = false;
+
+            id(ui_model_data_available).publish_state(false);
+            id(ui_model_available_units).publish_state(NAN);
+            id(ui_model_running_units).publish_state(NAN);
+
+            return;
+          }
+
+          const bool data_available =
+            id(remote_ha_available_units_received) &&
+            id(remote_ha_running_units_received);
+
+          id(ui_model_data_available).publish_state(
+            data_available
+          );

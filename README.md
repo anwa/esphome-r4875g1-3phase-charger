@@ -2,8 +2,12 @@
 
 ESPHome-based controller for three Huawei R4875G1 rectifiers operated as a coordinated three-phase battery charger with a common parallel DC output.
 
-The current V5 hardware platform is based on the
-**Waveshare ESP32-S3-Touch-LCD-7** and combines:
+The V6 firmware generation uses two coordinated targets based on the **Waveshare ESP32-S3-Touch-LCD-7**:
+
+- the Charger Controller, physically attached to the rectifiers and responsible for CAN, charger control, safety and local blackstart
+- the Remote HMI, which provides the same touchscreen user interface while receiving authoritative charger state and sending command requests through Home Assistant
+
+The Charger Controller remains fully operational without Wi-Fi, Home Assistant, MQTT or Internet access. The Remote HMI is a convenience interface and does not duplicate charger safety or CAN-control logic.
 
 - local charger control
 - CAN communication with three independent R4875G1 rectifiers
@@ -69,7 +73,7 @@ Each rectifier maintains its own communication, lifecycle, discovery, thermal an
 
 ---
 
-## Current V5 Controller Hardware
+## V6 Hardware Targets
 
 The current firmware targets:
 
@@ -85,7 +89,7 @@ onboard CAN transceiver
 ```
 
 The controller uses the onboard ESP32-S3 TWAI peripheral and CAN transceiver.
-No external SN65HVD230 module is required by the V5 hardware.
+No external SN65HVD230 module is required by the V6 hardware.
 
 ### External I2C Architecture
 
@@ -469,7 +473,7 @@ MCP23017 GPA2 -> Encoder button
 
 The three inputs are implemented as internal MCP23017-backed GPIO entities.
 
-The current V5 firmware does not assign charger-control or navigation actions to these backup encoder inputs.
+The current V6 firmware does not assign charger-control or navigation actions to these backup encoder inputs.
 
 ---
 
@@ -708,7 +712,7 @@ The detailed ownership model is documented in [`packages/README.md`](packages/RE
 
 ## Display Architecture
 
-The V5 display implementation separates static UI layout from periodic runtime updates.
+The V6 display implementation separates static UI layout from periodic runtime updates.
 
 ```text
 display.yaml
@@ -815,9 +819,9 @@ The previous ESP32-S3-DevKitC-1 hardware implementation remains maintained separ
 v4-maintenance
 ```
 
-V4 is a permanent hardware variant rather than the active V5 controller target.
+V4 is a permanent hardware variant rather than the active V6 controller target.
 
-Changes that are genuinely shared between both hardware generations may be ported when appropriate, but V5-specific display, I/O and hardware assumptions must not be applied blindly to the V4 branch.
+Changes that are genuinely shared between both hardware generations may be ported when appropriate, but V6-specific display, I/O and hardware assumptions must not be applied blindly to the V4 branch.
 
 ---
 
@@ -829,7 +833,7 @@ This project originally grew from the Huawei R48xx CAN work published by **mjpal
 
 That work provided important groundwork for Huawei CAN protocol research, telemetry decoding, control commands, property/capability discovery and ESPHome integration.
 
-The current project has since evolved into a dedicated three-unit charger with independent per-unit lifecycle management, local/offline control, automatic CAN recovery, capability-aware current limiting, thermal protection, a V5 touchscreen controller platform and external cooling management.
+The current project has since evolved into a dedicated three-unit charger with independent per-unit lifecycle management, local/offline control, automatic CAN recovery, capability-aware current limiting, thermal protection, a touchscreen controller platform and external cooling management.
 
 ---
 

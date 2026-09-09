@@ -28,6 +28,9 @@ substitutions:
 
   fallback_ap_ssid: "Charger HMI Fallback"
 
+  ha_charger_available_units_entity: "sensor.hg_dg_technik_charger_available_units"
+  ha_charger_running_units_entity: "sensor.hg_dg_technik_charger_running_units"
+
   # ---------------------------------------------------------------------------
   # SHARED WAVESHARE GPIO MAP
   # ---------------------------------------------------------------------------
@@ -57,6 +60,8 @@ packages:
   shared_core: !include packages/shared/core.yaml
   shared_hardware: !include packages/shared/hardware.yaml
   shared_ui_model: !include packages/shared/ui-model.yaml
+
+  remote_ha_backend: !include packages/remote-hmi/ha-backend.yaml
 
   display_hardware: !include packages/display/hardware.yaml
   display_theme: !include packages/display/theme.yaml

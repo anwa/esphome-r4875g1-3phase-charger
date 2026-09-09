@@ -47,7 +47,8 @@ packages/
 │   └── ui-backend.yaml
 │
 ├── remote-hmi/
-│   └── bootstrap-ui.yaml
+│   ├── bootstrap-ui.yaml
+│   └── ha-backend.yaml
 │
 ├── controls.yaml
 ├── cooling.yaml
@@ -119,6 +120,9 @@ controller/ui-backend.yaml
 
 remote-hmi/bootstrap-ui.yaml
     temporary Remote HMI hardware-validation UI
+
+remote-hmi/ha-backend.yaml
+    imports authoritative Charger Controller state through Home Assistant
 
 controls.yaml
     charger-wide user setpoints and controls
@@ -243,6 +247,24 @@ This backend does not own charger state itself. The existing controller runtime 
 
 ---
 
+## `remote-hmi/bootstrap-ui.yaml`
+
+Provides the temporary Remote HMI bootstrap and validation interface.
+
+The page exposes local display, touch and backup-battery operation together with the first Home Assistant-backed charger-state indicators while the complete shared production HMI is being migrated.
+
+---
+
+## `remote-hmi/ha-backend.yaml`
+
+Owns the Remote HMI Home Assistant transport.
+
+It imports authoritative Charger Controller entities from Home Assistant and publishes them into the shared UI model. Shared LVGL code therefore consumes the same `ui_model_*` entities on both firmware targets.
+
+Loss of the Home Assistant state-subscription connection invalidates Remote HMI charger state so stale values cannot appear as live telemetry.
+
+---
+
 ### I2C Topology
 
 The controller uses two independent physical I2C buses. The onboard bus is reserved for Waveshare peripherals, while external peripherals use a dedicated bus to avoid address collisions with the onboard CH422G.
@@ -278,7 +300,7 @@ GPA5 -> Cooling Fan 2 tachometer
 ```
 
 The backup encoder inputs currently provide hardware entities only.
-No charger-control or navigation actions are assigned to them in the current V5 firmware.
+No charger-control or navigation actions are assigned to them in the current V6 firmware.
 
 ---
 
@@ -561,7 +583,7 @@ Publishes:
 
 # Display Architecture
 
-The V5 display implementation separates static LVGL layout from periodic runtime updates.
+The V6 display implementation separates static LVGL layout from periodic runtime updates.
 
 This separation is important because updating every widget continuously caused unnecessary LVGL load on the controller.
 

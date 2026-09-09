@@ -53,9 +53,29 @@ lvgl:
                   text_color: 0x8B96A0
 
               - label:
+                  id: ui_remote_bootstrap_connection
+                  x: 0
+                  y: 135
+                  width: 580
+                  text_align: CENTER
+                  text: "HA / Charger Data Offline"
+                  text_font: montserrat_18
+                  text_color: 0xFFC04A
+
+              - label:
+                  id: ui_remote_bootstrap_units
+                  x: 0
+                  y: 170
+                  width: 580
+                  text_align: CENTER
+                  text: "Available - / 3    Running - / 3"
+                  text_font: montserrat_18
+                  text_color: 0xDDE3E8
+
+              - label:
                   id: ui_remote_bootstrap_battery
                   x: 0
-                  y: 150
+                  y: 205
                   width: 580
                   text_align: CENTER
                   text: "Backup Battery --.-- V / -- %"
@@ -130,4 +150,48 @@ interval:
               "Backup Battery %.2f V / %.0f %%",
               voltage,
               soc
+            );
+
+      - lvgl.label.update:
+          id: ui_remote_bootstrap_connection
+
+          text: !lambda |-
+            return id(ui_model_data_available).state
+              ? std::string("HA / Charger Data Online")
+              : std::string("HA / Charger Data Offline");
+
+          text_color: !lambda |-
+            return id(ui_model_data_available).state
+              ? lv_color_hex(0x5CFF7A)
+              : lv_color_hex(0xFFC04A);
+
+      - lvgl.label.update:
+          id: ui_remote_bootstrap_units
+
+          text: !lambda |-
+            if (!id(ui_model_data_available).state) {
+              return std::string(
+                "Available - / 3    Running - / 3"
+              );
+            }
+
+            const float available =
+              id(ui_model_available_units).state;
+
+            const float running =
+              id(ui_model_running_units).state;
+
+            if (
+              isnan(available) ||
+              isnan(running)
+            ) {
+              return std::string(
+                "Available - / 3    Running - / 3"
+              );
+            }
+
+            return str_sprintf(
+              "Available %.0f / 3    Running %.0f / 3",
+              available,
+              running
             );

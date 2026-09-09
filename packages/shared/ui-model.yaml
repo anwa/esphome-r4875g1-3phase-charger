@@ -16,6 +16,24 @@
 # target-specific transport or hardware state directly.
 # ==============================================================================
 
+# ==============================================================================
+# UI MODEL AVAILABILITY
+# ==============================================================================
+#
+# Indicates whether the active target backend currently provides valid charger
+# state to the shared UI model.
+#
+# The Charger Controller publishes this state from its local backend.
+# The Remote HMI publishes it only while Home Assistant is connected and the
+# required charger entities have been received.
+# ==============================================================================
+
+binary_sensor:
+
+  - platform: template
+    id: ui_model_data_available
+    internal: true
+
 sensor:
 
   # ---------------------------------------------------------------------------

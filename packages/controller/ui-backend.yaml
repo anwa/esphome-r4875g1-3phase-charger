@@ -11,9 +11,12 @@
 # ==============================================================================
 
 interval:
+
   - interval: 500ms
     then:
       - lambda: |-
+          id(ui_model_data_available).publish_state(true);
+
           id(ui_model_available_units).publish_state(
             id(available_units).state
           );
