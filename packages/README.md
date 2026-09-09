@@ -37,6 +37,8 @@ packages/
 ├── version.yaml
 │
 ├── shared/
+│   ├── battery-bank.yaml
+│   ├── battery-ui-backend.yaml
 │   ├── core.yaml
 │   ├── hardware.yaml
 │   └── ui-model.yaml
@@ -54,7 +56,6 @@ packages/
 │
 ├── controls.yaml
 ├── cooling.yaml
-├── battery-bank.yaml
 ├── display.yaml
 ├── rectifier-shared.yaml
 ├── rectifier-unit.yaml
@@ -111,6 +112,12 @@ shared/hardware.yaml
 shared/ui-model.yaml
     target-neutral state contract consumed by the HMI
 
+shared/battery-bank.yaml
+    shared Home Assistant solar-battery telemetry import and availability state
+
+shared/battery-ui-backend.yaml
+    publishes valid battery-bank monitoring state into the shared UI model
+
 controller/hardware.yaml
     Charger Controller buses and charger-side peripherals
 
@@ -137,9 +144,6 @@ controls.yaml
 
 cooling.yaml
     external chassis cooling
-
-battery-bank.yaml
-    Home Assistant solar-battery telemetry import and availability state
 
 display.yaml
     display package aggregation
@@ -221,7 +225,7 @@ Owns the target-neutral runtime state consumed by shared HMI code.
 
 The model isolates LVGL presentation from the source of charger data. Charger Controller and Remote HMI backends publish into the same model IDs so shared display code does not need target-specific telemetry paths.
 
-The current model includes Dashboard AC/DC aggregate telemetry, active charger setpoints, rectifier availability/run state, highest output temperature and conversion efficiency.
+The current model includes Dashboard AC/DC aggregate telemetry, active charger setpoints, rectifier availability/run state, highest output temperature, conversion efficiency and aggregate solar-battery-bank monitoring state.
 
 ---
 
@@ -393,7 +397,7 @@ Automatic cooling fails safe to enabled fan power and maximum PWM if the compart
 
 ---
 
-## `battery-bank.yaml`
+## `shared/battery-bank.yaml`
 
 Owns Home Assistant telemetry import for the external solar battery bank.
 
@@ -410,6 +414,16 @@ Responsibilities include:
 Warning and fault entities are intentionally imported as text so unavailable source data remains distinguishable from a genuine inactive warning or fault.
 
 This package is monitoring-only and MUST NOT participate in charger control, CAN commands, lifecycle decisions or safety limits.
+
+---
+
+## `shared/battery-ui-backend.yaml`
+
+Publishes validated aggregate battery-bank monitoring state into the shared UI model.
+
+Both V6 targets use the same Home Assistant battery source package, so this backend is shared rather than target-specific.
+
+Unavailable battery data is invalidated before it reaches shared LVGL code so stale monitoring values cannot appear as live state.
 
 ---
 

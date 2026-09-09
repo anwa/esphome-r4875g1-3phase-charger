@@ -282,13 +282,14 @@ packages:
   shared_core: !include packages/shared/core.yaml
   shared_hardware: !include packages/shared/hardware.yaml
   shared_ui_model: !include packages/shared/ui-model.yaml
+  shared_battery_bank: !include packages/shared/battery-bank.yaml
+  shared_battery_ui_backend: !include packages/shared/battery-ui-backend.yaml
 
   controller_hardware: !include packages/controller/hardware.yaml
   controller_mqtt: !include packages/controller/mqtt.yaml
   controller_ui_backend: !include packages/controller/ui-backend.yaml
   controller_ui_commands: !include packages/controller/ui-commands.yaml
 
-  battery_bank: !include packages/battery-bank.yaml
   cooling: !include packages/cooling.yaml
   display: !include packages/display.yaml
 

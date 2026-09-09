@@ -34,6 +34,18 @@ binary_sensor:
     id: ui_model_data_available
     internal: true
 
+  # ---------------------------------------------------------------------------
+  # BATTERY BANK SOURCE
+  # ---------------------------------------------------------------------------
+
+  - platform: template
+    id: ui_model_battery_source_connected
+    internal: true
+
+  - platform: template
+    id: ui_model_battery_data_available
+    internal: true
+
 # ==============================================================================
 # DASHBOARD STATE
 # ==============================================================================
@@ -146,3 +158,54 @@ sensor:
     update_interval: never
     unit_of_measurement: "%"
     accuracy_decimals: 1
+
+
+  # ---------------------------------------------------------------------------
+  # BATTERY BANK
+  # ---------------------------------------------------------------------------
+
+  - platform: template
+    id: ui_model_battery_soc
+    internal: true
+    update_interval: never
+    unit_of_measurement: "%"
+    accuracy_decimals: 1
+
+  - platform: template
+    id: ui_model_battery_power
+    internal: true
+    update_interval: never
+    unit_of_measurement: "kW"
+    accuracy_decimals: 3
+
+  - platform: template
+    id: ui_model_battery_voltage
+    internal: true
+    update_interval: never
+    unit_of_measurement: "V"
+    accuracy_decimals: 2
+
+  - platform: template
+    id: ui_model_battery_current
+    internal: true
+    update_interval: never
+    unit_of_measurement: "A"
+    accuracy_decimals: 1
+
+  - platform: template
+    id: ui_model_battery_temperature
+    internal: true
+    update_interval: never
+    unit_of_measurement: "°C"
+    accuracy_decimals: 1
+
+
+# ==============================================================================
+# BATTERY BANK TEXT STATE
+# ==============================================================================
+
+text_sensor:
+
+  - platform: template
+    id: ui_model_battery_state
+    internal: true

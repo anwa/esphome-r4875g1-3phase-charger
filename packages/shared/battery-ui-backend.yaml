@@ -1,0 +1,69 @@
+# ==============================================================================
+# SHARED BATTERY BANK UI BACKEND
+# ==============================================================================
+#
+# Publishes the Home Assistant-backed solar battery-bank monitoring state into
+# the shared V6 UI model.
+#
+# The same battery source package is used by both firmware targets. Shared LVGL
+# code therefore consumes only ui_model_battery_* entities and does not depend
+# directly on raw Home Assistant imports.
+#
+# Battery monitoring remains independent of charger control and safety.
+# ==============================================================================
+
+interval:
+
+  - interval: 1s
+    then:
+      - lambda: |-
+          const bool source_connected =
+            id(battery_ha_connected).state;
+
+          id(ui_model_battery_source_connected).publish_state(
+            source_connected
+          );
+
+          const bool data_available =
+            source_connected &&
+            id(battery_bank_data_available).state;
+
+          if (!data_available) {
+            id(ui_model_battery_data_available).publish_state(false);
+
+            id(ui_model_battery_soc).publish_state(NAN);
+            id(ui_model_battery_power).publish_state(NAN);
+            id(ui_model_battery_voltage).publish_state(NAN);
+            id(ui_model_battery_current).publish_state(NAN);
+            id(ui_model_battery_temperature).publish_state(NAN);
+
+            id(ui_model_battery_state).publish_state("");
+
+            return;
+          }
+
+          id(ui_model_battery_soc).publish_state(
+            id(battery_bank_soc).state
+          );
+
+          id(ui_model_battery_power).publish_state(
+            id(battery_bank_power).state
+          );
+
+          id(ui_model_battery_voltage).publish_state(
+            id(battery_bank_voltage).state
+          );
+
+          id(ui_model_battery_current).publish_state(
+            id(battery_bank_current).state
+          );
+
+          id(ui_model_battery_temperature).publish_state(
+            id(battery_bank_temperature).state
+          );
+
+          id(ui_model_battery_state).publish_state(
+            id(battery_bank_state).state
+          );
+
+          id(ui_model_battery_data_available).publish_state(true);
