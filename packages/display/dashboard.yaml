@@ -400,6 +400,7 @@ interval:
                 condition:
                   lambda: |-
                     return
+                      id(ui_model_data_available).state &&
                       id(ui_charger_power_pending) == 0 &&
                       id(ui_rectifier_1_power_pending) == 0 &&
                       id(ui_rectifier_2_power_pending) == 0 &&
@@ -414,3 +415,26 @@ interval:
                 else:
                   - lvgl.widget.disable:
                       id: ui_dashboard_power_button
+
+            # ---------------------------------------------------------------------------
+            # DASHBOARD SETPOINT COMMAND AVAILABILITY
+            # ---------------------------------------------------------------------------
+
+            - if:
+                condition:
+                  lambda: |-
+                    return id(ui_model_data_available).state;
+
+                then:
+                  - lvgl.widget.enable:
+                      id: ui_dashboard_ac_setpoints_button
+
+                  - lvgl.widget.enable:
+                      id: ui_dashboard_dc_setpoints_button
+
+                else:
+                  - lvgl.widget.disable:
+                      id: ui_dashboard_ac_setpoints_button
+
+                  - lvgl.widget.disable:
+                      id: ui_dashboard_dc_setpoints_button

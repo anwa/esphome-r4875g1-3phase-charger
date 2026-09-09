@@ -19,8 +19,11 @@
 # infrastructure together with a read-only Home Assistant backend for the
 # currently implemented charger state in the shared V6 UI model.
 #
-# Charger command transport and the complete shared production HMI are not
-# included in this bootstrap target.
+# Charger command transport is available through the Home Assistant command
+# backend. The current bootstrap UI remains read-only and does not expose those
+# commands yet.
+#
+# The complete shared production HMI is not included in this bootstrap target.
 # ==============================================================================
 
 substitutions:
@@ -48,6 +51,13 @@ substitutions:
   ha_charger_conversion_efficiency_entity: "sensor.hg_dg_technik_charger_conversion_efficiency_all_units"
 
   # ---------------------------------------------------------------------------
+  # CHARGER COMMAND TARGETS
+  # ---------------------------------------------------------------------------
+
+  ha_charger_start_button_entity: "button.hg_dg_technik_charger_turn_on_all_units"
+  ha_charger_stop_button_entity: "button.hg_dg_technik_charger_turn_off_all_units"
+
+  # ---------------------------------------------------------------------------
   # SHARED WAVESHARE GPIO MAP
   # ---------------------------------------------------------------------------
 
@@ -66,8 +76,9 @@ substitutions:
 # FIRMWARE PACKAGE ASSEMBLY
 # ==============================================================================
 #
-# Assembles only target-neutral Waveshare hardware, shared platform services
-# and the temporary Remote HMI bootstrap display.
+# Assembles target-neutral Waveshare hardware and platform services together
+# with the Remote HMI Home Assistant state/command backends and the current
+# bootstrap display.
 # ==============================================================================
 
 packages:
@@ -78,6 +89,7 @@ packages:
   shared_ui_model: !include packages/shared/ui-model.yaml
 
   remote_ha_backend: !include packages/remote-hmi/ha-backend.yaml
+  remote_ui_commands: !include packages/remote-hmi/ui-commands.yaml
 
   display_hardware: !include packages/display/hardware.yaml
   display_theme: !include packages/display/theme.yaml

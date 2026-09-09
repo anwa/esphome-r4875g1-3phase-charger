@@ -1,0 +1,65 @@
+# ==============================================================================
+# CHARGER CONTROLLER UI COMMAND BACKEND
+# ==============================================================================
+#
+# Implements the shared Dashboard command interface for the locally attached
+# Charger Controller.
+#
+# Shared HMI code expresses user intent through ui_command_* scripts. This
+# backend translates those requests into the existing authoritative local
+# control entities and preserves their validation, safety and CAN behavior.
+# ==============================================================================
+
+script:
+
+  # ---------------------------------------------------------------------------
+  # AC CURRENT LIMIT
+  # ---------------------------------------------------------------------------
+
+  - id: ui_command_set_ac_current_limit
+    parameters:
+      value: float
+
+    then:
+      - number.set:
+          id: set_ac_current_limit
+          value: !lambda |-
+            return value;
+
+  # ---------------------------------------------------------------------------
+  # DC SETPOINTS
+  # ---------------------------------------------------------------------------
+
+  - id: ui_command_set_dc_setpoints
+    parameters:
+      voltage: float
+      power: float
+
+    then:
+      - number.set:
+          id: set_dc_voltage_limit
+          value: !lambda |-
+            return voltage;
+
+      - number.set:
+          id: set_dc_sum_power
+          value: !lambda |-
+            return power;
+
+  # ---------------------------------------------------------------------------
+  # CHARGER START
+  # ---------------------------------------------------------------------------
+
+  - id: ui_command_charger_start
+
+    then:
+      - button.press: on_button_all
+
+  # ---------------------------------------------------------------------------
+  # CHARGER STOP
+  # ---------------------------------------------------------------------------
+
+  - id: ui_command_charger_stop
+
+    then:
+      - button.press: off_button_all

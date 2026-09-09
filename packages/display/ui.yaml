@@ -678,8 +678,8 @@ lvgl:
                             text_font: montserrat_16
 
                       on_short_click:
-                        - number.set:
-                            id: set_ac_current_limit
+                        - script.execute:
+                            id: ui_command_set_ac_current_limit
                             value: !lambda |-
                               return id(ui_ac_setpoints_current_edit);
 
@@ -907,14 +907,11 @@ lvgl:
                             text_font: montserrat_16
 
                       on_short_click:
-                        - number.set:
-                            id: set_dc_voltage_limit
-                            value: !lambda |-
+                        - script.execute:
+                            id: ui_command_set_dc_setpoints
+                            voltage: !lambda |-
                               return id(ui_dc_setpoints_voltage_edit);
-
-                        - number.set:
-                            id: set_dc_sum_power
-                            value: !lambda |-
+                            power: !lambda |-
                               return id(ui_dc_setpoints_power_edit);
 
                         - lvgl.widget.hide: ui_dc_setpoints_dialog
@@ -1017,7 +1014,7 @@ lvgl:
                             id: ui_dashboard_power_button_label
                             text: "STARTING..."
 
-                        - button.press: on_button_all
+                        - script.execute: ui_command_charger_start
 
       # ---------------------------------------------------------------------------
       # CHARGER STOP
@@ -1113,7 +1110,7 @@ lvgl:
                             id: ui_dashboard_power_button_label
                             text: "STOPPING..."
 
-                        - button.press: off_button_all
+                        - script.execute: ui_command_charger_stop
 
       # ---------------------------------------------------------------------------
       # RECTIFIER 1 START

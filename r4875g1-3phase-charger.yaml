@@ -286,6 +286,7 @@ packages:
   controller_hardware: !include packages/controller/hardware.yaml
   controller_mqtt: !include packages/controller/mqtt.yaml
   controller_ui_backend: !include packages/controller/ui-backend.yaml
+  controller_ui_commands: !include packages/controller/ui-commands.yaml
 
   battery_bank: !include packages/battery-bank.yaml
   cooling: !include packages/cooling.yaml

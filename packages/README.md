@@ -44,11 +44,13 @@ packages/
 ├── controller/
 │   ├── hardware.yaml
 │   ├── mqtt.yaml
-│   └── ui-backend.yaml
+│   ├── ui-backend.yaml
+│   └── ui-commands.yaml
 │
 ├── remote-hmi/
 │   ├── bootstrap-ui.yaml
-│   └── ha-backend.yaml
+│   ├── ha-backend.yaml
+│   └── ui-commands.yaml
 │
 ├── controls.yaml
 ├── cooling.yaml
@@ -118,11 +120,17 @@ controller/mqtt.yaml
 controller/ui-backend.yaml
     publishes authoritative local charger state into the shared UI model
 
+controller/ui-commands.yaml
+    executes shared UI command intents through local Charger Controller entities
+
 remote-hmi/bootstrap-ui.yaml
     temporary Remote HMI hardware-validation UI
 
 remote-hmi/ha-backend.yaml
     imports authoritative Charger Controller state through Home Assistant
+
+remote-hmi/ui-commands.yaml
+    transports shared UI command intents to the Charger Controller through Home Assistant
 
 controls.yaml
     charger-wide user setpoints and controls
@@ -249,6 +257,14 @@ This backend does not own charger state itself. The existing controller runtime 
 
 ---
 
+## `controller/ui-commands.yaml`
+
+Implements the shared HMI command interface for the Charger Controller target.
+
+The command scripts translate target-neutral Dashboard intent into the existing local ESPHome controls. Charger safety, validation and CAN execution remain owned by the existing Controller entities and scripts.
+
+---
+
 ## `remote-hmi/bootstrap-ui.yaml`
 
 Provides the current Remote HMI bootstrap and validation interface.
@@ -266,6 +282,16 @@ It imports authoritative Charger Controller entities from Home Assistant and pub
 The backend currently supplies the Charger-side Dashboard telemetry and setpoint state required by the shared UI model. Charger command transport remains separate.
 
 Loss of the Home Assistant state-subscription connection invalidates Remote HMI charger state so stale values cannot appear as live telemetry.
+
+---
+
+## `remote-hmi/ui-commands.yaml`
+
+Implements the shared HMI command interface for the Remote HMI target.
+
+The backend sends command requests through Home Assistant to the Charger Controller entities. It does not duplicate safety logic and does not treat a request as confirmed charger state.
+
+The shared UI model remains authoritative for displayed command results after Home Assistant reports the resulting Charger Controller state.
 
 ---
 
