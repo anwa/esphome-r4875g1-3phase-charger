@@ -197,6 +197,7 @@ widgets:
             id: ui_system_loop_time
             x: 190
             y: 137
+            width: 180
             styles: style_value_label
             text: "-- ms"
 

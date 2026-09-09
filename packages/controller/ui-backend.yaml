@@ -17,10 +17,54 @@ interval:
       - lambda: |-
           id(ui_model_data_available).publish_state(true);
 
+          id(ui_model_ac_power).publish_state(
+            id(combined_ac_power).state
+          );
+
+          id(ui_model_ac_voltage).publish_state(
+            id(average_ac_voltage).state
+          );
+
+          id(ui_model_ac_current).publish_state(
+            id(average_ac_current).state
+          );
+
+          id(ui_model_ac_current_limit).publish_state(
+            id(set_ac_current_limit).state
+          );
+
+          id(ui_model_dc_power).publish_state(
+            id(combined_dc_power).state
+          );
+
+          id(ui_model_dc_voltage).publish_state(
+            id(average_dc_voltage).state
+          );
+
+          id(ui_model_dc_current).publish_state(
+            id(combined_dc_current).state
+          );
+
+          id(ui_model_dc_voltage_limit).publish_state(
+            id(set_dc_voltage_limit).state
+          );
+
+          id(ui_model_dc_sum_power).publish_state(
+            id(set_dc_sum_power).state
+          );
+
           id(ui_model_available_units).publish_state(
             id(available_units).state
           );
 
           id(ui_model_running_units).publish_state(
             id(running_units).state
+          );
+
+          id(ui_model_highest_output_temperature).publish_state(
+            id(highest_output_temperature).state
+          );
+
+          id(ui_model_conversion_efficiency).publish_state(
+            id(conversion_efficiency).state
           );

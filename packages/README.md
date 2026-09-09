@@ -213,6 +213,8 @@ Owns the target-neutral runtime state consumed by shared HMI code.
 
 The model isolates LVGL presentation from the source of charger data. Charger Controller and Remote HMI backends publish into the same model IDs so shared display code does not need target-specific telemetry paths.
 
+The current model includes Dashboard AC/DC aggregate telemetry, active charger setpoints, rectifier availability/run state, highest output temperature and conversion efficiency.
+
 ---
 
 ## `controller/hardware.yaml`
@@ -249,9 +251,9 @@ This backend does not own charger state itself. The existing controller runtime 
 
 ## `remote-hmi/bootstrap-ui.yaml`
 
-Provides the temporary Remote HMI bootstrap and validation interface.
+Provides the current Remote HMI bootstrap and validation interface.
 
-The page exposes local display, touch and backup-battery operation together with the first Home Assistant-backed charger-state indicators while the complete shared production HMI is being migrated.
+The page exposes local display, touch and backup-battery operation together with read-only charger availability and run-state information received through the shared UI model.
 
 ---
 
@@ -260,6 +262,8 @@ The page exposes local display, touch and backup-battery operation together with
 Owns the Remote HMI Home Assistant transport.
 
 It imports authoritative Charger Controller entities from Home Assistant and publishes them into the shared UI model. Shared LVGL code therefore consumes the same `ui_model_*` entities on both firmware targets.
+
+The backend currently supplies the Charger-side Dashboard telemetry and setpoint state required by the shared UI model. Charger command transport remains separate.
 
 Loss of the Home Assistant state-subscription connection invalidates Remote HMI charger state so stale values cannot appear as live telemetry.
 

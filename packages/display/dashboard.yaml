@@ -26,13 +26,13 @@ interval:
             - lvgl.label.update:
                 id: ui_dashboard_ac_power
                 text: !lambda |-
-                  if (isnan(id(combined_ac_power).state)) {
+                  if (isnan(id(ui_model_ac_power).state)) {
                     return std::string("--.-- kW");
                   }
 
                   return str_sprintf(
                     "%.2f kW",
-                    id(combined_ac_power).state
+                    id(ui_model_ac_power).state
                   );
 
             # ---------------------------------------------------------------------------
@@ -42,13 +42,13 @@ interval:
             - lvgl.label.update:
                 id: ui_dashboard_ac_voltage
                 text: !lambda |-
-                  if (isnan(id(average_ac_voltage).state)) {
+                  if (isnan(id(ui_model_ac_voltage).state)) {
                     return std::string("--- V");
                   }
 
                   return str_sprintf(
                     "%.0f V",
-                    id(average_ac_voltage).state
+                    id(ui_model_ac_voltage).state
                   );
 
             # ---------------------------------------------------------------------------
@@ -58,13 +58,13 @@ interval:
             - lvgl.label.update:
                 id: ui_dashboard_ac_current
                 text: !lambda |-
-                  if (isnan(id(average_ac_current).state)) {
+                  if (isnan(id(ui_model_ac_current).state)) {
                     return std::string("--.- A");
                   }
 
                   return str_sprintf(
                     "%.1f A",
-                    id(average_ac_current).state
+                    id(ui_model_ac_current).state
                   );
 
             # ---------------------------------------------------------------------------
@@ -74,13 +74,13 @@ interval:
             - lvgl.label.update:
                 id: ui_dashboard_ac_current_limit
                 text: !lambda |-
-                  if (isnan(id(set_ac_current_limit).state)) {
+                  if (isnan(id(ui_model_ac_current_limit).state)) {
                     return std::string("--.- A");
                   }
 
                   return str_sprintf(
                     "%.1f A",
-                    id(set_ac_current_limit).state
+                    id(ui_model_ac_current_limit).state
                   );
 
             # ---------------------------------------------------------------------------
@@ -90,13 +90,13 @@ interval:
             - lvgl.label.update:
                 id: ui_dashboard_dc_power
                 text: !lambda |-
-                  if (isnan(id(combined_dc_power).state)) {
+                  if (isnan(id(ui_model_dc_power).state)) {
                     return std::string("--.-- kW");
                   }
 
                   return str_sprintf(
                     "%.2f kW",
-                    id(combined_dc_power).state
+                    id(ui_model_dc_power).state
                   );
 
             # ---------------------------------------------------------------------------
@@ -106,13 +106,13 @@ interval:
             - lvgl.label.update:
                 id: ui_dashboard_dc_voltage
                 text: !lambda |-
-                  if (isnan(id(average_dc_voltage).state)) {
+                  if (isnan(id(ui_model_dc_voltage).state)) {
                     return std::string("--.-- V");
                   }
 
                   return str_sprintf(
                     "%.2f V",
-                    id(average_dc_voltage).state
+                    id(ui_model_dc_voltage).state
                   );
 
             # ---------------------------------------------------------------------------
@@ -122,13 +122,13 @@ interval:
             - lvgl.label.update:
                 id: ui_dashboard_dc_current
                 text: !lambda |-
-                  if (isnan(id(combined_dc_current).state)) {
+                  if (isnan(id(ui_model_dc_current).state)) {
                     return std::string("--.- A");
                   }
 
                   return str_sprintf(
                     "%.1f A",
-                    id(combined_dc_current).state
+                    id(ui_model_dc_current).state
                   );
 
             # ---------------------------------------------------------------------------
@@ -138,13 +138,13 @@ interval:
             - lvgl.label.update:
                 id: ui_dashboard_dc_voltage_limit
                 text: !lambda |-
-                  if (isnan(id(set_dc_voltage_limit).state)) {
+                  if (isnan(id(ui_model_dc_voltage_limit).state)) {
                     return std::string("--.- V");
                   }
 
                   return str_sprintf(
                     "%.1f V",
-                    id(set_dc_voltage_limit).state
+                    id(ui_model_dc_voltage_limit).state
                   );
 
             # ---------------------------------------------------------------------------
@@ -154,13 +154,13 @@ interval:
             - lvgl.label.update:
                 id: ui_dashboard_dc_sum_power
                 text: !lambda |-
-                  if (isnan(id(set_dc_sum_power).state)) {
+                  if (isnan(id(ui_model_dc_sum_power).state)) {
                     return std::string("--.- kW");
                   }
 
                   return str_sprintf(
                     "%.1f kW",
-                    id(set_dc_sum_power).state
+                    id(ui_model_dc_sum_power).state
                   );
 
             # ---------------------------------------------------------------------------
@@ -202,13 +202,13 @@ interval:
             - lvgl.label.update:
                 id: ui_dashboard_temperature
                 text: !lambda |-
-                  if (isnan(id(highest_output_temperature).state)) {
+                  if (isnan(id(ui_model_highest_output_temperature).state)) {
                     return std::string("--.- °C");
                   }
 
                   return str_sprintf(
                     "%.1f °C",
-                    id(highest_output_temperature).state
+                    id(ui_model_highest_output_temperature).state
                   );
 
             # ---------------------------------------------------------------------------
@@ -218,13 +218,13 @@ interval:
             - lvgl.label.update:
                 id: ui_dashboard_efficiency
                 text: !lambda |-
-                  if (isnan(id(conversion_efficiency).state)) {
+                  if (isnan(id(ui_model_conversion_efficiency).state)) {
                     return std::string("--.- %");
                   }
 
                   return str_sprintf(
                     "%.1f %%",
-                    id(conversion_efficiency).state
+                    id(ui_model_conversion_efficiency).state
                   );
 
             # ---------------------------------------------------------------------------
@@ -348,7 +348,7 @@ interval:
                     state == "Discharging" ||
                     state == "discharging"
                   ) {
-                    return lv_color_hex(0xDDE3E8);
+                    return lv_color_hex(0xFF3030);
                   }
 
                   if (

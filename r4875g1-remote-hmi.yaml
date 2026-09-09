@@ -31,8 +31,21 @@ substitutions:
 
   fallback_ap_ssid: "Charger HMI Fallback"
 
+  ha_charger_ac_power_entity: "sensor.hg_dg_technik_charger_combined_ac_power_all_units"
+  ha_charger_ac_voltage_entity: "sensor.hg_dg_technik_charger_average_ac_voltage_all_units"
+  ha_charger_ac_current_entity: "sensor.hg_dg_technik_charger_average_ac_current_all_units"
+  ha_charger_ac_current_limit_entity: "number.hg_dg_technik_charger_set_ac_current_limit"
+
+  ha_charger_dc_power_entity: "sensor.hg_dg_technik_charger_combined_dc_power_all_units"
+  ha_charger_dc_voltage_entity: "sensor.hg_dg_technik_charger_average_dc_voltage_all_units"
+  ha_charger_dc_current_entity: "sensor.hg_dg_technik_charger_combined_dc_current_all_units"
+  ha_charger_dc_voltage_limit_entity: "number.hg_dg_technik_charger_set_dc_voltage_limit"
+  ha_charger_dc_sum_power_entity: "number.hg_dg_technik_charger_set_dc_sum_power"
+
   ha_charger_available_units_entity: "sensor.hg_dg_technik_charger_available_units"
   ha_charger_running_units_entity: "sensor.hg_dg_technik_charger_running_units"
+  ha_charger_highest_output_temperature_entity: "sensor.hg_dg_technik_charger_highest_output_temperature_all_units"
+  ha_charger_conversion_efficiency_entity: "sensor.hg_dg_technik_charger_conversion_efficiency_all_units"
 
   # ---------------------------------------------------------------------------
   # SHARED WAVESHARE GPIO MAP

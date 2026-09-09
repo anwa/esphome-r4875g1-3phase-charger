@@ -100,7 +100,7 @@ widgets:
             on_short_click:
               - lambda: |-
                   id(ui_ac_setpoints_current_edit) =
-                    id(set_ac_current_limit).state;
+                    id(ui_model_ac_current_limit).state;
 
               - lvgl.spinbox.update:
                   id: ui_ac_setpoints_current_spinbox
@@ -211,10 +211,10 @@ widgets:
             on_short_click:
               - lambda: |-
                   id(ui_dc_setpoints_voltage_edit) =
-                    id(set_dc_voltage_limit).state;
+                    id(ui_model_dc_voltage_limit).state;
 
                   id(ui_dc_setpoints_power_edit) =
-                    id(set_dc_sum_power).state;
+                    id(ui_model_dc_sum_power).state;
 
               - lvgl.spinbox.update:
                   id: ui_dc_setpoints_voltage_spinbox
