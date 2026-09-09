@@ -1,0 +1,106 @@
+# ==============================================================================
+# SHARED V6 UI STATE
+# ==============================================================================
+#
+# Persistent presentation state used by shared and Controller-specific LVGL
+# components.
+#
+# Command-pending state represents UI activity only. Authoritative charger
+# state always comes from the shared UI model.
+# ==============================================================================
+
+globals:
+
+  # ---------------------------------------------------------------------------
+  # ACTIVE DISPLAY PAGE
+  # ---------------------------------------------------------------------------
+
+  - id: ui_active_page
+    type: uint8_t
+    restore_value: false
+    initial_value: "0"
+
+  # ---------------------------------------------------------------------------
+  # CHARGER POWER COMMAND
+  # ---------------------------------------------------------------------------
+
+  - id: ui_charger_power_pending
+    type: uint8_t
+    restore_value: false
+    initial_value: "0"
+
+  - id: ui_charger_power_pending_since
+    type: uint32_t
+    restore_value: false
+    initial_value: "0"
+
+  # ---------------------------------------------------------------------------
+  # RECTIFIER POWER COMMANDS
+  # ---------------------------------------------------------------------------
+
+  - id: ui_rectifier_1_power_pending
+    type: uint8_t
+    restore_value: false
+    initial_value: "0"
+
+  - id: ui_rectifier_1_power_pending_since
+    type: uint32_t
+    restore_value: false
+    initial_value: "0"
+
+  - id: ui_rectifier_2_power_pending
+    type: uint8_t
+    restore_value: false
+    initial_value: "0"
+
+  - id: ui_rectifier_2_power_pending_since
+    type: uint32_t
+    restore_value: false
+    initial_value: "0"
+
+  - id: ui_rectifier_3_power_pending
+    type: uint8_t
+    restore_value: false
+    initial_value: "0"
+
+  - id: ui_rectifier_3_power_pending_since
+    type: uint32_t
+    restore_value: false
+    initial_value: "0"
+
+  # ---------------------------------------------------------------------------
+  # FALLBACK EDIT DIALOG
+  # ---------------------------------------------------------------------------
+
+  - id: ui_fallback_voltage_edit
+    type: float
+    restore_value: false
+    initial_value: "0.0"
+
+  - id: ui_fallback_current_edit
+    type: float
+    restore_value: false
+    initial_value: "0.0"
+
+  # ---------------------------------------------------------------------------
+  # AC SETPOINTS DIALOG
+  # ---------------------------------------------------------------------------
+
+  - id: ui_ac_setpoints_current_edit
+    type: float
+    restore_value: false
+    initial_value: "0.0"
+
+  # ---------------------------------------------------------------------------
+  # DC SETPOINTS DIALOG
+  # ---------------------------------------------------------------------------
+
+  - id: ui_dc_setpoints_voltage_edit
+    type: float
+    restore_value: false
+    initial_value: "0.0"
+
+  - id: ui_dc_setpoints_power_edit
+    type: float
+    restore_value: false
+    initial_value: "0.0"

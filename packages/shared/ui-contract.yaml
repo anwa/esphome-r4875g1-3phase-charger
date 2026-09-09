@@ -1,0 +1,19 @@
+# ==============================================================================
+# SHARED V6 UI COMMAND CONTRACT
+# ==============================================================================
+#
+# Defines setpoint ranges shared by the Charger Controller controls and the
+# common V6 touchscreen presentation.
+#
+# Both firmware targets therefore present the same supported command ranges.
+# ==============================================================================
+
+substitutions:
+  ac_current_limit_min_a: "0.0"
+  ac_current_limit_max_a: "21.0"
+
+  dc_voltage_min_v: "49.0"
+  dc_voltage_max_v: "58.0"
+
+  dc_sum_power_min_kw: "0.1"
+  dc_sum_power_max_kw: "12.0"

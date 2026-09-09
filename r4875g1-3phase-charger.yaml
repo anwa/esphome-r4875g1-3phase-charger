@@ -1,5 +1,5 @@
 # ==============================================================================
-# R4875G1 THREE-PHASE CHARGER - V5 HARDWARE
+# R4875G1 THREE-PHASE CHARGER - V6 CONTROLLER HARDWARE
 # ==============================================================================
 #
 # Target controller:
@@ -29,7 +29,7 @@
 #   - 1S lithium controller backup battery on J3
 #   - battery-voltage measurement through TP1 / J8 AD / GPIO6
 #
-# The V5 firmware retains the proven three-rectifier CAN control architecture
+# The V6 Charger Controller retains the proven three-rectifier CAN control architecture
 # while using the Waveshare display controller as the local standalone UI.
 # ==============================================================================
 
@@ -116,7 +116,7 @@ substitutions:
   fallback_ap_ssid: "Charger Fallback Hotspot"
 
   # ---------------------------------------------------------------------------
-  # V5 ACTIVE GPIO MAP
+  # V6 CHARGER CONTROLLER GPIO MAP
   # ---------------------------------------------------------------------------
 
   pin_touch_irq: "GPIO4"
@@ -169,8 +169,6 @@ substitutions:
 
   minimum_dc_current_a: "1.0"
 
-  dc_voltage_min_v: "49.0"
-  dc_voltage_max_v: "58.0"
   dc_voltage_default_v: "53.0"
 
   # ---------------------------------------------------------------------------
@@ -278,6 +276,7 @@ substitutions:
 
 packages:
   version: !include packages/version.yaml
+  shared_ui_contract: !include packages/shared/ui-contract.yaml
 
   shared_core: !include packages/shared/core.yaml
   shared_hardware: !include packages/shared/hardware.yaml

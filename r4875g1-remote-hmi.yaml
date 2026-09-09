@@ -83,6 +83,7 @@ substitutions:
 
 packages:
   version: !include packages/version.yaml
+  shared_ui_contract: !include packages/shared/ui-contract.yaml
 
   shared_core: !include packages/shared/core.yaml
   shared_hardware: !include packages/shared/hardware.yaml

@@ -37,6 +37,7 @@ packages/
 ├── version.yaml
 │
 ├── shared/
+│   ├── ui-contract.yaml
 │   ├── battery-bank.yaml
 │   ├── battery-ui-backend.yaml
 │   ├── core.yaml
@@ -62,6 +63,10 @@ packages/
 ├── README.md
 │
 ├── display/
+│   ├── ui-state.yaml
+│   ├── header-ui.yaml
+│   ├── dashboard-ui.yaml
+│   ├── dashboard-command-state.yaml
 │   ├── hardware.yaml
 │   ├── theme.yaml
 │   ├── ui.yaml
@@ -112,6 +117,9 @@ shared/hardware.yaml
 shared/ui-model.yaml
     target-neutral state contract consumed by the HMI
 
+shared/ui-contract.yaml
+    shared Dashboard command ranges used by both V6 targets
+
 shared/battery-bank.yaml
     shared Home Assistant solar-battery telemetry import and availability state
 
@@ -156,6 +164,18 @@ rectifier-unit.yaml
 
 display/*.yaml
     persistent and page-specific display runtime
+
+display/ui-state.yaml
+    shared LVGL presentation and command-pending state
+
+display/header-ui.yaml
+    shared persistent header layout
+
+display/dashboard-ui.yaml
+    shared Dashboard page and Dashboard-specific dialogs
+
+display/dashboard-command-state.yaml
+    shared charger-wide START/STOP presentation state
 
 display/pages/*.yaml
     static LVGL page layouts

@@ -1,5 +1,5 @@
 # ==============================================================================
-# V5 DISPLAY PACKAGE AGGREGATOR
+# V6 CHARGER CONTROLLER DISPLAY PACKAGE AGGREGATOR
 # ==============================================================================
 #
 # Collects the complete LVGL display implementation.
@@ -26,23 +26,40 @@
 # ==============================================================================
 
 packages:
+
   # ---------------------------------------------------------------------------
   # CORE DISPLAY INFRASTRUCTURE
   # ---------------------------------------------------------------------------
+
   display_hardware: !include display/hardware.yaml
   display_theme: !include display/theme.yaml
+
+  # ---------------------------------------------------------------------------
+  # SHARED PRESENTATION
+  # ---------------------------------------------------------------------------
+
+  display_ui_state: !include display/ui-state.yaml
+  display_header_ui: !include display/header-ui.yaml
+  display_dashboard_ui: !include display/dashboard-ui.yaml
+
+  # Controller-specific remaining pages, navigation and dialogs.
   display_ui: !include display/ui.yaml
 
   # ---------------------------------------------------------------------------
-  # PERSISTENT/GLOBAL RUNTIMES
+  # PERSISTENT / GLOBAL RUNTIMES
   # ---------------------------------------------------------------------------
+
   display_header: !include display/header.yaml
+  display_dashboard_command_state: !include display/dashboard-command-state.yaml
+
+  # Controller-only per-unit command state and System-page battery presentation.
   display_command_state: !include display/command-state.yaml
   display_controller_battery: !include display/controller-battery.yaml
 
   # ---------------------------------------------------------------------------
   # PAGE-SPECIFIC RUNTIMES
   # ---------------------------------------------------------------------------
+
   display_dashboard: !include display/dashboard.yaml
   display_rectifiers: !include display/rectifiers.yaml
   display_rectifier_detail: !include display/rectifier-detail.yaml
