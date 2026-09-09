@@ -4,8 +4,8 @@
 #
 # Defines the persistent header used by both V6 touchscreen targets.
 #
-# Runtime updates are handled by display/header.yaml and the corresponding
-# backup-battery presentation runtime.
+# Runtime updates are handled by display/header.yaml and
+# display/local-battery-header.yaml.
 # ==============================================================================
 
 lvgl:
@@ -51,7 +51,7 @@ lvgl:
                 align: RIGHT_MID
                 width: 130
                 text_align: RIGHT
-                text: "CTRL --.-- V"
+                text: "${ui_local_battery_label} --.-- V"
                 text_font: montserrat_16
                 text_color: 0x8B96A0
 

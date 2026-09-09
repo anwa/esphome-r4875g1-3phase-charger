@@ -1,12 +1,13 @@
 # ==============================================================================
-# CHARGER CONTROLLER SYSTEM BATTERY RUNTIME
+# SHARED LOCAL BACKUP-BATTERY HEADER RUNTIME
 # ==============================================================================
 #
-# Updates the detailed local backup-battery value on the Charger Controller
-# System page.
+# Updates the persistent header with the backup-battery voltage of the local
+# Waveshare display controller.
 #
-# Persistent header presentation is shared by both V6 targets and is handled by
-# display/local-battery-header.yaml.
+# Both V6 targets use the same onboard battery measurement hardware. The label
+# prefix is supplied by the target root so the local Controller and Remote HMI
+# batteries remain distinguishable.
 # ==============================================================================
 
 interval:
@@ -14,28 +15,23 @@ interval:
   - interval: 5s
     then:
       - lvgl.label.update:
-          id: ui_system_battery
+          id: ui_header_battery
 
           text: !lambda |-
             const float voltage =
               id(controller_battery_voltage).state;
 
-            const float soc =
-              id(controller_battery_soc).state;
-
-            if (
-              isnan(voltage) ||
-              isnan(soc)
-            ) {
-              return std::string(
-                "--.-- V / -- %"
+            if (isnan(voltage)) {
+              return str_sprintf(
+                "%s --.-- V",
+                "${ui_local_battery_label}"
               );
             }
 
             return str_sprintf(
-              "%.2f V / %.0f %%",
-              voltage,
-              soc
+              "%s %.2f V",
+              "${ui_local_battery_label}",
+              voltage
             );
 
           text_color: !lambda |-

@@ -1,5 +1,5 @@
 # ==============================================================================
-# R4875G1 REMOTE HMI - V6 BOOTSTRAP TARGET
+# R4875G1 REMOTE HMI - V6 DASHBOARD TARGET
 # ==============================================================================
 #
 # Remote touchscreen interface for the R4875G1 three-phase charger.
@@ -10,20 +10,17 @@
 #   - 7-inch 800x480 RGB display
 #   - GT911 capacitive touchscreen
 #   - CH422G onboard I/O expander
-#   - 1S backup battery
+#   - 1S local backup battery
 #
 # The Remote HMI has no direct connection to charger-side CAN or external
 # charger peripherals.
 #
-# This bootstrap target includes the shared board, network and display
-# infrastructure together with a read-only Home Assistant backend for the
-# currently implemented charger state in the shared V6 UI model.
+# The Dashboard consumes authoritative charger state through Home Assistant and
+# the shared V6 UI model. Dashboard command requests are transported through
+# Home Assistant to the Charger Controller.
 #
-# Charger command transport is available through the Home Assistant command
-# backend. The current bootstrap UI remains read-only and does not expose those
-# commands yet.
-#
-# The complete shared production HMI is not included in this bootstrap target.
+# Charger safety validation, command execution and resulting operational state
+# remain authoritative on the Charger Controller.
 # ==============================================================================
 
 substitutions:
@@ -70,15 +67,15 @@ substitutions:
   # DISPLAY DEFAULTS
   # ---------------------------------------------------------------------------
 
+  ui_local_battery_label: "HMI"
   display_idle_timeout: "5min"
 
 # ==============================================================================
 # FIRMWARE PACKAGE ASSEMBLY
 # ==============================================================================
 #
-# Assembles target-neutral Waveshare hardware and platform services together
-# with the Remote HMI Home Assistant state/command backends and the current
-# bootstrap display.
+# Composes the shared platform, Home Assistant state/command backends and the
+# same shared V6 Dashboard presentation used by the Charger Controller.
 # ==============================================================================
 
 packages:
@@ -94,10 +91,8 @@ packages:
   remote_ha_backend: !include packages/remote-hmi/ha-backend.yaml
   remote_ui_commands: !include packages/remote-hmi/ui-commands.yaml
 
-  display_hardware: !include packages/display/hardware.yaml
-  display_theme: !include packages/display/theme.yaml
-
-  remote_bootstrap_ui: !include packages/remote-hmi/bootstrap-ui.yaml
+  display_shared_dashboard: !include packages/display/shared-dashboard.yaml
+  remote_dashboard_status: !include packages/remote-hmi/dashboard-status.yaml
 
 # ==============================================================================
 # ESPHOME DEVICE IDENTITY

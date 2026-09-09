@@ -51,7 +51,7 @@ packages/
 │   └── ui-commands.yaml
 │
 ├── remote-hmi/
-│   ├── bootstrap-ui.yaml
+│   ├── dashboard-status.yaml
 │   ├── ha-backend.yaml
 │   └── ui-commands.yaml
 │
@@ -80,6 +80,8 @@ packages/
 │   ├── cooling.yaml
 │   ├── system.yaml
 │   ├── trends.yaml
+│   ├── shared-dashboard.yaml
+│   ├── local-battery-header.yaml
 │   │
 │   └── pages/
 │       ├── dashboard.yaml
@@ -138,8 +140,8 @@ controller/ui-backend.yaml
 controller/ui-commands.yaml
     executes shared UI command intents through local Charger Controller entities
 
-remote-hmi/bootstrap-ui.yaml
-    temporary Remote HMI hardware-validation UI
+remote-hmi/dashboard-status.yaml
+    exposes Remote HMI Home Assistant / charger-data connectivity
 
 remote-hmi/ha-backend.yaml
     imports authoritative Charger Controller state through Home Assistant
@@ -176,6 +178,12 @@ display/dashboard-ui.yaml
 
 display/dashboard-command-state.yaml
     shared charger-wide START/STOP presentation state
+
+display/shared-dashboard.yaml
+    shared Dashboard composition consumed by both V6 firmware targets
+
+display/local-battery-header.yaml
+    shared local display-controller backup-battery header runtime
 
 display/pages/*.yaml
     static LVGL page layouts
@@ -289,11 +297,11 @@ The command scripts translate target-neutral Dashboard intent into the existing 
 
 ---
 
-## `remote-hmi/bootstrap-ui.yaml`
+## `remote-hmi/dashboard-status.yaml`
 
-Provides the current Remote HMI bootstrap and validation interface.
+Provides Remote-HMI-specific connectivity presentation alongside the shared Dashboard.
 
-The page exposes local display, touch and backup-battery operation together with read-only charger availability and run-state information received through the shared UI model.
+The status clearly indicates whether authoritative Charger Controller data is currently available through Home Assistant. It does not duplicate charger state or safety logic.
 
 ---
 
@@ -779,6 +787,16 @@ This prevents command-completion handling from depending on one visible page.
 Updates controller backup-battery presentation.
 
 Battery values change slowly and therefore use an independent low-rate refresh rather than being tied to faster page runtimes.
+
+---
+
+## `display/shared-dashboard.yaml`
+
+Composes the V6 Dashboard implementation consumed identically by both firmware targets.
+
+It includes the display hardware configuration, shared theme, shared UI state, persistent header, Dashboard page and dialogs, local backup-battery header presentation, Dashboard command-state handling and Dashboard runtime.
+
+Target-specific state acquisition and command transport remain outside this package behind the shared UI-model and `ui_command_*` interfaces.
 
 ---
 

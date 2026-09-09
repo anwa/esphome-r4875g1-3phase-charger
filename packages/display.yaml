@@ -2,65 +2,38 @@
 # V6 CHARGER CONTROLLER DISPLAY PACKAGE AGGREGATOR
 # ==============================================================================
 #
-# Collects the complete LVGL display implementation.
+# Composes the shared V6 Dashboard together with the remaining display
+# components that exist only on the Charger Controller.
 #
-# Core display packages:
-#   hardware.yaml             -> RGB panel and LVGL runtime configuration
-#   theme.yaml                -> shared visual styles
-#   ui.yaml                   -> pages, navigation, dialogs and persistent widgets
-#   header.yaml               -> persistent header runtime
-#   command-state.yaml        -> global START/STOP pending-state handling
-#   controller-battery.yaml   -> persistent controller backup-battery display
-#
-# Page layouts:
-#   display/pages/*.yaml
-#
-# Page-specific runtimes:
-#   dashboard.yaml
-#   rectifiers.yaml
-#   rectifier-detail.yaml
-#   battery.yaml
-#   cooling.yaml
-#   system.yaml
-#   trends.yaml
+# The shared Dashboard composition is owned by display/shared-dashboard.yaml.
 # ==============================================================================
 
 packages:
 
   # ---------------------------------------------------------------------------
-  # CORE DISPLAY INFRASTRUCTURE
+  # SHARED DASHBOARD
   # ---------------------------------------------------------------------------
 
-  display_hardware: !include display/hardware.yaml
-  display_theme: !include display/theme.yaml
+  display_shared_dashboard: !include display/shared-dashboard.yaml
 
   # ---------------------------------------------------------------------------
-  # SHARED PRESENTATION
+  # CHARGER CONTROLLER PRESENTATION
   # ---------------------------------------------------------------------------
 
-  display_ui_state: !include display/ui-state.yaml
-  display_header_ui: !include display/header-ui.yaml
-  display_dashboard_ui: !include display/dashboard-ui.yaml
-
-  # Controller-specific remaining pages, navigation and dialogs.
+  # Remaining Controller-specific pages, navigation and dialogs.
   display_ui: !include display/ui.yaml
 
   # ---------------------------------------------------------------------------
-  # PERSISTENT / GLOBAL RUNTIMES
+  # CHARGER CONTROLLER GLOBAL RUNTIMES
   # ---------------------------------------------------------------------------
 
-  display_header: !include display/header.yaml
-  display_dashboard_command_state: !include display/dashboard-command-state.yaml
-
-  # Controller-only per-unit command state and System-page battery presentation.
   display_command_state: !include display/command-state.yaml
   display_controller_battery: !include display/controller-battery.yaml
 
   # ---------------------------------------------------------------------------
-  # PAGE-SPECIFIC RUNTIMES
+  # CHARGER CONTROLLER PAGE RUNTIMES
   # ---------------------------------------------------------------------------
 
-  display_dashboard: !include display/dashboard.yaml
   display_rectifiers: !include display/rectifiers.yaml
   display_rectifier_detail: !include display/rectifier-detail.yaml
   display_battery: !include display/battery.yaml
