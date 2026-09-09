@@ -60,6 +60,26 @@ Do not assume that an earlier architecture or file location is still current.
 
 For repository work, the current branch is the source of truth.
 
+## Manual-Application Instructions
+
+When an agent provides repository changes for a human to apply manually, the instructions MUST make the exact edit location unambiguous.
+
+For each proposed change, provide:
+
+- the exact repository file path
+- an exact search anchor or existing block that identifies the edit location
+- whether the new content must be inserted directly before or after that anchor, or whether the existing block must be replaced
+- the complete replacement or resulting block whenever practical
+- the complete file contents for a new small file when practical
+
+Avoid vague instructions such as "add this to the file", "put this near the configuration" or "update the relevant section" when a precise location can be identified.
+
+When several similar blocks exist in one file, the instructions MUST distinguish the intended occurrence clearly enough that the user does not have to infer which block is meant.
+
+For repetitive edits, a systematic replacement rule MAY be used when it is less error-prone than repeating large nearly identical blocks. Any exceptions or manually different cases MUST be called out explicitly.
+
+The goal is that a user applying a proposed change manually should not need to guess where content belongs or reconstruct the intended final structure from disconnected snippets.
+
 ## Reuse Existing Architecture
 
 Prefer existing project abstractions and patterns over introducing parallel implementations.
