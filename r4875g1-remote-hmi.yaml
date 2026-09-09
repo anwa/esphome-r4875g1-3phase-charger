@@ -15,9 +15,12 @@
 # The Remote HMI has no direct connection to charger-side CAN or external
 # charger peripherals.
 #
-# During this bootstrap checkpoint the target validates only the shared board,
-# network and display infrastructure. Charger telemetry and commands will be
-# added through the Home Assistant backend and shared V6 UI model.
+# This bootstrap target includes the shared board, network and display
+# infrastructure together with a read-only Home Assistant backend for the
+# currently implemented charger state in the shared V6 UI model.
+#
+# Charger command transport and the complete shared production HMI are not
+# included in this bootstrap target.
 # ==============================================================================
 
 substitutions:

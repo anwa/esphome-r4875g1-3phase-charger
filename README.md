@@ -5,9 +5,13 @@ ESPHome-based controller for three Huawei R4875G1 rectifiers operated as a coord
 The V6 firmware generation uses two coordinated targets based on the **Waveshare ESP32-S3-Touch-LCD-7**:
 
 - the Charger Controller, physically attached to the rectifiers and responsible for CAN, charger control, safety and local blackstart
-- the Remote HMI, which provides the same touchscreen user interface while receiving authoritative charger state and sending command requests through Home Assistant
+- the Remote HMI, currently providing a bootstrap touchscreen interface that receives authoritative charger state through Home Assistant
 
 The Charger Controller remains fully operational without Wi-Fi, Home Assistant, MQTT or Internet access. The Remote HMI is a convenience interface and does not duplicate charger safety or CAN-control logic.
+
+Any Remote HMI charger commands are required to use Home Assistant and remain subject to authoritative validation and execution by the Charger Controller. The current bootstrap interface does not expose charger commands.
+
+The Charger Controller currently provides:
 
 - local charger control
 - CAN communication with three independent R4875G1 rectifiers

@@ -265,7 +265,7 @@ Loss of the Home Assistant state-subscription connection invalidates Remote HMI 
 
 ---
 
-### I2C Topology
+## Charger Controller I2C Topology
 
 The controller uses two independent physical I2C buses. The onboard bus is reserved for Waveshare peripherals, while external peripherals use a dedicated bus to avoid address collisions with the onboard CH422G.
 

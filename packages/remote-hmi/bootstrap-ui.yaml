@@ -2,11 +2,11 @@
 # REMOTE HMI BOOTSTRAP UI
 # ==============================================================================
 #
-# Minimal target-specific UI used to validate the Remote HMI hardware platform.
+# Minimal target-specific UI used to validate the Remote HMI hardware platform
+# and the first Home Assistant-backed charger-state path.
 #
-# This bootstrap page intentionally contains no charger telemetry or command
-# transport. The production charger pages will later use the shared V6 UI
-# model instead of target-specific copies.
+# The page displays read-only charger availability and run-state telemetry
+# through the shared V6 UI model. It does not expose charger commands.
 # ==============================================================================
 
 lvgl:
