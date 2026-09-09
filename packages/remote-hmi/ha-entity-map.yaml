@@ -55,6 +55,57 @@ substitutions:
   ha_charger_conversion_efficiency_entity: "sensor.${ha_charger_entity_prefix}_conversion_efficiency_all_units"
 
   # ---------------------------------------------------------------------------
+  # RECTIFIER 1
+  # ---------------------------------------------------------------------------
+
+  ha_rectifier_1_connected_entity: "binary_sensor.${ha_charger_entity_prefix}_can_communication_unit_1"
+  ha_rectifier_1_lifecycle_entity: "sensor.${ha_charger_entity_prefix}_control_state_unit_1"
+  ha_rectifier_1_power_state_entity: "sensor.${ha_charger_entity_prefix}_power_state_unit_1"
+
+  ha_rectifier_1_ac_voltage_entity: "sensor.${ha_charger_entity_prefix}_ac_voltage_unit_1"
+  ha_rectifier_1_ac_current_entity: "sensor.${ha_charger_entity_prefix}_ac_current_unit_1"
+
+  ha_rectifier_1_dc_voltage_entity: "sensor.${ha_charger_entity_prefix}_dc_voltage_unit_1"
+  ha_rectifier_1_dc_current_entity: "sensor.${ha_charger_entity_prefix}_dc_current_unit_1"
+  ha_rectifier_1_dc_power_entity: "sensor.${ha_charger_entity_prefix}_dc_power_unit_1"
+
+  ha_rectifier_1_output_temperature_entity: "sensor.${ha_charger_entity_prefix}_output_temperature_unit_1"
+
+  # ---------------------------------------------------------------------------
+  # RECTIFIER 2
+  # ---------------------------------------------------------------------------
+
+  ha_rectifier_2_connected_entity: "binary_sensor.${ha_charger_entity_prefix}_can_communication_unit_2"
+  ha_rectifier_2_lifecycle_entity: "sensor.${ha_charger_entity_prefix}_control_state_unit_2"
+  ha_rectifier_2_power_state_entity: "sensor.${ha_charger_entity_prefix}_power_state_unit_2"
+
+  ha_rectifier_2_ac_voltage_entity: "sensor.${ha_charger_entity_prefix}_ac_voltage_unit_2"
+  ha_rectifier_2_ac_current_entity: "sensor.${ha_charger_entity_prefix}_ac_current_unit_2"
+
+  ha_rectifier_2_dc_voltage_entity: "sensor.${ha_charger_entity_prefix}_dc_voltage_unit_2"
+  ha_rectifier_2_dc_current_entity: "sensor.${ha_charger_entity_prefix}_dc_current_unit_2"
+  ha_rectifier_2_dc_power_entity: "sensor.${ha_charger_entity_prefix}_dc_power_unit_2"
+
+  ha_rectifier_2_output_temperature_entity: "sensor.${ha_charger_entity_prefix}_output_temperature_unit_2"
+
+  # ---------------------------------------------------------------------------
+  # RECTIFIER 3
+  # ---------------------------------------------------------------------------
+
+  ha_rectifier_3_connected_entity: "binary_sensor.${ha_charger_entity_prefix}_can_communication_unit_3"
+  ha_rectifier_3_lifecycle_entity: "sensor.${ha_charger_entity_prefix}_control_state_unit_3"
+  ha_rectifier_3_power_state_entity: "sensor.${ha_charger_entity_prefix}_power_state_unit_3"
+
+  ha_rectifier_3_ac_voltage_entity: "sensor.${ha_charger_entity_prefix}_ac_voltage_unit_3"
+  ha_rectifier_3_ac_current_entity: "sensor.${ha_charger_entity_prefix}_ac_current_unit_3"
+
+  ha_rectifier_3_dc_voltage_entity: "sensor.${ha_charger_entity_prefix}_dc_voltage_unit_3"
+  ha_rectifier_3_dc_current_entity: "sensor.${ha_charger_entity_prefix}_dc_current_unit_3"
+  ha_rectifier_3_dc_power_entity: "sensor.${ha_charger_entity_prefix}_dc_power_unit_3"
+
+  ha_rectifier_3_output_temperature_entity: "sensor.${ha_charger_entity_prefix}_output_temperature_unit_3"
+
+  # ---------------------------------------------------------------------------
   # CHARGER COMMAND TARGETS
   # ---------------------------------------------------------------------------
 

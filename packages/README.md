@@ -324,9 +324,11 @@ The status clearly indicates whether authoritative Charger Controller data is cu
 
 Owns the Home Assistant entity mapping for the Charger Controller paired with a Remote HMI.
 
-The Remote HMI root defines one installation-specific `ha_charger_entity_prefix`. The entity map derives the Dashboard telemetry, setpoint and charger-command entity IDs from that prefix.
+The Remote HMI root defines one installation-specific `ha_charger_entity_prefix`. The entity map derives the Dashboard telemetry, setpoint, charger-command and per-rectifier state entity IDs from that prefix.
 
 This keeps Home Assistant entity naming out of the state and command backends and allows another Charger Controller to be paired by changing one configuration value.
+
+The same prefix is used for all three rectifier backends, so per-unit Home Assistant mappings do not require separate installation-specific configuration.
 
 The configured prefix must match the actual Home Assistant entity IDs. Home Assistant may preserve existing entity IDs after an ESPHome device is renamed, so the prefix is not inferred dynamically from the current device name.
 
