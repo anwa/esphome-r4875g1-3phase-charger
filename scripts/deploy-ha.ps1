@@ -22,10 +22,19 @@ $Timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
 
 $DeploymentProjectPath = $null
 $DeploymentHmiProjectPath = $null
+$DeploymentBundlePath = $null
 
-# Bound every SSH/SCP process so a stalled network or remote command cannot
-# block deployment indefinitely.
+# Bound SSH commands and deployment transfers so stalled network operations
+# cannot block deployment indefinitely.
 $NetworkCommandTimeoutSeconds = 30
+$FileTransferTimeoutSeconds = 120
+
+$SshCommandAttempts = 3
+$SshCommandRetryDelaySeconds = 2
+
+$FileTransferAttempts = 3
+$FileTransferRetryDelaySeconds = 2
+
 $HashVerifyAttempts = 3
 $HashVerifyRetryDelaySeconds = 2
 
@@ -163,7 +172,7 @@ function New-DeploymentProjectFile(
 
     $tempPath = Join-Path `
         ([System.IO.Path]::GetTempPath()) `
-        "$sourceBaseName-$NodeName-$Timestamp-deploy.yaml"
+            "$sourceBaseName-$NodeName-$Timestamp-$PID-deploy.yaml"
 
     Set-Content `
         -LiteralPath $tempPath `
@@ -172,6 +181,92 @@ function New-DeploymentProjectFile(
         -NoNewline
 
     return $tempPath
+}
+
+function New-DeploymentBundle(
+    [string]$ProjectLocalPath,
+    [string]$HmiProjectLocalPath,
+    [string]$NodeName,
+    [string]$RemoteProjectFile,
+    [string]$RemoteHmiProjectFile,
+    [string[]]$ManagedFiles,
+    [hashtable]$RemoteManagedFiles
+) {
+    $bundlePath = Join-Path `
+        ([System.IO.Path]::GetTempPath()) `
+        "r4875g1-deploy-$NodeName-$Timestamp-$PID"
+
+    if (Test-Path -LiteralPath $bundlePath) {
+        Remove-Item `
+            -LiteralPath $bundlePath `
+            -Recurse `
+            -Force
+    }
+
+    New-Item `
+        -ItemType Directory `
+        -Path $bundlePath `
+        -Force |
+        Out-Null
+
+    $script:DeploymentBundlePath = $bundlePath
+
+    $script:DeploymentProjectPath =
+        New-DeploymentProjectFile `
+            $ProjectLocalPath `
+            $NodeName
+
+    $script:DeploymentHmiProjectPath =
+        New-DeploymentProjectFile `
+            $HmiProjectLocalPath `
+            $NodeName
+
+    # Place both rewritten root configurations directly in the bundle root.
+    Copy-Item `
+        -LiteralPath $script:DeploymentProjectPath `
+        -Destination (Join-Path $bundlePath $RemoteProjectFile) `
+        -Force
+
+    Copy-Item `
+        -LiteralPath $script:DeploymentHmiProjectPath `
+        -Destination (Join-Path $bundlePath $RemoteHmiProjectFile) `
+        -Force
+
+    # Recreate the exact node-specific package namespace that will exist on
+    # the Home Assistant host.
+    foreach ($relativePath in $ManagedFiles) {
+        $remoteRelativePath =
+            $RemoteManagedFiles[$relativePath]
+
+        $localRelativePath =
+            $remoteRelativePath.Replace(
+                '/',
+                [System.IO.Path]::DirectorySeparatorChar
+            )
+
+        $destinationPath =
+            Join-Path `
+                $bundlePath `
+                $localRelativePath
+
+        $destinationDirectory =
+            Split-Path `
+                -Parent `
+                $destinationPath
+
+        New-Item `
+            -ItemType Directory `
+            -Path $destinationDirectory `
+            -Force |
+            Out-Null
+
+        Copy-Item `
+            -LiteralPath (Join-Path $RepoRoot $relativePath) `
+            -Destination $destinationPath `
+            -Force
+    }
+
+    return $bundlePath
 }
 
 function Remove-DeploymentProjectFiles {
@@ -192,8 +287,20 @@ function Remove-DeploymentProjectFiles {
         }
     }
 
+    if (
+        $null -ne $script:DeploymentBundlePath -and
+        (Test-Path -LiteralPath $script:DeploymentBundlePath)
+    ) {
+        Remove-Item `
+            -LiteralPath $script:DeploymentBundlePath `
+            -Recurse `
+            -Force `
+            -ErrorAction SilentlyContinue
+    }
+
     $script:DeploymentProjectPath = $null
     $script:DeploymentHmiProjectPath = $null
+    $script:DeploymentBundlePath = $null
 }
 
 function Get-ESPHomeNodeName([string]$ProjectFileName) {
@@ -364,6 +471,24 @@ function Invoke-ExternalProcess(
     }
 }
 
+function Test-TransientSshFailure([string]$Message) {
+    if ([string]::IsNullOrWhiteSpace($Message)) {
+        return $false
+    }
+
+    return $Message -match (
+        '(?i)' +
+        'connection timed out|' +
+        'connection reset|' +
+        'connection closed|' +
+        'connection refused|' +
+        'connection aborted|' +
+        'no route to host|' +
+        'network is unreachable|' +
+        'kex_exchange_identification|' +
+        'timed out after'
+    )
+}
 
 function Invoke-HaSsh([string]$Command) {
     $sshArgs = @(
@@ -380,41 +505,84 @@ function Invoke-HaSsh([string]$Command) {
         $Command
     )
 
-    $result =
-        Invoke-ExternalProcess `
-            -FileName "ssh" `
-            -Arguments $sshArgs `
-            -TimeoutSeconds $NetworkCommandTimeoutSeconds
+    for (
+        $attempt = 1;
+        $attempt -le $SshCommandAttempts;
+        $attempt++
+    ) {
+        $failure = $null
 
-    if ($result.ExitCode -ne 0) {
-        $stderr = $result.StdErr.Trim()
+        try {
+            $result =
+                Invoke-ExternalProcess `
+                    -FileName "ssh" `
+                    -Arguments $sshArgs `
+                    -TimeoutSeconds $NetworkCommandTimeoutSeconds
 
-        $detail =
-            if ([string]::IsNullOrWhiteSpace($stderr)) {
-                ""
-            } else {
-                " Remote error: $stderr"
+            if ($result.ExitCode -eq 0) {
+                return @(
+                    $result.StdOut -split "\r?\n" |
+                        Where-Object {
+                            -not [string]::IsNullOrWhiteSpace($_)
+                        }
+                )
             }
 
-        throw (
-            "SSH command failed with exit code " +
-            "$($result.ExitCode).$detail"
+            $stderr = $result.StdErr.Trim()
+
+            $failure =
+                if ([string]::IsNullOrWhiteSpace($stderr)) {
+                    "ssh exited with code $($result.ExitCode)"
+                } else {
+                    $stderr
+                }
+        }
+        catch {
+            $failure = $_.Exception.Message
+        }
+
+        $transient =
+            Test-TransientSshFailure $failure
+
+        if (
+            -not $transient -or
+            $attempt -ge $SshCommandAttempts
+        ) {
+            throw (
+                "SSH command failed after $attempt attempt(s). " +
+                "Last error: $failure"
+            )
+        }
+
+        Write-Warn (
+            "SSH command attempt " +
+            "$attempt/$SshCommandAttempts failed: " +
+            "$failure"
         )
-    }
 
-    return @(
-        $result.StdOut -split "\r?\n" |
-            Where-Object {
-                -not [string]::IsNullOrWhiteSpace($_)
-            }
-    )
+        Start-Sleep `
+            -Seconds $SshCommandRetryDelaySeconds
+    }
 }
 
-
-function Send-HaFile(
-    [string]$LocalPath,
-    [string]$RemotePath
+function Send-HaDeploymentBundle(
+    [string]$BundlePath,
+    [string]$RemotePath,
+    [string]$RemoteProjectFile,
+    [string]$RemoteHmiProjectFile
 ) {
+    $sources = @(
+        Join-Path $BundlePath $RemoteProjectFile
+        Join-Path $BundlePath $RemoteHmiProjectFile
+        Join-Path $BundlePath "packages"
+    )
+
+    foreach ($source in $sources) {
+        if (-not (Test-Path -LiteralPath $source)) {
+            throw "Deployment bundle source is missing: $source"
+        }
+    }
+
     $scpArgs = @(
         "-i", $KeyPath,
         "-P", $Port,
@@ -425,30 +593,67 @@ function Send-HaFile(
         "-o", "ServerAliveCountMax=3",
         "-o", "StrictHostKeyChecking=accept-new",
         "-o", "MACs=$MacAlgorithm",
-        $LocalPath,
-        "$HaUser@${HaHost}:$RemotePath"
+        "-r"
     )
 
-    $result =
-        Invoke-ExternalProcess `
-            -FileName "scp" `
-            -Arguments $scpArgs `
-            -TimeoutSeconds $NetworkCommandTimeoutSeconds
+    $scpArgs += $sources
+    $scpArgs += "$HaUser@${HaHost}:$RemotePath/"
 
-    if ($result.ExitCode -ne 0) {
-        $stderr = $result.StdErr.Trim()
+    for (
+        $attempt = 1;
+        $attempt -le $FileTransferAttempts;
+        $attempt++
+    ) {
+        $failure = $null
 
-        $detail =
-            if ([string]::IsNullOrWhiteSpace($stderr)) {
-                ""
-            } else {
-                " Remote error: $stderr"
+        try {
+            $result =
+                Invoke-ExternalProcess `
+                    -FileName "scp" `
+                    -Arguments $scpArgs `
+                    -TimeoutSeconds $FileTransferTimeoutSeconds
+
+            if ($result.ExitCode -eq 0) {
+                return
             }
 
-        throw (
-            "SCP upload failed for '$LocalPath' with exit code " +
-            "$($result.ExitCode).$detail"
+            $stderr =
+                $result.StdErr.Trim()
+
+            $failure =
+                if ([string]::IsNullOrWhiteSpace($stderr)) {
+                    "scp exited with code $($result.ExitCode)"
+                } else {
+                    $stderr
+                }
+        }
+        catch {
+            $failure =
+                $_.Exception.Message
+        }
+
+        $transient =
+            Test-TransientSshFailure $failure
+
+        if (
+            -not $transient -or
+            $attempt -ge $FileTransferAttempts
+        ) {
+            throw (
+                "Deployment bundle upload failed after " +
+                "$attempt attempt(s). " +
+                "Last error: $failure"
+            )
+        }
+
+        Write-Warn (
+            "Deployment bundle upload attempt " +
+            "$attempt/$FileTransferAttempts failed: " +
+            "$failure"
         )
+
+        Start-Sleep `
+            -Seconds $FileTransferRetryDelaySeconds
     }
 }
 
@@ -523,11 +728,11 @@ function Get-RemoteSha256Hashes(
     }
 }
 
-
-function Assert-RemoteFileSetMatchesLocal(
+function Assert-RemoteDeploymentMatchesLocal(
     [string]$ProjectLocalPath,
     [string]$ProjectRemotePath,
-    [string]$ProjectDisplayPath,
+    [string]$HmiProjectLocalPath,
+    [string]$HmiProjectRemotePath,
     [string]$RemoteRoot,
     [string[]]$ManagedFiles,
     [hashtable]$RemoteManagedFiles,
@@ -537,7 +742,13 @@ function Assert-RemoteFileSetMatchesLocal(
         [pscustomobject]@{
             LocalPath   = $ProjectLocalPath
             RemotePath  = $ProjectRemotePath
-            DisplayPath = $ProjectDisplayPath
+            DisplayPath = $RemoteProjectFile
+        }
+
+        [pscustomobject]@{
+            LocalPath   = $HmiProjectLocalPath
+            RemotePath  = $HmiProjectRemotePath
+            DisplayPath = $RemoteHmiProjectFile
         }
     )
 
@@ -636,9 +847,18 @@ Write-Step "Checking local source"
 Assert-Command "ssh"
 Assert-Command "scp"
 
-$projectPath = Join-Path $RepoRoot $ProjectFile
+$projectPath =
+    Join-Path $RepoRoot $ProjectFile
+
+$hmiProjectPath =
+    Join-Path $RepoRoot $HmiProjectFile
+
 if (-not (Test-Path -LiteralPath $projectPath -PathType Leaf)) {
     throw "Required deployment file is missing: $ProjectFile"
+}
+
+if (-not (Test-Path -LiteralPath $hmiProjectPath -PathType Leaf)) {
+    throw "Required deployment file is missing: $HmiProjectFile"
 }
 
 $ManagedFiles = Get-ManagedFiles
@@ -691,13 +911,21 @@ if ($gitInfo.Dirty) {
 }
 
 if ($DryRun) {
-    $DeploymentProjectPath =
-        New-DeploymentProjectFile $projectPath $nodeName
+    $DeploymentBundlePath =
+        New-DeploymentBundle `
+            -ProjectLocalPath $projectPath `
+            -HmiProjectLocalPath $hmiProjectPath `
+            -NodeName $nodeName `
+            -RemoteProjectFile $RemoteProjectFile `
+            -RemoteHmiProjectFile $RemoteHmiProjectFile `
+            -ManagedFiles $ManagedFiles `
+            -RemoteManagedFiles $RemoteManagedFiles
 
     Write-Step "Dry run - no network connection and no remote changes"
 
     Write-Host "  $ProjectFile -> $RemoteDir/$RemoteProjectFile"
     Write-Host "  $HmiProjectFile -> $RemoteDir/$RemoteHmiProjectFile"
+    Write-Host "  Deployment bundle: $DeploymentBundlePath"
 
     foreach ($relativePath in $ManagedFiles) {
         $remoteRelativePath =
@@ -725,6 +953,27 @@ if ($DryRun) {
             Write-Host "  $($_.Trim())"
         }
 
+    Write-Host ""
+    Write-Host "Generated Remote HMI YAML references:" -ForegroundColor White
+
+    $hmiDeploymentContent =
+        Get-Content `
+            -Raw `
+            -LiteralPath $DeploymentHmiProjectPath
+
+    $hmiDeploymentContent -split "`r?`n" |
+        Where-Object {
+            $_ -match 'packages/' -and
+            (
+                $_ -match '!include' -or
+                $_ -match 'file:' -or
+                $_ -match 'trend_helpers'
+            )
+        } |
+        ForEach-Object {
+            Write-Host "  $($_.Trim())"
+        }
+
     Remove-DeploymentProjectFiles
 
     Write-Ok "Dry run complete"
@@ -735,76 +984,53 @@ if (-not (Test-Path -LiteralPath $KeyPath -PathType Leaf)) {
     throw "SSH private key not found: $KeyPath`nRun .\scripts\setup-ha-ssh.ps1 first."
 }
 
-$DeploymentProjectPath =
-    New-DeploymentProjectFile `
-        $projectPath `
-        $nodeName
-
-$hmiProjectPath =
-    Join-Path $RepoRoot $HmiProjectFile
-
-$DeploymentHmiProjectPath =
-    New-DeploymentProjectFile `
-        $hmiProjectPath `
-        $nodeName
-
-Write-Step "Checking SSH connection"
-Invoke-HaSsh "true" | Out-Null
-Write-Ok "SSH connection established"
+$DeploymentBundlePath =
+    New-DeploymentBundle `
+        -ProjectLocalPath $projectPath `
+        -HmiProjectLocalPath $hmiProjectPath `
+        -NodeName $nodeName `
+        -RemoteProjectFile $RemoteProjectFile `
+        -RemoteHmiProjectFile $RemoteHmiProjectFile `
+        -ManagedFiles $ManagedFiles `
+        -RemoteManagedFiles $RemoteManagedFiles
 
 $qStaging = ConvertTo-ShQuotedString $StagingDir
 
 try {
-    Write-Step "Creating remote staging directory tree"
-    Invoke-HaSsh "set -eu; rm -rf $qStaging" | Out-Null
-    New-RemoteDirectories `
-        $StagingDir `
-        @($RemoteManagedFiles.Values)
-    Write-Host "  $ProjectFile -> $RemoteProjectFile"
-    Write-Host "  $HmiProjectFile -> $RemoteHmiProjectFile"
+    Write-Step "Creating remote staging directory"
 
-    foreach ($relativePath in $ManagedFiles) {
-        $remoteRelativePath =
-            $RemoteManagedFiles[$relativePath]
+    Invoke-HaSsh (
+        "set -eu; " +
+        "rm -rf $qStaging; " +
+        "mkdir -p $qStaging"
+    ) | Out-Null
 
-        Write-Host "  $relativePath -> $remoteRelativePath"
-    }
-    Write-Step "Uploading managed ESPHome files"
-    Send-HaFile `
-        $DeploymentProjectPath `
-        "$StagingDir/$RemoteProjectFile"
-    Send-HaFile `
-        $DeploymentHmiProjectPath `
-        "$StagingDir/$RemoteHmiProjectFile"
-    foreach ($relativePath in $ManagedFiles) {
-        $remoteRelativePath =
-            $RemoteManagedFiles[$relativePath]
+    Write-Step "Uploading deployment bundle in one SCP session"
 
-        Send-HaFile `
-            (Join-Path $RepoRoot $relativePath) `
-            "$StagingDir/$remoteRelativePath"
-    }
+    Write-Host (
+        "  $($ManagedFiles.Count + 2) managed files " +
+        "from one local deployment bundle"
+    )
+
+    Send-HaDeploymentBundle `
+        -BundlePath $DeploymentBundlePath `
+        -RemotePath $StagingDir `
+        -RemoteProjectFile $RemoteProjectFile `
+        -RemoteHmiProjectFile $RemoteHmiProjectFile
+
     Write-Ok "Upload complete"
 
     Write-Step "Verifying staged SHA-256 hashes"
 
-    Assert-RemoteFileSetMatchesLocal `
+    Assert-RemoteDeploymentMatchesLocal `
         -ProjectLocalPath $DeploymentProjectPath `
         -ProjectRemotePath "$StagingDir/$RemoteProjectFile" `
-        -ProjectDisplayPath "$ProjectFile -> $RemoteProjectFile" `
+        -HmiProjectLocalPath $DeploymentHmiProjectPath `
+        -HmiProjectRemotePath "$StagingDir/$RemoteHmiProjectFile" `
         -RemoteRoot $StagingDir `
         -ManagedFiles $ManagedFiles `
         -RemoteManagedFiles $RemoteManagedFiles `
         -FailurePrefix "Hash mismatch after upload"
-
-    Assert-RemoteFileSetMatchesLocal `
-        -ProjectLocalPath $DeploymentHmiProjectPath `
-        -ProjectRemotePath "$StagingDir/$RemoteHmiProjectFile" `
-        -ProjectDisplayPath "$HmiProjectFile -> $RemoteHmiProjectFile" `
-        -RemoteRoot $StagingDir `
-        -ManagedFiles @() `
-        -RemoteManagedFiles @{} `
-        -FailurePrefix "HMI hash mismatch after upload"
 
     Write-Ok "Staged files match local source"
 
@@ -906,23 +1132,15 @@ try {
 
     Write-Step "Verifying installed files"
 
-    Assert-RemoteFileSetMatchesLocal `
+    Assert-RemoteDeploymentMatchesLocal `
         -ProjectLocalPath $DeploymentProjectPath `
         -ProjectRemotePath "$RemoteDir/$RemoteProjectFile" `
-        -ProjectDisplayPath $RemoteProjectFile `
+        -HmiProjectLocalPath $DeploymentHmiProjectPath `
+        -HmiProjectRemotePath "$RemoteDir/$RemoteHmiProjectFile" `
         -RemoteRoot $RemoteDir `
         -ManagedFiles $ManagedFiles `
         -RemoteManagedFiles $RemoteManagedFiles `
         -FailurePrefix "Installed file verification failed"
-
-    Assert-RemoteFileSetMatchesLocal `
-        -ProjectLocalPath $DeploymentHmiProjectPath `
-        -ProjectRemotePath "$RemoteDir/$RemoteHmiProjectFile" `
-        -ProjectDisplayPath $RemoteHmiProjectFile `
-        -RemoteRoot $RemoteDir `
-        -ManagedFiles @() `
-        -RemoteManagedFiles @{} `
-        -FailurePrefix "Installed HMI file verification failed"
 
     Write-Ok "Installed files match local source"
 
