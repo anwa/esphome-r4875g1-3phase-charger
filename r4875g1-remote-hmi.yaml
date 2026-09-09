@@ -31,28 +31,19 @@ substitutions:
 
   fallback_ap_ssid: "Charger HMI Fallback"
 
-  ha_charger_ac_power_entity: "sensor.hg_dg_technik_charger_combined_ac_power_all_units"
-  ha_charger_ac_voltage_entity: "sensor.hg_dg_technik_charger_average_ac_voltage_all_units"
-  ha_charger_ac_current_entity: "sensor.hg_dg_technik_charger_average_ac_current_all_units"
-  ha_charger_ac_current_limit_entity: "number.hg_dg_technik_charger_set_ac_current_limit"
-
-  ha_charger_dc_power_entity: "sensor.hg_dg_technik_charger_combined_dc_power_all_units"
-  ha_charger_dc_voltage_entity: "sensor.hg_dg_technik_charger_average_dc_voltage_all_units"
-  ha_charger_dc_current_entity: "sensor.hg_dg_technik_charger_combined_dc_current_all_units"
-  ha_charger_dc_voltage_limit_entity: "number.hg_dg_technik_charger_set_dc_voltage_limit"
-  ha_charger_dc_sum_power_entity: "number.hg_dg_technik_charger_set_dc_sum_power"
-
-  ha_charger_available_units_entity: "sensor.hg_dg_technik_charger_available_units"
-  ha_charger_running_units_entity: "sensor.hg_dg_technik_charger_running_units"
-  ha_charger_highest_output_temperature_entity: "sensor.hg_dg_technik_charger_highest_output_temperature_all_units"
-  ha_charger_conversion_efficiency_entity: "sensor.hg_dg_technik_charger_conversion_efficiency_all_units"
 
   # ---------------------------------------------------------------------------
-  # CHARGER COMMAND TARGETS
+  # PAIRED CHARGER
+  # ---------------------------------------------------------------------------
+  #
+  # Home Assistant entity prefix of the Charger Controller paired with this
+  # Remote HMI.
+  #
+  # Change only this value when pairing the HMI with another charger whose
+  # Home Assistant entities use a different prefix.
   # ---------------------------------------------------------------------------
 
-  ha_charger_start_button_entity: "button.hg_dg_technik_charger_turn_on_all_units"
-  ha_charger_stop_button_entity: "button.hg_dg_technik_charger_turn_off_all_units"
+  ha_charger_entity_prefix: "hg_dg_technik_charger"
 
   # ---------------------------------------------------------------------------
   # SHARED WAVESHARE GPIO MAP
@@ -85,11 +76,69 @@ packages:
   shared_core: !include packages/shared/core.yaml
   shared_hardware: !include packages/shared/hardware.yaml
   shared_ui_model: !include packages/shared/ui-model.yaml
+  shared_ui_rectifier_1: !include
+    file: packages/shared/ui-rectifier-unit.yaml
+    vars:
+      ui_unit: "1"
+
+  shared_ui_rectifier_2: !include
+    file: packages/shared/ui-rectifier-unit.yaml
+    vars:
+      ui_unit: "2"
+
+  shared_ui_rectifier_3: !include
+    file: packages/shared/ui-rectifier-unit.yaml
+    vars:
+      ui_unit: "3"
   shared_battery_bank: !include packages/shared/battery-bank.yaml
+
   shared_battery_ui_backend: !include packages/shared/battery-ui-backend.yaml
 
+  remote_ha_entity_map: !include packages/remote-hmi/ha-entity-map.yaml
   remote_ha_backend: !include packages/remote-hmi/ha-backend.yaml
   remote_ui_commands: !include packages/remote-hmi/ui-commands.yaml
+
+  remote_rectifier_1_backend: !include
+    file: packages/remote-hmi/rectifier-backend.yaml
+    vars:
+      ui_unit: "1"
+      ha_rectifier_connected_entity: ${ha_rectifier_1_connected_entity}
+      ha_rectifier_lifecycle_entity: ${ha_rectifier_1_lifecycle_entity}
+      ha_rectifier_power_state_entity: ${ha_rectifier_1_power_state_entity}
+      ha_rectifier_ac_voltage_entity: ${ha_rectifier_1_ac_voltage_entity}
+      ha_rectifier_ac_current_entity: ${ha_rectifier_1_ac_current_entity}
+      ha_rectifier_dc_voltage_entity: ${ha_rectifier_1_dc_voltage_entity}
+      ha_rectifier_dc_current_entity: ${ha_rectifier_1_dc_current_entity}
+      ha_rectifier_dc_power_entity: ${ha_rectifier_1_dc_power_entity}
+      ha_rectifier_output_temperature_entity: ${ha_rectifier_1_output_temperature_entity}
+
+  remote_rectifier_2_backend: !include
+    file: packages/remote-hmi/rectifier-backend.yaml
+    vars:
+      ui_unit: "2"
+      ha_rectifier_connected_entity: ${ha_rectifier_2_connected_entity}
+      ha_rectifier_lifecycle_entity: ${ha_rectifier_2_lifecycle_entity}
+      ha_rectifier_power_state_entity: ${ha_rectifier_2_power_state_entity}
+      ha_rectifier_ac_voltage_entity: ${ha_rectifier_2_ac_voltage_entity}
+      ha_rectifier_ac_current_entity: ${ha_rectifier_2_ac_current_entity}
+      ha_rectifier_dc_voltage_entity: ${ha_rectifier_2_dc_voltage_entity}
+      ha_rectifier_dc_current_entity: ${ha_rectifier_2_dc_current_entity}
+      ha_rectifier_dc_power_entity: ${ha_rectifier_2_dc_power_entity}
+      ha_rectifier_output_temperature_entity: ${ha_rectifier_2_output_temperature_entity}
+
+  remote_rectifier_3_backend: !include
+    file: packages/remote-hmi/rectifier-backend.yaml
+    vars:
+      ui_unit: "3"
+      ha_rectifier_connected_entity: ${ha_rectifier_3_connected_entity}
+      ha_rectifier_lifecycle_entity: ${ha_rectifier_3_lifecycle_entity}
+      ha_rectifier_power_state_entity: ${ha_rectifier_3_power_state_entity}
+      ha_rectifier_ac_voltage_entity: ${ha_rectifier_3_ac_voltage_entity}
+      ha_rectifier_ac_current_entity: ${ha_rectifier_3_ac_current_entity}
+      ha_rectifier_dc_voltage_entity: ${ha_rectifier_3_dc_voltage_entity}
+      ha_rectifier_dc_current_entity: ${ha_rectifier_3_dc_current_entity}
+      ha_rectifier_dc_power_entity: ${ha_rectifier_3_dc_power_entity}
+      ha_rectifier_output_temperature_entity: ${ha_rectifier_3_output_temperature_entity}
 
   display_shared_dashboard: !include packages/display/shared-dashboard.yaml
   remote_dashboard_status: !include packages/remote-hmi/dashboard-status.yaml

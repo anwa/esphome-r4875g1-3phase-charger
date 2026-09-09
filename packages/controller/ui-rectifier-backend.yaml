@@ -1,0 +1,94 @@
+# ==============================================================================
+# CHARGER CONTROLLER RECTIFIER UI BACKEND
+# ==============================================================================
+#
+# Publishes authoritative local state for one rectifier into the shared V6
+# rectifier UI model.
+#
+# Required variable:
+#   ui_unit -> rectifier unit number
+# ==============================================================================
+
+interval:
+
+  - interval: 500ms
+    then:
+      - lambda: |-
+          const bool connected =
+            id(can_com_ok_${ui_unit}).state;
+
+          const bool online =
+            connected &&
+            id(rectifier_control_state_${ui_unit}) ==
+              ${rectifier_state_online};
+
+          id(ui_model_rectifier_${ui_unit}_connected).publish_state(
+            connected
+          );
+
+          id(ui_model_rectifier_${ui_unit}_online).publish_state(
+            online
+          );
+
+          if (!connected) {
+            id(ui_model_rectifier_${ui_unit}_lifecycle).publish_state(
+              "OFFLINE"
+            );
+
+            id(ui_model_rectifier_${ui_unit}_power_state).publish_state(
+              ""
+            );
+
+            id(ui_model_rectifier_${ui_unit}_ac_voltage).publish_state(NAN);
+            id(ui_model_rectifier_${ui_unit}_ac_current).publish_state(NAN);
+
+            id(ui_model_rectifier_${ui_unit}_dc_voltage).publish_state(NAN);
+            id(ui_model_rectifier_${ui_unit}_dc_current).publish_state(NAN);
+            id(ui_model_rectifier_${ui_unit}_dc_power).publish_state(NAN);
+
+            id(ui_model_rectifier_${ui_unit}_output_temperature).publish_state(
+              NAN
+            );
+
+            return;
+          }
+
+          const std::string lifecycle =
+            id(rectifier_control_state_text_${ui_unit}).state;
+
+          id(ui_model_rectifier_${ui_unit}_lifecycle).publish_state(
+            lifecycle
+          );
+
+          const std::string power_state =
+            id(power_state_${ui_unit}).state;
+
+          id(ui_model_rectifier_${ui_unit}_power_state).publish_state(
+            power_state == "UNKNOWN"
+              ? ""
+              : power_state
+          );
+
+          id(ui_model_rectifier_${ui_unit}_ac_voltage).publish_state(
+            id(ac_voltage_${ui_unit}).state
+          );
+
+          id(ui_model_rectifier_${ui_unit}_ac_current).publish_state(
+            id(ac_current_${ui_unit}).state
+          );
+
+          id(ui_model_rectifier_${ui_unit}_dc_voltage).publish_state(
+            id(dc_voltage_${ui_unit}).state
+          );
+
+          id(ui_model_rectifier_${ui_unit}_dc_current).publish_state(
+            id(dc_current_${ui_unit}).state
+          );
+
+          id(ui_model_rectifier_${ui_unit}_dc_power).publish_state(
+            id(dc_power_${ui_unit}).state
+          );
+
+          id(ui_model_rectifier_${ui_unit}_output_temperature).publish_state(
+            id(output_temperature_${ui_unit}).state
+          );

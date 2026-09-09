@@ -1,0 +1,62 @@
+# ==============================================================================
+# REMOTE HMI HOME ASSISTANT ENTITY MAP
+# ==============================================================================
+#
+# Derives the Home Assistant entities of the paired Charger Controller from one
+# installation-specific entity prefix.
+#
+# The prefix normally matches the Home Assistant entity prefix generated for
+# the Charger Controller ESPHome node.
+#
+# Example:
+#
+#   Charger Controller ESPHome name:
+#     charger-garage
+#
+#   Default Home Assistant entity prefix:
+#     charger_garage
+#
+#   Remote HMI setting:
+#     ha_charger_entity_prefix: "charger_garage"
+#
+# Home Assistant entity IDs can remain unchanged after a device is renamed.
+# Therefore the configured prefix must match the actual entity IDs in Home
+# Assistant rather than being inferred at runtime.
+# ==============================================================================
+
+substitutions:
+
+  # ---------------------------------------------------------------------------
+  # AC INPUT
+  # ---------------------------------------------------------------------------
+
+  ha_charger_ac_power_entity: "sensor.${ha_charger_entity_prefix}_combined_ac_power_all_units"
+  ha_charger_ac_voltage_entity: "sensor.${ha_charger_entity_prefix}_average_ac_voltage_all_units"
+  ha_charger_ac_current_entity: "sensor.${ha_charger_entity_prefix}_average_ac_current_all_units"
+  ha_charger_ac_current_limit_entity: "number.${ha_charger_entity_prefix}_set_ac_current_limit"
+
+  # ---------------------------------------------------------------------------
+  # DC OUTPUT
+  # ---------------------------------------------------------------------------
+
+  ha_charger_dc_power_entity: "sensor.${ha_charger_entity_prefix}_combined_dc_power_all_units"
+  ha_charger_dc_voltage_entity: "sensor.${ha_charger_entity_prefix}_average_dc_voltage_all_units"
+  ha_charger_dc_current_entity: "sensor.${ha_charger_entity_prefix}_combined_dc_current_all_units"
+  ha_charger_dc_voltage_limit_entity: "number.${ha_charger_entity_prefix}_set_dc_voltage_limit"
+  ha_charger_dc_sum_power_entity: "number.${ha_charger_entity_prefix}_set_dc_sum_power"
+
+  # ---------------------------------------------------------------------------
+  # CHARGER STATUS
+  # ---------------------------------------------------------------------------
+
+  ha_charger_available_units_entity: "sensor.${ha_charger_entity_prefix}_available_units"
+  ha_charger_running_units_entity: "sensor.${ha_charger_entity_prefix}_running_units"
+  ha_charger_highest_output_temperature_entity: "sensor.${ha_charger_entity_prefix}_highest_output_temperature_all_units"
+  ha_charger_conversion_efficiency_entity: "sensor.${ha_charger_entity_prefix}_conversion_efficiency_all_units"
+
+  # ---------------------------------------------------------------------------
+  # CHARGER COMMAND TARGETS
+  # ---------------------------------------------------------------------------
+
+  ha_charger_start_button_entity: "button.${ha_charger_entity_prefix}_turn_on_all_units"
+  ha_charger_stop_button_entity: "button.${ha_charger_entity_prefix}_turn_off_all_units"

@@ -13,6 +13,8 @@ The V6 firmware generation uses two coordinated targets based on the **Waveshare
 
 Remote HMI Dashboard commands use Home Assistant transport and remain subject to authoritative validation and execution by the Charger Controller. The Remote HMI displays the resulting Controller state returned through Home Assistant rather than assuming that a command succeeded.
 
+A Remote HMI is paired with a Charger Controller through one configurable Home Assistant entity prefix. The individual Dashboard telemetry, setpoint and command entity IDs are derived from that prefix, so pairing another charger does not require editing every Home Assistant entity mapping.
+
 The Charger Controller currently provides:
 
 - local charger control

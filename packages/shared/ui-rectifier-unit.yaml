@@ -1,0 +1,98 @@
+# ==============================================================================
+# SHARED V6 RECTIFIER UI MODEL
+# ==============================================================================
+#
+# Defines target-neutral UI state for one rectifier unit.
+#
+# The package is instantiated once per rectifier by both V6 firmware targets.
+# Target-specific backends publish authoritative state into these entities.
+#
+# Required variable:
+#   ui_unit -> rectifier unit number
+# ==============================================================================
+
+binary_sensor:
+
+  # ---------------------------------------------------------------------------
+  # CONNECTIVITY AND LIFECYCLE
+  # ---------------------------------------------------------------------------
+
+  - platform: template
+    id: ui_model_rectifier_${ui_unit}_connected
+    internal: true
+
+  - platform: template
+    id: ui_model_rectifier_${ui_unit}_online
+    internal: true
+
+
+sensor:
+
+  # ---------------------------------------------------------------------------
+  # AC INPUT
+  # ---------------------------------------------------------------------------
+
+  - platform: template
+    id: ui_model_rectifier_${ui_unit}_ac_voltage
+    internal: true
+    update_interval: never
+    unit_of_measurement: "V"
+    accuracy_decimals: 3
+
+  - platform: template
+    id: ui_model_rectifier_${ui_unit}_ac_current
+    internal: true
+    update_interval: never
+    unit_of_measurement: "A"
+    accuracy_decimals: 3
+
+  # ---------------------------------------------------------------------------
+  # DC OUTPUT
+  # ---------------------------------------------------------------------------
+
+  - platform: template
+    id: ui_model_rectifier_${ui_unit}_dc_voltage
+    internal: true
+    update_interval: never
+    unit_of_measurement: "V"
+    accuracy_decimals: 3
+
+  - platform: template
+    id: ui_model_rectifier_${ui_unit}_dc_current
+    internal: true
+    update_interval: never
+    unit_of_measurement: "A"
+    accuracy_decimals: 3
+
+  - platform: template
+    id: ui_model_rectifier_${ui_unit}_dc_power
+    internal: true
+    update_interval: never
+    unit_of_measurement: "W"
+    accuracy_decimals: 3
+
+  # ---------------------------------------------------------------------------
+  # TEMPERATURE
+  # ---------------------------------------------------------------------------
+
+  - platform: template
+    id: ui_model_rectifier_${ui_unit}_output_temperature
+    internal: true
+    update_interval: never
+    unit_of_measurement: "°C"
+    accuracy_decimals: 1
+
+
+text_sensor:
+
+  # ---------------------------------------------------------------------------
+  # OPERATIONAL STATE
+  # ---------------------------------------------------------------------------
+
+  - platform: template
+    id: ui_model_rectifier_${ui_unit}_lifecycle
+    internal: true
+
+  - platform: template
+    id: ui_model_rectifier_${ui_unit}_power_state
+    internal: true

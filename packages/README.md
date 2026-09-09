@@ -37,6 +37,7 @@ packages/
 ├── version.yaml
 │
 ├── shared/
+│   ├── ui-rectifier-unit.yaml
 │   ├── ui-contract.yaml
 │   ├── battery-bank.yaml
 │   ├── battery-ui-backend.yaml
@@ -45,6 +46,7 @@ packages/
 │   └── ui-model.yaml
 │
 ├── controller/
+│   ├── ui-rectifier-backend.yaml
 │   ├── hardware.yaml
 │   ├── mqtt.yaml
 │   ├── ui-backend.yaml
@@ -52,6 +54,7 @@ packages/
 │
 ├── remote-hmi/
 │   ├── dashboard-status.yaml
+│   ├── ha-entity-map.yaml
 │   ├── ha-backend.yaml
 │   └── ui-commands.yaml
 │
@@ -128,6 +131,9 @@ shared/battery-bank.yaml
 shared/battery-ui-backend.yaml
     publishes valid battery-bank monitoring state into the shared UI model
 
+shared/ui-rectifier-unit.yaml
+    parameterized target-neutral UI state for one rectifier
+
 controller/hardware.yaml
     Charger Controller buses and charger-side peripherals
 
@@ -140,14 +146,23 @@ controller/ui-backend.yaml
 controller/ui-commands.yaml
     executes shared UI command intents through local Charger Controller entities
 
+controller/ui-rectifier-backend.yaml
+    publishes one local rectifier into the shared per-unit UI model
+
 remote-hmi/dashboard-status.yaml
     exposes Remote HMI Home Assistant / charger-data connectivity
+
+remote-hmi/ha-entity-map.yaml
+    derives paired Charger Controller Home Assistant entities from one configurable prefix
 
 remote-hmi/ha-backend.yaml
     imports authoritative Charger Controller state through Home Assistant
 
 remote-hmi/ui-commands.yaml
     transports shared UI command intents to the Charger Controller through Home Assistant
+
+remote-hmi/rectifier-backend.yaml
+    imports one authoritative rectifier state through Home Assistant
 
 controls.yaml
     charger-wide user setpoints and controls
@@ -305,6 +320,18 @@ The status clearly indicates whether authoritative Charger Controller data is cu
 
 ---
 
+## `remote-hmi/ha-entity-map.yaml`
+
+Owns the Home Assistant entity mapping for the Charger Controller paired with a Remote HMI.
+
+The Remote HMI root defines one installation-specific `ha_charger_entity_prefix`. The entity map derives the Dashboard telemetry, setpoint and charger-command entity IDs from that prefix.
+
+This keeps Home Assistant entity naming out of the state and command backends and allows another Charger Controller to be paired by changing one configuration value.
+
+The configured prefix must match the actual Home Assistant entity IDs. Home Assistant may preserve existing entity IDs after an ESPHome device is renamed, so the prefix is not inferred dynamically from the current device name.
+
+---
+
 ## `remote-hmi/ha-backend.yaml`
 
 Owns the Remote HMI Home Assistant transport.
@@ -315,6 +342,8 @@ The backend currently supplies the Charger-side Dashboard telemetry and setpoint
 
 Loss of the Home Assistant state-subscription connection invalidates Remote HMI charger state so stale values cannot appear as live telemetry.
 
+Home Assistant entity IDs are supplied by `remote-hmi/ha-entity-map.yaml` rather than being embedded in the backend.
+
 ---
 
 ## `remote-hmi/ui-commands.yaml`
@@ -324,6 +353,8 @@ Implements the shared HMI command interface for the Remote HMI target.
 The backend sends command requests through Home Assistant to the Charger Controller entities. It does not duplicate safety logic and does not treat a request as confirmed charger state.
 
 The shared UI model remains authoritative for displayed command results after Home Assistant reports the resulting Charger Controller state.
+
+Command target entity IDs are supplied by `remote-hmi/ha-entity-map.yaml`.
 
 ---
 

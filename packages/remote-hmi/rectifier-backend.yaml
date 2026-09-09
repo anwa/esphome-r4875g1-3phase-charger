@@ -1,0 +1,233 @@
+# ==============================================================================
+# REMOTE HMI RECTIFIER BACKEND
+# ==============================================================================
+#
+# Imports authoritative state for one Charger Controller rectifier through
+# Home Assistant and publishes it into the shared V6 rectifier UI model.
+#
+# Home Assistant connection loss invalidates the complete per-unit model so
+# stale telemetry cannot appear as live state.
+#
+# Required variables:
+#   ui_unit
+#   ha_rectifier_connected_entity
+#   ha_rectifier_lifecycle_entity
+#   ha_rectifier_power_state_entity
+#   ha_rectifier_ac_voltage_entity
+#   ha_rectifier_ac_current_entity
+#   ha_rectifier_dc_voltage_entity
+#   ha_rectifier_dc_current_entity
+#   ha_rectifier_dc_power_entity
+#   ha_rectifier_output_temperature_entity
+# ==============================================================================
+
+globals:
+
+  - id: remote_ha_rectifier_${ui_unit}_connected_received
+    type: bool
+    restore_value: false
+    initial_value: "false"
+
+
+binary_sensor:
+
+  - platform: homeassistant
+    id: remote_ha_rectifier_${ui_unit}_connected
+    entity_id: ${ha_rectifier_connected_entity}
+    internal: true
+
+    on_state:
+      then:
+        - lambda: |-
+            id(remote_ha_rectifier_${ui_unit}_connected_received) = true;
+
+
+sensor:
+
+  - platform: homeassistant
+    id: remote_ha_rectifier_${ui_unit}_ac_voltage
+    entity_id: ${ha_rectifier_ac_voltage_entity}
+    internal: true
+
+  - platform: homeassistant
+    id: remote_ha_rectifier_${ui_unit}_ac_current
+    entity_id: ${ha_rectifier_ac_current_entity}
+    internal: true
+
+  - platform: homeassistant
+    id: remote_ha_rectifier_${ui_unit}_dc_voltage
+    entity_id: ${ha_rectifier_dc_voltage_entity}
+    internal: true
+
+  - platform: homeassistant
+    id: remote_ha_rectifier_${ui_unit}_dc_current
+    entity_id: ${ha_rectifier_dc_current_entity}
+    internal: true
+
+  - platform: homeassistant
+    id: remote_ha_rectifier_${ui_unit}_dc_power
+    entity_id: ${ha_rectifier_dc_power_entity}
+    internal: true
+
+  - platform: homeassistant
+    id: remote_ha_rectifier_${ui_unit}_output_temperature
+    entity_id: ${ha_rectifier_output_temperature_entity}
+    internal: true
+
+
+text_sensor:
+
+  - platform: homeassistant
+    id: remote_ha_rectifier_${ui_unit}_lifecycle
+    entity_id: ${ha_rectifier_lifecycle_entity}
+    internal: true
+
+  - platform: homeassistant
+    id: remote_ha_rectifier_${ui_unit}_power_state
+    entity_id: ${ha_rectifier_power_state_entity}
+    internal: true
+
+
+interval:
+
+  - interval: 500ms
+    then:
+      - lambda: |-
+          const bool ha_connected =
+            id(native_api).is_connected_with_state_subscription();
+
+          if (!ha_connected) {
+            id(remote_ha_rectifier_${ui_unit}_connected_received) = false;
+
+            id(ui_model_rectifier_${ui_unit}_connected).publish_state(false);
+            id(ui_model_rectifier_${ui_unit}_online).publish_state(false);
+
+            id(ui_model_rectifier_${ui_unit}_lifecycle).publish_state("");
+            id(ui_model_rectifier_${ui_unit}_power_state).publish_state("");
+
+            id(ui_model_rectifier_${ui_unit}_ac_voltage).publish_state(NAN);
+            id(ui_model_rectifier_${ui_unit}_ac_current).publish_state(NAN);
+
+            id(ui_model_rectifier_${ui_unit}_dc_voltage).publish_state(NAN);
+            id(ui_model_rectifier_${ui_unit}_dc_current).publish_state(NAN);
+            id(ui_model_rectifier_${ui_unit}_dc_power).publish_state(NAN);
+
+            id(ui_model_rectifier_${ui_unit}_output_temperature).publish_state(
+              NAN
+            );
+
+            return;
+          }
+
+          const bool received =
+            id(remote_ha_rectifier_${ui_unit}_connected_received);
+
+          const bool connected =
+            received &&
+            id(remote_ha_rectifier_${ui_unit}_connected).state;
+
+          id(ui_model_rectifier_${ui_unit}_connected).publish_state(
+            connected
+          );
+
+          if (!connected) {
+            id(ui_model_rectifier_${ui_unit}_online).publish_state(false);
+
+            id(ui_model_rectifier_${ui_unit}_lifecycle).publish_state(
+              received
+                ? "OFFLINE"
+                : ""
+            );
+
+            id(ui_model_rectifier_${ui_unit}_power_state).publish_state("");
+
+            id(ui_model_rectifier_${ui_unit}_ac_voltage).publish_state(NAN);
+            id(ui_model_rectifier_${ui_unit}_ac_current).publish_state(NAN);
+
+            id(ui_model_rectifier_${ui_unit}_dc_voltage).publish_state(NAN);
+            id(ui_model_rectifier_${ui_unit}_dc_current).publish_state(NAN);
+            id(ui_model_rectifier_${ui_unit}_dc_power).publish_state(NAN);
+
+            id(ui_model_rectifier_${ui_unit}_output_temperature).publish_state(
+              NAN
+            );
+
+            return;
+          }
+
+          std::string lifecycle;
+
+          if (id(remote_ha_rectifier_${ui_unit}_lifecycle).has_state()) {
+            lifecycle =
+              id(remote_ha_rectifier_${ui_unit}_lifecycle).state;
+
+            if (
+              lifecycle == "unknown" ||
+              lifecycle == "unavailable"
+            ) {
+              lifecycle.clear();
+            }
+          }
+
+          id(ui_model_rectifier_${ui_unit}_lifecycle).publish_state(
+            lifecycle
+          );
+
+          id(ui_model_rectifier_${ui_unit}_online).publish_state(
+            lifecycle == "ONLINE"
+          );
+
+          std::string power_state;
+
+          if (id(remote_ha_rectifier_${ui_unit}_power_state).has_state()) {
+            power_state =
+              id(remote_ha_rectifier_${ui_unit}_power_state).state;
+
+            if (
+              power_state == "UNKNOWN" ||
+              power_state == "unknown" ||
+              power_state == "unavailable"
+            ) {
+              power_state.clear();
+            }
+          }
+
+          id(ui_model_rectifier_${ui_unit}_power_state).publish_state(
+            power_state
+          );
+
+          id(ui_model_rectifier_${ui_unit}_ac_voltage).publish_state(
+            id(remote_ha_rectifier_${ui_unit}_ac_voltage).has_state()
+              ? id(remote_ha_rectifier_${ui_unit}_ac_voltage).state
+              : NAN
+          );
+
+          id(ui_model_rectifier_${ui_unit}_ac_current).publish_state(
+            id(remote_ha_rectifier_${ui_unit}_ac_current).has_state()
+              ? id(remote_ha_rectifier_${ui_unit}_ac_current).state
+              : NAN
+          );
+
+          id(ui_model_rectifier_${ui_unit}_dc_voltage).publish_state(
+            id(remote_ha_rectifier_${ui_unit}_dc_voltage).has_state()
+              ? id(remote_ha_rectifier_${ui_unit}_dc_voltage).state
+              : NAN
+          );
+
+          id(ui_model_rectifier_${ui_unit}_dc_current).publish_state(
+            id(remote_ha_rectifier_${ui_unit}_dc_current).has_state()
+              ? id(remote_ha_rectifier_${ui_unit}_dc_current).state
+              : NAN
+          );
+
+          id(ui_model_rectifier_${ui_unit}_dc_power).publish_state(
+            id(remote_ha_rectifier_${ui_unit}_dc_power).has_state()
+              ? id(remote_ha_rectifier_${ui_unit}_dc_power).state
+              : NAN
+          );
+
+          id(ui_model_rectifier_${ui_unit}_output_temperature).publish_state(
+            id(remote_ha_rectifier_${ui_unit}_output_temperature).has_state()
+              ? id(remote_ha_rectifier_${ui_unit}_output_temperature).state
+              : NAN
+          );
