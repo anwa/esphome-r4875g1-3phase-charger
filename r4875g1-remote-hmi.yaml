@@ -1,5 +1,5 @@
 # ==============================================================================
-# R4875G1 REMOTE HMI - V6 DASHBOARD TARGET
+# R4875G1 REMOTE HMI - V6 TARGET
 # ==============================================================================
 #
 # Remote touchscreen interface for the R4875G1 three-phase charger.
@@ -15,9 +15,9 @@
 # The Remote HMI has no direct connection to charger-side CAN or external
 # charger peripherals.
 #
-# The Dashboard consumes authoritative charger state through Home Assistant and
-# the shared V6 UI model. Dashboard command requests are transported through
-# Home Assistant to the Charger Controller.
+# Shared HMI pages consume authoritative charger state through Home Assistant
+# and the shared V6 UI model. HMI command requests are transported through Home
+# Assistant to the Charger Controller.
 #
 # Charger safety validation, command execution and resulting operational state
 # remain authoritative on the Charger Controller.
@@ -66,7 +66,7 @@ substitutions:
 # ==============================================================================
 #
 # Composes the shared platform, Home Assistant state/command backends and the
-# same shared V6 Dashboard presentation used by the Charger Controller.
+# shared V6 Dashboard and Rectifiers presentation used by the Charger Controller.
 # ==============================================================================
 
 packages:
@@ -167,9 +167,10 @@ packages:
       ha_rectifier_max_current_capability_entity: ${ha_rectifier_3_max_current_capability_entity}
       ha_rectifier_operating_hours_entity: ${ha_rectifier_3_operating_hours_entity}
 
+  display_shared_hmi: !include packages/display/shared-hmi.yaml
   display_shared_dashboard: !include packages/display/shared-dashboard.yaml
-  display_rectifier_command_state: !include packages/display/command-state.yaml
-  remote_dashboard_status: !include packages/remote-hmi/dashboard-status.yaml
+  display_shared_rectifiers: !include packages/display/shared-rectifiers.yaml
+  remote_connection_status: !include packages/remote-hmi/connection-status.yaml
 
 # ==============================================================================
 # ESPHOME DEVICE IDENTITY

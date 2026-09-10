@@ -2,8 +2,8 @@
 # SHARED V6 UI STATE
 # ==============================================================================
 #
-# Persistent presentation state used by shared and Controller-specific LVGL
-# components.
+# Persistent presentation and navigation state used by shared and
+# Controller-specific LVGL components.
 #
 # Command-pending state represents UI activity only. Authoritative charger
 # state always comes from the shared UI model.
@@ -17,6 +17,22 @@ globals:
 
   - id: ui_active_page
     type: uint8_t
+    restore_value: false
+    initial_value: "0"
+
+  # ---------------------------------------------------------------------------
+  # RECTIFIER DETAIL NAVIGATION
+  # ---------------------------------------------------------------------------
+
+  # Selected/open Rectifier detail view:
+  #   0 = Rectifiers overview
+  #   1 = Unit 1 / L1 detail
+  #   2 = Unit 2 / L2 detail
+  #   3 = Unit 3 / L3 detail
+  #
+  # Detail pages are navigation views, not additional main-menu pages.
+  - id: rectifier_detail_unit
+    type: int
     restore_value: false
     initial_value: "0"
 

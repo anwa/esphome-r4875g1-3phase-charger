@@ -1,0 +1,45 @@
+# ==============================================================================
+# SHARED V6 RECTIFIERS DISPLAY PACKAGE
+# ==============================================================================
+#
+# Composes the Rectifiers Overview and Rectifier Detail presentation shared by
+# the Charger Controller and Remote HMI targets.
+#
+# State is consumed exclusively through the shared UI model. User commands are
+# submitted exclusively through the target-neutral ui_command_* boundary.
+#
+# Shared display infrastructure and presentation/navigation state are owned by
+# display/shared-hmi.yaml.
+# ==============================================================================
+
+packages:
+
+  # ---------------------------------------------------------------------------
+  # SHARED RECTIFIERS PRESENTATION
+  # ---------------------------------------------------------------------------
+
+  display_rectifiers_ui: !include rectifiers-ui.yaml
+  display_fallback_dialog: !include fallback-dialog.yaml
+
+  display_rectifier_power_dialogs_1: !include
+    file: rectifier-power-dialogs.yaml
+    vars:
+      ui_unit: "1"
+
+  display_rectifier_power_dialogs_2: !include
+    file: rectifier-power-dialogs.yaml
+    vars:
+      ui_unit: "2"
+
+  display_rectifier_power_dialogs_3: !include
+    file: rectifier-power-dialogs.yaml
+    vars:
+      ui_unit: "3"
+
+  # ---------------------------------------------------------------------------
+  # SHARED RECTIFIERS RUNTIMES
+  # ---------------------------------------------------------------------------
+
+  display_rectifier_command_state: !include command-state.yaml
+  display_rectifiers_runtime: !include rectifiers.yaml
+  display_rectifier_detail_runtime: !include rectifier-detail.yaml

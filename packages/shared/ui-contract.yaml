@@ -17,3 +17,6 @@ substitutions:
 
   dc_sum_power_min_kw: "0.1"
   dc_sum_power_max_kw: "12.0"
+
+  dc_fallback_current_min_a: "1.0"
+  dc_fallback_current_max_a: "75.0"

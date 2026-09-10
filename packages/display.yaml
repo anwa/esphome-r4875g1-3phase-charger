@@ -2,32 +2,25 @@
 # V6 CHARGER CONTROLLER DISPLAY PACKAGE AGGREGATOR
 # ==============================================================================
 #
-# Composes the shared V6 Dashboard together with the remaining display
-# components that exist only on the Charger Controller.
-#
-# The shared Dashboard composition is owned by display/shared-dashboard.yaml.
+# Composes the shared Dashboard and Rectifiers presentation together with the
+# remaining display components that exist only on the Charger Controller.
 # ==============================================================================
 
 packages:
 
   # ---------------------------------------------------------------------------
-  # SHARED DASHBOARD
+  # SHARED PRESENTATION
   # ---------------------------------------------------------------------------
 
+  display_shared_hmi: !include display/shared-hmi.yaml
   display_shared_dashboard: !include display/shared-dashboard.yaml
+  display_shared_rectifiers: !include display/shared-rectifiers.yaml
 
   # ---------------------------------------------------------------------------
   # CHARGER CONTROLLER PRESENTATION
   # ---------------------------------------------------------------------------
 
-  # Remaining Controller-specific pages, navigation and dialogs.
   display_ui: !include display/ui.yaml
-
-  # ---------------------------------------------------------------------------
-  # SHARED RECTIFIER COMMAND STATE
-  # ---------------------------------------------------------------------------
-
-  display_command_state: !include display/command-state.yaml
 
   # ---------------------------------------------------------------------------
   # CHARGER CONTROLLER GLOBAL RUNTIMES
@@ -39,8 +32,6 @@ packages:
   # CHARGER CONTROLLER PAGE RUNTIMES
   # ---------------------------------------------------------------------------
 
-  display_rectifiers: !include display/rectifiers.yaml
-  display_rectifier_detail: !include display/rectifier-detail.yaml
   display_battery: !include display/battery.yaml
   display_cooling: !include display/cooling.yaml
   display_system: !include display/system.yaml

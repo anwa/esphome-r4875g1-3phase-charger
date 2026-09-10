@@ -53,7 +53,7 @@ packages/
 │   └── ui-commands.yaml
 │
 ├── remote-hmi/
-│   ├── dashboard-status.yaml
+│   ├── connection-status.yaml
 │   ├── ha-entity-map.yaml
 │   ├── ha-backend.yaml
 │   └── ui-commands.yaml
@@ -70,6 +70,10 @@ packages/
 │   ├── header-ui.yaml
 │   ├── dashboard-ui.yaml
 │   ├── dashboard-command-state.yaml
+│   ├── rectifiers-ui.yaml
+│   ├── fallback-dialog.yaml
+│   ├── rectifier-power-dialogs.yaml
+│   ├── shared-rectifiers.yaml
 │   ├── hardware.yaml
 │   ├── theme.yaml
 │   ├── ui.yaml
@@ -83,6 +87,7 @@ packages/
 │   ├── cooling.yaml
 │   ├── system.yaml
 │   ├── trends.yaml
+│   ├── shared-hmi.yaml
 │   ├── shared-dashboard.yaml
 │   ├── local-battery-header.yaml
 │   │
@@ -123,7 +128,7 @@ shared/ui-model.yaml
     target-neutral state contract consumed by the HMI
 
 shared/ui-contract.yaml
-    shared Dashboard command ranges used by both V6 targets
+    shared HMI command ranges used by both V6 targets
 
 shared/battery-bank.yaml
     shared Home Assistant solar-battery telemetry import and availability state
@@ -149,8 +154,8 @@ controller/ui-commands.yaml
 controller/ui-rectifier-backend.yaml
     publishes one local rectifier into the shared per-unit UI model
 
-remote-hmi/dashboard-status.yaml
-    exposes Remote HMI Home Assistant / charger-data connectivity
+remote-hmi/connection-status.yaml
+    exposes persistent Remote HMI Home Assistant / charger-data connectivity
 
 remote-hmi/ha-entity-map.yaml
     derives paired Charger Controller Home Assistant entities from one configurable prefix
@@ -183,7 +188,7 @@ display/*.yaml
     persistent and page-specific display runtime
 
 display/ui-state.yaml
-    shared LVGL presentation and command-pending state
+    shared LVGL presentation, navigation and command-pending state
 
 display/header-ui.yaml
     shared persistent header layout
@@ -197,8 +202,23 @@ display/dashboard-command-state.yaml
 display/command-state.yaml
     shared per-rectifier START/STOP pending-state resolution
 
+display/shared-hmi.yaml
+    shared display infrastructure, persistent header and presentation state
+
 display/shared-dashboard.yaml
-    shared Dashboard composition consumed by both V6 firmware targets
+    shared Dashboard presentation and runtime consumed by both V6 firmware targets
+
+display/shared-rectifiers.yaml
+    shared Rectifiers composition consumed by both V6 firmware targets
+
+display/rectifiers-ui.yaml
+    shared Rectifiers Overview, Detail and Dashboard / Rectifiers navigation
+
+display/fallback-dialog.yaml
+    shared fallback-setpoint dialog
+
+display/rectifier-power-dialogs.yaml
+    parameterized shared per-unit START/STOP dialogs
 
 display/local-battery-header.yaml
     shared local display-controller backup-battery header runtime
@@ -315,11 +335,11 @@ The command scripts translate target-neutral Dashboard, fallback-setpoint and pe
 
 ---
 
-## `remote-hmi/dashboard-status.yaml`
+## `remote-hmi/connection-status.yaml`
 
-Provides Remote-HMI-specific connectivity presentation alongside the shared Dashboard.
+Provides persistent Remote-HMI-specific connectivity presentation beside the shared bottom navigation.
 
-The status clearly indicates whether authoritative Charger Controller data is currently available through Home Assistant. It does not duplicate charger state or safety logic.
+The status clearly indicates whether authoritative Charger Controller data is currently available through Home Assistant across the shared HMI pages. It does not duplicate charger state or safety logic.
 
 ---
 

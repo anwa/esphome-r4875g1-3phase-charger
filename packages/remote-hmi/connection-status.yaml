@@ -1,21 +1,21 @@
 # ==============================================================================
-# REMOTE HMI DASHBOARD STATUS
+# REMOTE HMI CONNECTION STATUS
 # ==============================================================================
 #
-# Adds Remote-HMI-specific Home Assistant / Charger connectivity state below
-# the shared Dashboard.
+# Displays persistent Home Assistant / Charger Controller connectivity state
+# beside the shared bottom navigation.
 #
-# This target-specific status does not alter the shared Dashboard presentation.
+# The status does not duplicate charger state or safety logic.
 # ==============================================================================
 
 lvgl:
   top_layer:
     widgets:
       - label:
-          id: ui_remote_dashboard_connection
-          x: 10
+          id: ui_remote_connection_status
+          x: 274
           y: 422
-          width: 780
+          width: 516
           text_align: CENTER
           text: "REMOTE HMI - HA / CHARGER DATA OFFLINE"
           text_font: montserrat_16
@@ -26,7 +26,7 @@ interval:
   - interval: 500ms
     then:
       - lvgl.label.update:
-          id: ui_remote_dashboard_connection
+          id: ui_remote_connection_status
 
           text: !lambda |-
             return id(ui_model_data_available).state

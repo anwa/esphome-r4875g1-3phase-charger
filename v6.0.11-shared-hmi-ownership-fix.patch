@@ -1,0 +1,180 @@
+diff --git a/packages/display/shared-hmi.yaml b/packages/display/shared-hmi.yaml
+new file mode 100644
+--- /dev/null
++++ b/packages/display/shared-hmi.yaml
+@@ -0,0 +1,33 @@
++# ==============================================================================
++# SHARED V6 HMI INFRASTRUCTURE
++# ==============================================================================
++#
++# Composes target-neutral display infrastructure and persistent presentation
++# state used by the shared V6 HMI features.
++#
++# Dashboard and Rectifiers packages consume this common infrastructure without
++# owning or duplicating it.
++# ==============================================================================
++
++packages:
++
++  # ---------------------------------------------------------------------------
++  # DISPLAY INFRASTRUCTURE
++  # ---------------------------------------------------------------------------
++
++  display_hardware: !include hardware.yaml
++  display_theme: !include theme.yaml
++
++  # ---------------------------------------------------------------------------
++  # SHARED PRESENTATION STATE
++  # ---------------------------------------------------------------------------
++
++  display_ui_state: !include ui-state.yaml
++
++  # ---------------------------------------------------------------------------
++  # PERSISTENT HEADER
++  # ---------------------------------------------------------------------------
++
++  display_header_ui: !include header-ui.yaml
++  display_header: !include header.yaml
++  display_local_battery_header: !include local-battery-header.yaml
+diff --git a/packages/display/shared-dashboard.yaml b/packages/display/shared-dashboard.yaml
+--- a/packages/display/shared-dashboard.yaml
++++ b/packages/display/shared-dashboard.yaml
+@@ -1,39 +1,28 @@
+ # ==============================================================================
+ # SHARED V6 DASHBOARD DISPLAY PACKAGE
+ # ==============================================================================
+ #
+-# Composes the complete Dashboard presentation shared by the Charger Controller
+-# and Remote HMI targets.
++# Composes Dashboard-specific presentation and runtime shared by the Charger
++# Controller and Remote HMI targets.
+ #
+-# Both targets therefore use the same display hardware configuration, theme,
+-# Dashboard page, Dashboard dialogs, header and page runtime.
++# Shared display infrastructure, persistent header and presentation state are
++# owned by display/shared-hmi.yaml.
+ #
+ # Target-specific state acquisition and command transport remain behind the
+ # shared UI-model and ui_command_* backend boundaries.
+ # ==============================================================================
+ 
+ packages:
+ 
+-  # ---------------------------------------------------------------------------
+-  # DISPLAY INFRASTRUCTURE
+-  # ---------------------------------------------------------------------------
+-
+-  display_hardware: !include hardware.yaml
+-  display_theme: !include theme.yaml
+-
+   # ---------------------------------------------------------------------------
+-  # SHARED PRESENTATION
++  # DASHBOARD PRESENTATION
+   # ---------------------------------------------------------------------------
+ 
+-  display_ui_state: !include ui-state.yaml
+-  display_header_ui: !include header-ui.yaml
+   display_dashboard_ui: !include dashboard-ui.yaml
+ 
+   # ---------------------------------------------------------------------------
+-  # SHARED RUNTIMES
++  # DASHBOARD RUNTIMES
+   # ---------------------------------------------------------------------------
+ 
+-  display_header: !include header.yaml
+-  display_local_battery_header: !include local-battery-header.yaml
+   display_dashboard_command_state: !include dashboard-command-state.yaml
+   display_dashboard: !include dashboard.yaml
+diff --git a/packages/display/ui-state.yaml b/packages/display/ui-state.yaml
+--- a/packages/display/ui-state.yaml
++++ b/packages/display/ui-state.yaml
+@@ -3,8 +3,8 @@
+ # SHARED V6 UI STATE
+ # ==============================================================================
+ #
+-# Persistent presentation state used by shared and Controller-specific LVGL
+-# components.
++# Persistent presentation and navigation state used by shared and
++# Controller-specific LVGL components.
+ #
+ # Command-pending state represents UI activity only. Authoritative charger
+ # state always comes from the shared UI model.
+@@ -18,6 +18,22 @@ globals:
+     restore_value: false
+     initial_value: "0"
+ 
++  # ---------------------------------------------------------------------------
++  # RECTIFIER DETAIL NAVIGATION
++  # ---------------------------------------------------------------------------
++
++  # Selected/open Rectifier detail view:
++  #   0 = Rectifiers overview
++  #   1 = Unit 1 / L1 detail
++  #   2 = Unit 2 / L2 detail
++  #   3 = Unit 3 / L3 detail
++  #
++  # Detail pages are navigation views, not additional main-menu pages.
++  - id: rectifier_detail_unit
++    type: int
++    restore_value: false
++    initial_value: "0"
++
+   # ---------------------------------------------------------------------------
+   # CHARGER POWER COMMAND
+   # ---------------------------------------------------------------------------
+diff --git a/packages/rectifier-shared.yaml b/packages/rectifier-shared.yaml
+--- a/packages/rectifier-shared.yaml
++++ b/packages/rectifier-shared.yaml
+@@ -22,18 +22,6 @@ globals:
+     restore_value: false
+     initial_value: "0"
+ 
+-  # Selected/open Rectifier detail view:
+-  #   0 = Rectifiers overview
+-  #   1 = Unit 1 / L1 detail
+-  #   2 = Unit 2 / L2 detail
+-  #   3 = Unit 3 / L3 detail
+-  #
+-  # Detail pages are navigation views, not additional main-menu pages.
+-  - id: rectifier_detail_unit
+-    type: int
+-    restore_value: false
+-    initial_value: "0"
+-
+   - id: encoder_selection
+     type: int
+     restore_value: false
+diff --git a/packages/display/shared-rectifiers.yaml b/packages/display/shared-rectifiers.yaml
+--- a/packages/display/shared-rectifiers.yaml
++++ b/packages/display/shared-rectifiers.yaml
+@@ -8,5 +8,8 @@
+ # State is consumed exclusively through the shared UI model. User commands are
+ # submitted exclusively through the target-neutral ui_command_* boundary.
++#
++# Shared display infrastructure and presentation/navigation state are owned by
++# display/shared-hmi.yaml.
+ # ==============================================================================
+ 
+ packages:
+diff --git a/packages/display.yaml b/packages/display.yaml
+--- a/packages/display.yaml
++++ b/packages/display.yaml
+@@ -16,6 +16,7 @@ packages:
+   # SHARED PRESENTATION
+   # ---------------------------------------------------------------------------
+ 
++  display_shared_hmi: !include display/shared-hmi.yaml
+   display_shared_dashboard: !include display/shared-dashboard.yaml
+   display_shared_rectifiers: !include display/shared-rectifiers.yaml
+ 
+diff --git a/r4875g1-remote-hmi.yaml b/r4875g1-remote-hmi.yaml
+--- a/r4875g1-remote-hmi.yaml
++++ b/r4875g1-remote-hmi.yaml
+@@ -165,6 +165,7 @@ packages:
+       ha_rectifier_max_current_capability_entity: ${ha_rectifier_3_max_current_capability_entity}
+       ha_rectifier_operating_hours_entity: ${ha_rectifier_3_operating_hours_entity}
+ 
++  display_shared_hmi: !include packages/display/shared-hmi.yaml
+   display_shared_dashboard: !include packages/display/shared-dashboard.yaml
+   display_shared_rectifiers: !include packages/display/shared-rectifiers.yaml
+   remote_connection_status: !include packages/remote-hmi/connection-status.yaml
