@@ -4,6 +4,57 @@ This rule defines the preferred Git workflow for the project.
 
 The goals are readable history, safe experimentation and preservation of useful development context.
 
+## GitHub Access Policy
+
+AI agents MUST treat the GitHub repository and all GitHub integrations as read-only.
+
+Agents MAY:
+
+- inspect repositories, branches, commits, tags and files
+- inspect pull requests, issues, workflow results and repository history
+- compare remote repository state with user-provided local changes
+- review commits, diffs and pull requests
+- prepare patches and complete replacement files for local application
+- prepare commit messages, branch names, pull-request text and merge recommendations
+
+Agents MUST NOT perform repository mutations through GitHub or a GitHub integration.
+
+Prohibited actions include, but are not limited to:
+
+- creating, updating or deleting repository files
+- creating commits
+- creating, deleting or modifying branches
+- moving branch references
+- pushing changes
+- merging pull requests
+- creating, updating or deleting tags
+- creating, updating or deleting releases
+- modifying issues or pull requests
+- changing repository settings
+- performing any other GitHub API action that changes repository or project state
+
+Repository changes MUST first be applied to the user's local working tree.
+
+When an agent prepares a change, it SHOULD provide either:
+
+- an exact patch that can be applied locally, or
+- precise manual-application instructions following `rules/development-workflow.md`
+
+The user is responsible for:
+
+- applying the final change to the local repository
+- validating and compiling affected firmware targets
+- performing required hardware or runtime tests
+- creating Git commits
+- pushing commits to GitHub
+- performing merges, tags and releases
+
+Agents MAY inspect the resulting pushed commit afterwards to verify that it matches the intended and tested change.
+
+This policy applies even when the available GitHub integration technically provides write-capable tools.
+
+A write operation is permitted only when the user explicitly overrides this repository rule for the current task.
+
 ## Long-Lived Branches
 
 `main` contains the current primary firmware generation.

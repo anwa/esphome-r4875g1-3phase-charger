@@ -46,7 +46,7 @@ Existing non-English content does not need to be translated merely because an un
 | `firmware-targets.md` | Multi-target firmware architecture, ownership and validation |
 | `versioning.md` | Firmware versioning and version-bump policy |
 | `documentation.md` | README and project-documentation maintenance |
-| `git-workflow.md` | Branch, commit, merge and repository-history conventions |
+| `git-workflow.md` | GitHub access policy plus branch, commit, merge and repository-history conventions |
 
 ## Precedence
 
