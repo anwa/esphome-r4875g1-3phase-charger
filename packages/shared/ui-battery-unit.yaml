@@ -1,0 +1,80 @@
+# ==============================================================================
+# SHARED V6 BATTERY UNIT UI MODEL
+# ==============================================================================
+#
+# Defines target-neutral UI state for one solar-battery unit.
+#
+# The package is instantiated once per battery unit by the shared battery
+# monitoring composition. Raw Home Assistant source state is translated by the
+# shared battery UI backend before reaching these entities.
+#
+# Required variable:
+#   ui_unit -> solar-battery unit number
+# ==============================================================================
+
+binary_sensor:
+
+  # ---------------------------------------------------------------------------
+  # AVAILABILITY AND ALERT STATE
+  # ---------------------------------------------------------------------------
+
+  - platform: template
+    id: ui_model_battery_${ui_unit}_data_available
+    internal: true
+
+  - platform: template
+    id: ui_model_battery_${ui_unit}_warning
+    internal: true
+
+  - platform: template
+    id: ui_model_battery_${ui_unit}_fault
+    internal: true
+
+
+sensor:
+
+  # ---------------------------------------------------------------------------
+  # BATTERY TELEMETRY
+  # ---------------------------------------------------------------------------
+
+  - platform: template
+    id: ui_model_battery_${ui_unit}_voltage
+    internal: true
+    update_interval: never
+    unit_of_measurement: "V"
+    accuracy_decimals: 2
+
+  - platform: template
+    id: ui_model_battery_${ui_unit}_current
+    internal: true
+    update_interval: never
+    unit_of_measurement: "A"
+    accuracy_decimals: 1
+
+  - platform: template
+    id: ui_model_battery_${ui_unit}_power
+    internal: true
+    update_interval: never
+    unit_of_measurement: "kW"
+    accuracy_decimals: 3
+
+  - platform: template
+    id: ui_model_battery_${ui_unit}_soc
+    internal: true
+    update_interval: never
+    unit_of_measurement: "%"
+    accuracy_decimals: 1
+
+  - platform: template
+    id: ui_model_battery_${ui_unit}_temperature
+    internal: true
+    update_interval: never
+    unit_of_measurement: "°C"
+    accuracy_decimals: 1
+
+  - platform: template
+    id: ui_model_battery_${ui_unit}_cell_drift
+    internal: true
+    update_interval: never
+    unit_of_measurement: "mV"
+    accuracy_decimals: 1

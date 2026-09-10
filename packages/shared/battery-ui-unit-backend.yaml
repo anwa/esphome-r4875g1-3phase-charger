@@ -1,0 +1,71 @@
+# ==============================================================================
+# SHARED V6 BATTERY UNIT UI BACKEND
+# ==============================================================================
+#
+# Publishes validated state for one solar-battery unit from the shared Home
+# Assistant source into the target-neutral per-unit UI model.
+#
+# Warning and fault text imports are normalized to boolean UI state only after
+# the source package has confirmed that all required unit data is valid.
+#
+# Required variable:
+#   ui_unit -> solar-battery unit number
+# ==============================================================================
+
+interval:
+
+  - interval: 1s
+    then:
+      - lambda: |-
+          const bool data_available =
+            id(battery_ha_connected).state &&
+            id(battery_${ui_unit}_data_available).state;
+
+          if (!data_available) {
+            id(ui_model_battery_${ui_unit}_data_available).publish_state(false);
+            id(ui_model_battery_${ui_unit}_warning).publish_state(false);
+            id(ui_model_battery_${ui_unit}_fault).publish_state(false);
+
+            id(ui_model_battery_${ui_unit}_voltage).publish_state(NAN);
+            id(ui_model_battery_${ui_unit}_current).publish_state(NAN);
+            id(ui_model_battery_${ui_unit}_power).publish_state(NAN);
+            id(ui_model_battery_${ui_unit}_soc).publish_state(NAN);
+            id(ui_model_battery_${ui_unit}_temperature).publish_state(NAN);
+            id(ui_model_battery_${ui_unit}_cell_drift).publish_state(NAN);
+
+            return;
+          }
+
+          id(ui_model_battery_${ui_unit}_voltage).publish_state(
+            id(battery_${ui_unit}_voltage).state
+          );
+
+          id(ui_model_battery_${ui_unit}_current).publish_state(
+            id(battery_${ui_unit}_current).state
+          );
+
+          id(ui_model_battery_${ui_unit}_power).publish_state(
+            id(battery_${ui_unit}_power).state
+          );
+
+          id(ui_model_battery_${ui_unit}_soc).publish_state(
+            id(battery_${ui_unit}_soc).state
+          );
+
+          id(ui_model_battery_${ui_unit}_temperature).publish_state(
+            id(battery_${ui_unit}_temperature).state
+          );
+
+          id(ui_model_battery_${ui_unit}_cell_drift).publish_state(
+            id(battery_${ui_unit}_cell_drift).state
+          );
+
+          id(ui_model_battery_${ui_unit}_warning).publish_state(
+            id(battery_${ui_unit}_warning_state).state == "on"
+          );
+
+          id(ui_model_battery_${ui_unit}_fault).publish_state(
+            id(battery_${ui_unit}_fault_state).state == "on"
+          );
+
+          id(ui_model_battery_${ui_unit}_data_available).publish_state(true);

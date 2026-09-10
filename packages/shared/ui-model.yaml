@@ -12,6 +12,9 @@
 # Remote HMI:
 #   Home Assistant -> Remote HMI backend -> shared UI model
 #
+# Parameterized per-battery unit state is defined separately in
+# shared/ui-battery-unit.yaml.
+#
 # Shared display code must consume these model entities instead of accessing
 # target-specific transport or hardware state directly.
 # ==============================================================================

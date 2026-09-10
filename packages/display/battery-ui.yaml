@@ -1,12 +1,14 @@
 # ==============================================================================
-# FIRMWARE VERSION
+# SHARED V6 BATTERY PRESENTATION
 # ==============================================================================
 #
-# Single source of truth for the firmware version displayed by ESPHome and the
-# local LVGL interface.
+# Defines the Battery page shared by the Charger Controller and Remote HMI
+# targets.
 #
-# Comment-only and documentation-only commits do not require a version bump.
+# Runtime state is consumed exclusively through the shared UI model.
 # ==============================================================================
 
-substitutions:
-  firmware_version: "6.0.12"
+lvgl:
+
+  pages:
+    - !include pages/battery.yaml

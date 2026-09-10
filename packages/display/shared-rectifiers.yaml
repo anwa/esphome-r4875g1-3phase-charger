@@ -8,8 +8,9 @@
 # State is consumed exclusively through the shared UI model. User commands are
 # submitted exclusively through the target-neutral ui_command_* boundary.
 #
-# Shared display infrastructure and presentation/navigation state are owned by
-# display/shared-hmi.yaml.
+# Shared display infrastructure and presentation state are owned by
+# display/shared-hmi.yaml. Shared bottom navigation is owned separately by
+# display/shared-navigation.yaml.
 # ==============================================================================
 
 packages:

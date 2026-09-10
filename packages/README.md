@@ -38,9 +38,12 @@ packages/
 │
 ├── shared/
 │   ├── ui-rectifier-unit.yaml
+│   ├── ui-battery-unit.yaml
 │   ├── ui-contract.yaml
 │   ├── battery-bank.yaml
+│   ├── battery-monitoring.yaml
 │   ├── battery-ui-backend.yaml
+│   ├── battery-ui-unit-backend.yaml
 │   ├── core.yaml
 │   ├── hardware.yaml
 │   └── ui-model.yaml
@@ -71,9 +74,12 @@ packages/
 │   ├── dashboard-ui.yaml
 │   ├── dashboard-command-state.yaml
 │   ├── rectifiers-ui.yaml
+│   ├── battery-ui.yaml
 │   ├── fallback-dialog.yaml
 │   ├── rectifier-power-dialogs.yaml
 │   ├── shared-rectifiers.yaml
+│   ├── shared-battery.yaml
+│   ├── shared-navigation.yaml
 │   ├── hardware.yaml
 │   ├── theme.yaml
 │   ├── ui.yaml
@@ -125,7 +131,7 @@ shared/hardware.yaml
     target-neutral Waveshare board peripherals
 
 shared/ui-model.yaml
-    target-neutral state contract consumed by the HMI
+    target-neutral aggregate state contract consumed by the HMI
 
 shared/ui-contract.yaml
     shared HMI command ranges used by both V6 targets
@@ -133,8 +139,17 @@ shared/ui-contract.yaml
 shared/battery-bank.yaml
     shared Home Assistant solar-battery telemetry import and availability state
 
+shared/battery-monitoring.yaml
+    composes the shared battery source and aggregate/per-unit UI-model backends
+
 shared/battery-ui-backend.yaml
-    publishes valid battery-bank monitoring state into the shared UI model
+    publishes validated aggregate battery-bank monitoring state into the shared UI model
+
+shared/battery-ui-unit-backend.yaml
+    publishes one validated battery unit into the shared per-unit UI model
+
+shared/ui-battery-unit.yaml
+    parameterized target-neutral UI state for one solar-battery unit
 
 shared/ui-rectifier-unit.yaml
     parameterized target-neutral UI state for one rectifier
@@ -211,8 +226,17 @@ display/shared-dashboard.yaml
 display/shared-rectifiers.yaml
     shared Rectifiers composition consumed by both V6 firmware targets
 
+display/shared-battery.yaml
+    shared Battery presentation and runtime consumed by both V6 firmware targets
+
+display/shared-navigation.yaml
+    shared Dashboard, Rectifiers and Battery bottom navigation
+
 display/rectifiers-ui.yaml
-    shared Rectifiers Overview, Detail and Dashboard / Rectifiers navigation
+    shared Rectifiers Overview and Detail presentation
+
+display/battery-ui.yaml
+    shared Battery page presentation
 
 display/fallback-dialog.yaml
     shared fallback-setpoint dialog
@@ -291,7 +315,7 @@ Owns the target-neutral runtime state consumed by shared HMI code.
 
 The model isolates LVGL presentation from the source of charger data. Charger Controller and Remote HMI backends publish into the same model IDs so shared display code does not need target-specific telemetry paths.
 
-The current model includes Dashboard AC/DC aggregate telemetry, active and fallback charger setpoints, rectifier availability/run state, per-rectifier overview and detail telemetry, highest output temperature, conversion efficiency and aggregate solar-battery-bank monitoring state.
+The current model includes Dashboard AC/DC aggregate telemetry, active and fallback charger setpoints, rectifier availability/run state, per-rectifier overview and detail telemetry, highest output temperature, conversion efficiency and aggregate solar-battery-bank monitoring state. Parameterized per-battery monitoring state is defined in `shared/ui-battery-unit.yaml`.
 
 ---
 
@@ -501,13 +525,35 @@ This package is monitoring-only and MUST NOT participate in charger control, CAN
 
 ---
 
+## `shared/battery-monitoring.yaml`
+
+Composes the Home Assistant battery source, aggregate UI backend and four parameterized per-unit UI-model/backend pairs used by both V6 targets.
+
+The aggregate battery-bank model remains part of `shared/ui-model.yaml`; per-unit Battery-page state is provided by `shared/ui-battery-unit.yaml`.
+
+---
+
+## `shared/ui-battery-unit.yaml`
+
+Defines target-neutral monitoring state for one solar-battery unit.
+
+Each instance provides per-unit data availability, warning/fault state, voltage, current, power, state of charge, temperature and cell drift.
+
+---
+
 ## `shared/battery-ui-backend.yaml`
 
-Publishes validated aggregate battery-bank monitoring state into the shared UI model.
+Publishes validated aggregate battery-bank monitoring state into the shared UI model and exposes the common Home Assistant battery-source connectivity state.
 
-Both V6 targets use the same Home Assistant battery source package, so this backend is shared rather than target-specific.
+Unavailable aggregate battery data is invalidated before it reaches shared LVGL code so stale monitoring values cannot appear as live state.
 
-Unavailable battery data is invalidated before it reaches shared LVGL code so stale monitoring values cannot appear as live state.
+---
+
+## `shared/battery-ui-unit-backend.yaml`
+
+Publishes one validated battery unit into the parameterized per-unit UI model.
+
+Both V6 targets use the same Home Assistant battery source package, so this backend is shared rather than target-specific. Raw warning and fault text states are validated by `shared/battery-bank.yaml` and normalized to boolean UI-model state here.
 
 ---
 

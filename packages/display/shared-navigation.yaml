@@ -1,81 +1,67 @@
 # ==============================================================================
-# CHARGER CONTROLLER-SPECIFIC LVGL PRESENTATION
+# SHARED V6 BOTTOM NAVIGATION
 # ==============================================================================
 #
-# Defines pages and navigation that exist only on the Charger Controller.
+# Defines the Dashboard, Rectifiers and Battery navigation shared by both V6
+# firmware targets.
 #
-# Dashboard, Rectifiers and Battery presentation are composed through shared
-# display packages.
+# Controller-only pages append their own navigation entries separately.
 # ==============================================================================
 
 lvgl:
-
-  # ---------------------------------------------------------------------------
-  # CONTROLLER-ONLY PAGES
-  # ---------------------------------------------------------------------------
-
-  pages:
-    - !include pages/cooling.yaml
-    - !include pages/system.yaml
-    - !include pages/trends.yaml
-
-  # ---------------------------------------------------------------------------
-  # CONTROLLER-ONLY BOTTOM NAVIGATION
-  # ---------------------------------------------------------------------------
-
   top_layer:
     widgets:
 
       - button:
-          x: 406
+          x: 10
           y: 410
           styles: style_nav_button
 
           widgets:
             - label:
                 align: CENTER
-                text: "Cooling"
+                text: "Dashboard"
                 text_font: montserrat_18
 
           on_short_click:
             - lambda: |-
                 id(rectifier_detail_unit) = 0;
-                id(ui_active_page) = 4;
+                id(ui_active_page) = 0;
 
-            - lvgl.page.show: page_cooling
+            - lvgl.page.show: page_dashboard
 
       - button:
-          x: 538
+          x: 142
           y: 410
           styles: style_nav_button
 
           widgets:
             - label:
                 align: CENTER
-                text: "System"
+                text: "Rectifiers"
                 text_font: montserrat_18
 
           on_short_click:
             - lambda: |-
                 id(rectifier_detail_unit) = 0;
-                id(ui_active_page) = 5;
+                id(ui_active_page) = 1;
 
-            - lvgl.page.show: page_system
+            - lvgl.page.show: page_rectifiers
 
       - button:
-          x: 670
+          x: 274
           y: 410
           styles: style_nav_button
 
           widgets:
             - label:
                 align: CENTER
-                text: "Trends"
+                text: "Battery"
                 text_font: montserrat_18
 
           on_short_click:
             - lambda: |-
                 id(rectifier_detail_unit) = 0;
-                id(ui_active_page) = 6;
+                id(ui_active_page) = 3;
 
-            - lvgl.page.show: page_trends
+            - lvgl.page.show: page_battery

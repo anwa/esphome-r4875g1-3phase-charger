@@ -1,0 +1,81 @@
+# ==============================================================================
+# SHARED V6 BATTERY MONITORING COMPOSITION
+# ==============================================================================
+#
+# Composes the Home Assistant-backed solar battery source, aggregate UI backend
+# and parameterized per-unit UI model/backend pairs used by both V6 targets.
+#
+# Aggregate battery-bank UI state remains defined in shared/ui-model.yaml.
+# Individual Battery-page state remains isolated behind the same target-neutral
+# UI-model boundary.
+# ==============================================================================
+
+packages:
+
+  # ---------------------------------------------------------------------------
+  # HOME ASSISTANT BATTERY SOURCE
+  # ---------------------------------------------------------------------------
+
+  shared_battery_bank: !include battery-bank.yaml
+
+  # ---------------------------------------------------------------------------
+  # AGGREGATE BATTERY BANK UI BACKEND
+  # ---------------------------------------------------------------------------
+
+  shared_battery_ui_backend: !include battery-ui-backend.yaml
+
+  # ---------------------------------------------------------------------------
+  # BATTERY 1 UI MODEL AND BACKEND
+  # ---------------------------------------------------------------------------
+
+  shared_ui_battery_1: !include
+    file: ui-battery-unit.yaml
+    vars:
+      ui_unit: "1"
+
+  shared_battery_1_ui_backend: !include
+    file: battery-ui-unit-backend.yaml
+    vars:
+      ui_unit: "1"
+
+  # ---------------------------------------------------------------------------
+  # BATTERY 2 UI MODEL AND BACKEND
+  # ---------------------------------------------------------------------------
+
+  shared_ui_battery_2: !include
+    file: ui-battery-unit.yaml
+    vars:
+      ui_unit: "2"
+
+  shared_battery_2_ui_backend: !include
+    file: battery-ui-unit-backend.yaml
+    vars:
+      ui_unit: "2"
+
+  # ---------------------------------------------------------------------------
+  # BATTERY 3 UI MODEL AND BACKEND
+  # ---------------------------------------------------------------------------
+
+  shared_ui_battery_3: !include
+    file: ui-battery-unit.yaml
+    vars:
+      ui_unit: "3"
+
+  shared_battery_3_ui_backend: !include
+    file: battery-ui-unit-backend.yaml
+    vars:
+      ui_unit: "3"
+
+  # ---------------------------------------------------------------------------
+  # BATTERY 4 UI MODEL AND BACKEND
+  # ---------------------------------------------------------------------------
+
+  shared_ui_battery_4: !include
+    file: ui-battery-unit.yaml
+    vars:
+      ui_unit: "4"
+
+  shared_battery_4_ui_backend: !include
+    file: battery-ui-unit-backend.yaml
+    vars:
+      ui_unit: "4"

@@ -2,8 +2,9 @@
 # V6 CHARGER CONTROLLER DISPLAY PACKAGE AGGREGATOR
 # ==============================================================================
 #
-# Composes the shared Dashboard and Rectifiers presentation together with the
-# remaining display components that exist only on the Charger Controller.
+# Composes the shared Dashboard, Rectifiers and Battery presentation together
+# with the remaining display components that exist only on the Charger
+# Controller.
 # ==============================================================================
 
 packages:
@@ -15,6 +16,8 @@ packages:
   display_shared_hmi: !include display/shared-hmi.yaml
   display_shared_dashboard: !include display/shared-dashboard.yaml
   display_shared_rectifiers: !include display/shared-rectifiers.yaml
+  display_shared_battery: !include display/shared-battery.yaml
+  display_shared_navigation: !include display/shared-navigation.yaml
 
   # ---------------------------------------------------------------------------
   # CHARGER CONTROLLER PRESENTATION
@@ -32,7 +35,6 @@ packages:
   # CHARGER CONTROLLER PAGE RUNTIMES
   # ---------------------------------------------------------------------------
 
-  display_battery: !include display/battery.yaml
   display_cooling: !include display/cooling.yaml
   display_system: !include display/system.yaml
   display_trends: !include display/trends.yaml

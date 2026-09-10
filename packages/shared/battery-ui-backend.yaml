@@ -2,12 +2,11 @@
 # SHARED BATTERY BANK UI BACKEND
 # ==============================================================================
 #
-# Publishes the Home Assistant-backed solar battery-bank monitoring state into
-# the shared V6 UI model.
+# Publishes validated Home Assistant-backed aggregate solar battery-bank state
+# into the shared V6 UI model.
 #
-# The same battery source package is used by both firmware targets. Shared LVGL
-# code therefore consumes only ui_model_battery_* entities and does not depend
-# directly on raw Home Assistant imports.
+# Per-unit battery state is handled by the parameterized
+# shared/battery-ui-unit-backend.yaml package.
 #
 # Battery monitoring remains independent of charger control and safety.
 # ==============================================================================

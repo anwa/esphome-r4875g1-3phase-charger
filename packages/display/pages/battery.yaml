@@ -1,9 +1,9 @@
 # ==============================================================================
-# V5 LVGL PAGE: BATTERY
+# SHARED V6 LVGL PAGE: BATTERY
 # ==============================================================================
 #
-# Detailed monitoring view for the four parallel solar-battery units imported
-# from Home Assistant.
+# Detailed monitoring view for four parallel solar-battery units exposed
+# through the target-neutral UI model.
 #
 # Battery telemetry is monitoring-only and does not participate in charger
 # control or safety decisions.

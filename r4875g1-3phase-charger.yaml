@@ -296,8 +296,8 @@ packages:
     file: packages/shared/ui-rectifier-unit.yaml
     vars:
       ui_unit: "3"
-  shared_battery_bank: !include packages/shared/battery-bank.yaml
-  shared_battery_ui_backend: !include packages/shared/battery-ui-backend.yaml
+
+  shared_battery_monitoring: !include packages/shared/battery-monitoring.yaml
 
   controller_hardware: !include packages/controller/hardware.yaml
   controller_mqtt: !include packages/controller/mqtt.yaml

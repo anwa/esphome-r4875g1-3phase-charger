@@ -9,7 +9,7 @@ ESPHome-based controller for three Huawei R4875G1 rectifiers operated as a coord
 The V6 firmware generation uses two coordinated targets based on the **Waveshare ESP32-S3-Touch-LCD-7**:
 
 - the Charger Controller, physically attached to the rectifiers and responsible for CAN, charger control, safety and local blackstart
-- the Remote HMI, which uses the shared Dashboard and Rectifiers presentation while receiving authoritative charger state and sending HMI command requests through Home Assistant
+- the Remote HMI, which uses the shared Dashboard, Rectifiers and Battery presentation while receiving authoritative charger state and sending HMI command requests through Home Assistant
 
 Remote HMI charger commands use Home Assistant transport and remain subject to authoritative validation and execution by the Charger Controller.
 
@@ -392,7 +392,7 @@ One LVGL page is reused dynamically for all three rectifiers.
 
 ### Battery
 
-The Battery page provides one monitoring card for each of four parallel solar-battery units.
+The Battery page provides one monitoring card for each of four parallel solar-battery units. The same page layout and runtime are used by the Charger Controller and Remote HMI through the shared Battery UI model.
 
 Each card displays:
 
@@ -588,12 +588,12 @@ The SOC value is intended for monitoring only. It is not a replacement for coulo
 
 ## Solar Battery Bank Monitoring
 
-The controller can import monitoring data for an external four-unit solar battery bank from Home Assistant through the ESPHome native API.
+Both V6 targets import monitoring data for an external four-unit solar battery bank from Home Assistant through the ESPHome native API.
 
 All configurable Home Assistant entity mappings are centralized in:
 
 ```text
-packages/battery-bank.yaml
+packages/shared/battery-bank.yaml
 ```
 
 The imported aggregate bank data includes:
@@ -622,7 +622,7 @@ fault state
 
 The Home Assistant battery-bank and individual battery power entities are normalized internally from watts to kilowatts.
 
-Battery warning and fault entities are imported as text states so `on`, `off`, `unknown` and `unavailable` remain distinguishable.
+Battery warning and fault entities are imported as text states so `on`, `off`, `unknown` and `unavailable` remain distinguishable. After source validation, the shared Battery UI backend normalizes valid warning and fault states to boolean values in the target-neutral UI model.
 
 Home Assistant battery telemetry is intentionally isolated from charger control. The charger remains locally operational when Wi-Fi or Home Assistant is unavailable.
 

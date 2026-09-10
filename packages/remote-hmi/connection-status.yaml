@@ -13,9 +13,9 @@ lvgl:
     widgets:
       - label:
           id: ui_remote_connection_status
-          x: 274
+          x: 406
           y: 422
-          width: 516
+          width: 384
           text_align: CENTER
           text: "REMOTE HMI - HA / CHARGER DATA OFFLINE"
           text_font: montserrat_16

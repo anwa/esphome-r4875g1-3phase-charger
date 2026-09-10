@@ -2,10 +2,10 @@
 # SHARED V6 RECTIFIERS PRESENTATION
 # ==============================================================================
 #
-# Defines the Rectifiers Overview, Rectifier Detail page and the common
-# Dashboard / Rectifiers navigation used by both V6 firmware targets.
+# Defines the Rectifiers Overview and Rectifier Detail pages shared by both V6
+# firmware targets.
 #
-# Target-specific pages remain outside this package.
+# Shared bottom navigation is owned separately by display/shared-navigation.yaml.
 # ==============================================================================
 
 lvgl:
@@ -17,46 +17,3 @@ lvgl:
   pages:
     - !include pages/rectifiers.yaml
     - !include pages/rectifier-detail.yaml
-
-  # ---------------------------------------------------------------------------
-  # SHARED BOTTOM NAVIGATION
-  # ---------------------------------------------------------------------------
-
-  top_layer:
-    widgets:
-
-      - button:
-          x: 10
-          y: 410
-          styles: style_nav_button
-
-          widgets:
-            - label:
-                align: CENTER
-                text: "Dashboard"
-                text_font: montserrat_18
-
-          on_short_click:
-            - lambda: |-
-                id(rectifier_detail_unit) = 0;
-                id(ui_active_page) = 0;
-
-            - lvgl.page.show: page_dashboard
-
-      - button:
-          x: 142
-          y: 410
-          styles: style_nav_button
-
-          widgets:
-            - label:
-                align: CENTER
-                text: "Rectifiers"
-                text_font: montserrat_18
-
-          on_short_click:
-            - lambda: |-
-                id(rectifier_detail_unit) = 0;
-                id(ui_active_page) = 1;
-
-            - lvgl.page.show: page_rectifiers
