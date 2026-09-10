@@ -35,29 +35,49 @@ interval:
               "OFFLINE"
             );
 
-            id(ui_model_rectifier_${ui_unit}_power_state).publish_state(
-              ""
-            );
+            id(ui_model_rectifier_${ui_unit}_power_state).publish_state("");
 
             id(ui_model_rectifier_${ui_unit}_ac_voltage).publish_state(NAN);
             id(ui_model_rectifier_${ui_unit}_ac_current).publish_state(NAN);
+            id(ui_model_rectifier_${ui_unit}_ac_power).publish_state(NAN);
+            id(ui_model_rectifier_${ui_unit}_ac_frequency).publish_state(NAN);
 
             id(ui_model_rectifier_${ui_unit}_dc_voltage).publish_state(NAN);
             id(ui_model_rectifier_${ui_unit}_dc_current).publish_state(NAN);
             id(ui_model_rectifier_${ui_unit}_dc_power).publish_state(NAN);
+            id(ui_model_rectifier_${ui_unit}_dc_current_setpoint).publish_state(
+              NAN
+            );
+
+            id(ui_model_rectifier_${ui_unit}_input_temperature).publish_state(
+              NAN
+            );
 
             id(ui_model_rectifier_${ui_unit}_output_temperature).publish_state(
+              NAN
+            );
+
+            id(ui_model_rectifier_${ui_unit}_fan_rpm).publish_state(NAN);
+            id(ui_model_rectifier_${ui_unit}_fan_minimum_duty).publish_state(
+              NAN
+            );
+            id(ui_model_rectifier_${ui_unit}_fan_target_duty).publish_state(
+              NAN
+            );
+
+            id(ui_model_rectifier_${ui_unit}_max_current_capability).publish_state(
+              NAN
+            );
+
+            id(ui_model_rectifier_${ui_unit}_operating_hours).publish_state(
               NAN
             );
 
             return;
           }
 
-          const std::string lifecycle =
-            id(rectifier_control_state_text_${ui_unit}).state;
-
           id(ui_model_rectifier_${ui_unit}_lifecycle).publish_state(
-            lifecycle
+            id(rectifier_control_state_text_${ui_unit}).state
           );
 
           const std::string power_state =
@@ -77,6 +97,14 @@ interval:
             id(ac_current_${ui_unit}).state
           );
 
+          id(ui_model_rectifier_${ui_unit}_ac_power).publish_state(
+            id(ac_power_${ui_unit}).state
+          );
+
+          id(ui_model_rectifier_${ui_unit}_ac_frequency).publish_state(
+            id(ac_frequency_${ui_unit}).state
+          );
+
           id(ui_model_rectifier_${ui_unit}_dc_voltage).publish_state(
             id(dc_voltage_${ui_unit}).state
           );
@@ -89,6 +117,34 @@ interval:
             id(dc_power_${ui_unit}).state
           );
 
+          id(ui_model_rectifier_${ui_unit}_dc_current_setpoint).publish_state(
+            id(max_dc_current_setpoint_${ui_unit}).state
+          );
+
+          id(ui_model_rectifier_${ui_unit}_input_temperature).publish_state(
+            id(input_temperature_${ui_unit}).state
+          );
+
           id(ui_model_rectifier_${ui_unit}_output_temperature).publish_state(
             id(output_temperature_${ui_unit}).state
+          );
+
+          id(ui_model_rectifier_${ui_unit}_fan_rpm).publish_state(
+            id(fan_rpm_${ui_unit}).state
+          );
+
+          id(ui_model_rectifier_${ui_unit}_fan_minimum_duty).publish_state(
+            id(fan_duty_${ui_unit}).state
+          );
+
+          id(ui_model_rectifier_${ui_unit}_fan_target_duty).publish_state(
+            id(fan_duty_setpoint_${ui_unit}).state
+          );
+
+          id(ui_model_rectifier_${ui_unit}_max_current_capability).publish_state(
+            id(max_dc_current_${ui_unit}).state
+          );
+
+          id(ui_model_rectifier_${ui_unit}_operating_hours).publish_state(
+            id(operating_hours_${ui_unit}).state
           );

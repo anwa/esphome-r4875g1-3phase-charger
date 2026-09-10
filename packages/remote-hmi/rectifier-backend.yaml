@@ -15,10 +15,19 @@
 #   ha_rectifier_power_state_entity
 #   ha_rectifier_ac_voltage_entity
 #   ha_rectifier_ac_current_entity
+#   ha_rectifier_ac_power_entity
+#   ha_rectifier_ac_frequency_entity
 #   ha_rectifier_dc_voltage_entity
 #   ha_rectifier_dc_current_entity
 #   ha_rectifier_dc_power_entity
+#   ha_rectifier_dc_current_setpoint_entity
+#   ha_rectifier_input_temperature_entity
 #   ha_rectifier_output_temperature_entity
+#   ha_rectifier_fan_rpm_entity
+#   ha_rectifier_fan_minimum_duty_entity
+#   ha_rectifier_fan_target_duty_entity
+#   ha_rectifier_max_current_capability_entity
+#   ha_rectifier_operating_hours_entity
 # ==============================================================================
 
 globals:
@@ -44,6 +53,10 @@ binary_sensor:
 
 sensor:
 
+  # ---------------------------------------------------------------------------
+  # AC INPUT
+  # ---------------------------------------------------------------------------
+
   - platform: homeassistant
     id: remote_ha_rectifier_${ui_unit}_ac_voltage
     entity_id: ${ha_rectifier_ac_voltage_entity}
@@ -53,6 +66,20 @@ sensor:
     id: remote_ha_rectifier_${ui_unit}_ac_current
     entity_id: ${ha_rectifier_ac_current_entity}
     internal: true
+
+  - platform: homeassistant
+    id: remote_ha_rectifier_${ui_unit}_ac_power
+    entity_id: ${ha_rectifier_ac_power_entity}
+    internal: true
+
+  - platform: homeassistant
+    id: remote_ha_rectifier_${ui_unit}_ac_frequency
+    entity_id: ${ha_rectifier_ac_frequency_entity}
+    internal: true
+
+  # ---------------------------------------------------------------------------
+  # DC OUTPUT
+  # ---------------------------------------------------------------------------
 
   - platform: homeassistant
     id: remote_ha_rectifier_${ui_unit}_dc_voltage
@@ -70,8 +97,55 @@ sensor:
     internal: true
 
   - platform: homeassistant
+    id: remote_ha_rectifier_${ui_unit}_dc_current_setpoint
+    entity_id: ${ha_rectifier_dc_current_setpoint_entity}
+    internal: true
+
+  # ---------------------------------------------------------------------------
+  # TEMPERATURE
+  # ---------------------------------------------------------------------------
+
+  - platform: homeassistant
+    id: remote_ha_rectifier_${ui_unit}_input_temperature
+    entity_id: ${ha_rectifier_input_temperature_entity}
+    internal: true
+
+  - platform: homeassistant
     id: remote_ha_rectifier_${ui_unit}_output_temperature
     entity_id: ${ha_rectifier_output_temperature_entity}
+    internal: true
+
+  # ---------------------------------------------------------------------------
+  # INTERNAL FAN
+  # ---------------------------------------------------------------------------
+
+  - platform: homeassistant
+    id: remote_ha_rectifier_${ui_unit}_fan_rpm
+    entity_id: ${ha_rectifier_fan_rpm_entity}
+    internal: true
+
+  - platform: homeassistant
+    id: remote_ha_rectifier_${ui_unit}_fan_minimum_duty
+    entity_id: ${ha_rectifier_fan_minimum_duty_entity}
+    internal: true
+
+  - platform: homeassistant
+    id: remote_ha_rectifier_${ui_unit}_fan_target_duty
+    entity_id: ${ha_rectifier_fan_target_duty_entity}
+    internal: true
+
+  # ---------------------------------------------------------------------------
+  # CAPABILITY AND LIFETIME
+  # ---------------------------------------------------------------------------
+
+  - platform: homeassistant
+    id: remote_ha_rectifier_${ui_unit}_max_current_capability
+    entity_id: ${ha_rectifier_max_current_capability_entity}
+    internal: true
+
+  - platform: homeassistant
+    id: remote_ha_rectifier_${ui_unit}_operating_hours
+    entity_id: ${ha_rectifier_operating_hours_entity}
     internal: true
 
 
@@ -96,26 +170,58 @@ interval:
           const bool ha_connected =
             id(native_api).is_connected_with_state_subscription();
 
-          if (!ha_connected) {
-            id(remote_ha_rectifier_${ui_unit}_connected_received) = false;
-
+          auto invalidate_model = [&](const bool source_received) {
             id(ui_model_rectifier_${ui_unit}_connected).publish_state(false);
             id(ui_model_rectifier_${ui_unit}_online).publish_state(false);
 
-            id(ui_model_rectifier_${ui_unit}_lifecycle).publish_state("");
+            id(ui_model_rectifier_${ui_unit}_lifecycle).publish_state(
+              source_received
+                ? "OFFLINE"
+                : ""
+            );
+
             id(ui_model_rectifier_${ui_unit}_power_state).publish_state("");
 
             id(ui_model_rectifier_${ui_unit}_ac_voltage).publish_state(NAN);
             id(ui_model_rectifier_${ui_unit}_ac_current).publish_state(NAN);
+            id(ui_model_rectifier_${ui_unit}_ac_power).publish_state(NAN);
+            id(ui_model_rectifier_${ui_unit}_ac_frequency).publish_state(NAN);
 
             id(ui_model_rectifier_${ui_unit}_dc_voltage).publish_state(NAN);
             id(ui_model_rectifier_${ui_unit}_dc_current).publish_state(NAN);
             id(ui_model_rectifier_${ui_unit}_dc_power).publish_state(NAN);
+            id(ui_model_rectifier_${ui_unit}_dc_current_setpoint).publish_state(
+              NAN
+            );
+
+            id(ui_model_rectifier_${ui_unit}_input_temperature).publish_state(
+              NAN
+            );
 
             id(ui_model_rectifier_${ui_unit}_output_temperature).publish_state(
               NAN
             );
 
+            id(ui_model_rectifier_${ui_unit}_fan_rpm).publish_state(NAN);
+            id(ui_model_rectifier_${ui_unit}_fan_minimum_duty).publish_state(
+              NAN
+            );
+            id(ui_model_rectifier_${ui_unit}_fan_target_duty).publish_state(
+              NAN
+            );
+
+            id(ui_model_rectifier_${ui_unit}_max_current_capability).publish_state(
+              NAN
+            );
+
+            id(ui_model_rectifier_${ui_unit}_operating_hours).publish_state(
+              NAN
+            );
+          };
+
+          if (!ha_connected) {
+            id(remote_ha_rectifier_${ui_unit}_connected_received) = false;
+            invalidate_model(false);
             return;
           }
 
@@ -126,34 +232,12 @@ interval:
             received &&
             id(remote_ha_rectifier_${ui_unit}_connected).state;
 
-          id(ui_model_rectifier_${ui_unit}_connected).publish_state(
-            connected
-          );
-
           if (!connected) {
-            id(ui_model_rectifier_${ui_unit}_online).publish_state(false);
-
-            id(ui_model_rectifier_${ui_unit}_lifecycle).publish_state(
-              received
-                ? "OFFLINE"
-                : ""
-            );
-
-            id(ui_model_rectifier_${ui_unit}_power_state).publish_state("");
-
-            id(ui_model_rectifier_${ui_unit}_ac_voltage).publish_state(NAN);
-            id(ui_model_rectifier_${ui_unit}_ac_current).publish_state(NAN);
-
-            id(ui_model_rectifier_${ui_unit}_dc_voltage).publish_state(NAN);
-            id(ui_model_rectifier_${ui_unit}_dc_current).publish_state(NAN);
-            id(ui_model_rectifier_${ui_unit}_dc_power).publish_state(NAN);
-
-            id(ui_model_rectifier_${ui_unit}_output_temperature).publish_state(
-              NAN
-            );
-
+            invalidate_model(received);
             return;
           }
+
+          id(ui_model_rectifier_${ui_unit}_connected).publish_state(true);
 
           std::string lifecycle;
 
@@ -208,6 +292,18 @@ interval:
               : NAN
           );
 
+          id(ui_model_rectifier_${ui_unit}_ac_power).publish_state(
+            id(remote_ha_rectifier_${ui_unit}_ac_power).has_state()
+              ? id(remote_ha_rectifier_${ui_unit}_ac_power).state
+              : NAN
+          );
+
+          id(ui_model_rectifier_${ui_unit}_ac_frequency).publish_state(
+            id(remote_ha_rectifier_${ui_unit}_ac_frequency).has_state()
+              ? id(remote_ha_rectifier_${ui_unit}_ac_frequency).state
+              : NAN
+          );
+
           id(ui_model_rectifier_${ui_unit}_dc_voltage).publish_state(
             id(remote_ha_rectifier_${ui_unit}_dc_voltage).has_state()
               ? id(remote_ha_rectifier_${ui_unit}_dc_voltage).state
@@ -226,8 +322,50 @@ interval:
               : NAN
           );
 
+          id(ui_model_rectifier_${ui_unit}_dc_current_setpoint).publish_state(
+            id(remote_ha_rectifier_${ui_unit}_dc_current_setpoint).has_state()
+              ? id(remote_ha_rectifier_${ui_unit}_dc_current_setpoint).state
+              : NAN
+          );
+
+          id(ui_model_rectifier_${ui_unit}_input_temperature).publish_state(
+            id(remote_ha_rectifier_${ui_unit}_input_temperature).has_state()
+              ? id(remote_ha_rectifier_${ui_unit}_input_temperature).state
+              : NAN
+          );
+
           id(ui_model_rectifier_${ui_unit}_output_temperature).publish_state(
             id(remote_ha_rectifier_${ui_unit}_output_temperature).has_state()
               ? id(remote_ha_rectifier_${ui_unit}_output_temperature).state
+              : NAN
+          );
+
+          id(ui_model_rectifier_${ui_unit}_fan_rpm).publish_state(
+            id(remote_ha_rectifier_${ui_unit}_fan_rpm).has_state()
+              ? id(remote_ha_rectifier_${ui_unit}_fan_rpm).state
+              : NAN
+          );
+
+          id(ui_model_rectifier_${ui_unit}_fan_minimum_duty).publish_state(
+            id(remote_ha_rectifier_${ui_unit}_fan_minimum_duty).has_state()
+              ? id(remote_ha_rectifier_${ui_unit}_fan_minimum_duty).state
+              : NAN
+          );
+
+          id(ui_model_rectifier_${ui_unit}_fan_target_duty).publish_state(
+            id(remote_ha_rectifier_${ui_unit}_fan_target_duty).has_state()
+              ? id(remote_ha_rectifier_${ui_unit}_fan_target_duty).state
+              : NAN
+          );
+
+          id(ui_model_rectifier_${ui_unit}_max_current_capability).publish_state(
+            id(remote_ha_rectifier_${ui_unit}_max_current_capability).has_state()
+              ? id(remote_ha_rectifier_${ui_unit}_max_current_capability).state
+              : NAN
+          );
+
+          id(ui_model_rectifier_${ui_unit}_operating_hours).publish_state(
+            id(remote_ha_rectifier_${ui_unit}_operating_hours).has_state()
+              ? id(remote_ha_rectifier_${ui_unit}_operating_hours).state
               : NAN
           );

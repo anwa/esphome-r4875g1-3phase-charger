@@ -46,6 +46,20 @@ sensor:
     unit_of_measurement: "A"
     accuracy_decimals: 3
 
+  - platform: template
+    id: ui_model_rectifier_${ui_unit}_ac_power
+    internal: true
+    update_interval: never
+    unit_of_measurement: "W"
+    accuracy_decimals: 3
+
+  - platform: template
+    id: ui_model_rectifier_${ui_unit}_ac_frequency
+    internal: true
+    update_interval: never
+    unit_of_measurement: "Hz"
+    accuracy_decimals: 3
+
   # ---------------------------------------------------------------------------
   # DC OUTPUT
   # ---------------------------------------------------------------------------
@@ -71,9 +85,23 @@ sensor:
     unit_of_measurement: "W"
     accuracy_decimals: 3
 
+  - platform: template
+    id: ui_model_rectifier_${ui_unit}_dc_current_setpoint
+    internal: true
+    update_interval: never
+    unit_of_measurement: "A"
+    accuracy_decimals: 3
+
   # ---------------------------------------------------------------------------
   # TEMPERATURE
   # ---------------------------------------------------------------------------
+
+  - platform: template
+    id: ui_model_rectifier_${ui_unit}_input_temperature
+    internal: true
+    update_interval: never
+    unit_of_measurement: "°C"
+    accuracy_decimals: 1
 
   - platform: template
     id: ui_model_rectifier_${ui_unit}_output_temperature
@@ -81,6 +109,49 @@ sensor:
     update_interval: never
     unit_of_measurement: "°C"
     accuracy_decimals: 1
+
+  # ---------------------------------------------------------------------------
+  # INTERNAL FAN
+  # ---------------------------------------------------------------------------
+
+  - platform: template
+    id: ui_model_rectifier_${ui_unit}_fan_rpm
+    internal: true
+    update_interval: never
+    unit_of_measurement: "RPM"
+    accuracy_decimals: 0
+
+  - platform: template
+    id: ui_model_rectifier_${ui_unit}_fan_minimum_duty
+    internal: true
+    update_interval: never
+    unit_of_measurement: "%"
+    accuracy_decimals: 1
+
+  - platform: template
+    id: ui_model_rectifier_${ui_unit}_fan_target_duty
+    internal: true
+    update_interval: never
+    unit_of_measurement: "%"
+    accuracy_decimals: 1
+
+  # ---------------------------------------------------------------------------
+  # CAPABILITY AND LIFETIME
+  # ---------------------------------------------------------------------------
+
+  - platform: template
+    id: ui_model_rectifier_${ui_unit}_max_current_capability
+    internal: true
+    update_interval: never
+    unit_of_measurement: "A"
+    accuracy_decimals: 3
+
+  - platform: template
+    id: ui_model_rectifier_${ui_unit}_operating_hours
+    internal: true
+    update_interval: never
+    unit_of_measurement: "h"
+    accuracy_decimals: 0
 
 
 text_sensor:

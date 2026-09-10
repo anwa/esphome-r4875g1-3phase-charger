@@ -64,12 +64,23 @@ substitutions:
 
   ha_rectifier_1_ac_voltage_entity: "sensor.${ha_charger_entity_prefix}_ac_voltage_unit_1"
   ha_rectifier_1_ac_current_entity: "sensor.${ha_charger_entity_prefix}_ac_current_unit_1"
+  ha_rectifier_1_ac_power_entity: "sensor.${ha_charger_entity_prefix}_ac_power_unit_1"
+  ha_rectifier_1_ac_frequency_entity: "sensor.${ha_charger_entity_prefix}_ac_frequency_unit_1"
 
   ha_rectifier_1_dc_voltage_entity: "sensor.${ha_charger_entity_prefix}_dc_voltage_unit_1"
   ha_rectifier_1_dc_current_entity: "sensor.${ha_charger_entity_prefix}_dc_current_unit_1"
   ha_rectifier_1_dc_power_entity: "sensor.${ha_charger_entity_prefix}_dc_power_unit_1"
+  ha_rectifier_1_dc_current_setpoint_entity: "sensor.${ha_charger_entity_prefix}_max_dc_current_setpoint_unit_1"
 
+  ha_rectifier_1_input_temperature_entity: "sensor.${ha_charger_entity_prefix}_input_temperature_unit_1"
   ha_rectifier_1_output_temperature_entity: "sensor.${ha_charger_entity_prefix}_output_temperature_unit_1"
+
+  ha_rectifier_1_fan_rpm_entity: "sensor.${ha_charger_entity_prefix}_fan_rpm_unit_1"
+  ha_rectifier_1_fan_minimum_duty_entity: "sensor.${ha_charger_entity_prefix}_fan_minimum_duty_unit_1"
+  ha_rectifier_1_fan_target_duty_entity: "sensor.${ha_charger_entity_prefix}_fan_duty_target_unit_1"
+
+  ha_rectifier_1_max_current_capability_entity: "sensor.${ha_charger_entity_prefix}_max_current_capability_unit_1"
+  ha_rectifier_1_operating_hours_entity: "sensor.${ha_charger_entity_prefix}_operating_hours_unit_1"
 
   # ---------------------------------------------------------------------------
   # RECTIFIER 2
@@ -81,12 +92,23 @@ substitutions:
 
   ha_rectifier_2_ac_voltage_entity: "sensor.${ha_charger_entity_prefix}_ac_voltage_unit_2"
   ha_rectifier_2_ac_current_entity: "sensor.${ha_charger_entity_prefix}_ac_current_unit_2"
+  ha_rectifier_2_ac_power_entity: "sensor.${ha_charger_entity_prefix}_ac_power_unit_2"
+  ha_rectifier_2_ac_frequency_entity: "sensor.${ha_charger_entity_prefix}_ac_frequency_unit_2"
 
   ha_rectifier_2_dc_voltage_entity: "sensor.${ha_charger_entity_prefix}_dc_voltage_unit_2"
   ha_rectifier_2_dc_current_entity: "sensor.${ha_charger_entity_prefix}_dc_current_unit_2"
   ha_rectifier_2_dc_power_entity: "sensor.${ha_charger_entity_prefix}_dc_power_unit_2"
+  ha_rectifier_2_dc_current_setpoint_entity: "sensor.${ha_charger_entity_prefix}_max_dc_current_setpoint_unit_2"
 
+  ha_rectifier_2_input_temperature_entity: "sensor.${ha_charger_entity_prefix}_input_temperature_unit_2"
   ha_rectifier_2_output_temperature_entity: "sensor.${ha_charger_entity_prefix}_output_temperature_unit_2"
+
+  ha_rectifier_2_fan_rpm_entity: "sensor.${ha_charger_entity_prefix}_fan_rpm_unit_2"
+  ha_rectifier_2_fan_minimum_duty_entity: "sensor.${ha_charger_entity_prefix}_fan_minimum_duty_unit_2"
+  ha_rectifier_2_fan_target_duty_entity: "sensor.${ha_charger_entity_prefix}_fan_duty_target_unit_2"
+
+  ha_rectifier_2_max_current_capability_entity: "sensor.${ha_charger_entity_prefix}_max_current_capability_unit_2"
+  ha_rectifier_2_operating_hours_entity: "sensor.${ha_charger_entity_prefix}_operating_hours_unit_2"
 
   # ---------------------------------------------------------------------------
   # RECTIFIER 3
@@ -98,12 +120,23 @@ substitutions:
 
   ha_rectifier_3_ac_voltage_entity: "sensor.${ha_charger_entity_prefix}_ac_voltage_unit_3"
   ha_rectifier_3_ac_current_entity: "sensor.${ha_charger_entity_prefix}_ac_current_unit_3"
+  ha_rectifier_3_ac_power_entity: "sensor.${ha_charger_entity_prefix}_ac_power_unit_3"
+  ha_rectifier_3_ac_frequency_entity: "sensor.${ha_charger_entity_prefix}_ac_frequency_unit_3"
 
   ha_rectifier_3_dc_voltage_entity: "sensor.${ha_charger_entity_prefix}_dc_voltage_unit_3"
   ha_rectifier_3_dc_current_entity: "sensor.${ha_charger_entity_prefix}_dc_current_unit_3"
   ha_rectifier_3_dc_power_entity: "sensor.${ha_charger_entity_prefix}_dc_power_unit_3"
+  ha_rectifier_3_dc_current_setpoint_entity: "sensor.${ha_charger_entity_prefix}_max_dc_current_setpoint_unit_3"
 
+  ha_rectifier_3_input_temperature_entity: "sensor.${ha_charger_entity_prefix}_input_temperature_unit_3"
   ha_rectifier_3_output_temperature_entity: "sensor.${ha_charger_entity_prefix}_output_temperature_unit_3"
+
+  ha_rectifier_3_fan_rpm_entity: "sensor.${ha_charger_entity_prefix}_fan_rpm_unit_3"
+  ha_rectifier_3_fan_minimum_duty_entity: "sensor.${ha_charger_entity_prefix}_fan_minimum_duty_unit_3"
+  ha_rectifier_3_fan_target_duty_entity: "sensor.${ha_charger_entity_prefix}_fan_duty_target_unit_3"
+
+  ha_rectifier_3_max_current_capability_entity: "sensor.${ha_charger_entity_prefix}_max_current_capability_unit_3"
+  ha_rectifier_3_operating_hours_entity: "sensor.${ha_charger_entity_prefix}_operating_hours_unit_3"
 
   # ---------------------------------------------------------------------------
   # COMMAND TARGETS

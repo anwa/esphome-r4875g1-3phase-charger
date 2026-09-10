@@ -107,10 +107,19 @@ packages:
       ha_rectifier_power_state_entity: ${ha_rectifier_1_power_state_entity}
       ha_rectifier_ac_voltage_entity: ${ha_rectifier_1_ac_voltage_entity}
       ha_rectifier_ac_current_entity: ${ha_rectifier_1_ac_current_entity}
+      ha_rectifier_ac_power_entity: ${ha_rectifier_1_ac_power_entity}
+      ha_rectifier_ac_frequency_entity: ${ha_rectifier_1_ac_frequency_entity}
       ha_rectifier_dc_voltage_entity: ${ha_rectifier_1_dc_voltage_entity}
       ha_rectifier_dc_current_entity: ${ha_rectifier_1_dc_current_entity}
       ha_rectifier_dc_power_entity: ${ha_rectifier_1_dc_power_entity}
+      ha_rectifier_dc_current_setpoint_entity: ${ha_rectifier_1_dc_current_setpoint_entity}
+      ha_rectifier_input_temperature_entity: ${ha_rectifier_1_input_temperature_entity}
       ha_rectifier_output_temperature_entity: ${ha_rectifier_1_output_temperature_entity}
+      ha_rectifier_fan_rpm_entity: ${ha_rectifier_1_fan_rpm_entity}
+      ha_rectifier_fan_minimum_duty_entity: ${ha_rectifier_1_fan_minimum_duty_entity}
+      ha_rectifier_fan_target_duty_entity: ${ha_rectifier_1_fan_target_duty_entity}
+      ha_rectifier_max_current_capability_entity: ${ha_rectifier_1_max_current_capability_entity}
+      ha_rectifier_operating_hours_entity: ${ha_rectifier_1_operating_hours_entity}
 
   remote_rectifier_2_backend: !include
     file: packages/remote-hmi/rectifier-backend.yaml
@@ -121,10 +130,19 @@ packages:
       ha_rectifier_power_state_entity: ${ha_rectifier_2_power_state_entity}
       ha_rectifier_ac_voltage_entity: ${ha_rectifier_2_ac_voltage_entity}
       ha_rectifier_ac_current_entity: ${ha_rectifier_2_ac_current_entity}
+      ha_rectifier_ac_power_entity: ${ha_rectifier_2_ac_power_entity}
+      ha_rectifier_ac_frequency_entity: ${ha_rectifier_2_ac_frequency_entity}
       ha_rectifier_dc_voltage_entity: ${ha_rectifier_2_dc_voltage_entity}
       ha_rectifier_dc_current_entity: ${ha_rectifier_2_dc_current_entity}
       ha_rectifier_dc_power_entity: ${ha_rectifier_2_dc_power_entity}
+      ha_rectifier_dc_current_setpoint_entity: ${ha_rectifier_2_dc_current_setpoint_entity}
+      ha_rectifier_input_temperature_entity: ${ha_rectifier_2_input_temperature_entity}
       ha_rectifier_output_temperature_entity: ${ha_rectifier_2_output_temperature_entity}
+      ha_rectifier_fan_rpm_entity: ${ha_rectifier_2_fan_rpm_entity}
+      ha_rectifier_fan_minimum_duty_entity: ${ha_rectifier_2_fan_minimum_duty_entity}
+      ha_rectifier_fan_target_duty_entity: ${ha_rectifier_2_fan_target_duty_entity}
+      ha_rectifier_max_current_capability_entity: ${ha_rectifier_2_max_current_capability_entity}
+      ha_rectifier_operating_hours_entity: ${ha_rectifier_2_operating_hours_entity}
 
   remote_rectifier_3_backend: !include
     file: packages/remote-hmi/rectifier-backend.yaml
@@ -135,10 +153,19 @@ packages:
       ha_rectifier_power_state_entity: ${ha_rectifier_3_power_state_entity}
       ha_rectifier_ac_voltage_entity: ${ha_rectifier_3_ac_voltage_entity}
       ha_rectifier_ac_current_entity: ${ha_rectifier_3_ac_current_entity}
+      ha_rectifier_ac_power_entity: ${ha_rectifier_3_ac_power_entity}
+      ha_rectifier_ac_frequency_entity: ${ha_rectifier_3_ac_frequency_entity}
       ha_rectifier_dc_voltage_entity: ${ha_rectifier_3_dc_voltage_entity}
       ha_rectifier_dc_current_entity: ${ha_rectifier_3_dc_current_entity}
       ha_rectifier_dc_power_entity: ${ha_rectifier_3_dc_power_entity}
+      ha_rectifier_dc_current_setpoint_entity: ${ha_rectifier_3_dc_current_setpoint_entity}
+      ha_rectifier_input_temperature_entity: ${ha_rectifier_3_input_temperature_entity}
       ha_rectifier_output_temperature_entity: ${ha_rectifier_3_output_temperature_entity}
+      ha_rectifier_fan_rpm_entity: ${ha_rectifier_3_fan_rpm_entity}
+      ha_rectifier_fan_minimum_duty_entity: ${ha_rectifier_3_fan_minimum_duty_entity}
+      ha_rectifier_fan_target_duty_entity: ${ha_rectifier_3_fan_target_duty_entity}
+      ha_rectifier_max_current_capability_entity: ${ha_rectifier_3_max_current_capability_entity}
+      ha_rectifier_operating_hours_entity: ${ha_rectifier_3_operating_hours_entity}
 
   display_shared_dashboard: !include packages/display/shared-dashboard.yaml
   display_rectifier_command_state: !include packages/display/command-state.yaml
