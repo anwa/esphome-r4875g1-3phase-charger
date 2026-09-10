@@ -77,6 +77,41 @@ script:
                 format: "Remote HMI DC setpoint command rejected because charger data is unavailable."
 
   # ---------------------------------------------------------------------------
+  # FALLBACK SETPOINTS
+  # ---------------------------------------------------------------------------
+
+  - id: ui_command_set_fallback_setpoints
+    parameters:
+      voltage: float
+      current: float
+
+    then:
+      - if:
+          condition:
+            lambda: |-
+              return id(ui_model_data_available).state;
+
+          then:
+            - homeassistant.action:
+                action: number.set_value
+                data:
+                  entity_id: ${ha_charger_dc_voltage_limit_fallback_entity}
+                  value: !lambda |-
+                    return to_string(voltage);
+
+            - homeassistant.action:
+                action: number.set_value
+                data:
+                  entity_id: ${ha_charger_dc_current_limit_fallback_entity}
+                  value: !lambda |-
+                    return to_string(current);
+
+          else:
+            - logger.log:
+                level: WARN
+                format: "Remote HMI fallback setpoint command rejected because charger data is unavailable."
+
+  # ---------------------------------------------------------------------------
   # CHARGER START
   # ---------------------------------------------------------------------------
 

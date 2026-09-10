@@ -8,8 +8,8 @@
 # Per-unit telemetry and operational state are consumed exclusively through the
 # shared ui_model_rectifier_* state.
 #
-# Charger fallback settings remain Controller-owned and are read from the local
-# fallback control entities.
+# Charger fallback settings are consumed through the shared UI model. Fallback
+# changes are submitted through the target-neutral UI command boundary.
 # ==============================================================================
 
 script:
@@ -541,28 +541,43 @@ script:
                 id: ui_rectifier_detail_fallback_voltage
 
                 text: !lambda |-
-                  if (isnan(id(set_dc_voltage_limit_fallback).state)) {
-                    return std::string("--.- V");
-                  }
+                  const float value =
+                    id(ui_model_dc_voltage_limit_fallback).state;
 
-                  return str_sprintf(
-                    "%.1f V",
-                    id(set_dc_voltage_limit_fallback).state
-                  );
+                  return isnan(value)
+                    ? std::string("--.- V")
+                    : str_sprintf("%.1f V", value);
 
             - lvgl.label.update:
                 id: ui_rectifier_detail_fallback_current
 
                 text: !lambda |-
-                  if (isnan(id(set_dc_current_limit_fallback).state)) {
-                    return std::string("--.- A");
-                  }
+                  const float value =
+                    id(ui_model_dc_current_limit_fallback).state;
 
-                  return str_sprintf(
-                    "%.1f A",
-                    id(set_dc_current_limit_fallback).state
-                  );
+                  return isnan(value)
+                    ? std::string("--.- A")
+                    : str_sprintf("%.1f A", value);
 
+            - if:
+                condition:
+                  lambda: |-
+                    return
+                      id(ui_model_data_available).state &&
+                      !isnan(
+                        id(ui_model_dc_voltage_limit_fallback).state
+                      ) &&
+                      !isnan(
+                        id(ui_model_dc_current_limit_fallback).state
+                      );
+
+                then:
+                  - lvgl.widget.enable:
+                      id: ui_rectifier_detail_fallback_edit
+
+                else:
+                  - lvgl.widget.disable:
+                      id: ui_rectifier_detail_fallback_edit
 
 # ==============================================================================
 # PERIODIC DETAIL REFRESH

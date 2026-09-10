@@ -45,6 +45,9 @@ substitutions:
   ha_charger_dc_voltage_limit_entity: "number.${ha_charger_entity_prefix}_set_dc_voltage_limit"
   ha_charger_dc_sum_power_entity: "number.${ha_charger_entity_prefix}_set_dc_sum_power"
 
+  ha_charger_dc_voltage_limit_fallback_entity: "number.${ha_charger_entity_prefix}_set_dc_voltage_limit_fallback"
+  ha_charger_dc_current_limit_fallback_entity: "number.${ha_charger_entity_prefix}_set_dc_current_limit_fallback"
+
   # ---------------------------------------------------------------------------
   # CHARGER STATUS
   # ---------------------------------------------------------------------------

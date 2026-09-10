@@ -47,6 +47,26 @@ script:
             return power;
 
   # ---------------------------------------------------------------------------
+  # FALLBACK SETPOINTS
+  # ---------------------------------------------------------------------------
+
+  - id: ui_command_set_fallback_setpoints
+    parameters:
+      voltage: float
+      current: float
+
+    then:
+      - number.set:
+          id: set_dc_voltage_limit_fallback
+          value: !lambda |-
+            return voltage;
+
+      - number.set:
+          id: set_dc_current_limit_fallback
+          value: !lambda |-
+            return current;
+
+  # ---------------------------------------------------------------------------
   # CHARGER START
   # ---------------------------------------------------------------------------
 

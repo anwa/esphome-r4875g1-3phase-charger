@@ -53,6 +53,14 @@ interval:
             id(set_dc_sum_power).state
           );
 
+          id(ui_model_dc_voltage_limit_fallback).publish_state(
+            id(set_dc_voltage_limit_fallback).state
+          );
+
+          id(ui_model_dc_current_limit_fallback).publish_state(
+            id(set_dc_current_limit_fallback).state
+          );
+
           id(ui_model_available_units).publish_state(
             id(available_units).state
           );

@@ -1,5 +1,5 @@
 # ==============================================================================
-# V5 LVGL PAGE: RECTIFIER DETAIL
+# LVGL PAGE: RECTIFIER DETAIL
 # ==============================================================================
 #
 # Shared detail page for all three rectifiers.
@@ -375,21 +375,35 @@ widgets:
                   text_font: montserrat_16
 
             on_short_click:
-              - lambda: |-
-                  id(ui_fallback_voltage_edit) =
-                    id(set_dc_voltage_limit_fallback).state;
+              - if:
+                  condition:
+                    lambda: |-
+                      return
+                        id(ui_model_data_available).state &&
+                        !isnan(
+                          id(ui_model_dc_voltage_limit_fallback).state
+                        ) &&
+                        !isnan(
+                          id(ui_model_dc_current_limit_fallback).state
+                        );
 
-                  id(ui_fallback_current_edit) =
-                    id(set_dc_current_limit_fallback).state;
+                  then:
+                    - lambda: |-
+                        id(ui_fallback_voltage_edit) =
+                          id(ui_model_dc_voltage_limit_fallback).state;
 
-              - lvgl.spinbox.update:
-                  id: ui_fallback_voltage_spinbox
-                  value: !lambda |-
-                    return id(ui_fallback_voltage_edit);
+                        id(ui_fallback_current_edit) =
+                          id(ui_model_dc_current_limit_fallback).state;
 
-              - lvgl.spinbox.update:
-                  id: ui_fallback_current_spinbox
-                  value: !lambda |-
-                    return id(ui_fallback_current_edit);
+                    - lvgl.spinbox.update:
+                        id: ui_fallback_voltage_spinbox
+                        value: !lambda |-
+                          return id(ui_fallback_voltage_edit);
 
-              - lvgl.widget.show: ui_fallback_dialog
+                    - lvgl.spinbox.update:
+                        id: ui_fallback_current_spinbox
+                        value: !lambda |-
+                          return id(ui_fallback_current_edit);
+
+                    - lvgl.widget.show:
+                        id: ui_fallback_dialog

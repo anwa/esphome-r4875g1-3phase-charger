@@ -271,7 +271,7 @@ Owns the target-neutral runtime state consumed by shared HMI code.
 
 The model isolates LVGL presentation from the source of charger data. Charger Controller and Remote HMI backends publish into the same model IDs so shared display code does not need target-specific telemetry paths.
 
-The current model includes Dashboard AC/DC aggregate telemetry, active charger setpoints, rectifier availability/run state, highest output temperature, conversion efficiency and aggregate solar-battery-bank monitoring state.
+The current model includes Dashboard AC/DC aggregate telemetry, active and fallback charger setpoints, rectifier availability/run state, per-rectifier overview and detail telemetry, highest output temperature, conversion efficiency and aggregate solar-battery-bank monitoring state.
 
 ---
 
@@ -311,7 +311,7 @@ This backend does not own charger state itself. The existing controller runtime 
 
 Implements the shared HMI command interface for the Charger Controller target.
 
-The command scripts translate target-neutral Dashboard and per-rectifier command intent into the existing local ESPHome controls. Charger safety, validation and CAN execution remain owned by the existing Controller entities and scripts.
+The command scripts translate target-neutral Dashboard, fallback-setpoint and per-rectifier command intent into the existing local ESPHome controls. Charger safety, validation and CAN execution remain owned by the existing Controller entities and scripts.
 
 ---
 
@@ -343,7 +343,7 @@ Owns the Remote HMI Home Assistant transport.
 
 It imports authoritative Charger Controller entities from Home Assistant and publishes them into the shared UI model. Shared LVGL code therefore consumes the same `ui_model_*` entities on both firmware targets.
 
-The backend currently supplies the Charger-side Dashboard telemetry and setpoint state required by the shared UI model. Charger command transport remains separate.
+The backend supplies Charger-side Dashboard telemetry, active and fallback setpoint state required by the shared UI model. Charger command transport remains separate.
 
 Loss of the Home Assistant state-subscription connection invalidates Remote HMI charger state so stale values cannot appear as live telemetry.
 
@@ -355,7 +355,7 @@ Home Assistant entity IDs are supplied by `remote-hmi/ha-entity-map.yaml` rather
 
 Implements the shared HMI command interface for the Remote HMI target.
 
-The backend sends charger-wide and per-rectifier command requests through Home Assistant to the Charger Controller entities. It does not duplicate safety logic and does not treat a request as confirmed charger state.
+The backend sends charger-wide, fallback-setpoint and per-rectifier command requests through Home Assistant to the Charger Controller entities. It does not duplicate safety logic and does not treat a request as confirmed charger state.
 
 The shared UI model remains authoritative for displayed command results after Home Assistant reports the resulting Charger Controller state.
 

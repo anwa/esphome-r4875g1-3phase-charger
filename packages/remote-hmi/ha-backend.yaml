@@ -128,6 +128,28 @@ sensor:
             id(ui_model_dc_sum_power).publish_state(x);
 
   # ---------------------------------------------------------------------------
+  # FALLBACK SETPOINTS
+  # ---------------------------------------------------------------------------
+
+  - platform: homeassistant
+    id: remote_ha_dc_voltage_limit_fallback
+    entity_id: ${ha_charger_dc_voltage_limit_fallback_entity}
+    internal: true
+    on_value:
+      then:
+        - lambda: |-
+            id(ui_model_dc_voltage_limit_fallback).publish_state(x);
+
+  - platform: homeassistant
+    id: remote_ha_dc_current_limit_fallback
+    entity_id: ${ha_charger_dc_current_limit_fallback_entity}
+    internal: true
+    on_value:
+      then:
+        - lambda: |-
+            id(ui_model_dc_current_limit_fallback).publish_state(x);
+
+  # ---------------------------------------------------------------------------
   # CHARGER STATUS
   # ---------------------------------------------------------------------------
 
@@ -221,6 +243,9 @@ interval:
             id(ui_model_dc_current).publish_state(NAN);
             id(ui_model_dc_voltage_limit).publish_state(NAN);
             id(ui_model_dc_sum_power).publish_state(NAN);
+
+            id(ui_model_dc_voltage_limit_fallback).publish_state(NAN);
+            id(ui_model_dc_current_limit_fallback).publish_state(NAN);
 
             id(ui_model_available_units).publish_state(NAN);
             id(ui_model_running_units).publish_state(NAN);

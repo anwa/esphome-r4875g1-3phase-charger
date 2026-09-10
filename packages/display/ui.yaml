@@ -361,14 +361,11 @@ lvgl:
                             text_font: montserrat_16
 
                       on_short_click:
-                        - number.set:
-                            id: set_dc_voltage_limit_fallback
-                            value: !lambda |-
+                        - script.execute:
+                            id: ui_command_set_fallback_setpoints
+                            voltage: !lambda |-
                               return id(ui_fallback_voltage_edit);
-
-                        - number.set:
-                            id: set_dc_current_limit_fallback
-                            value: !lambda |-
+                            current: !lambda |-
                               return id(ui_fallback_current_edit);
 
                         - lvgl.widget.hide: ui_fallback_dialog
