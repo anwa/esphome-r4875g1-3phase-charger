@@ -24,10 +24,15 @@ packages:
   display_ui: !include display/ui.yaml
 
   # ---------------------------------------------------------------------------
-  # CHARGER CONTROLLER GLOBAL RUNTIMES
+  # SHARED RECTIFIER COMMAND STATE
   # ---------------------------------------------------------------------------
 
   display_command_state: !include display/command-state.yaml
+
+  # ---------------------------------------------------------------------------
+  # CHARGER CONTROLLER GLOBAL RUNTIMES
+  # ---------------------------------------------------------------------------
+
   display_controller_battery: !include display/controller-battery.yaml
 
   # ---------------------------------------------------------------------------

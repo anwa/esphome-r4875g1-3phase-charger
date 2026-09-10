@@ -106,8 +106,19 @@ substitutions:
   ha_rectifier_3_output_temperature_entity: "sensor.${ha_charger_entity_prefix}_output_temperature_unit_3"
 
   # ---------------------------------------------------------------------------
-  # CHARGER COMMAND TARGETS
+  # COMMAND TARGETS
   # ---------------------------------------------------------------------------
 
+  # Charger-wide commands.
   ha_charger_start_button_entity: "button.${ha_charger_entity_prefix}_turn_on_all_units"
   ha_charger_stop_button_entity: "button.${ha_charger_entity_prefix}_turn_off_all_units"
+
+  # Per-rectifier commands.
+  ha_rectifier_1_start_button_entity: "button.${ha_charger_entity_prefix}_turn_on_unit_1"
+  ha_rectifier_1_stop_button_entity: "button.${ha_charger_entity_prefix}_turn_off_unit_1"
+
+  ha_rectifier_2_start_button_entity: "button.${ha_charger_entity_prefix}_turn_on_unit_2"
+  ha_rectifier_2_stop_button_entity: "button.${ha_charger_entity_prefix}_turn_off_unit_2"
+
+  ha_rectifier_3_start_button_entity: "button.${ha_charger_entity_prefix}_turn_on_unit_3"
+  ha_rectifier_3_stop_button_entity: "button.${ha_charger_entity_prefix}_turn_off_unit_3"

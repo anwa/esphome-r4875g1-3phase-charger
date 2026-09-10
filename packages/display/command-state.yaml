@@ -1,24 +1,18 @@
 # ==============================================================================
-# CHARGER CONTROLLER RECTIFIER COMMAND STATE
+# SHARED RECTIFIER COMMAND STATE
 # ==============================================================================
 #
-# Resolves Controller-specific per-rectifier START/STOP pending states.
+# Resolves per-rectifier START/STOP pending presentation state from the
+# authoritative shared UI model.
 #
-# Charger-wide Dashboard command state is target-neutral and is handled by
-# display/dashboard-command-state.yaml.
+# Command completion therefore behaves identically when rectifier controls are
+# used locally on the Charger Controller or remotely through Home Assistant.
 # ==============================================================================
 
 interval:
+
   - interval: 500ms
     then:
-
-      # ---------------------------------------------------------------------------
-      # RECTIFIER POWER COMMAND TRANSITIONS
-      # ---------------------------------------------------------------------------
-      #
-      # Command completion and timeout handling remains global so pending states
-      # continue to resolve even after leaving the Rectifiers page.
-      # ---------------------------------------------------------------------------
 
       # ---------------------------------------------------------------------------
       # RECTIFIER 1
@@ -27,19 +21,32 @@ interval:
       - lambda: |-
           const uint8_t pending =
             id(ui_rectifier_1_power_pending);
+
           if (pending == 0) {
             return;
           }
+
+          const std::string state =
+            id(ui_model_rectifier_1_power_state).state;
+
+          const bool state_valid =
+            id(ui_model_data_available).state &&
+            id(ui_model_rectifier_1_connected).state &&
+            !state.empty();
+
           const bool completed =
-            (pending == 1 &&
-             id(power_state_1).state == "ON") ||
-            (pending == 2 &&
-             id(power_state_1).state == "OFF");
+            state_valid &&
+            (
+              (pending == 1 && state == "ON") ||
+              (pending == 2 && state == "OFF")
+            );
+
           const bool timed_out =
             static_cast<uint32_t>(
               millis() -
               id(ui_rectifier_1_power_pending_since)
             ) >= 10000UL;
+
           if (completed || timed_out) {
             if (timed_out && !completed) {
               ESP_LOGW(
@@ -47,6 +54,7 @@ interval:
                 "Rectifier 1 power command UI timeout."
               );
             }
+
             id(ui_rectifier_1_power_pending) = 0;
           }
 
@@ -57,19 +65,32 @@ interval:
       - lambda: |-
           const uint8_t pending =
             id(ui_rectifier_2_power_pending);
+
           if (pending == 0) {
             return;
           }
+
+          const std::string state =
+            id(ui_model_rectifier_2_power_state).state;
+
+          const bool state_valid =
+            id(ui_model_data_available).state &&
+            id(ui_model_rectifier_2_connected).state &&
+            !state.empty();
+
           const bool completed =
-            (pending == 1 &&
-             id(power_state_2).state == "ON") ||
-            (pending == 2 &&
-             id(power_state_2).state == "OFF");
+            state_valid &&
+            (
+              (pending == 1 && state == "ON") ||
+              (pending == 2 && state == "OFF")
+            );
+
           const bool timed_out =
             static_cast<uint32_t>(
               millis() -
               id(ui_rectifier_2_power_pending_since)
             ) >= 10000UL;
+
           if (completed || timed_out) {
             if (timed_out && !completed) {
               ESP_LOGW(
@@ -77,6 +98,7 @@ interval:
                 "Rectifier 2 power command UI timeout."
               );
             }
+
             id(ui_rectifier_2_power_pending) = 0;
           }
 
@@ -87,19 +109,32 @@ interval:
       - lambda: |-
           const uint8_t pending =
             id(ui_rectifier_3_power_pending);
+
           if (pending == 0) {
             return;
           }
+
+          const std::string state =
+            id(ui_model_rectifier_3_power_state).state;
+
+          const bool state_valid =
+            id(ui_model_data_available).state &&
+            id(ui_model_rectifier_3_connected).state &&
+            !state.empty();
+
           const bool completed =
-            (pending == 1 &&
-             id(power_state_3).state == "ON") ||
-            (pending == 2 &&
-             id(power_state_3).state == "OFF");
+            state_valid &&
+            (
+              (pending == 1 && state == "ON") ||
+              (pending == 2 && state == "OFF")
+            );
+
           const bool timed_out =
             static_cast<uint32_t>(
               millis() -
               id(ui_rectifier_3_power_pending_since)
             ) >= 10000UL;
+
           if (completed || timed_out) {
             if (timed_out && !completed) {
               ESP_LOGW(
@@ -107,5 +142,6 @@ interval:
                 "Rectifier 3 power command UI timeout."
               );
             }
+
             id(ui_rectifier_3_power_pending) = 0;
           }

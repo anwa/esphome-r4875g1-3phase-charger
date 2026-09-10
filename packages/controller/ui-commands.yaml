@@ -2,8 +2,8 @@
 # CHARGER CONTROLLER UI COMMAND BACKEND
 # ==============================================================================
 #
-# Implements the shared Dashboard command interface for the locally attached
-# Charger Controller.
+# Implements the shared HMI command interface for the locally attached Charger
+# Controller.
 #
 # Shared HMI code expresses user intent through ui_command_* scripts. This
 # backend translates those requests into the existing authoritative local
@@ -63,3 +63,89 @@ script:
 
     then:
       - button.press: off_button_all
+
+  # ---------------------------------------------------------------------------
+  # RECTIFIER START
+  # ---------------------------------------------------------------------------
+
+  - id: ui_command_rectifier_start
+    parameters:
+      unit: int
+
+    then:
+      - if:
+          condition:
+            lambda: |-
+              return unit == 1;
+
+          then:
+            - button.press: on_button_1
+
+          else:
+            - if:
+                condition:
+                  lambda: |-
+                    return unit == 2;
+
+                then:
+                  - button.press: on_button_2
+
+                else:
+                  - if:
+                      condition:
+                        lambda: |-
+                          return unit == 3;
+
+                      then:
+                        - button.press: on_button_3
+
+                      else:
+                        - lambda: |-
+                            ESP_LOGW(
+                              "ui_command",
+                              "Invalid rectifier START unit: %d",
+                              unit
+                            );
+
+  # ---------------------------------------------------------------------------
+  # RECTIFIER STOP
+  # ---------------------------------------------------------------------------
+
+  - id: ui_command_rectifier_stop
+    parameters:
+      unit: int
+
+    then:
+      - if:
+          condition:
+            lambda: |-
+              return unit == 1;
+
+          then:
+            - button.press: off_button_1
+
+          else:
+            - if:
+                condition:
+                  lambda: |-
+                    return unit == 2;
+
+                then:
+                  - button.press: off_button_2
+
+                else:
+                  - if:
+                      condition:
+                        lambda: |-
+                          return unit == 3;
+
+                      then:
+                        - button.press: off_button_3
+
+                      else:
+                        - lambda: |-
+                            ESP_LOGW(
+                              "ui_command",
+                              "Invalid rectifier STOP unit: %d",
+                              unit
+                            );

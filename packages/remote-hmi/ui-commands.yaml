@@ -2,7 +2,7 @@
 # REMOTE HMI UI COMMAND BACKEND
 # ==============================================================================
 #
-# Implements the shared Dashboard command interface for the Remote HMI.
+# Implements the shared HMI command interface for the Remote HMI.
 #
 # Commands are transported through Home Assistant and target the authoritative
 # Charger Controller entities exposed by its native ESPHome integration.
@@ -121,3 +121,129 @@ script:
             - logger.log:
                 level: WARN
                 format: "Remote HMI charger STOP command rejected because charger data is unavailable."
+
+  # ---------------------------------------------------------------------------
+  # RECTIFIER START
+  # ---------------------------------------------------------------------------
+
+  - id: ui_command_rectifier_start
+    parameters:
+      unit: int
+
+    then:
+      - if:
+          condition:
+            lambda: |-
+              return id(ui_model_data_available).state;
+
+          then:
+            - if:
+                condition:
+                  lambda: |-
+                    return unit == 1;
+
+                then:
+                  - homeassistant.action:
+                      action: button.press
+                      data:
+                        entity_id: ${ha_rectifier_1_start_button_entity}
+
+                else:
+                  - if:
+                      condition:
+                        lambda: |-
+                          return unit == 2;
+
+                      then:
+                        - homeassistant.action:
+                            action: button.press
+                            data:
+                              entity_id: ${ha_rectifier_2_start_button_entity}
+
+                      else:
+                        - if:
+                            condition:
+                              lambda: |-
+                                return unit == 3;
+
+                            then:
+                              - homeassistant.action:
+                                  action: button.press
+                                  data:
+                                    entity_id: ${ha_rectifier_3_start_button_entity}
+
+                            else:
+                              - lambda: |-
+                                  ESP_LOGW(
+                                    "ui_command",
+                                    "Invalid Remote HMI rectifier START unit: %d",
+                                    unit
+                                  );
+
+          else:
+            - logger.log:
+                level: WARN
+                format: "Remote HMI rectifier START command rejected because charger data is unavailable."
+
+  # ---------------------------------------------------------------------------
+  # RECTIFIER STOP
+  # ---------------------------------------------------------------------------
+
+  - id: ui_command_rectifier_stop
+    parameters:
+      unit: int
+
+    then:
+      - if:
+          condition:
+            lambda: |-
+              return id(ui_model_data_available).state;
+
+          then:
+            - if:
+                condition:
+                  lambda: |-
+                    return unit == 1;
+
+                then:
+                  - homeassistant.action:
+                      action: button.press
+                      data:
+                        entity_id: ${ha_rectifier_1_stop_button_entity}
+
+                else:
+                  - if:
+                      condition:
+                        lambda: |-
+                          return unit == 2;
+
+                      then:
+                        - homeassistant.action:
+                            action: button.press
+                            data:
+                              entity_id: ${ha_rectifier_2_stop_button_entity}
+
+                      else:
+                        - if:
+                            condition:
+                              lambda: |-
+                                return unit == 3;
+
+                            then:
+                              - homeassistant.action:
+                                  action: button.press
+                                  data:
+                                    entity_id: ${ha_rectifier_3_stop_button_entity}
+
+                            else:
+                              - lambda: |-
+                                  ESP_LOGW(
+                                    "ui_command",
+                                    "Invalid Remote HMI rectifier STOP unit: %d",
+                                    unit
+                                  );
+
+          else:
+            - logger.log:
+                level: WARN
+                format: "Remote HMI rectifier STOP command rejected because charger data is unavailable."

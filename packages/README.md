@@ -194,6 +194,9 @@ display/dashboard-ui.yaml
 display/dashboard-command-state.yaml
     shared charger-wide START/STOP presentation state
 
+display/command-state.yaml
+    shared per-rectifier START/STOP pending-state resolution
+
 display/shared-dashboard.yaml
     shared Dashboard composition consumed by both V6 firmware targets
 
@@ -308,7 +311,7 @@ This backend does not own charger state itself. The existing controller runtime 
 
 Implements the shared HMI command interface for the Charger Controller target.
 
-The command scripts translate target-neutral Dashboard intent into the existing local ESPHome controls. Charger safety, validation and CAN execution remain owned by the existing Controller entities and scripts.
+The command scripts translate target-neutral Dashboard and per-rectifier command intent into the existing local ESPHome controls. Charger safety, validation and CAN execution remain owned by the existing Controller entities and scripts.
 
 ---
 
@@ -324,7 +327,7 @@ The status clearly indicates whether authoritative Charger Controller data is cu
 
 Owns the Home Assistant entity mapping for the Charger Controller paired with a Remote HMI.
 
-The Remote HMI root defines one installation-specific `ha_charger_entity_prefix`. The entity map derives the Dashboard telemetry, setpoint, charger-command and per-rectifier state entity IDs from that prefix.
+The Remote HMI root defines one installation-specific `ha_charger_entity_prefix`. The entity map derives the Dashboard telemetry, setpoint, charger-wide command, per-rectifier state and per-rectifier command entity IDs from that prefix.
 
 This keeps Home Assistant entity naming out of the state and command backends and allows another Charger Controller to be paired by changing one configuration value.
 
@@ -352,7 +355,7 @@ Home Assistant entity IDs are supplied by `remote-hmi/ha-entity-map.yaml` rather
 
 Implements the shared HMI command interface for the Remote HMI target.
 
-The backend sends command requests through Home Assistant to the Charger Controller entities. It does not duplicate safety logic and does not treat a request as confirmed charger state.
+The backend sends charger-wide and per-rectifier command requests through Home Assistant to the Charger Controller entities. It does not duplicate safety logic and does not treat a request as confirmed charger state.
 
 The shared UI model remains authoritative for displayed command results after Home Assistant reports the resulting Charger Controller state.
 

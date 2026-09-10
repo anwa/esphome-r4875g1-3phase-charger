@@ -465,7 +465,9 @@ lvgl:
                             id: ui_rectifier_1_power_button_label
                             text: "STARTING..."
 
-                        - button.press: on_button_1
+                        - script.execute:
+                            id: ui_command_rectifier_start
+                            unit: 1
 
       # ---------------------------------------------------------------------------
       # RECTIFIER 1 STOP
@@ -559,7 +561,9 @@ lvgl:
                             id: ui_rectifier_1_power_button_label
                             text: "STOPPING..."
 
-                        - button.press: off_button_1
+                        - script.execute:
+                            id: ui_command_rectifier_stop
+                            unit: 1
 
       # ---------------------------------------------------------------------------
       # RECTIFIER 2 START
@@ -653,7 +657,9 @@ lvgl:
                             id: ui_rectifier_2_power_button_label
                             text: "STARTING..."
 
-                        - button.press: on_button_2
+                        - script.execute:
+                            id: ui_command_rectifier_start
+                            unit: 2
 
       # ---------------------------------------------------------------------------
       # RECTIFIER 2 STOP
@@ -747,7 +753,9 @@ lvgl:
                             id: ui_rectifier_2_power_button_label
                             text: "STOPPING..."
 
-                        - button.press: off_button_2
+                        - script.execute:
+                            id: ui_command_rectifier_stop
+                            unit: 2
 
       # ---------------------------------------------------------------------------
       # RECTIFIER 3 START
@@ -841,7 +849,9 @@ lvgl:
                             id: ui_rectifier_3_power_button_label
                             text: "STARTING..."
 
-                        - button.press: on_button_3
+                        - script.execute:
+                            id: ui_command_rectifier_start
+                            unit: 3
 
       # ---------------------------------------------------------------------------
       # RECTIFIER 3 STOP
@@ -935,4 +945,6 @@ lvgl:
                             id: ui_rectifier_3_power_button_label
                             text: "STOPPING..."
 
-                        - button.press: off_button_3
+                        - script.execute:
+                            id: ui_command_rectifier_stop
+                            unit: 3
