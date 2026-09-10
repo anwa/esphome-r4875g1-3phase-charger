@@ -359,9 +359,8 @@ esphome:
   includes:
     - trend_helpers.h
 
-  platformio_options:
-    build_flags:
-      - -D LV_USE_CHART=1
+  build_flags:
+    - -D LV_USE_CHART=1
 
   on_boot:
     then:
