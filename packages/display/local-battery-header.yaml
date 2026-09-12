@@ -19,7 +19,7 @@ interval:
 
           text: !lambda |-
             const float voltage =
-              id(controller_battery_voltage).state;
+              id(local_backup_battery_voltage).state;
 
             if (isnan(voltage)) {
               return str_sprintf(
@@ -36,7 +36,7 @@ interval:
 
           text_color: !lambda |-
             const float voltage =
-              id(controller_battery_voltage).state;
+              id(local_backup_battery_voltage).state;
 
             if (isnan(voltage)) {
               return lv_color_hex(0x8B96A0);

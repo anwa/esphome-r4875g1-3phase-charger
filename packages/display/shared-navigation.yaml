@@ -2,8 +2,8 @@
 # SHARED V6 BOTTOM NAVIGATION
 # ==============================================================================
 #
-# Defines the Dashboard, Rectifiers and Battery navigation shared by both V6
-# firmware targets.
+# Defines the Dashboard, Rectifiers, Battery and System navigation shared by
+# both V6 firmware targets.
 #
 # Controller-only pages append their own navigation entries separately.
 # ==============================================================================
@@ -65,3 +65,21 @@ lvgl:
                 id(ui_active_page) = 3;
 
             - lvgl.page.show: page_battery
+
+      - button:
+          x: 406
+          y: 410
+          styles: style_nav_button
+
+          widgets:
+            - label:
+                align: CENTER
+                text: "System"
+                text_font: montserrat_18
+
+          on_short_click:
+            - lambda: |-
+                id(rectifier_detail_unit) = 0;
+                id(ui_active_page) = 5;
+
+            - lvgl.page.show: page_system

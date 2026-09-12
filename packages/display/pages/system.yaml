@@ -1,11 +1,14 @@
 # ==============================================================================
-# V5 LVGL PAGE: SYSTEM
+# SHARED V6 LVGL PAGE: SYSTEM
 # ==============================================================================
 #
-# Controller, network, memory/runtime and rectifier communication diagnostics.
+# Displays local target diagnostics and authoritative rectifier lifecycle state
+# for both V6 firmware targets.
 #
-# Runtime updates are handled by display/system.yaml. Controller battery values
-# are updated independently by display/controller-battery.yaml.
+# Local network, ESP32 and backup-battery values describe the device running the
+# current target. Rectifier state is rendered from the shared UI model.
+#
+# Runtime updates are handled by display/system.yaml.
 # ==============================================================================
 
 id: page_system
@@ -61,7 +64,7 @@ widgets:
             text: "-- dBm"
 
   # ---------------------------------------------------------------------------
-  # CONTROLLER
+  # LOCAL DEVICE
   # ---------------------------------------------------------------------------
 
   - obj:
@@ -76,7 +79,7 @@ widgets:
             x: 10
             y: 10
             styles: style_title_label
-            text: "CONTROLLER"
+            text: "LOCAL DEVICE"
 
         - label:
             x: 10
@@ -113,7 +116,7 @@ widgets:
             y: 108
             width: 180
             styles: style_desc_label
-            text: "Backup  Battery"
+            text: "Backup Battery"
 
         - label:
             id: ui_system_battery
@@ -217,7 +220,7 @@ widgets:
             text: "--- MHz"
 
   # ---------------------------------------------------------------------------
-  # CAN AND RECTIFIER STATUS
+  # RECTIFIER STATUS
   # ---------------------------------------------------------------------------
 
   - obj:
@@ -232,7 +235,7 @@ widgets:
             x: 10
             y: 10
             styles: style_title_label
-            text: "CAN / RECTIFIERS"
+            text: "RECTIFIERS"
 
         - label:
             x: 10

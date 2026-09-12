@@ -5,7 +5,7 @@
 # Composes target-neutral display infrastructure and persistent presentation
 # state used by the shared V6 HMI features.
 #
-# Dashboard, Rectifiers, Battery and shared navigation packages consume this
+# Dashboard, Rectifiers, Battery, System and shared navigation packages consume this
 # common infrastructure without owning or duplicating it.
 # ==============================================================================
 

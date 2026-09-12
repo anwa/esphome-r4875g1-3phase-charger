@@ -9,7 +9,7 @@ ESPHome-based controller for three Huawei R4875G1 rectifiers operated as a coord
 The V6 firmware generation uses two coordinated targets based on the **Waveshare ESP32-S3-Touch-LCD-7**:
 
 - the Charger Controller, physically attached to the rectifiers and responsible for CAN, charger control, safety and local blackstart
-- the Remote HMI, which uses the shared Dashboard, Rectifiers and Battery presentation while receiving authoritative charger state and sending HMI command requests through Home Assistant
+- the Remote HMI, which uses the shared Dashboard, Rectifiers, Battery and System presentation while receiving authoritative charger state and sending HMI command requests through Home Assistant
 
 Remote HMI charger commands use Home Assistant transport and remain subject to authoritative validation and execution by the Charger Controller.
 
@@ -307,8 +307,8 @@ The LVGL interface contains six primary functional pages:
 Dashboard
 Rectifiers
 Battery
-Cooling
 System
+Cooling
 Trends
 ```
 
@@ -432,18 +432,19 @@ External chassis-fan control is implemented independently by `packages/cooling.y
 
 ### System
 
-The System page provides controller and communication diagnostics including:
+The System page is shared by the Charger Controller and Remote HMI. It combines diagnostics measured locally on the active display controller with authoritative rectifier lifecycle state from the shared UI model.
 
 ```text
-network state
-Wi-Fi signal
-controller uptime
-CPU temperature
-memory information
-CAN / rectifier status
-controller backup-battery voltage
-controller backup-battery state of charge
+local network state
+local Wi-Fi signal
+local uptime
+local CPU temperature
+local memory/runtime information
+local backup-battery voltage and state of charge
+rectifier lifecycle status
 ```
+
+On the Remote HMI, local device diagnostics remain available independently of Home Assistant. Rectifier state still follows the Charger Controller through Home Assistant and the shared UI-model boundary.
 
 ### Trends
 
@@ -552,9 +553,9 @@ If compartment-temperature telemetry becomes unavailable, the cooling system fai
 
 ---
 
-## Controller Backup Battery
+## Local Display Backup Battery
 
-The Waveshare controller supports a 1S lithium backup battery through its J3 battery connector.
+Both V6 Waveshare display controllers support a local 1S lithium backup battery through the J3 battery connector.
 
 The board provides an existing divider:
 
@@ -570,16 +571,18 @@ J8 pin 3 / AD -> GPIO6
 
 The ADC therefore sees one third of the battery voltage and the firmware restores the actual value using a factor of 3.
 
-The measured voltage is filtered and exposed as:
+The measured voltage is filtered and exposed with a target-specific name:
 
 ```text
 Controller Battery Voltage
+Remote HMI Battery Voltage
 ```
 
 A second sensor derives an approximate voltage-based state of charge:
 
 ```text
 Controller Battery State of Charge
+Remote HMI Battery State of Charge
 ```
 
 The SOC value is intended for monitoring only. It is not a replacement for coulomb counting or a dedicated fuel-gauge IC.

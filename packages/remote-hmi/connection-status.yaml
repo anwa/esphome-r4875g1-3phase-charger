@@ -13,11 +13,11 @@ lvgl:
     widgets:
       - label:
           id: ui_remote_connection_status
-          x: 406
+          x: 538
           y: 422
-          width: 384
+          width: 252
           text_align: CENTER
-          text: "REMOTE HMI - HA / CHARGER DATA OFFLINE"
+          text: "HA / CHARGER DATA OFFLINE"
           text_font: montserrat_16
           text_color: 0xFFC04A
 
@@ -31,10 +31,10 @@ interval:
           text: !lambda |-
             return id(ui_model_data_available).state
               ? std::string(
-                  "REMOTE HMI - HA / CHARGER DATA ONLINE"
+                  "HA / CHARGER DATA ONLINE"
                 )
               : std::string(
-                  "REMOTE HMI - HA / CHARGER DATA OFFLINE"
+                  "HA / CHARGER DATA OFFLINE"
                 );
 
           text_color: !lambda |-

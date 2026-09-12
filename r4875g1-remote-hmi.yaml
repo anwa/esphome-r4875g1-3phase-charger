@@ -67,8 +67,8 @@ substitutions:
 # ==============================================================================
 #
 # Composes the shared platform, Home Assistant state/command backends and the
-# shared V6 Dashboard, Rectifiers and Battery presentation used by the Charger
-# Controller.
+# shared V6 Dashboard, Rectifiers, Battery and System presentation used by the
+# Remote HMI.
 # ==============================================================================
 
 packages:
@@ -173,6 +173,7 @@ packages:
   display_shared_dashboard: !include packages/display/shared-dashboard.yaml
   display_shared_rectifiers: !include packages/display/shared-rectifiers.yaml
   display_shared_battery: !include packages/display/shared-battery.yaml
+  display_shared_system: !include packages/display/shared-system.yaml
   display_shared_navigation: !include packages/display/shared-navigation.yaml
   remote_connection_status: !include packages/remote-hmi/connection-status.yaml
 

@@ -7,7 +7,7 @@
 #
 # Shared hardware:
 #   - onboard I2C bus
-#   - controller backup-battery ADC
+#   - local backup-battery ADC
 #   - onboard CH422G I/O expander
 #   - GT911 touch controller
 #
@@ -30,10 +30,11 @@ i2c:
     frequency: 400kHz
 
 # ==============================================================================
-# CONTROLLER BACKUP BATTERY
+# LOCAL BACKUP BATTERY
 # ==============================================================================
 #
-# A 1S lithium battery is connected to the Waveshare J3 battery connector.
+# A 1S lithium battery is connected to the local Waveshare display controller's
+# J3 battery connector.
 #
 # The board already contains the required voltage divider:
 #
@@ -62,8 +63,8 @@ i2c:
 sensor:
   - platform: adc
     pin: ${pin_battery_adc}
-    id: controller_battery_voltage
-    name: "Controller Battery Voltage"
+    id: local_backup_battery_voltage
+    name: "${diagnostics_device_label} Battery Voltage"
 
     attenuation: 6db
     update_interval: 5s
@@ -100,8 +101,8 @@ sensor:
   # ---------------------------------------------------------------------------
 
   - platform: template
-    id: controller_battery_soc
-    name: "Controller Battery State of Charge"
+    id: local_backup_battery_soc
+    name: "${diagnostics_device_label} Battery State of Charge"
 
     unit_of_measurement: "%"
     device_class: battery
@@ -114,7 +115,7 @@ sensor:
 
     lambda: |-
       const float v =
-        id(controller_battery_voltage).state;
+        id(local_backup_battery_voltage).state;
 
       if (isnan(v))
         return NAN;
