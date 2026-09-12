@@ -45,6 +45,11 @@ binary_sensor:
     entity_id: ${ha_rectifier_connected_entity}
     internal: true
 
+    # The first Home Assistant binary-sensor state is published as an initial
+    # state and does not trigger on_state unless explicitly requested. The
+    # freshness latch depends on receiving that initial ON/OFF state.
+    trigger_on_initial_state: true
+
     on_state:
       then:
         - lambda: |-
