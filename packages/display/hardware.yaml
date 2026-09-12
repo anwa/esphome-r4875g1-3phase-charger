@@ -4,6 +4,10 @@
 #
 # Defines the Waveshare ESP32-S3-Touch-LCD-7 display, backlight and LVGL
 # hardware integration shared by the Charger Controller and Remote HMI.
+#
+# Network and recovery services intentionally initialize before the RGB display
+# and LVGL so Wi-Fi can reserve its required internal/DMA-capable memory before
+# the display stack allocates runtime resources.
 # ==============================================================================
 
 # ==============================================================================
@@ -32,6 +36,11 @@ display:
     model: ESP32-S3-TOUCH-LCD-7-800X480
     id: charger_display
 
+    # Wi-Fi initializes at priority 250 and API/OTA at priority 200. Starting
+    # the RGB display afterwards preserves internal memory for network recovery
+    # services while still completing before LVGL.
+    setup_priority: 190
+
     auto_clear_enabled: false
     update_interval: never
 
@@ -41,6 +50,10 @@ display:
 # ==============================================================================
 
 lvgl:
+  # Start after the RGB display while keeping both display stages behind the
+  # network and recovery services.
+  setup_priority: 180
+
   displays:
     - charger_display
 

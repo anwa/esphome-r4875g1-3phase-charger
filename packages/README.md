@@ -854,8 +854,11 @@ Responsibilities include:
 - framebuffer configuration
 - LVGL display binding
 - backlight control
+- boot-time display/LVGL ordering behind network recovery services
 
 Touchscreen hardware is owned by the controller-wide `hardware.yaml` because GT911 shares the main I2C bus and reset infrastructure with other controller hardware.
+
+The RGB display and LVGL use explicit setup priorities below Wi-Fi and the API/OTA services. This allows networking to reserve scarce internal and DMA-capable memory before the display stack starts while preserving the required display-before-LVGL dependency.
 
 ---
 
