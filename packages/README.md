@@ -45,6 +45,7 @@ packages/
 │   ├── battery-ui-backend.yaml
 │   ├── battery-ui-unit-backend.yaml
 │   ├── core.yaml
+│   ├── local-diagnostics.yaml
 │   ├── hardware.yaml
 │   └── ui-model.yaml
 │
@@ -129,6 +130,9 @@ shared/core.yaml
 
 shared/hardware.yaml
     target-neutral Waveshare board peripherals
+
+shared/local-diagnostics.yaml
+    target-local network, ESP32 and runtime diagnostics shared by both V6 targets
 
 shared/ui-model.yaml
     target-neutral aggregate state contract consumed by the HMI
@@ -288,9 +292,28 @@ Responsibilities include:
 - web server
 - OTA
 - time synchronization
-- runtime diagnostics
+- ESPHome debug-component support
 
 Target-specific command and telemetry transports do not belong in this package.
+
+---
+
+## `shared/local-diagnostics.yaml`
+
+Owns target-local diagnostic entities that are common to the Charger Controller and Remote HMI.
+
+Responsibilities include:
+
+- heap and PSRAM diagnostics
+- maximum free heap block
+- ESPHome loop time
+- CPU frequency and temperature
+- device uptime
+- Wi-Fi RSSI and IP address
+- ESPHome version
+- device information and reset reason
+
+The diagnostics describe the ESP32 running the current firmware target. They do not represent charger operational state and do not participate in charger control or safety.
 
 ---
 

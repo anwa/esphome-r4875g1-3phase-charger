@@ -14,7 +14,7 @@
 #   - Wi-Fi and fallback access point
 #   - captive portal
 #   - SNTP time synchronization
-#   - ESPHome runtime diagnostics
+#   - ESPHome debug-component support
 #
 # Target-specific transports such as Charger Controller MQTT are owned by their
 # corresponding target packages.
@@ -217,8 +217,10 @@ time:
 # ESPHOME DEBUG METRICS
 # ==============================================================================
 #
-# Enables internal runtime diagnostics including heap usage, maximum free block,
-# loop time, PSRAM availability and CPU frequency.
+# Enables the shared ESPHome debug component used by both V6 targets.
+#
+# Diagnostic entities consuming these metrics are declared in
+# shared/local-diagnostics.yaml.
 # ==============================================================================
 
 debug:

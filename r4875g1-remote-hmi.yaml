@@ -30,6 +30,7 @@ substitutions:
   # ---------------------------------------------------------------------------
 
   fallback_ap_ssid: "Charger HMI Fallback"
+  diagnostics_device_label: "Remote HMI"
 
 
   # ---------------------------------------------------------------------------
@@ -75,6 +76,7 @@ packages:
   shared_ui_contract: !include packages/shared/ui-contract.yaml
 
   shared_core: !include packages/shared/core.yaml
+  shared_local_diagnostics: !include packages/shared/local-diagnostics.yaml
   shared_hardware: !include packages/shared/hardware.yaml
   shared_ui_model: !include packages/shared/ui-model.yaml
   shared_ui_rectifier_1: !include

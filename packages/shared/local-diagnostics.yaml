@@ -1,0 +1,128 @@
+# ==============================================================================
+# SHARED LOCAL TARGET DIAGNOSTICS
+# ==============================================================================
+#
+# Exposes local ESP32, runtime and network diagnostics that apply independently
+# to both V6 firmware targets.
+#
+# These entities describe the device on which the current firmware target is
+# running. They do not represent Charger Controller operational state and do not
+# participate in charger control or safety.
+#
+# Required substitution:
+#   diagnostics_device_label -> human-readable target label
+# ==============================================================================
+
+sensor:
+
+  # ---------------------------------------------------------------------------
+  # ESPHOME RUNTIME DIAGNOSTICS
+  # ---------------------------------------------------------------------------
+
+  - platform: debug
+    free:
+      name: "Heap Free"
+      id: debug_heap_free
+      entity_category: diagnostic
+      icon: "mdi:memory"
+
+    block:
+      name: "Heap Max Block"
+      id: debug_heap_max_block
+      entity_category: diagnostic
+      icon: "mdi:memory"
+
+    loop_time:
+      name: "Loop Time"
+      id: debug_loop_time
+      entity_category: diagnostic
+      icon: "mdi:timer-outline"
+
+    psram:
+      name: "Free PSRAM"
+      id: debug_free_psram
+      entity_category: diagnostic
+      icon: "mdi:memory"
+
+    cpu_frequency:
+      name: "CPU Frequency"
+      id: debug_cpu_frequency
+      entity_category: diagnostic
+      icon: "mdi:speedometer"
+
+  # ---------------------------------------------------------------------------
+  # LOCAL CPU TEMPERATURE
+  # ---------------------------------------------------------------------------
+
+  - platform: internal_temperature
+    name: "${diagnostics_device_label} CPU Temperature"
+    id: cpu_temp
+    device_class: temperature
+    state_class: measurement
+    entity_category: diagnostic
+    accuracy_decimals: 1
+    update_interval: 10s
+    icon: "mdi:thermometer"
+
+  # ---------------------------------------------------------------------------
+  # LOCAL UPTIME
+  # ---------------------------------------------------------------------------
+
+  - platform: uptime
+    type: seconds
+    name: "Uptime"
+    id: debug_uptime
+    entity_category: diagnostic
+    icon: "mdi:timer-outline"
+
+  # ---------------------------------------------------------------------------
+  # WI-FI RSSI
+  # ---------------------------------------------------------------------------
+
+  - platform: wifi_signal
+    name: "WiFi RSSI"
+    id: wifi_sig
+    unit_of_measurement: "dBm"
+    device_class: signal_strength
+    entity_category: diagnostic
+    update_interval: 10s
+    icon: "mdi:wifi"
+
+# ==============================================================================
+# LOCAL TEXT / STATUS DIAGNOSTICS
+# ==============================================================================
+
+text_sensor:
+
+  # ---------------------------------------------------------------------------
+  # NETWORK INFORMATION
+  # ---------------------------------------------------------------------------
+
+  - platform: wifi_info
+    ip_address:
+      id: ip_address
+      entity_category: diagnostic
+
+  # ---------------------------------------------------------------------------
+  # ESPHOME VERSION
+  # ---------------------------------------------------------------------------
+
+  - platform: version
+    name: "ESPHome Version"
+    entity_category: diagnostic
+    icon: "mdi:code-tags"
+
+  # ---------------------------------------------------------------------------
+  # DEVICE AND RESET DIAGNOSTICS
+  # ---------------------------------------------------------------------------
+
+  - platform: debug
+    device:
+      name: "Device Info"
+      entity_category: diagnostic
+      icon: "mdi:information-outline"
+
+    reset_reason:
+      name: "Reset Reason"
+      entity_category: diagnostic
+      icon: "mdi:restart-alert"
