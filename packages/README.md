@@ -73,6 +73,7 @@ packages/
 │   ├── ui-state.yaml
 │   ├── trend-state.yaml
 │   ├── chart-support.yaml
+│   ├── homeassistant-motion.yaml
 │   ├── header-ui.yaml
 │   ├── dashboard-ui.yaml
 │   ├── dashboard-command-state.yaml
@@ -220,6 +221,9 @@ display/trend-state.yaml
 
 display/chart-support.yaml
     shared LVGL chart build support used by both V6 HMI targets
+
+display/homeassistant-motion.yaml
+    optional target-specific Home Assistant motion source for shared display activity
 
 display/header-ui.yaml
     shared persistent header layout

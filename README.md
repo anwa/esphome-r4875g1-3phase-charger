@@ -299,7 +299,9 @@ This allows a partially available charger to remain controllable while preventin
 
 The controller uses the Waveshare 7-inch 800 × 480 RGB display with GT911 capacitive touch.
 
-The display backlight is automatically disabled after the configured LVGL idle timeout while charger control and telemetry continue running normally. Touching and releasing the sleeping touchscreen wakes the display without activating the control underneath the wake-up touch.
+The display backlight is automatically disabled after the target-specific LVGL idle timeout while charger control and telemetry continue running normally. Touching and releasing the sleeping touchscreen always wakes the display without activating the control underneath the wake-up touch.
+
+Each V6 target may optionally import its own Home Assistant occupancy/motion entity. Active motion wakes the display immediately and keeps the existing LVGL inactivity timer alive. When motion ends, the same configured idle timeout starts again. If no motion package is composed for a target, the original touch and idle-timeout behavior is unchanged. Home Assistant `unknown`, `unavailable` or connection loss is treated as no motion.
 
 The LVGL interface contains six primary functional pages:
 
