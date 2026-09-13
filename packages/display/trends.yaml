@@ -4,11 +4,12 @@
 #
 # Native LVGL chart support for the Trends page.
 #
-# The page itself is defined in:
-#   display/pages/trends.yaml
-#
+# Current values are consumed through the target-neutral shared UI model.
 # Trend acquisition and the five 120-sample ring buffers are owned by:
 #   display/trend-state.yaml
+#
+# The page itself is defined in:
+#   display/pages/trends.yaml
 #
 # trend_helpers.h exposes the native LVGL chart API.
 # ==============================================================================
@@ -169,7 +170,7 @@ script:
               minimum_span = 1.0f;
               zero_floor = true;
               decimals = 2;
-              current = id(combined_dc_power).state;
+              current = id(ui_model_dc_power).state;
               break;
 
             case 1:
@@ -180,7 +181,7 @@ script:
               minimum_span = 10.0f;
               zero_floor = true;
               decimals = 1;
-              current = id(combined_dc_current).state;
+              current = id(ui_model_dc_current).state;
               break;
 
             case 2:
@@ -191,7 +192,7 @@ script:
               minimum_span = 1.0f;
               zero_floor = false;
               decimals = 1;
-              current = id(average_dc_voltage).state;
+              current = id(ui_model_dc_voltage).state;
               break;
 
             case 3:
@@ -202,7 +203,7 @@ script:
               minimum_span = 10.0f;
               zero_floor = true;
               decimals = 1;
-              current = id(highest_output_temperature).state;
+              current = id(ui_model_highest_output_temperature).state;
               break;
 
             case 4:
@@ -214,7 +215,7 @@ script:
               zero_floor = true;
               decimals = 1;
               current =
-                id(rectifier_compartment_temperature).state;
+                id(ui_model_cooling_compartment_temperature).state;
               break;
 
             default:
