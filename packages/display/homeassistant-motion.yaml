@@ -1,0 +1,84 @@
+# ==============================================================================
+# OPTIONAL HOME ASSISTANT DISPLAY MOTION
+# ==============================================================================
+#
+# Imports one target-specific Home Assistant occupancy/motion entity and maps it
+# to the shared display-activity runtime.
+#
+# Only the exact Home Assistant state "on" is treated as active motion.
+# "off", "unknown", "unavailable" and all other states are treated as inactive.
+#
+# Compose this package only for targets that should use motion-based display
+# wake/keep-awake behavior. Without this package, the original touch and LVGL
+# idle-timeout behavior remains active.
+# ==============================================================================
+
+text_sensor:
+  - platform: homeassistant
+    id: display_motion_source
+    entity_id: ${display_motion_entity}
+    internal: true
+
+    on_value:
+      then:
+        - lambda: |-
+            const bool active =
+              x == "on";
+
+            const bool changed =
+              active != id(display_motion_active);
+
+            id(display_motion_active) =
+              active;
+
+            if (changed) {
+              ESP_LOGI(
+                "display_motion",
+                "Display motion state changed to %s from Home Assistant state '%s'.",
+                active ? "active" : "inactive",
+                x.c_str()
+              );
+            }
+
+        - if:
+            condition:
+              lambda: |-
+                return id(display_motion_active);
+
+            then:
+              - script.execute:
+                  id: display_register_activity
+                  wake: true
+
+            else:
+              # Starting inactivity at the transition to no motion makes the
+              # existing display_idle_timeout apply from that moment.
+              - script.execute:
+                  id: display_register_activity
+                  wake: false
+
+interval:
+  - interval: 1s
+    then:
+      - if:
+          condition:
+            lambda: |-
+              return
+                id(display_motion_active) &&
+                !id(native_api).is_connected_with_state_subscription();
+
+          then:
+            - lambda: |-
+                id(display_motion_active) =
+                  false;
+
+                ESP_LOGW(
+                  "display_motion",
+                  "Home Assistant state subscription lost; treating display motion as inactive."
+                );
+
+            # Do not wake a sleeping display on connection loss. Resetting the
+            # activity timer only starts the normal idle timeout if it is awake.
+            - script.execute:
+                id: display_register_activity
+                wake: false

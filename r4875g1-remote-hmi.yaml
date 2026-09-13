@@ -60,7 +60,8 @@ substitutions:
   # ---------------------------------------------------------------------------
 
   ui_local_battery_label: "HMI"
-  display_idle_timeout: "5min"
+  display_idle_timeout: "60s"
+  display_motion_entity: "binary_sensor.hg_og_buro_hg_og_buro_precense_occupancy"
 
 # ==============================================================================
 # FIRMWARE PACKAGE ASSEMBLY
@@ -181,6 +182,14 @@ packages:
   display_shared_system: !include packages/display/shared-system.yaml
   display_shared_trends: !include packages/display/shared-trends.yaml
   display_shared_navigation: !include packages/display/shared-navigation.yaml
+
+  # Optional target-specific Home Assistant motion source for display activity.
+  # Remove this package entry to use only the original touch/idle behavior.
+  display_motion: !include
+    file: packages/display/homeassistant-motion.yaml
+    vars:
+      display_motion_entity: ${display_motion_entity}
+
   remote_connection_status: !include packages/remote-hmi/connection-status.yaml
 
 # ==============================================================================

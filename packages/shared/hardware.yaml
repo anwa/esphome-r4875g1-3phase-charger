@@ -236,8 +236,6 @@ touchscreen:
                 level: INFO
                 format: "Touch detected while display is asleep; waking display."
 
-            - switch.turn_on: display_backlight
-
-            - lvgl.resume:
-
-            - lvgl.widget.redraw:
+            - script.execute:
+                id: display_register_activity
+                wake: true

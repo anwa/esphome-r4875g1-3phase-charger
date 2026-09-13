@@ -31,6 +31,49 @@ switch:
       mode:
         output: true
 
+# ==============================================================================
+# DISPLAY ACTIVITY
+# ==============================================================================
+#
+# Touch and optional external motion sources share the same LVGL inactivity
+# timer. Motion state defaults to inactive when no motion package is composed.
+#
+# The activity script can optionally wake a paused display and always resets the
+# native LVGL inactivity timer. This keeps display_idle_timeout as the single
+# source of truth for automatic display shutoff.
+# ==============================================================================
+
+globals:
+  - id: display_motion_active
+    type: bool
+    restore_value: false
+    initial_value: "false"
+
+script:
+  - id: display_register_activity
+    mode: restart
+
+    parameters:
+      wake: bool
+
+    then:
+      - if:
+          condition:
+            and:
+              - lambda: |-
+                  return wake;
+              - lvgl.is_paused
+
+          then:
+            - switch.turn_on: display_backlight
+
+            - lvgl.resume:
+
+            - lvgl.widget.redraw:
+
+      - lambda: |-
+          lv_display_trigger_activity(nullptr);
+
 display:
   - platform: mipi_rgb
     model: ESP32-S3-TOUCH-LCD-7-800X480
@@ -67,14 +110,27 @@ lvgl:
   on_idle:
     - timeout: ${display_idle_timeout}
       then:
-        - logger.log:
-            level: INFO
-            format: "Display idle timeout reached; turning backlight off."
+        - if:
+            condition:
+              lambda: |-
+                return id(display_motion_active);
 
-        - lvgl.pause:
-            show_snow: false
+            then:
+              # Continuous motion keeps the existing LVGL idle timer alive
+              # without introducing a second display timeout.
+              - script.execute:
+                  id: display_register_activity
+                  wake: false
 
-        - switch.turn_off: display_backlight
+            else:
+              - logger.log:
+                  level: INFO
+                  format: "Display idle timeout reached; turning backlight off."
+
+              - lvgl.pause:
+                  show_snow: false
+
+              - switch.turn_off: display_backlight
 
   buffer_size: 30%
   color_depth: 16

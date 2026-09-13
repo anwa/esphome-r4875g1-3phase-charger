@@ -142,7 +142,8 @@ substitutions:
   # ---------------------------------------------------------------------------
 
   ui_local_battery_label: "CTRL"
-  display_idle_timeout: "5min"
+  display_idle_timeout: "60s"
+  display_motion_entity: "binary_sensor.hg_og_buro_hg_og_buro_precense_occupancy"
 
   # ---------------------------------------------------------------------------
   # EXTERNAL COOLING-FAN DEFAULTS
@@ -322,6 +323,13 @@ packages:
 
   cooling: !include packages/cooling.yaml
   display: !include packages/display.yaml
+
+  # Optional target-specific Home Assistant motion source for display activity.
+  # Remove this package entry to use only the original touch/idle behavior.
+  display_motion: !include
+    file: packages/display/homeassistant-motion.yaml
+    vars:
+      display_motion_entity: ${display_motion_entity}
 
   controls: !include packages/controls.yaml
   rectifier_shared: !include packages/rectifier-shared.yaml
