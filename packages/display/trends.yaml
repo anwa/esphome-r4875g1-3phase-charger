@@ -274,7 +274,7 @@ script:
 
             current_text =
               str_sprintf(
-                "%.2f %s",
+                "%.1f %s",
                 current,
                 unit
               );
@@ -557,7 +557,7 @@ script:
 
             minimum_text =
               str_sprintf(
-                "%.2f %s",
+                "%.1f %s",
                 minimum,
                 unit
               );
@@ -581,7 +581,7 @@ script:
 
             maximum_text =
               str_sprintf(
-                "%.2f %s",
+                "%.1f %s",
                 maximum,
                 unit
               );
