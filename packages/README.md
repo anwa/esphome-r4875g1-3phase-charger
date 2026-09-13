@@ -76,11 +76,13 @@ packages/
 │   ├── dashboard-command-state.yaml
 │   ├── rectifiers-ui.yaml
 │   ├── battery-ui.yaml
+│   ├── cooling-ui.yaml
 │   ├── system-ui.yaml
 │   ├── fallback-dialog.yaml
 │   ├── rectifier-power-dialogs.yaml
 │   ├── shared-rectifiers.yaml
 │   ├── shared-battery.yaml
+│   ├── shared-cooling.yaml
 │   ├── shared-system.yaml
 │   ├── shared-navigation.yaml
 │   ├── hardware.yaml
@@ -234,17 +236,26 @@ display/shared-rectifiers.yaml
 display/shared-battery.yaml
     shared Battery presentation and runtime consumed by both V6 firmware targets
 
+display/shared-cooling.yaml
+    shared Cooling presentation and runtime consumed by both V6 firmware targets
+
 display/shared-system.yaml
     shared System presentation and runtime consumed by both V6 firmware targets
 
 display/shared-navigation.yaml
-    shared Dashboard, Rectifiers, Battery and System bottom navigation
+    shared Dashboard, Rectifiers, Battery, System and Cooling bottom navigation
 
 display/rectifiers-ui.yaml
     shared Rectifiers Overview and Detail presentation
 
 display/battery-ui.yaml
     shared Battery page presentation
+
+display/cooling-ui.yaml
+    shared Cooling page presentation
+
+display/cooling.yaml
+    shared Cooling page runtime
 
 display/system-ui.yaml
     shared System page presentation

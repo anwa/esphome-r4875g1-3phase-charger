@@ -2,8 +2,8 @@
 # REMOTE HMI CONNECTION STATUS
 # ==============================================================================
 #
-# Displays persistent Home Assistant / Charger Controller connectivity state
-# beside the shared bottom navigation.
+# Displays persistent Home Assistant / Charger Controller connectivity state in
+# the Remote HMI target-specific sixth bottom slot.
 #
 # The status does not duplicate charger state or safety logic.
 # ==============================================================================
@@ -13,11 +13,11 @@ lvgl:
     widgets:
       - label:
           id: ui_remote_connection_status
-          x: 538
+          x: 670
           y: 422
-          width: 252
+          width: 120
           text_align: CENTER
-          text: "HA / CHARGER DATA OFFLINE"
+          text: "HA OFFLINE"
           text_font: montserrat_16
           text_color: 0xFFC04A
 
@@ -30,12 +30,8 @@ interval:
 
           text: !lambda |-
             return id(ui_model_data_available).state
-              ? std::string(
-                  "HA / CHARGER DATA ONLINE"
-                )
-              : std::string(
-                  "HA / CHARGER DATA OFFLINE"
-                );
+              ? std::string("HA ONLINE")
+              : std::string("HA OFFLINE");
 
           text_color: !lambda |-
             return id(ui_model_data_available).state

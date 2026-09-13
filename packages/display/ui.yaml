@@ -4,8 +4,8 @@
 #
 # Defines pages and navigation that exist only on the Charger Controller.
 #
-# Dashboard, Rectifiers, Battery and System presentation are composed through
-# shared display packages.
+# Dashboard, Rectifiers, Battery, Cooling and System presentation are composed
+# through shared display packages.
 # ==============================================================================
 
 lvgl:
@@ -15,7 +15,6 @@ lvgl:
   # ---------------------------------------------------------------------------
 
   pages:
-    - !include pages/cooling.yaml
     - !include pages/trends.yaml
 
   # ---------------------------------------------------------------------------
@@ -24,24 +23,6 @@ lvgl:
 
   top_layer:
     widgets:
-
-      - button:
-          x: 538
-          y: 410
-          styles: style_nav_button
-
-          widgets:
-            - label:
-                align: CENTER
-                text: "Cooling"
-                text_font: montserrat_18
-
-          on_short_click:
-            - lambda: |-
-                id(rectifier_detail_unit) = 0;
-                id(ui_active_page) = 4;
-
-            - lvgl.page.show: page_cooling
 
       - button:
           x: 670
