@@ -470,6 +470,8 @@ Sampling uses:
 
 The chart time axis uses ten-minute divisions labeled from `-60 min` through `-10 min` and `now`.
 
+Combined DC current and average DC voltage share one dual-axis chart. Current uses the left Y axis in amperes and voltage uses the right Y axis in volts, while both series use the same sixty-minute time base.
+
 Invalid source values are preserved as gaps instead of being converted to artificial zero values.
 
 ---

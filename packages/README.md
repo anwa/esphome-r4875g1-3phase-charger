@@ -1072,10 +1072,11 @@ Five independent 360-sample ring buffers are maintained locally on each V6 targe
 The display runtime:
 
 - selects the active trend
-- reads the live value from the shared UI model
-- calculates current/minimum/maximum values
-- determines the dynamic Y-axis range
-- populates the LVGL series
+- reads live values from the shared UI model
+- combines DC current and DC voltage in one dual-axis chart
+- calculates current/minimum/maximum values independently for both DC I/V series
+- determines independent dynamic primary and secondary Y-axis ranges
+- populates one or two LVGL series depending on the active trend
 - renders unavailable samples as gaps
 
 Native LVGL chart support is enabled by `display/chart-support.yaml`; the helper declarations remain in:
