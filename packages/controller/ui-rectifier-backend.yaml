@@ -1,0 +1,155 @@
+# ==============================================================================
+# CHARGER CONTROLLER RECTIFIER UI BACKEND
+# ==============================================================================
+#
+# Publishes authoritative local state for one rectifier into the shared V6
+# rectifier UI model.
+#
+# Required variable:
+#   ui_unit -> rectifier unit number
+# ==============================================================================
+
+interval:
+
+  - interval: 500ms
+    then:
+      - lambda: |-
+          const bool connected =
+            id(can_com_ok_${ui_unit}).state;
+
+          const bool online =
+            connected &&
+            id(rectifier_control_state_${ui_unit}) ==
+              ${rectifier_state_online};
+
+          id(ui_model_rectifier_${ui_unit}_connected).publish_state(
+            connected
+          );
+
+          id(ui_model_rectifier_${ui_unit}_online).publish_state(
+            online
+          );
+
+          if (!connected) {
+            id(ui_model_rectifier_${ui_unit}_lifecycle).publish_state(
+              "OFFLINE"
+            );
+
+            id(ui_model_rectifier_${ui_unit}_power_state).publish_state("");
+            id(ui_model_rectifier_${ui_unit}_thermal_state).publish_state("");
+
+            id(ui_model_rectifier_${ui_unit}_ac_voltage).publish_state(NAN);
+            id(ui_model_rectifier_${ui_unit}_ac_current).publish_state(NAN);
+            id(ui_model_rectifier_${ui_unit}_ac_power).publish_state(NAN);
+            id(ui_model_rectifier_${ui_unit}_ac_frequency).publish_state(NAN);
+
+            id(ui_model_rectifier_${ui_unit}_dc_voltage).publish_state(NAN);
+            id(ui_model_rectifier_${ui_unit}_dc_current).publish_state(NAN);
+            id(ui_model_rectifier_${ui_unit}_dc_power).publish_state(NAN);
+            id(ui_model_rectifier_${ui_unit}_dc_current_setpoint).publish_state(
+              NAN
+            );
+
+            id(ui_model_rectifier_${ui_unit}_input_temperature).publish_state(
+              NAN
+            );
+
+            id(ui_model_rectifier_${ui_unit}_output_temperature).publish_state(
+              NAN
+            );
+
+            id(ui_model_rectifier_${ui_unit}_fan_rpm).publish_state(NAN);
+            id(ui_model_rectifier_${ui_unit}_fan_minimum_duty).publish_state(
+              NAN
+            );
+            id(ui_model_rectifier_${ui_unit}_fan_target_duty).publish_state(
+              NAN
+            );
+
+            id(ui_model_rectifier_${ui_unit}_max_current_capability).publish_state(
+              NAN
+            );
+
+            id(ui_model_rectifier_${ui_unit}_operating_hours).publish_state(
+              NAN
+            );
+
+            return;
+          }
+
+          id(ui_model_rectifier_${ui_unit}_lifecycle).publish_state(
+            id(rectifier_control_state_text_${ui_unit}).state
+          );
+
+          const std::string power_state =
+            id(power_state_${ui_unit}).state;
+
+          id(ui_model_rectifier_${ui_unit}_power_state).publish_state(
+            power_state == "UNKNOWN"
+              ? ""
+              : power_state
+          );
+
+          id(ui_model_rectifier_${ui_unit}_thermal_state).publish_state(
+            id(thermal_state_text_${ui_unit}).state
+          );
+
+          id(ui_model_rectifier_${ui_unit}_ac_voltage).publish_state(
+            id(ac_voltage_${ui_unit}).state
+          );
+
+          id(ui_model_rectifier_${ui_unit}_ac_current).publish_state(
+            id(ac_current_${ui_unit}).state
+          );
+
+          id(ui_model_rectifier_${ui_unit}_ac_power).publish_state(
+            id(ac_power_${ui_unit}).state
+          );
+
+          id(ui_model_rectifier_${ui_unit}_ac_frequency).publish_state(
+            id(ac_frequency_${ui_unit}).state
+          );
+
+          id(ui_model_rectifier_${ui_unit}_dc_voltage).publish_state(
+            id(dc_voltage_${ui_unit}).state
+          );
+
+          id(ui_model_rectifier_${ui_unit}_dc_current).publish_state(
+            id(dc_current_${ui_unit}).state
+          );
+
+          id(ui_model_rectifier_${ui_unit}_dc_power).publish_state(
+            id(dc_power_${ui_unit}).state
+          );
+
+          id(ui_model_rectifier_${ui_unit}_dc_current_setpoint).publish_state(
+            id(max_dc_current_setpoint_${ui_unit}).state
+          );
+
+          id(ui_model_rectifier_${ui_unit}_input_temperature).publish_state(
+            id(input_temperature_${ui_unit}).state
+          );
+
+          id(ui_model_rectifier_${ui_unit}_output_temperature).publish_state(
+            id(output_temperature_${ui_unit}).state
+          );
+
+          id(ui_model_rectifier_${ui_unit}_fan_rpm).publish_state(
+            id(fan_rpm_${ui_unit}).state
+          );
+
+          id(ui_model_rectifier_${ui_unit}_fan_minimum_duty).publish_state(
+            id(fan_duty_${ui_unit}).state
+          );
+
+          id(ui_model_rectifier_${ui_unit}_fan_target_duty).publish_state(
+            id(fan_duty_setpoint_${ui_unit}).state
+          );
+
+          id(ui_model_rectifier_${ui_unit}_max_current_capability).publish_state(
+            id(max_dc_current_${ui_unit}).state
+          );
+
+          id(ui_model_rectifier_${ui_unit}_operating_hours).publish_state(
+            id(operating_hours_${ui_unit}).state
+          );

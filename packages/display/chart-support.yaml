@@ -1,0 +1,23 @@
+# ==============================================================================
+# SHARED V6 LVGL CHART SUPPORT
+# ==============================================================================
+#
+# Enables the native LVGL chart API for both V6 HMI targets.
+#
+# The shared Trends runtime creates its chart directly through LVGL. The helper
+# header exposes the LVGL declarations to ESPHome-generated code, while the
+# build flag enables the chart widget in the LVGL configuration.
+#
+# ESPHome resolves esphome.includes paths relative to the root configuration
+# directory even when the include is declared by a package. trend_helpers.h
+# therefore remains at the repository root for local builds, and deploy-ha.ps1
+# preserves the same root-level location on the Home Assistant host.
+# ==============================================================================
+
+esphome:
+  includes:
+    - trend_helpers.h
+
+  platformio_options:
+    build_flags:
+      - -D LV_USE_CHART=1

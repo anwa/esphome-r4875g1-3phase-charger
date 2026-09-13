@@ -44,6 +44,20 @@ Depending on the task, also review:
 - `rules/documentation.md` for documentation changes
 - `rules/versioning.md` for firmware changes and releases
 
+## GitHub Access
+
+GitHub access by AI agents is read-only by default.
+
+Agents MUST NOT perform repository mutations through GitHub or a GitHub integration unless the user explicitly overrides this rule for the current task.
+
+All normal repository changes are prepared for the user's local working tree. The user performs commits, pushes, merges, tags and releases.
+
+The complete policy is defined in:
+
+```text
+rules/git-workflow.md
+```
+
 ## Rule Application
 
 Repository rules are normative for AI-assisted development unless the current task explicitly specifies otherwise.

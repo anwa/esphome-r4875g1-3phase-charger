@@ -1,0 +1,197 @@
+# ==============================================================================
+# R4875G1 REMOTE HMI - V6 TARGET
+# ==============================================================================
+#
+# Remote touchscreen interface for the R4875G1 three-phase charger.
+#
+# Hardware:
+#   - Waveshare ESP32-S3-Touch-LCD-7
+#   - ESP32-S3 N16R8
+#   - 7-inch 800x480 RGB display
+#   - GT911 capacitive touchscreen
+#   - CH422G onboard I/O expander
+#   - 1S local backup battery
+#
+# The Remote HMI has no direct connection to charger-side CAN or external
+# charger peripherals.
+#
+# Shared HMI pages consume authoritative charger state through Home Assistant
+# and the shared V6 UI model. HMI command requests are transported through Home
+# Assistant to the Charger Controller.
+#
+# Charger safety validation, command execution and resulting operational state
+# remain authoritative on the Charger Controller.
+# ==============================================================================
+
+substitutions:
+
+  # ---------------------------------------------------------------------------
+  # TARGET IDENTITY
+  # ---------------------------------------------------------------------------
+
+  fallback_ap_ssid: "Charger HMI Fallback"
+  diagnostics_device_label: "Remote HMI"
+
+
+  # ---------------------------------------------------------------------------
+  # PAIRED CHARGER
+  # ---------------------------------------------------------------------------
+  #
+  # Home Assistant entity prefix of the Charger Controller paired with this
+  # Remote HMI.
+  #
+  # Change only this value when pairing the HMI with another charger whose
+  # Home Assistant entities use a different prefix.
+  # ---------------------------------------------------------------------------
+
+  ha_charger_entity_prefix: "hg_dg_technik_charger"
+
+  # ---------------------------------------------------------------------------
+  # SHARED WAVESHARE GPIO MAP
+  # ---------------------------------------------------------------------------
+
+  pin_touch_irq: "GPIO4"
+  pin_i2c_sda: "GPIO8"
+  pin_i2c_scl: "GPIO9"
+  pin_battery_adc: "GPIO6"
+
+  # ---------------------------------------------------------------------------
+  # DISPLAY DEFAULTS
+  # ---------------------------------------------------------------------------
+
+  ui_local_battery_label: "HMI"
+  display_idle_timeout: "5min"
+
+# ==============================================================================
+# FIRMWARE PACKAGE ASSEMBLY
+# ==============================================================================
+#
+# Composes the shared platform, Home Assistant state/command backends and the
+# shared V6 Dashboard, Rectifiers, Battery, Cooling, System and Trends
+# presentation
+# used by the Remote HMI.
+# ==============================================================================
+
+packages:
+  version: !include packages/version.yaml
+  shared_ui_contract: !include packages/shared/ui-contract.yaml
+
+  shared_core: !include packages/shared/core.yaml
+  shared_local_diagnostics: !include packages/shared/local-diagnostics.yaml
+  shared_hardware: !include packages/shared/hardware.yaml
+  shared_ui_model: !include packages/shared/ui-model.yaml
+  shared_ui_rectifier_1: !include
+    file: packages/shared/ui-rectifier-unit.yaml
+    vars:
+      ui_unit: "1"
+
+  shared_ui_rectifier_2: !include
+    file: packages/shared/ui-rectifier-unit.yaml
+    vars:
+      ui_unit: "2"
+
+  shared_ui_rectifier_3: !include
+    file: packages/shared/ui-rectifier-unit.yaml
+    vars:
+      ui_unit: "3"
+
+  shared_battery_monitoring: !include packages/shared/battery-monitoring.yaml
+
+  remote_ha_entity_map: !include packages/remote-hmi/ha-entity-map.yaml
+  remote_ha_backend: !include packages/remote-hmi/ha-backend.yaml
+  remote_ui_commands: !include packages/remote-hmi/ui-commands.yaml
+
+  remote_rectifier_1_backend: !include
+    file: packages/remote-hmi/rectifier-backend.yaml
+    vars:
+      ui_unit: "1"
+      ha_rectifier_connected_entity: ${ha_rectifier_1_connected_entity}
+      ha_rectifier_lifecycle_entity: ${ha_rectifier_1_lifecycle_entity}
+      ha_rectifier_power_state_entity: ${ha_rectifier_1_power_state_entity}
+      ha_rectifier_thermal_state_entity: ${ha_rectifier_1_thermal_state_entity}
+      ha_rectifier_ac_voltage_entity: ${ha_rectifier_1_ac_voltage_entity}
+      ha_rectifier_ac_current_entity: ${ha_rectifier_1_ac_current_entity}
+      ha_rectifier_ac_power_entity: ${ha_rectifier_1_ac_power_entity}
+      ha_rectifier_ac_frequency_entity: ${ha_rectifier_1_ac_frequency_entity}
+      ha_rectifier_dc_voltage_entity: ${ha_rectifier_1_dc_voltage_entity}
+      ha_rectifier_dc_current_entity: ${ha_rectifier_1_dc_current_entity}
+      ha_rectifier_dc_power_entity: ${ha_rectifier_1_dc_power_entity}
+      ha_rectifier_dc_current_setpoint_entity: ${ha_rectifier_1_dc_current_setpoint_entity}
+      ha_rectifier_input_temperature_entity: ${ha_rectifier_1_input_temperature_entity}
+      ha_rectifier_output_temperature_entity: ${ha_rectifier_1_output_temperature_entity}
+      ha_rectifier_fan_rpm_entity: ${ha_rectifier_1_fan_rpm_entity}
+      ha_rectifier_fan_minimum_duty_entity: ${ha_rectifier_1_fan_minimum_duty_entity}
+      ha_rectifier_fan_target_duty_entity: ${ha_rectifier_1_fan_target_duty_entity}
+      ha_rectifier_max_current_capability_entity: ${ha_rectifier_1_max_current_capability_entity}
+      ha_rectifier_operating_hours_entity: ${ha_rectifier_1_operating_hours_entity}
+
+  remote_rectifier_2_backend: !include
+    file: packages/remote-hmi/rectifier-backend.yaml
+    vars:
+      ui_unit: "2"
+      ha_rectifier_connected_entity: ${ha_rectifier_2_connected_entity}
+      ha_rectifier_lifecycle_entity: ${ha_rectifier_2_lifecycle_entity}
+      ha_rectifier_power_state_entity: ${ha_rectifier_2_power_state_entity}
+      ha_rectifier_thermal_state_entity: ${ha_rectifier_2_thermal_state_entity}
+      ha_rectifier_ac_voltage_entity: ${ha_rectifier_2_ac_voltage_entity}
+      ha_rectifier_ac_current_entity: ${ha_rectifier_2_ac_current_entity}
+      ha_rectifier_ac_power_entity: ${ha_rectifier_2_ac_power_entity}
+      ha_rectifier_ac_frequency_entity: ${ha_rectifier_2_ac_frequency_entity}
+      ha_rectifier_dc_voltage_entity: ${ha_rectifier_2_dc_voltage_entity}
+      ha_rectifier_dc_current_entity: ${ha_rectifier_2_dc_current_entity}
+      ha_rectifier_dc_power_entity: ${ha_rectifier_2_dc_power_entity}
+      ha_rectifier_dc_current_setpoint_entity: ${ha_rectifier_2_dc_current_setpoint_entity}
+      ha_rectifier_input_temperature_entity: ${ha_rectifier_2_input_temperature_entity}
+      ha_rectifier_output_temperature_entity: ${ha_rectifier_2_output_temperature_entity}
+      ha_rectifier_fan_rpm_entity: ${ha_rectifier_2_fan_rpm_entity}
+      ha_rectifier_fan_minimum_duty_entity: ${ha_rectifier_2_fan_minimum_duty_entity}
+      ha_rectifier_fan_target_duty_entity: ${ha_rectifier_2_fan_target_duty_entity}
+      ha_rectifier_max_current_capability_entity: ${ha_rectifier_2_max_current_capability_entity}
+      ha_rectifier_operating_hours_entity: ${ha_rectifier_2_operating_hours_entity}
+
+  remote_rectifier_3_backend: !include
+    file: packages/remote-hmi/rectifier-backend.yaml
+    vars:
+      ui_unit: "3"
+      ha_rectifier_connected_entity: ${ha_rectifier_3_connected_entity}
+      ha_rectifier_lifecycle_entity: ${ha_rectifier_3_lifecycle_entity}
+      ha_rectifier_power_state_entity: ${ha_rectifier_3_power_state_entity}
+      ha_rectifier_thermal_state_entity: ${ha_rectifier_3_thermal_state_entity}
+      ha_rectifier_ac_voltage_entity: ${ha_rectifier_3_ac_voltage_entity}
+      ha_rectifier_ac_current_entity: ${ha_rectifier_3_ac_current_entity}
+      ha_rectifier_ac_power_entity: ${ha_rectifier_3_ac_power_entity}
+      ha_rectifier_ac_frequency_entity: ${ha_rectifier_3_ac_frequency_entity}
+      ha_rectifier_dc_voltage_entity: ${ha_rectifier_3_dc_voltage_entity}
+      ha_rectifier_dc_current_entity: ${ha_rectifier_3_dc_current_entity}
+      ha_rectifier_dc_power_entity: ${ha_rectifier_3_dc_power_entity}
+      ha_rectifier_dc_current_setpoint_entity: ${ha_rectifier_3_dc_current_setpoint_entity}
+      ha_rectifier_input_temperature_entity: ${ha_rectifier_3_input_temperature_entity}
+      ha_rectifier_output_temperature_entity: ${ha_rectifier_3_output_temperature_entity}
+      ha_rectifier_fan_rpm_entity: ${ha_rectifier_3_fan_rpm_entity}
+      ha_rectifier_fan_minimum_duty_entity: ${ha_rectifier_3_fan_minimum_duty_entity}
+      ha_rectifier_fan_target_duty_entity: ${ha_rectifier_3_fan_target_duty_entity}
+      ha_rectifier_max_current_capability_entity: ${ha_rectifier_3_max_current_capability_entity}
+      ha_rectifier_operating_hours_entity: ${ha_rectifier_3_operating_hours_entity}
+
+  display_shared_hmi: !include packages/display/shared-hmi.yaml
+  display_shared_dashboard: !include packages/display/shared-dashboard.yaml
+  display_shared_rectifiers: !include packages/display/shared-rectifiers.yaml
+  display_shared_battery: !include packages/display/shared-battery.yaml
+  display_shared_cooling: !include packages/display/shared-cooling.yaml
+  display_shared_system: !include packages/display/shared-system.yaml
+  display_shared_trends: !include packages/display/shared-trends.yaml
+  display_shared_navigation: !include packages/display/shared-navigation.yaml
+  remote_connection_status: !include packages/remote-hmi/connection-status.yaml
+
+# ==============================================================================
+# ESPHOME DEVICE IDENTITY
+# ==============================================================================
+
+esphome:
+  name: hg-dg-technik-charger-hmi
+  friendly_name: HG|DG|Technik|Charger HMI
+  min_version: 2026.8.2
+
+  project:
+    name: "anwa.r4875-remote-hmi"
+    version: "${firmware_version}"

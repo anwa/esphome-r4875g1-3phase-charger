@@ -1,0 +1,24 @@
+# ==============================================================================
+# CHARGER CONTROLLER MQTT
+# ==============================================================================
+#
+# Provides the Charger Controller's additional MQTT command and state transport
+# alongside the native ESPHome API.
+#
+# Home Assistant uses the native ESPHome API as the canonical integration.
+# MQTT availability must never affect local charger operation.
+# ==============================================================================
+
+mqtt:
+  id: mqtt_client
+  broker: !secret mqtt_host
+  username: !secret mqtt_username
+  password: !secret mqtt_password
+
+  # Prevent duplicate Home Assistant entities because the native ESPHome API is
+  # the canonical Home Assistant integration.
+  discovery: false
+  discover_ip: true
+
+  # MQTT availability must never affect local charger operation.
+  reboot_timeout: 0s

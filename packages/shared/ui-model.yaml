@@ -1,0 +1,250 @@
+# ==============================================================================
+# SHARED V6 UI MODEL
+# ==============================================================================
+#
+# Defines target-neutral charger state consumed by the shared LVGL interface.
+#
+# Target backends publish authoritative state into these internal entities.
+#
+# Charger Controller:
+#   local charger runtime -> Controller UI backend -> shared UI model
+#
+# Remote HMI:
+#   Home Assistant -> Remote HMI backend -> shared UI model
+#
+# Parameterized per-battery unit state is defined separately in
+# shared/ui-battery-unit.yaml.
+#
+# Shared display code must consume these model entities instead of accessing
+# target-specific transport or hardware state directly.
+# ==============================================================================
+
+# ==============================================================================
+# UI MODEL AVAILABILITY
+# ==============================================================================
+#
+# Indicates whether the active target backend currently provides valid charger
+# state to the shared UI model.
+#
+# The Charger Controller publishes this state from its local backend.
+# The Remote HMI publishes it only while Home Assistant is connected and the
+# required base charger entities have been received.
+# ==============================================================================
+
+binary_sensor:
+
+  - platform: template
+    id: ui_model_data_available
+    internal: true
+
+  # ---------------------------------------------------------------------------
+  # BATTERY BANK SOURCE
+  # ---------------------------------------------------------------------------
+
+  - platform: template
+    id: ui_model_battery_source_connected
+    internal: true
+
+  - platform: template
+    id: ui_model_battery_data_available
+    internal: true
+
+# ==============================================================================
+# DASHBOARD STATE
+# ==============================================================================
+#
+# Target-neutral AC, DC and charger-status values used by the shared Dashboard.
+#
+# Individual telemetry values may be unavailable independently. Backends
+# preserve unavailable values as NAN rather than converting them to zero.
+# ==============================================================================
+
+sensor:
+
+  # ---------------------------------------------------------------------------
+  # AC INPUT
+  # ---------------------------------------------------------------------------
+
+  - platform: template
+    id: ui_model_ac_power
+    internal: true
+    update_interval: never
+    unit_of_measurement: "kW"
+    accuracy_decimals: 3
+
+  - platform: template
+    id: ui_model_ac_voltage
+    internal: true
+    update_interval: never
+    unit_of_measurement: "V"
+    accuracy_decimals: 1
+
+  - platform: template
+    id: ui_model_ac_current
+    internal: true
+    update_interval: never
+    unit_of_measurement: "A"
+    accuracy_decimals: 1
+
+  - platform: template
+    id: ui_model_ac_current_limit
+    internal: true
+    update_interval: never
+    unit_of_measurement: "A"
+    accuracy_decimals: 1
+
+  # ---------------------------------------------------------------------------
+  # DC OUTPUT
+  # ---------------------------------------------------------------------------
+
+  - platform: template
+    id: ui_model_dc_power
+    internal: true
+    update_interval: never
+    unit_of_measurement: "kW"
+    accuracy_decimals: 3
+
+  - platform: template
+    id: ui_model_dc_voltage
+    internal: true
+    update_interval: never
+    unit_of_measurement: "V"
+    accuracy_decimals: 2
+
+  - platform: template
+    id: ui_model_dc_current
+    internal: true
+    update_interval: never
+    unit_of_measurement: "A"
+    accuracy_decimals: 1
+
+  - platform: template
+    id: ui_model_dc_voltage_limit
+    internal: true
+    update_interval: never
+    unit_of_measurement: "V"
+    accuracy_decimals: 1
+
+  - platform: template
+    id: ui_model_dc_sum_power
+    internal: true
+    update_interval: never
+    unit_of_measurement: "kW"
+    accuracy_decimals: 1
+
+  # ---------------------------------------------------------------------------
+  # FALLBACK SETPOINTS
+  # ---------------------------------------------------------------------------
+
+  - platform: template
+    id: ui_model_dc_voltage_limit_fallback
+    internal: true
+    update_interval: never
+    unit_of_measurement: "V"
+    accuracy_decimals: 1
+
+  - platform: template
+    id: ui_model_dc_current_limit_fallback
+    internal: true
+    update_interval: never
+    unit_of_measurement: "A"
+    accuracy_decimals: 1
+
+  # ---------------------------------------------------------------------------
+  # CHARGER STATUS
+  # ---------------------------------------------------------------------------
+
+  - platform: template
+    id: ui_model_available_units
+    internal: true
+    update_interval: never
+    accuracy_decimals: 0
+
+  - platform: template
+    id: ui_model_running_units
+    internal: true
+    update_interval: never
+    accuracy_decimals: 0
+
+  - platform: template
+    id: ui_model_highest_output_temperature
+    internal: true
+    update_interval: never
+    unit_of_measurement: "°C"
+    accuracy_decimals: 1
+
+  - platform: template
+    id: ui_model_conversion_efficiency
+    internal: true
+    update_interval: never
+    unit_of_measurement: "%"
+    accuracy_decimals: 1
+
+  # ---------------------------------------------------------------------------
+  # COOLING ENVIRONMENT
+  # ---------------------------------------------------------------------------
+
+  - platform: template
+    id: ui_model_cooling_compartment_temperature
+    internal: true
+    update_interval: never
+    unit_of_measurement: "°C"
+    accuracy_decimals: 1
+
+  - platform: template
+    id: ui_model_cooling_compartment_humidity
+    internal: true
+    update_interval: never
+    unit_of_measurement: "%"
+    accuracy_decimals: 1
+
+
+  # ---------------------------------------------------------------------------
+  # BATTERY BANK
+  # ---------------------------------------------------------------------------
+
+  - platform: template
+    id: ui_model_battery_soc
+    internal: true
+    update_interval: never
+    unit_of_measurement: "%"
+    accuracy_decimals: 1
+
+  - platform: template
+    id: ui_model_battery_power
+    internal: true
+    update_interval: never
+    unit_of_measurement: "kW"
+    accuracy_decimals: 3
+
+  - platform: template
+    id: ui_model_battery_voltage
+    internal: true
+    update_interval: never
+    unit_of_measurement: "V"
+    accuracy_decimals: 2
+
+  - platform: template
+    id: ui_model_battery_current
+    internal: true
+    update_interval: never
+    unit_of_measurement: "A"
+    accuracy_decimals: 1
+
+  - platform: template
+    id: ui_model_battery_temperature
+    internal: true
+    update_interval: never
+    unit_of_measurement: "°C"
+    accuracy_decimals: 1
+
+
+# ==============================================================================
+# BATTERY BANK TEXT STATE
+# ==============================================================================
+
+text_sensor:
+
+  - platform: template
+    id: ui_model_battery_state
+    internal: true

@@ -1,0 +1,15 @@
+# ==============================================================================
+# SHARED V6 SYSTEM PRESENTATION
+# ==============================================================================
+#
+# Defines the System page shared by the Charger Controller and Remote HMI
+# targets.
+#
+# Local target diagnostics are provided by shared local packages. Rectifier
+# state is rendered through the shared target-neutral UI model.
+# ==============================================================================
+
+lvgl:
+
+  pages:
+    - !include pages/system.yaml

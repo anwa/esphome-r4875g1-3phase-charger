@@ -1,0 +1,19 @@
+# ==============================================================================
+# SHARED V6 RECTIFIERS PRESENTATION
+# ==============================================================================
+#
+# Defines the Rectifiers Overview and Rectifier Detail pages shared by both V6
+# firmware targets.
+#
+# Shared bottom navigation is owned separately by display/shared-navigation.yaml.
+# ==============================================================================
+
+lvgl:
+
+  # ---------------------------------------------------------------------------
+  # RECTIFIER PAGES
+  # ---------------------------------------------------------------------------
+
+  pages:
+    - !include pages/rectifiers.yaml
+    - !include pages/rectifier-detail.yaml

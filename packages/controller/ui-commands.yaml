@@ -1,0 +1,257 @@
+# ==============================================================================
+# CHARGER CONTROLLER UI COMMAND BACKEND
+# ==============================================================================
+#
+# Implements the shared HMI command interface for the locally attached Charger
+# Controller.
+#
+# Shared HMI code expresses user intent through ui_command_* scripts. This
+# backend translates those requests into the existing authoritative local
+# control entities and preserves their validation, safety and CAN behavior.
+# ==============================================================================
+
+script:
+
+  # ---------------------------------------------------------------------------
+  # AC CURRENT LIMIT
+  # ---------------------------------------------------------------------------
+
+  - id: ui_command_set_ac_current_limit
+    parameters:
+      value: float
+
+    then:
+      - number.set:
+          id: set_ac_current_limit
+          value: !lambda |-
+            return value;
+
+  # ---------------------------------------------------------------------------
+  # DC SETPOINTS
+  # ---------------------------------------------------------------------------
+
+  - id: ui_command_set_dc_setpoints
+    parameters:
+      voltage: float
+      power: float
+
+    then:
+      - number.set:
+          id: set_dc_voltage_limit
+          value: !lambda |-
+            return voltage;
+
+      - number.set:
+          id: set_dc_sum_power
+          value: !lambda |-
+            return power;
+
+  # ---------------------------------------------------------------------------
+  # FALLBACK SETPOINTS
+  # ---------------------------------------------------------------------------
+
+  - id: ui_command_set_fallback_setpoints
+    parameters:
+      voltage: float
+      current: float
+
+    then:
+      - number.set:
+          id: set_dc_voltage_limit_fallback
+          value: !lambda |-
+            return voltage;
+
+      - number.set:
+          id: set_dc_current_limit_fallback
+          value: !lambda |-
+            return current;
+
+  # ---------------------------------------------------------------------------
+  # CHARGER START
+  # ---------------------------------------------------------------------------
+
+  - id: ui_command_charger_start
+
+    then:
+      - button.press: on_button_all
+
+  # ---------------------------------------------------------------------------
+  # CHARGER STOP
+  # ---------------------------------------------------------------------------
+
+  - id: ui_command_charger_stop
+
+    then:
+      - button.press: off_button_all
+
+  # ---------------------------------------------------------------------------
+  # RECTIFIER START
+  # ---------------------------------------------------------------------------
+
+  - id: ui_command_rectifier_start
+    parameters:
+      unit: int
+
+    then:
+      - if:
+          condition:
+            lambda: |-
+              return unit == 1;
+
+          then:
+            - button.press: on_button_1
+
+          else:
+            - if:
+                condition:
+                  lambda: |-
+                    return unit == 2;
+
+                then:
+                  - button.press: on_button_2
+
+                else:
+                  - if:
+                      condition:
+                        lambda: |-
+                          return unit == 3;
+
+                      then:
+                        - button.press: on_button_3
+
+                      else:
+                        - lambda: |-
+                            ESP_LOGW(
+                              "ui_command",
+                              "Invalid rectifier START unit: %d",
+                              unit
+                            );
+
+  # ---------------------------------------------------------------------------
+  # RECTIFIER STOP
+  # ---------------------------------------------------------------------------
+
+  - id: ui_command_rectifier_stop
+    parameters:
+      unit: int
+
+    then:
+      - if:
+          condition:
+            lambda: |-
+              return unit == 1;
+
+          then:
+            - button.press: off_button_1
+
+          else:
+            - if:
+                condition:
+                  lambda: |-
+                    return unit == 2;
+
+                then:
+                  - button.press: off_button_2
+
+                else:
+                  - if:
+                      condition:
+                        lambda: |-
+                          return unit == 3;
+
+                      then:
+                        - button.press: off_button_3
+
+                      else:
+                        - lambda: |-
+                            ESP_LOGW(
+                              "ui_command",
+                              "Invalid rectifier STOP unit: %d",
+                              unit
+                            );
+
+  # ---------------------------------------------------------------------------
+  # RECTIFIER FAN AUTO
+  # ---------------------------------------------------------------------------
+
+  - id: ui_command_rectifier_fan_auto
+    parameters:
+      unit: int
+
+    then:
+      - if:
+          condition:
+            lambda: |-
+              return unit == 1;
+
+          then:
+            - button.press: fan_auto_mode_button_1
+
+          else:
+            - if:
+                condition:
+                  lambda: |-
+                    return unit == 2;
+
+                then:
+                  - button.press: fan_auto_mode_button_2
+
+                else:
+                  - if:
+                      condition:
+                        lambda: |-
+                          return unit == 3;
+
+                      then:
+                        - button.press: fan_auto_mode_button_3
+
+                      else:
+                        - lambda: |-
+                            ESP_LOGW(
+                              "ui_command",
+                              "Invalid rectifier fan AUTO unit: %d",
+                              unit
+                            );
+
+  # ---------------------------------------------------------------------------
+  # RECTIFIER FAN FULL
+  # ---------------------------------------------------------------------------
+
+  - id: ui_command_rectifier_fan_full
+    parameters:
+      unit: int
+
+    then:
+      - if:
+          condition:
+            lambda: |-
+              return unit == 1;
+
+          then:
+            - button.press: fan_full_speed_button_1
+
+          else:
+            - if:
+                condition:
+                  lambda: |-
+                    return unit == 2;
+
+                then:
+                  - button.press: fan_full_speed_button_2
+
+                else:
+                  - if:
+                      condition:
+                        lambda: |-
+                          return unit == 3;
+
+                      then:
+                        - button.press: fan_full_speed_button_3
+
+                      else:
+                        - lambda: |-
+                            ESP_LOGW(
+                              "ui_command",
+                              "Invalid rectifier fan FULL unit: %d",
+                              unit
+                            );

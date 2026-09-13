@@ -1,0 +1,86 @@
+# ==============================================================================
+# CHARGER CONTROLLER UI BACKEND
+# ==============================================================================
+#
+# Publishes authoritative local Charger Controller state into the shared V6 UI
+# model.
+#
+# The shared LVGL implementation consumes only the UI-model entities and does
+# not need to know whether their values originate locally or through Home
+# Assistant on the Remote HMI target.
+# ==============================================================================
+
+interval:
+
+  - interval: 500ms
+    then:
+      - lambda: |-
+          id(ui_model_data_available).publish_state(true);
+
+          id(ui_model_ac_power).publish_state(
+            id(combined_ac_power).state
+          );
+
+          id(ui_model_ac_voltage).publish_state(
+            id(average_ac_voltage).state
+          );
+
+          id(ui_model_ac_current).publish_state(
+            id(average_ac_current).state
+          );
+
+          id(ui_model_ac_current_limit).publish_state(
+            id(set_ac_current_limit).state
+          );
+
+          id(ui_model_dc_power).publish_state(
+            id(combined_dc_power).state
+          );
+
+          id(ui_model_dc_voltage).publish_state(
+            id(average_dc_voltage).state
+          );
+
+          id(ui_model_dc_current).publish_state(
+            id(combined_dc_current).state
+          );
+
+          id(ui_model_dc_voltage_limit).publish_state(
+            id(set_dc_voltage_limit).state
+          );
+
+          id(ui_model_dc_sum_power).publish_state(
+            id(set_dc_sum_power).state
+          );
+
+          id(ui_model_dc_voltage_limit_fallback).publish_state(
+            id(set_dc_voltage_limit_fallback).state
+          );
+
+          id(ui_model_dc_current_limit_fallback).publish_state(
+            id(set_dc_current_limit_fallback).state
+          );
+
+          id(ui_model_available_units).publish_state(
+            id(available_units).state
+          );
+
+          id(ui_model_running_units).publish_state(
+            id(running_units).state
+          );
+
+          id(ui_model_highest_output_temperature).publish_state(
+            id(highest_output_temperature).state
+          );
+
+          id(ui_model_conversion_efficiency).publish_state(
+            id(conversion_efficiency).state
+          );
+
+          id(ui_model_cooling_compartment_temperature).publish_state(
+            id(rectifier_compartment_temperature).state
+          );
+
+          id(ui_model_cooling_compartment_humidity).publish_state(
+            id(rectifier_compartment_humidity).state
+          );

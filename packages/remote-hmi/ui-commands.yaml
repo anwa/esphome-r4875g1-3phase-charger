@@ -1,0 +1,410 @@
+# ==============================================================================
+# REMOTE HMI UI COMMAND BACKEND
+# ==============================================================================
+#
+# Implements the shared HMI command interface for the Remote HMI.
+#
+# Commands are transported through Home Assistant and target the authoritative
+# Charger Controller entities exposed by its native ESPHome integration.
+#
+# The Remote HMI does not perform charger safety validation or assume that a
+# requested command succeeded. Resulting state must return through Home
+# Assistant and the shared UI model.
+# ==============================================================================
+
+script:
+
+  # ---------------------------------------------------------------------------
+  # AC CURRENT LIMIT
+  # ---------------------------------------------------------------------------
+
+  - id: ui_command_set_ac_current_limit
+    parameters:
+      value: float
+
+    then:
+      - if:
+          condition:
+            lambda: |-
+              return id(ui_model_data_available).state;
+
+          then:
+            - homeassistant.action:
+                action: number.set_value
+                data:
+                  entity_id: ${ha_charger_ac_current_limit_entity}
+                  value: !lambda |-
+                    return to_string(value);
+
+          else:
+            - logger.log:
+                level: WARN
+                format: "Remote HMI AC current-limit command rejected because charger data is unavailable."
+
+  # ---------------------------------------------------------------------------
+  # DC SETPOINTS
+  # ---------------------------------------------------------------------------
+
+  - id: ui_command_set_dc_setpoints
+    parameters:
+      voltage: float
+      power: float
+
+    then:
+      - if:
+          condition:
+            lambda: |-
+              return id(ui_model_data_available).state;
+
+          then:
+            - homeassistant.action:
+                action: number.set_value
+                data:
+                  entity_id: ${ha_charger_dc_voltage_limit_entity}
+                  value: !lambda |-
+                    return to_string(voltage);
+
+            - homeassistant.action:
+                action: number.set_value
+                data:
+                  entity_id: ${ha_charger_dc_sum_power_entity}
+                  value: !lambda |-
+                    return to_string(power);
+
+          else:
+            - logger.log:
+                level: WARN
+                format: "Remote HMI DC setpoint command rejected because charger data is unavailable."
+
+  # ---------------------------------------------------------------------------
+  # FALLBACK SETPOINTS
+  # ---------------------------------------------------------------------------
+
+  - id: ui_command_set_fallback_setpoints
+    parameters:
+      voltage: float
+      current: float
+
+    then:
+      - if:
+          condition:
+            lambda: |-
+              return id(ui_model_data_available).state;
+
+          then:
+            - homeassistant.action:
+                action: number.set_value
+                data:
+                  entity_id: ${ha_charger_dc_voltage_limit_fallback_entity}
+                  value: !lambda |-
+                    return to_string(voltage);
+
+            - homeassistant.action:
+                action: number.set_value
+                data:
+                  entity_id: ${ha_charger_dc_current_limit_fallback_entity}
+                  value: !lambda |-
+                    return to_string(current);
+
+          else:
+            - logger.log:
+                level: WARN
+                format: "Remote HMI fallback setpoint command rejected because charger data is unavailable."
+
+  # ---------------------------------------------------------------------------
+  # CHARGER START
+  # ---------------------------------------------------------------------------
+
+  - id: ui_command_charger_start
+
+    then:
+      - if:
+          condition:
+            lambda: |-
+              return id(ui_model_data_available).state;
+
+          then:
+            - homeassistant.action:
+                action: button.press
+                data:
+                  entity_id: ${ha_charger_start_button_entity}
+
+          else:
+            - logger.log:
+                level: WARN
+                format: "Remote HMI charger START command rejected because charger data is unavailable."
+
+  # ---------------------------------------------------------------------------
+  # CHARGER STOP
+  # ---------------------------------------------------------------------------
+
+  - id: ui_command_charger_stop
+
+    then:
+      - if:
+          condition:
+            lambda: |-
+              return id(ui_model_data_available).state;
+
+          then:
+            - homeassistant.action:
+                action: button.press
+                data:
+                  entity_id: ${ha_charger_stop_button_entity}
+
+          else:
+            - logger.log:
+                level: WARN
+                format: "Remote HMI charger STOP command rejected because charger data is unavailable."
+
+  # ---------------------------------------------------------------------------
+  # RECTIFIER START
+  # ---------------------------------------------------------------------------
+
+  - id: ui_command_rectifier_start
+    parameters:
+      unit: int
+
+    then:
+      - if:
+          condition:
+            lambda: |-
+              return id(ui_model_data_available).state;
+
+          then:
+            - if:
+                condition:
+                  lambda: |-
+                    return unit == 1;
+
+                then:
+                  - homeassistant.action:
+                      action: button.press
+                      data:
+                        entity_id: ${ha_rectifier_1_start_button_entity}
+
+                else:
+                  - if:
+                      condition:
+                        lambda: |-
+                          return unit == 2;
+
+                      then:
+                        - homeassistant.action:
+                            action: button.press
+                            data:
+                              entity_id: ${ha_rectifier_2_start_button_entity}
+
+                      else:
+                        - if:
+                            condition:
+                              lambda: |-
+                                return unit == 3;
+
+                            then:
+                              - homeassistant.action:
+                                  action: button.press
+                                  data:
+                                    entity_id: ${ha_rectifier_3_start_button_entity}
+
+                            else:
+                              - lambda: |-
+                                  ESP_LOGW(
+                                    "ui_command",
+                                    "Invalid Remote HMI rectifier START unit: %d",
+                                    unit
+                                  );
+
+          else:
+            - logger.log:
+                level: WARN
+                format: "Remote HMI rectifier START command rejected because charger data is unavailable."
+
+  # ---------------------------------------------------------------------------
+  # RECTIFIER STOP
+  # ---------------------------------------------------------------------------
+
+  - id: ui_command_rectifier_stop
+    parameters:
+      unit: int
+
+    then:
+      - if:
+          condition:
+            lambda: |-
+              return id(ui_model_data_available).state;
+
+          then:
+            - if:
+                condition:
+                  lambda: |-
+                    return unit == 1;
+
+                then:
+                  - homeassistant.action:
+                      action: button.press
+                      data:
+                        entity_id: ${ha_rectifier_1_stop_button_entity}
+
+                else:
+                  - if:
+                      condition:
+                        lambda: |-
+                          return unit == 2;
+
+                      then:
+                        - homeassistant.action:
+                            action: button.press
+                            data:
+                              entity_id: ${ha_rectifier_2_stop_button_entity}
+
+                      else:
+                        - if:
+                            condition:
+                              lambda: |-
+                                return unit == 3;
+
+                            then:
+                              - homeassistant.action:
+                                  action: button.press
+                                  data:
+                                    entity_id: ${ha_rectifier_3_stop_button_entity}
+
+                            else:
+                              - lambda: |-
+                                  ESP_LOGW(
+                                    "ui_command",
+                                    "Invalid Remote HMI rectifier STOP unit: %d",
+                                    unit
+                                  );
+
+          else:
+            - logger.log:
+                level: WARN
+                format: "Remote HMI rectifier STOP command rejected because charger data is unavailable."
+
+  # ---------------------------------------------------------------------------
+  # RECTIFIER FAN AUTO
+  # ---------------------------------------------------------------------------
+
+  - id: ui_command_rectifier_fan_auto
+    parameters:
+      unit: int
+
+    then:
+      - if:
+          condition:
+            lambda: |-
+              return id(ui_model_data_available).state;
+
+          then:
+            - if:
+                condition:
+                  lambda: |-
+                    return unit == 1;
+
+                then:
+                  - homeassistant.action:
+                      action: button.press
+                      data:
+                        entity_id: ${ha_rectifier_1_fan_auto_button_entity}
+
+                else:
+                  - if:
+                      condition:
+                        lambda: |-
+                          return unit == 2;
+
+                      then:
+                        - homeassistant.action:
+                            action: button.press
+                            data:
+                              entity_id: ${ha_rectifier_2_fan_auto_button_entity}
+
+                      else:
+                        - if:
+                            condition:
+                              lambda: |-
+                                return unit == 3;
+
+                            then:
+                              - homeassistant.action:
+                                  action: button.press
+                                  data:
+                                    entity_id: ${ha_rectifier_3_fan_auto_button_entity}
+
+                            else:
+                              - lambda: |-
+                                  ESP_LOGW(
+                                    "ui_command",
+                                    "Invalid Remote HMI rectifier fan AUTO unit: %d",
+                                    unit
+                                  );
+
+          else:
+            - logger.log:
+                level: WARN
+                format: "Remote HMI rectifier fan AUTO command rejected because charger data is unavailable."
+
+  # ---------------------------------------------------------------------------
+  # RECTIFIER FAN FULL
+  # ---------------------------------------------------------------------------
+
+  - id: ui_command_rectifier_fan_full
+    parameters:
+      unit: int
+
+    then:
+      - if:
+          condition:
+            lambda: |-
+              return id(ui_model_data_available).state;
+
+          then:
+            - if:
+                condition:
+                  lambda: |-
+                    return unit == 1;
+
+                then:
+                  - homeassistant.action:
+                      action: button.press
+                      data:
+                        entity_id: ${ha_rectifier_1_fan_full_button_entity}
+
+                else:
+                  - if:
+                      condition:
+                        lambda: |-
+                          return unit == 2;
+
+                      then:
+                        - homeassistant.action:
+                            action: button.press
+                            data:
+                              entity_id: ${ha_rectifier_2_fan_full_button_entity}
+
+                      else:
+                        - if:
+                            condition:
+                              lambda: |-
+                                return unit == 3;
+
+                            then:
+                              - homeassistant.action:
+                                  action: button.press
+                                  data:
+                                    entity_id: ${ha_rectifier_3_fan_full_button_entity}
+
+                            else:
+                              - lambda: |-
+                                  ESP_LOGW(
+                                    "ui_command",
+                                    "Invalid Remote HMI rectifier fan FULL unit: %d",
+                                    unit
+                                  );
+
+          else:
+            - logger.log:
+                level: WARN
+                format: "Remote HMI rectifier fan FULL command rejected because charger data is unavailable."

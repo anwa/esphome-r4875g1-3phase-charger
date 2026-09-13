@@ -1,16 +1,17 @@
 # ==============================================================================
-# V5 TRENDS RUNTIME
+# SHARED V6 TRENDS RUNTIME
 # ==============================================================================
 #
 # Native LVGL chart support for the Trends page.
 #
+# Current values are consumed through the target-neutral shared UI model.
+# Trend acquisition and the five 120-sample ring buffers are owned by:
+#   display/trend-state.yaml
+#
 # The page itself is defined in:
 #   display/pages/trends.yaml
 #
-# Trend acquisition and the five 120-sample ring buffers remain in:
-#   rectifier-shared.yaml
-#
-# trend_helpers.h exposes the native LVGL chart API.
+# Shared native chart support is enabled by display/chart-support.yaml.
 # ==============================================================================
 
 script:
@@ -127,7 +128,7 @@ script:
 
             ESP_LOGI(
               "trend",
-              "V5 native LVGL trend chart created with %u points.",
+              "V6 native LVGL trend chart created with %u points.",
               TREND_POINTS
             );
           }
@@ -169,7 +170,7 @@ script:
               minimum_span = 1.0f;
               zero_floor = true;
               decimals = 2;
-              current = id(combined_dc_power).state;
+              current = id(ui_model_dc_power).state;
               break;
 
             case 1:
@@ -180,7 +181,7 @@ script:
               minimum_span = 10.0f;
               zero_floor = true;
               decimals = 1;
-              current = id(combined_dc_current).state;
+              current = id(ui_model_dc_current).state;
               break;
 
             case 2:
@@ -191,7 +192,7 @@ script:
               minimum_span = 1.0f;
               zero_floor = false;
               decimals = 1;
-              current = id(average_dc_voltage).state;
+              current = id(ui_model_dc_voltage).state;
               break;
 
             case 3:
@@ -202,7 +203,7 @@ script:
               minimum_span = 10.0f;
               zero_floor = true;
               decimals = 1;
-              current = id(highest_output_temperature).state;
+              current = id(ui_model_highest_output_temperature).state;
               break;
 
             case 4:
@@ -214,7 +215,7 @@ script:
               zero_floor = true;
               decimals = 1;
               current =
-                id(rectifier_compartment_temperature).state;
+                id(ui_model_cooling_compartment_temperature).state;
               break;
 
             default:
@@ -273,7 +274,7 @@ script:
 
             current_text =
               str_sprintf(
-                "%.2f %s",
+                "%.1f %s",
                 current,
                 unit
               );
@@ -556,7 +557,7 @@ script:
 
             minimum_text =
               str_sprintf(
-                "%.2f %s",
+                "%.1f %s",
                 minimum,
                 unit
               );
@@ -580,7 +581,7 @@ script:
 
             maximum_text =
               str_sprintf(
-                "%.2f %s",
+                "%.1f %s",
                 maximum,
                 unit
               );

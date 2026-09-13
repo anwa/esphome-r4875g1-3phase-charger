@@ -1,0 +1,15 @@
+# ==============================================================================
+# SHARED V6 COOLING DISPLAY PACKAGE
+# ==============================================================================
+#
+# Composes the Cooling page presentation and runtime shared by the Charger
+# Controller and Remote HMI targets.
+#
+# Cooling state is consumed exclusively through the shared UI model. Internal
+# rectifier fan-mode requests use the target-neutral ui_command_* boundary.
+# ==============================================================================
+
+packages:
+
+  display_cooling_ui: !include cooling-ui.yaml
+  display_cooling_runtime: !include cooling.yaml

@@ -1,0 +1,109 @@
+# ==============================================================================
+# SHARED V6 TREND HISTORY STATE
+# ==============================================================================
+#
+# Owns the local 10-minute trend history used by the V6 HMI.
+#
+# Each firmware target records its own history from the target-neutral UI model.
+# The Charger Controller therefore remains independent from Home Assistant,
+# while the Remote HMI records the authoritative state it receives through its
+# existing backend.
+#
+# Five 120-sample ring buffers are sampled every five seconds:
+#   0 = DC Power [kW]
+#   1 = DC Current [A]
+#   2 = DC Voltage [V]
+#   3 = Highest Rectifier Output Temperature [C]
+#   4 = Rectifier Compartment Temperature [C]
+#
+# NAN values are retained so unavailable or disconnected telemetry is rendered
+# as a chart gap instead of an artificial zero.
+# ==============================================================================
+
+globals:
+
+  - id: trend_selection
+    type: int
+    restore_value: false
+    initial_value: "0"
+
+  - id: trend_buffer_dc_power
+    type: std::vector<float>
+    restore_value: false
+    initial_value: "std::vector<float>(120, NAN)"
+
+  - id: trend_buffer_dc_current
+    type: std::vector<float>
+    restore_value: false
+    initial_value: "std::vector<float>(120, NAN)"
+
+  - id: trend_buffer_dc_voltage
+    type: std::vector<float>
+    restore_value: false
+    initial_value: "std::vector<float>(120, NAN)"
+
+  - id: trend_buffer_output_temp
+    type: std::vector<float>
+    restore_value: false
+    initial_value: "std::vector<float>(120, NAN)"
+
+  - id: trend_buffer_compartment_temp
+    type: std::vector<float>
+    restore_value: false
+    initial_value: "std::vector<float>(120, NAN)"
+
+  # Index receiving the next five-second sample.
+  - id: trend_write_index
+    type: uint16_t
+    restore_value: false
+    initial_value: "0"
+
+  # Number of samples that have actually been recorded.
+  # Saturates at 120 once the ring buffer is full.
+  - id: trend_sample_count
+    type: uint16_t
+    restore_value: false
+    initial_value: "0"
+
+interval:
+
+  # ---------------------------------------------------------------------------
+  # TREND SAMPLING
+  # ---------------------------------------------------------------------------
+  #
+  # Store one sample for all five local HMI trends every five seconds.
+  #
+  # Target backends already preserve unavailable state as NAN. Retaining those
+  # values in the history keeps connection loss and missing telemetry visible
+  # as gaps in the eventual chart.
+  # ---------------------------------------------------------------------------
+
+  - interval: 5s
+    then:
+      - lambda: |-
+          constexpr uint16_t TREND_POINTS = 120;
+
+          const uint16_t index =
+            id(trend_write_index);
+
+          id(trend_buffer_dc_power)[index] =
+            id(ui_model_dc_power).state;
+
+          id(trend_buffer_dc_current)[index] =
+            id(ui_model_dc_current).state;
+
+          id(trend_buffer_dc_voltage)[index] =
+            id(ui_model_dc_voltage).state;
+
+          id(trend_buffer_output_temp)[index] =
+            id(ui_model_highest_output_temperature).state;
+
+          id(trend_buffer_compartment_temp)[index] =
+            id(ui_model_cooling_compartment_temperature).state;
+
+          id(trend_write_index) =
+            (index + 1) % TREND_POINTS;
+
+          if (id(trend_sample_count) < TREND_POINTS) {
+            id(trend_sample_count)++;
+          }

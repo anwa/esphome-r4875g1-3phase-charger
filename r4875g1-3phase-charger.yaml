@@ -1,5 +1,5 @@
 # ==============================================================================
-# R4875G1 THREE-PHASE CHARGER - V5 HARDWARE
+# R4875G1 THREE-PHASE CHARGER - V6 CONTROLLER HARDWARE
 # ==============================================================================
 #
 # Target controller:
@@ -29,7 +29,7 @@
 #   - 1S lithium controller backup battery on J3
 #   - battery-voltage measurement through TP1 / J8 AD / GPIO6
 #
-# The V5 firmware retains the proven three-rectifier CAN control architecture
+# The V6 Charger Controller retains the proven three-rectifier CAN control architecture
 # while using the Waveshare display controller as the local standalone UI.
 # ==============================================================================
 
@@ -113,9 +113,11 @@ substitutions:
   # ---------------------------------------------------------------------------
 
   mqtt_command_prefix: "HG/DG/Technik/Charger"
+  fallback_ap_ssid: "Charger Fallback Hotspot"
+  diagnostics_device_label: "Controller"
 
   # ---------------------------------------------------------------------------
-  # V5 ACTIVE GPIO MAP
+  # V6 CHARGER CONTROLLER GPIO MAP
   # ---------------------------------------------------------------------------
 
   pin_touch_irq: "GPIO4"
@@ -139,6 +141,7 @@ substitutions:
   # DISPLAY DEFAULTS
   # ---------------------------------------------------------------------------
 
+  ui_local_battery_label: "CTRL"
   display_idle_timeout: "5min"
 
   # ---------------------------------------------------------------------------
@@ -168,8 +171,6 @@ substitutions:
 
   minimum_dc_current_a: "1.0"
 
-  dc_voltage_min_v: "49.0"
-  dc_voltage_max_v: "58.0"
   dc_voltage_default_v: "53.0"
 
   # ---------------------------------------------------------------------------
@@ -271,15 +272,54 @@ substitutions:
 # FIRMWARE PACKAGE ASSEMBLY
 # ==============================================================================
 #
-# Assembles the shared controller packages and instantiates the parameterized
-# rectifier package once for each of the three charger units.
+# Composes shared board hardware, Charger Controller hardware and the charger
+# runtime packages, then instantiates one rectifier package per charger unit.
 # ==============================================================================
 
 packages:
   version: !include packages/version.yaml
-  core: !include packages/core.yaml
-  hardware: !include packages/hardware.yaml
-  battery_bank: !include packages/battery-bank.yaml
+  shared_ui_contract: !include packages/shared/ui-contract.yaml
+
+  shared_core: !include packages/shared/core.yaml
+  shared_local_diagnostics: !include packages/shared/local-diagnostics.yaml
+  shared_hardware: !include packages/shared/hardware.yaml
+  shared_ui_model: !include packages/shared/ui-model.yaml
+  shared_ui_rectifier_1: !include
+    file: packages/shared/ui-rectifier-unit.yaml
+    vars:
+      ui_unit: "1"
+
+  shared_ui_rectifier_2: !include
+    file: packages/shared/ui-rectifier-unit.yaml
+    vars:
+      ui_unit: "2"
+
+  shared_ui_rectifier_3: !include
+    file: packages/shared/ui-rectifier-unit.yaml
+    vars:
+      ui_unit: "3"
+
+  shared_battery_monitoring: !include packages/shared/battery-monitoring.yaml
+
+  controller_hardware: !include packages/controller/hardware.yaml
+  controller_mqtt: !include packages/controller/mqtt.yaml
+  controller_ui_backend: !include packages/controller/ui-backend.yaml
+  controller_ui_rectifier_1: !include
+    file: packages/controller/ui-rectifier-backend.yaml
+    vars:
+      ui_unit: "1"
+
+  controller_ui_rectifier_2: !include
+    file: packages/controller/ui-rectifier-backend.yaml
+    vars:
+      ui_unit: "2"
+
+  controller_ui_rectifier_3: !include
+    file: packages/controller/ui-rectifier-backend.yaml
+    vars:
+      ui_unit: "3"
+  controller_ui_commands: !include packages/controller/ui-commands.yaml
+
   cooling: !include packages/cooling.yaml
   display: !include packages/display.yaml
 
@@ -317,13 +357,6 @@ esphome:
   project:
     name: "anwa.r4875-charger"
     version: "${firmware_version}"
-
-  includes:
-    - trend_helpers.h
-
-  platformio_options:
-    build_flags:
-      - -D LV_USE_CHART=1
 
   on_boot:
     then:
@@ -366,85 +399,12 @@ esphome:
 # PROJECT-WIDE / AGGREGATE SENSORS
 # ==============================================================================
 #
-# Controller diagnostics, shared compartment/environment measurements and
-# charger-wide aggregate telemetry that do not belong to one parameterized
-# rectifier instance.
+# Controller-only compartment/environment measurements and charger-wide
+# aggregate telemetry that do not belong to one parameterized rectifier
+# instance.
 # ==============================================================================
 
 sensor:
-
-  # ---------------------------------------------------------------------------
-  # ESPHOME RUNTIME DIAGNOSTICS
-  # ---------------------------------------------------------------------------
-
-  - platform: debug
-    free:
-      name: "Heap Free"
-      id: debug_heap_free
-      entity_category: diagnostic
-      icon: "mdi:memory"
-
-    block:
-      name: "Heap Max Block"
-      id: debug_heap_max_block
-      entity_category: diagnostic
-      icon: "mdi:memory"
-
-    loop_time:
-      name: "Loop Time"
-      id: debug_loop_time
-      entity_category: diagnostic
-      icon: "mdi:timer-outline"
-
-    psram:
-      name: "Free PSRAM"
-      id: debug_free_psram
-      entity_category: diagnostic
-      icon: "mdi:memory"
-
-    cpu_frequency:
-      name: "CPU Frequency"
-      id: debug_cpu_frequency
-      entity_category: diagnostic
-      icon: "mdi:speedometer"
-
-  # ---------------------------------------------------------------------------
-  # CONTROLLER CPU TEMPERATURE
-  # ---------------------------------------------------------------------------
-
-  - platform: internal_temperature
-    name: "Controller CPU Temperature"
-    id: cpu_temp
-    device_class: temperature
-    state_class: measurement
-    entity_category: diagnostic
-    accuracy_decimals: 1
-    update_interval: 10s
-    icon: "mdi:thermometer"
-
-  # ---------------------------------------------------------------------------
-  # CONTROLLER UPTIME
-  # ---------------------------------------------------------------------------
-
-  - platform: uptime
-    type: seconds
-    name: "Uptime"
-    id: debug_uptime
-    entity_category: diagnostic
-    icon: "mdi:timer-outline"
-
-  # ---------------------------------------------------------------------------
-  # WI-FI RSSI
-  # ---------------------------------------------------------------------------
-
-  - platform: wifi_signal
-    name: "WiFi RSSI"
-    id: wifi_sig
-    unit_of_measurement: "dBm"
-    device_class: signal_strength
-    entity_category: diagnostic
-    update_interval: 10s
-    icon: "mdi:wifi"
 
   # ---------------------------------------------------------------------------
   # RECTIFIER COMPARTMENT TEMPERATURE AND HUMIDITY
@@ -1037,46 +997,3 @@ binary_sensor:
     device_class: problem
     entity_category: diagnostic
     icon: "mdi:alert-circle-outline"
-
-# ==============================================================================
-# PROJECT-WIDE TEXT / STATUS SENSORS
-# ==============================================================================
-#
-# Network and controller diagnostics shared by the assembled device.
-# ==============================================================================
-
-text_sensor:
-
-  # ---------------------------------------------------------------------------
-  # NETWORK INFORMATION
-  # ---------------------------------------------------------------------------
-
-  - platform: wifi_info
-    ip_address:
-      id: ip_address
-      entity_category: diagnostic
-
-  # ---------------------------------------------------------------------------
-  # ESPHOME VERSION
-  # ---------------------------------------------------------------------------
-
-  - platform: version
-    name: "ESPHome Version"
-    entity_category: diagnostic
-
-    icon: "mdi:code-tags"
-
-  # ---------------------------------------------------------------------------
-  # DEVICE AND RESET DIAGNOSTICS
-  # ---------------------------------------------------------------------------
-
-  - platform: debug
-    device:
-      name: "Device Info"
-      entity_category: diagnostic
-      icon: "mdi:information-outline"
-
-    reset_reason:
-      name: "Reset Reason"
-      entity_category: diagnostic
-      icon: "mdi:restart-alert"

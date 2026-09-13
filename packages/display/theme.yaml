@@ -1,8 +1,8 @@
 # ==============================================================================
-# V5 LVGL THEME
+# SHARED LVGL THEME
 # ==============================================================================
 #
-# Shared visual styles used across all charger pages.
+# Shared visual styles used by the Charger Controller and Remote HMI.
 # ==============================================================================
 
 lvgl:

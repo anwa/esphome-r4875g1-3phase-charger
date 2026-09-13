@@ -1,0 +1,289 @@
+# ==============================================================================
+# REMOTE HMI HOME ASSISTANT BACKEND
+# ==============================================================================
+#
+# Imports authoritative Charger Controller state from Home Assistant and
+# publishes it into the shared V6 UI model.
+#
+# Imported Home Assistant entities remain internal to the Remote HMI. Shared
+# LVGL code consumes only the target-neutral ui_model_* entities.
+#
+# Charger state is invalidated when the Home Assistant state-subscription
+# connection is unavailable so stale values cannot appear as live telemetry.
+# ==============================================================================
+
+globals:
+
+  # ---------------------------------------------------------------------------
+  # SOURCE-STATE FRESHNESS
+  # ---------------------------------------------------------------------------
+  #
+  # Available Units and Running Units are the minimum base state required to
+  # consider the Charger Controller data path usable.
+  # ---------------------------------------------------------------------------
+
+  - id: remote_ha_available_units_received
+    type: bool
+    restore_value: false
+    initial_value: "false"
+
+  - id: remote_ha_running_units_received
+    type: bool
+    restore_value: false
+    initial_value: "false"
+
+# ==============================================================================
+# HOME ASSISTANT CHARGER STATE
+# ==============================================================================
+
+sensor:
+
+  # ---------------------------------------------------------------------------
+  # AC INPUT
+  # ---------------------------------------------------------------------------
+
+  - platform: homeassistant
+    id: remote_ha_ac_power
+    entity_id: ${ha_charger_ac_power_entity}
+    internal: true
+    on_value:
+      then:
+        - lambda: |-
+            id(ui_model_ac_power).publish_state(x);
+
+  - platform: homeassistant
+    id: remote_ha_ac_voltage
+    entity_id: ${ha_charger_ac_voltage_entity}
+    internal: true
+    on_value:
+      then:
+        - lambda: |-
+            id(ui_model_ac_voltage).publish_state(x);
+
+  - platform: homeassistant
+    id: remote_ha_ac_current
+    entity_id: ${ha_charger_ac_current_entity}
+    internal: true
+    on_value:
+      then:
+        - lambda: |-
+            id(ui_model_ac_current).publish_state(x);
+
+  - platform: homeassistant
+    id: remote_ha_ac_current_limit
+    entity_id: ${ha_charger_ac_current_limit_entity}
+    internal: true
+    on_value:
+      then:
+        - lambda: |-
+            id(ui_model_ac_current_limit).publish_state(x);
+
+  # ---------------------------------------------------------------------------
+  # DC OUTPUT
+  # ---------------------------------------------------------------------------
+
+  - platform: homeassistant
+    id: remote_ha_dc_power
+    entity_id: ${ha_charger_dc_power_entity}
+    internal: true
+    on_value:
+      then:
+        - lambda: |-
+            id(ui_model_dc_power).publish_state(x);
+
+  - platform: homeassistant
+    id: remote_ha_dc_voltage
+    entity_id: ${ha_charger_dc_voltage_entity}
+    internal: true
+    on_value:
+      then:
+        - lambda: |-
+            id(ui_model_dc_voltage).publish_state(x);
+
+  - platform: homeassistant
+    id: remote_ha_dc_current
+    entity_id: ${ha_charger_dc_current_entity}
+    internal: true
+    on_value:
+      then:
+        - lambda: |-
+            id(ui_model_dc_current).publish_state(x);
+
+  - platform: homeassistant
+    id: remote_ha_dc_voltage_limit
+    entity_id: ${ha_charger_dc_voltage_limit_entity}
+    internal: true
+    on_value:
+      then:
+        - lambda: |-
+            id(ui_model_dc_voltage_limit).publish_state(x);
+
+  - platform: homeassistant
+    id: remote_ha_dc_sum_power
+    entity_id: ${ha_charger_dc_sum_power_entity}
+    internal: true
+    on_value:
+      then:
+        - lambda: |-
+            id(ui_model_dc_sum_power).publish_state(x);
+
+  # ---------------------------------------------------------------------------
+  # FALLBACK SETPOINTS
+  # ---------------------------------------------------------------------------
+
+  - platform: homeassistant
+    id: remote_ha_dc_voltage_limit_fallback
+    entity_id: ${ha_charger_dc_voltage_limit_fallback_entity}
+    internal: true
+    on_value:
+      then:
+        - lambda: |-
+            id(ui_model_dc_voltage_limit_fallback).publish_state(x);
+
+  - platform: homeassistant
+    id: remote_ha_dc_current_limit_fallback
+    entity_id: ${ha_charger_dc_current_limit_fallback_entity}
+    internal: true
+    on_value:
+      then:
+        - lambda: |-
+            id(ui_model_dc_current_limit_fallback).publish_state(x);
+
+  # ---------------------------------------------------------------------------
+  # CHARGER STATUS
+  # ---------------------------------------------------------------------------
+
+  - platform: homeassistant
+    id: remote_ha_available_units
+    entity_id: ${ha_charger_available_units_entity}
+    internal: true
+
+    on_value:
+      then:
+        - lambda: |-
+            if (isnan(x)) {
+              id(remote_ha_available_units_received) = false;
+              id(ui_model_available_units).publish_state(NAN);
+              return;
+            }
+
+            id(remote_ha_available_units_received) = true;
+            id(ui_model_available_units).publish_state(x);
+
+  - platform: homeassistant
+    id: remote_ha_running_units
+    entity_id: ${ha_charger_running_units_entity}
+    internal: true
+
+    on_value:
+      then:
+        - lambda: |-
+            if (isnan(x)) {
+              id(remote_ha_running_units_received) = false;
+              id(ui_model_running_units).publish_state(NAN);
+              return;
+            }
+
+            id(remote_ha_running_units_received) = true;
+            id(ui_model_running_units).publish_state(x);
+
+  - platform: homeassistant
+    id: remote_ha_highest_output_temperature
+    entity_id: ${ha_charger_highest_output_temperature_entity}
+    internal: true
+    on_value:
+      then:
+        - lambda: |-
+            id(ui_model_highest_output_temperature).publish_state(x);
+
+  - platform: homeassistant
+    id: remote_ha_conversion_efficiency
+    entity_id: ${ha_charger_conversion_efficiency_entity}
+    internal: true
+    on_value:
+      then:
+        - lambda: |-
+            id(ui_model_conversion_efficiency).publish_state(x);
+
+  # ---------------------------------------------------------------------------
+  # COOLING ENVIRONMENT
+  # ---------------------------------------------------------------------------
+
+  - platform: homeassistant
+    id: remote_ha_cooling_compartment_temperature
+    entity_id: ${ha_cooling_compartment_temperature_entity}
+    internal: true
+    on_value:
+      then:
+        - lambda: |-
+            id(ui_model_cooling_compartment_temperature).publish_state(x);
+
+  - platform: homeassistant
+    id: remote_ha_cooling_compartment_humidity
+    entity_id: ${ha_cooling_compartment_humidity_entity}
+    internal: true
+    on_value:
+      then:
+        - lambda: |-
+            id(ui_model_cooling_compartment_humidity).publish_state(x);
+
+# ==============================================================================
+# BACKEND AVAILABILITY
+# ==============================================================================
+#
+# A state-subscription connection is required so logger-only API connections
+# cannot make charger telemetry appear available.
+#
+# Available Units and Running Units form the minimum required base state.
+# Other Dashboard telemetry may independently remain unavailable and is
+# represented as NAN in the shared UI model.
+#
+# After a disconnect, the complete charger-side UI model is invalidated.
+# ==============================================================================
+
+interval:
+
+  - interval: 1s
+    then:
+      - lambda: |-
+          const bool ha_connected =
+            id(native_api).is_connected_with_state_subscription();
+
+          if (!ha_connected) {
+            id(remote_ha_available_units_received) = false;
+            id(remote_ha_running_units_received) = false;
+
+            id(ui_model_data_available).publish_state(false);
+
+            id(ui_model_ac_power).publish_state(NAN);
+            id(ui_model_ac_voltage).publish_state(NAN);
+            id(ui_model_ac_current).publish_state(NAN);
+            id(ui_model_ac_current_limit).publish_state(NAN);
+
+            id(ui_model_dc_power).publish_state(NAN);
+            id(ui_model_dc_voltage).publish_state(NAN);
+            id(ui_model_dc_current).publish_state(NAN);
+            id(ui_model_dc_voltage_limit).publish_state(NAN);
+            id(ui_model_dc_sum_power).publish_state(NAN);
+
+            id(ui_model_dc_voltage_limit_fallback).publish_state(NAN);
+            id(ui_model_dc_current_limit_fallback).publish_state(NAN);
+
+            id(ui_model_available_units).publish_state(NAN);
+            id(ui_model_running_units).publish_state(NAN);
+            id(ui_model_highest_output_temperature).publish_state(NAN);
+            id(ui_model_conversion_efficiency).publish_state(NAN);
+
+            id(ui_model_cooling_compartment_temperature).publish_state(NAN);
+            id(ui_model_cooling_compartment_humidity).publish_state(NAN);
+
+            return;
+          }
+
+          const bool data_available =
+            id(remote_ha_available_units_received) &&
+            id(remote_ha_running_units_received);
+
+          id(ui_model_data_available).publish_state(
+            data_available
+          );

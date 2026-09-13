@@ -1,0 +1,180 @@
+# ==============================================================================
+# REMOTE HMI HOME ASSISTANT ENTITY MAP
+# ==============================================================================
+#
+# Derives the Home Assistant entities of the paired Charger Controller from one
+# installation-specific entity prefix.
+#
+# The prefix normally matches the Home Assistant entity prefix generated for
+# the Charger Controller ESPHome node.
+#
+# Example:
+#
+#   Charger Controller ESPHome name:
+#     charger-garage
+#
+#   Default Home Assistant entity prefix:
+#     charger_garage
+#
+#   Remote HMI setting:
+#     ha_charger_entity_prefix: "charger_garage"
+#
+# Home Assistant entity IDs can remain unchanged after a device is renamed.
+# Therefore the configured prefix must match the actual entity IDs in Home
+# Assistant rather than being inferred at runtime.
+# ==============================================================================
+
+substitutions:
+
+  # ---------------------------------------------------------------------------
+  # AC INPUT
+  # ---------------------------------------------------------------------------
+
+  ha_charger_ac_power_entity: "sensor.${ha_charger_entity_prefix}_combined_ac_power_all_units"
+  ha_charger_ac_voltage_entity: "sensor.${ha_charger_entity_prefix}_average_ac_voltage_all_units"
+  ha_charger_ac_current_entity: "sensor.${ha_charger_entity_prefix}_average_ac_current_all_units"
+  ha_charger_ac_current_limit_entity: "number.${ha_charger_entity_prefix}_set_ac_current_limit"
+
+  # ---------------------------------------------------------------------------
+  # DC OUTPUT
+  # ---------------------------------------------------------------------------
+
+  ha_charger_dc_power_entity: "sensor.${ha_charger_entity_prefix}_combined_dc_power_all_units"
+  ha_charger_dc_voltage_entity: "sensor.${ha_charger_entity_prefix}_average_dc_voltage_all_units"
+  ha_charger_dc_current_entity: "sensor.${ha_charger_entity_prefix}_combined_dc_current_all_units"
+  ha_charger_dc_voltage_limit_entity: "number.${ha_charger_entity_prefix}_set_dc_voltage_limit"
+  ha_charger_dc_sum_power_entity: "number.${ha_charger_entity_prefix}_set_dc_sum_power"
+
+  ha_charger_dc_voltage_limit_fallback_entity: "number.${ha_charger_entity_prefix}_set_dc_voltage_limit_fallback"
+  ha_charger_dc_current_limit_fallback_entity: "number.${ha_charger_entity_prefix}_set_dc_current_limit_fallback"
+
+  # ---------------------------------------------------------------------------
+  # CHARGER STATUS
+  # ---------------------------------------------------------------------------
+
+  ha_charger_available_units_entity: "sensor.${ha_charger_entity_prefix}_available_units"
+  ha_charger_running_units_entity: "sensor.${ha_charger_entity_prefix}_running_units"
+  ha_charger_highest_output_temperature_entity: "sensor.${ha_charger_entity_prefix}_highest_output_temperature_all_units"
+  ha_charger_conversion_efficiency_entity: "sensor.${ha_charger_entity_prefix}_conversion_efficiency_all_units"
+
+  # ---------------------------------------------------------------------------
+  # COOLING ENVIRONMENT
+  # ---------------------------------------------------------------------------
+
+  ha_cooling_compartment_temperature_entity: "sensor.${ha_charger_entity_prefix}_rectifier_compartment_temperature"
+  ha_cooling_compartment_humidity_entity: "sensor.${ha_charger_entity_prefix}_rectifier_compartment_humidity"
+
+  # ---------------------------------------------------------------------------
+  # RECTIFIER 1
+  # ---------------------------------------------------------------------------
+
+  ha_rectifier_1_connected_entity: "binary_sensor.${ha_charger_entity_prefix}_can_communication_unit_1"
+  ha_rectifier_1_lifecycle_entity: "sensor.${ha_charger_entity_prefix}_control_state_unit_1"
+  ha_rectifier_1_power_state_entity: "sensor.${ha_charger_entity_prefix}_power_state_unit_1"
+  ha_rectifier_1_thermal_state_entity: "sensor.${ha_charger_entity_prefix}_thermal_state_unit_1"
+
+  ha_rectifier_1_ac_voltage_entity: "sensor.${ha_charger_entity_prefix}_ac_voltage_unit_1"
+  ha_rectifier_1_ac_current_entity: "sensor.${ha_charger_entity_prefix}_ac_current_unit_1"
+  ha_rectifier_1_ac_power_entity: "sensor.${ha_charger_entity_prefix}_ac_power_unit_1"
+  ha_rectifier_1_ac_frequency_entity: "sensor.${ha_charger_entity_prefix}_ac_frequency_unit_1"
+
+  ha_rectifier_1_dc_voltage_entity: "sensor.${ha_charger_entity_prefix}_dc_voltage_unit_1"
+  ha_rectifier_1_dc_current_entity: "sensor.${ha_charger_entity_prefix}_dc_current_unit_1"
+  ha_rectifier_1_dc_power_entity: "sensor.${ha_charger_entity_prefix}_dc_power_unit_1"
+  ha_rectifier_1_dc_current_setpoint_entity: "sensor.${ha_charger_entity_prefix}_max_dc_current_setpoint_unit_1"
+
+  ha_rectifier_1_input_temperature_entity: "sensor.${ha_charger_entity_prefix}_input_temperature_unit_1"
+  ha_rectifier_1_output_temperature_entity: "sensor.${ha_charger_entity_prefix}_output_temperature_unit_1"
+
+  ha_rectifier_1_fan_rpm_entity: "sensor.${ha_charger_entity_prefix}_fan_rpm_unit_1"
+  ha_rectifier_1_fan_minimum_duty_entity: "sensor.${ha_charger_entity_prefix}_fan_minimum_duty_unit_1"
+  ha_rectifier_1_fan_target_duty_entity: "sensor.${ha_charger_entity_prefix}_fan_duty_target_unit_1"
+
+  ha_rectifier_1_max_current_capability_entity: "sensor.${ha_charger_entity_prefix}_max_current_capability_unit_1"
+  ha_rectifier_1_operating_hours_entity: "sensor.${ha_charger_entity_prefix}_operating_hours_unit_1"
+
+  # ---------------------------------------------------------------------------
+  # RECTIFIER 2
+  # ---------------------------------------------------------------------------
+
+  ha_rectifier_2_connected_entity: "binary_sensor.${ha_charger_entity_prefix}_can_communication_unit_2"
+  ha_rectifier_2_lifecycle_entity: "sensor.${ha_charger_entity_prefix}_control_state_unit_2"
+  ha_rectifier_2_power_state_entity: "sensor.${ha_charger_entity_prefix}_power_state_unit_2"
+  ha_rectifier_2_thermal_state_entity: "sensor.${ha_charger_entity_prefix}_thermal_state_unit_2"
+
+  ha_rectifier_2_ac_voltage_entity: "sensor.${ha_charger_entity_prefix}_ac_voltage_unit_2"
+  ha_rectifier_2_ac_current_entity: "sensor.${ha_charger_entity_prefix}_ac_current_unit_2"
+  ha_rectifier_2_ac_power_entity: "sensor.${ha_charger_entity_prefix}_ac_power_unit_2"
+  ha_rectifier_2_ac_frequency_entity: "sensor.${ha_charger_entity_prefix}_ac_frequency_unit_2"
+
+  ha_rectifier_2_dc_voltage_entity: "sensor.${ha_charger_entity_prefix}_dc_voltage_unit_2"
+  ha_rectifier_2_dc_current_entity: "sensor.${ha_charger_entity_prefix}_dc_current_unit_2"
+  ha_rectifier_2_dc_power_entity: "sensor.${ha_charger_entity_prefix}_dc_power_unit_2"
+  ha_rectifier_2_dc_current_setpoint_entity: "sensor.${ha_charger_entity_prefix}_max_dc_current_setpoint_unit_2"
+
+  ha_rectifier_2_input_temperature_entity: "sensor.${ha_charger_entity_prefix}_input_temperature_unit_2"
+  ha_rectifier_2_output_temperature_entity: "sensor.${ha_charger_entity_prefix}_output_temperature_unit_2"
+
+  ha_rectifier_2_fan_rpm_entity: "sensor.${ha_charger_entity_prefix}_fan_rpm_unit_2"
+  ha_rectifier_2_fan_minimum_duty_entity: "sensor.${ha_charger_entity_prefix}_fan_minimum_duty_unit_2"
+  ha_rectifier_2_fan_target_duty_entity: "sensor.${ha_charger_entity_prefix}_fan_duty_target_unit_2"
+
+  ha_rectifier_2_max_current_capability_entity: "sensor.${ha_charger_entity_prefix}_max_current_capability_unit_2"
+  ha_rectifier_2_operating_hours_entity: "sensor.${ha_charger_entity_prefix}_operating_hours_unit_2"
+
+  # ---------------------------------------------------------------------------
+  # RECTIFIER 3
+  # ---------------------------------------------------------------------------
+
+  ha_rectifier_3_connected_entity: "binary_sensor.${ha_charger_entity_prefix}_can_communication_unit_3"
+  ha_rectifier_3_lifecycle_entity: "sensor.${ha_charger_entity_prefix}_control_state_unit_3"
+  ha_rectifier_3_power_state_entity: "sensor.${ha_charger_entity_prefix}_power_state_unit_3"
+  ha_rectifier_3_thermal_state_entity: "sensor.${ha_charger_entity_prefix}_thermal_state_unit_3"
+
+  ha_rectifier_3_ac_voltage_entity: "sensor.${ha_charger_entity_prefix}_ac_voltage_unit_3"
+  ha_rectifier_3_ac_current_entity: "sensor.${ha_charger_entity_prefix}_ac_current_unit_3"
+  ha_rectifier_3_ac_power_entity: "sensor.${ha_charger_entity_prefix}_ac_power_unit_3"
+  ha_rectifier_3_ac_frequency_entity: "sensor.${ha_charger_entity_prefix}_ac_frequency_unit_3"
+
+  ha_rectifier_3_dc_voltage_entity: "sensor.${ha_charger_entity_prefix}_dc_voltage_unit_3"
+  ha_rectifier_3_dc_current_entity: "sensor.${ha_charger_entity_prefix}_dc_current_unit_3"
+  ha_rectifier_3_dc_power_entity: "sensor.${ha_charger_entity_prefix}_dc_power_unit_3"
+  ha_rectifier_3_dc_current_setpoint_entity: "sensor.${ha_charger_entity_prefix}_max_dc_current_setpoint_unit_3"
+
+  ha_rectifier_3_input_temperature_entity: "sensor.${ha_charger_entity_prefix}_input_temperature_unit_3"
+  ha_rectifier_3_output_temperature_entity: "sensor.${ha_charger_entity_prefix}_output_temperature_unit_3"
+
+  ha_rectifier_3_fan_rpm_entity: "sensor.${ha_charger_entity_prefix}_fan_rpm_unit_3"
+  ha_rectifier_3_fan_minimum_duty_entity: "sensor.${ha_charger_entity_prefix}_fan_minimum_duty_unit_3"
+  ha_rectifier_3_fan_target_duty_entity: "sensor.${ha_charger_entity_prefix}_fan_duty_target_unit_3"
+
+  ha_rectifier_3_max_current_capability_entity: "sensor.${ha_charger_entity_prefix}_max_current_capability_unit_3"
+  ha_rectifier_3_operating_hours_entity: "sensor.${ha_charger_entity_prefix}_operating_hours_unit_3"
+
+  # ---------------------------------------------------------------------------
+  # COMMAND TARGETS
+  # ---------------------------------------------------------------------------
+
+  # Charger-wide commands.
+  ha_charger_start_button_entity: "button.${ha_charger_entity_prefix}_turn_on_all_units"
+  ha_charger_stop_button_entity: "button.${ha_charger_entity_prefix}_turn_off_all_units"
+
+  # Per-rectifier commands.
+  ha_rectifier_1_start_button_entity: "button.${ha_charger_entity_prefix}_turn_on_unit_1"
+  ha_rectifier_1_stop_button_entity: "button.${ha_charger_entity_prefix}_turn_off_unit_1"
+
+  ha_rectifier_2_start_button_entity: "button.${ha_charger_entity_prefix}_turn_on_unit_2"
+  ha_rectifier_2_stop_button_entity: "button.${ha_charger_entity_prefix}_turn_off_unit_2"
+
+  ha_rectifier_3_start_button_entity: "button.${ha_charger_entity_prefix}_turn_on_unit_3"
+  ha_rectifier_3_stop_button_entity: "button.${ha_charger_entity_prefix}_turn_off_unit_3"
+
+  # Per-rectifier internal fan-mode commands.
+  ha_rectifier_1_fan_auto_button_entity: "button.${ha_charger_entity_prefix}_set_fan_auto_mode_unit_1"
+  ha_rectifier_1_fan_full_button_entity: "button.${ha_charger_entity_prefix}_set_fan_full_speed_unit_1"
+
+  ha_rectifier_2_fan_auto_button_entity: "button.${ha_charger_entity_prefix}_set_fan_auto_mode_unit_2"
+  ha_rectifier_2_fan_full_button_entity: "button.${ha_charger_entity_prefix}_set_fan_full_speed_unit_2"
+
+  ha_rectifier_3_fan_auto_button_entity: "button.${ha_charger_entity_prefix}_set_fan_auto_mode_unit_3"
+  ha_rectifier_3_fan_full_button_entity: "button.${ha_charger_entity_prefix}_set_fan_full_speed_unit_3"

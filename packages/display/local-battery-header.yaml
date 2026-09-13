@@ -1,0 +1,53 @@
+# ==============================================================================
+# SHARED LOCAL BACKUP-BATTERY HEADER RUNTIME
+# ==============================================================================
+#
+# Updates the persistent header with the backup-battery voltage of the local
+# Waveshare display controller.
+#
+# Both V6 targets use the same onboard battery measurement hardware. The label
+# prefix is supplied by the target root so the local Controller and Remote HMI
+# batteries remain distinguishable.
+# ==============================================================================
+
+interval:
+
+  - interval: 5s
+    then:
+      - lvgl.label.update:
+          id: ui_header_battery
+
+          text: !lambda |-
+            const float voltage =
+              id(local_backup_battery_voltage).state;
+
+            if (isnan(voltage)) {
+              return str_sprintf(
+                "%s --.-- V",
+                "${ui_local_battery_label}"
+              );
+            }
+
+            return str_sprintf(
+              "%s %.2f V",
+              "${ui_local_battery_label}",
+              voltage
+            );
+
+          text_color: !lambda |-
+            const float voltage =
+              id(local_backup_battery_voltage).state;
+
+            if (isnan(voltage)) {
+              return lv_color_hex(0x8B96A0);
+            }
+
+            if (voltage < 3.50f) {
+              return lv_color_hex(0xFF3030);
+            }
+
+            if (voltage < 3.70f) {
+              return lv_color_hex(0xFFC04A);
+            }
+
+            return lv_color_hex(0x5CFF7A);

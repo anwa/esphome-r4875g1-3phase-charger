@@ -1,0 +1,15 @@
+# ==============================================================================
+# SHARED V6 SYSTEM DISPLAY PACKAGE
+# ==============================================================================
+#
+# Composes the System page presentation and runtime shared by the Charger
+# Controller and Remote HMI targets.
+#
+# Local device diagnostics describe the active target itself. Authoritative
+# rectifier state is consumed through the shared UI model.
+# ==============================================================================
+
+packages:
+
+  display_system_ui: !include system-ui.yaml
+  display_system_runtime: !include system.yaml

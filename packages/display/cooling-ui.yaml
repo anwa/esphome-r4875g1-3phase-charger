@@ -1,0 +1,16 @@
+# ==============================================================================
+# SHARED V6 COOLING PRESENTATION
+# ==============================================================================
+#
+# Defines the Cooling page shared by the Charger Controller and Remote HMI
+# targets.
+#
+# State and fan-mode commands remain behind the shared UI model and command
+# boundaries. Shared bottom navigation is owned separately by
+# display/shared-navigation.yaml.
+# ==============================================================================
+
+lvgl:
+
+  pages:
+    - !include pages/cooling.yaml

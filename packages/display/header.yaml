@@ -1,5 +1,5 @@
 # ==============================================================================
-# V5 PERSISTENT HEADER RUNTIME
+# PERSISTENT HEADER RUNTIME
 # ==============================================================================
 #
 # Runtime updates for widgets that are permanently visible on every page.
@@ -25,7 +25,7 @@ interval:
 
           text: !lambda |-
             const float running =
-              id(running_units).state;
+              id(ui_model_running_units).state;
 
             if (
               isnan(running) ||
@@ -41,7 +41,7 @@ interval:
 
           text_color: !lambda |-
             const float running =
-              id(running_units).state;
+              id(ui_model_running_units).state;
 
             return
               !isnan(running) &&

@@ -1,0 +1,36 @@
+# ==============================================================================
+# SHARED V6 HMI INFRASTRUCTURE
+# ==============================================================================
+#
+# Composes target-neutral display infrastructure and persistent presentation
+# state used by the shared V6 HMI features.
+#
+# Dashboard, Rectifiers, Battery, Cooling, System, Trends and shared navigation
+# packages
+# consume this common infrastructure without owning or duplicating it.
+# ==============================================================================
+
+packages:
+
+  # ---------------------------------------------------------------------------
+  # DISPLAY INFRASTRUCTURE
+  # ---------------------------------------------------------------------------
+
+  display_hardware: !include hardware.yaml
+  display_theme: !include theme.yaml
+  display_chart_support: !include chart-support.yaml
+
+  # ---------------------------------------------------------------------------
+  # SHARED PRESENTATION STATE
+  # ---------------------------------------------------------------------------
+
+  display_ui_state: !include ui-state.yaml
+  display_trend_state: !include trend-state.yaml
+
+  # ---------------------------------------------------------------------------
+  # PERSISTENT HEADER
+  # ---------------------------------------------------------------------------
+
+  display_header_ui: !include header-ui.yaml
+  display_header: !include header.yaml
+  display_local_battery_header: !include local-battery-header.yaml

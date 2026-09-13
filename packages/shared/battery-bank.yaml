@@ -5,6 +5,8 @@
 # Imports the aggregate solar-battery bank telemetry and the individual values
 # of four parallel battery units from Home Assistant through the native API.
 #
+# This shared package is used by both V6 firmware targets.
+#
 # These values are monitoring-only. Charger control, safety limits and offline
 # operation must remain independent of Home Assistant availability.
 #

@@ -28,3 +28,4 @@ Thumbs.db
 *.lck
 KiCAD/Charger/.history
 thinktank
+*.patch

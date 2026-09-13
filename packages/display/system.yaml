@@ -1,10 +1,12 @@
 # ==============================================================================
-# V5 SYSTEM DISPLAY RUNTIME
+# SHARED V6 SYSTEM DISPLAY RUNTIME
 # ==============================================================================
 #
-# Runtime updates for the System diagnostics page.
+# Updates the shared System diagnostics page for both V6 firmware targets.
 #
-# System widgets are refreshed only while page_system is visible.
+# Local network, ESP32 and backup-battery values describe the device running the
+# current target. Rectifier state is consumed exclusively through the shared
+# target-neutral UI model.
 # ==============================================================================
 
 interval:
@@ -18,7 +20,7 @@ interval:
           then:
 
             # ---------------------------------------------------------------------------
-            # NETWORK
+            # LOCAL NETWORK
             # ---------------------------------------------------------------------------
 
             - lvgl.label.update:
@@ -60,7 +62,7 @@ interval:
                   return lv_color_hex(0xFF5C5C);
 
             # ---------------------------------------------------------------------------
-            # CONTROLLER
+            # LOCAL DEVICE
             # ---------------------------------------------------------------------------
 
             - lvgl.label.update:
@@ -111,6 +113,49 @@ interval:
                     "%.1f °C",
                     id(cpu_temp).state
                   );
+
+            - lvgl.label.update:
+                id: ui_system_battery
+
+                text: !lambda |-
+                  const float voltage =
+                    id(local_backup_battery_voltage).state;
+
+                  const float soc =
+                    id(local_backup_battery_soc).state;
+
+                  if (
+                    isnan(voltage) ||
+                    isnan(soc)
+                  ) {
+                    return std::string(
+                      "--.-- V / -- %"
+                    );
+                  }
+
+                  return str_sprintf(
+                    "%.2f V / %.0f %%",
+                    voltage,
+                    soc
+                  );
+
+                text_color: !lambda |-
+                  const float voltage =
+                    id(local_backup_battery_voltage).state;
+
+                  if (isnan(voltage)) {
+                    return lv_color_hex(0x8B96A0);
+                  }
+
+                  if (voltage < 3.50f) {
+                    return lv_color_hex(0xFF3030);
+                  }
+
+                  if (voltage < 3.70f) {
+                    return lv_color_hex(0xFFC04A);
+                  }
+
+                  return lv_color_hex(0x5CFF7A);
 
             # ---------------------------------------------------------------------------
             # MEMORY AND RUNTIME DEBUG
@@ -177,19 +222,19 @@ interval:
                   );
 
             # ---------------------------------------------------------------------------
-            # RECTIFIER 1 COMMUNICATION/LIFECYCLE
+            # RECTIFIER 1 LIFECYCLE
             # ---------------------------------------------------------------------------
 
             - lvgl.label.update:
                 id: ui_system_unit_1
 
                 text: !lambda |-
-                  if (!id(can_com_ok_1).state) {
+                  if (!id(ui_model_rectifier_1_connected).state) {
                     return std::string("OFFLINE");
                   }
 
                   const std::string lifecycle =
-                    id(rectifier_control_state_text_1).state;
+                    id(ui_model_rectifier_1_lifecycle).state;
 
                   if (lifecycle.empty()) {
                     return std::string("--");
@@ -198,40 +243,37 @@ interval:
                   return lifecycle;
 
                 text_color: !lambda |-
-                  if (!id(can_com_ok_1).state) {
+                  if (!id(ui_model_rectifier_1_connected).state) {
                     return lv_color_hex(0xFF5C5C);
                   }
 
-                  if (
-                    id(rectifier_control_state_1) ==
-                      ${rectifier_state_online}
-                  ) {
+                  const std::string lifecycle =
+                    id(ui_model_rectifier_1_lifecycle).state;
+
+                  if (lifecycle == "ONLINE") {
                     return lv_color_hex(0x5CFF7A);
                   }
 
-                  if (
-                    id(rectifier_control_state_1) ==
-                      ${rectifier_state_discovering}
-                  ) {
+                  if (lifecycle == "DISCOVERING") {
                     return lv_color_hex(0xFFC857);
                   }
 
                   return lv_color_hex(0x8B96A0);
 
             # ---------------------------------------------------------------------------
-            # RECTIFIER 2 COMMUNICATION/LIFECYCLE
+            # RECTIFIER 2 LIFECYCLE
             # ---------------------------------------------------------------------------
 
             - lvgl.label.update:
                 id: ui_system_unit_2
 
                 text: !lambda |-
-                  if (!id(can_com_ok_2).state) {
+                  if (!id(ui_model_rectifier_2_connected).state) {
                     return std::string("OFFLINE");
                   }
 
                   const std::string lifecycle =
-                    id(rectifier_control_state_text_2).state;
+                    id(ui_model_rectifier_2_lifecycle).state;
 
                   if (lifecycle.empty()) {
                     return std::string("--");
@@ -240,40 +282,37 @@ interval:
                   return lifecycle;
 
                 text_color: !lambda |-
-                  if (!id(can_com_ok_2).state) {
+                  if (!id(ui_model_rectifier_2_connected).state) {
                     return lv_color_hex(0xFF5C5C);
                   }
 
-                  if (
-                    id(rectifier_control_state_2) ==
-                      ${rectifier_state_online}
-                  ) {
+                  const std::string lifecycle =
+                    id(ui_model_rectifier_2_lifecycle).state;
+
+                  if (lifecycle == "ONLINE") {
                     return lv_color_hex(0x5CFF7A);
                   }
 
-                  if (
-                    id(rectifier_control_state_2) ==
-                      ${rectifier_state_discovering}
-                  ) {
+                  if (lifecycle == "DISCOVERING") {
                     return lv_color_hex(0xFFC857);
                   }
 
                   return lv_color_hex(0x8B96A0);
 
             # ---------------------------------------------------------------------------
-            # RECTIFIER 3 COMMUNICATION/LIFECYCLE
+            # RECTIFIER 3 LIFECYCLE
             # ---------------------------------------------------------------------------
 
             - lvgl.label.update:
                 id: ui_system_unit_3
 
                 text: !lambda |-
-                  if (!id(can_com_ok_3).state) {
+                  if (!id(ui_model_rectifier_3_connected).state) {
                     return std::string("OFFLINE");
                   }
 
                   const std::string lifecycle =
-                    id(rectifier_control_state_text_3).state;
+                    id(ui_model_rectifier_3_lifecycle).state;
 
                   if (lifecycle.empty()) {
                     return std::string("--");
@@ -282,21 +321,18 @@ interval:
                   return lifecycle;
 
                 text_color: !lambda |-
-                  if (!id(can_com_ok_3).state) {
+                  if (!id(ui_model_rectifier_3_connected).state) {
                     return lv_color_hex(0xFF5C5C);
                   }
 
-                  if (
-                    id(rectifier_control_state_3) ==
-                      ${rectifier_state_online}
-                  ) {
+                  const std::string lifecycle =
+                    id(ui_model_rectifier_3_lifecycle).state;
+
+                  if (lifecycle == "ONLINE") {
                     return lv_color_hex(0x5CFF7A);
                   }
 
-                  if (
-                    id(rectifier_control_state_3) ==
-                      ${rectifier_state_discovering}
-                  ) {
+                  if (lifecycle == "DISCOVERING") {
                     return lv_color_hex(0xFFC857);
                   }
 

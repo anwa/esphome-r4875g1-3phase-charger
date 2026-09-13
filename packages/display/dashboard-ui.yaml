@@ -1,0 +1,598 @@
+# ==============================================================================
+# SHARED V6 DASHBOARD PRESENTATION
+# ==============================================================================
+#
+# Defines the common Dashboard page and Dashboard-specific dialogs used by both
+# V6 touchscreen targets.
+#
+# The page consumes only shared UI-model state and target-neutral ui_command_*
+# scripts.
+# ==============================================================================
+
+lvgl:
+
+  pages:
+    - !include pages/dashboard.yaml
+
+  top_layer:
+    widgets:
+
+      # ---------------------------------------------------------------------------
+      # AC SETPOINTS DIALOG
+      # ---------------------------------------------------------------------------
+
+      - obj:
+          id: ui_ac_setpoints_dialog
+          x: 0
+          y: 0
+          width: 800
+          height: 480
+          hidden: true
+          clickable: true
+          bg_color: 0x000000
+          bg_opa: 55%
+          border_width: 0
+          radius: 0
+          pad_all: 0
+          scrollable: false
+          scrollbar_mode: "OFF"
+
+          widgets:
+            - obj:
+                align: CENTER
+                width: 460
+                height: 240
+                styles: style_dialog_panel
+                scrollable: false
+                scrollbar_mode: "OFF"
+
+                widgets:
+                  - label:
+                      x: 20
+                      y: 16
+                      width: 420
+                      text_align: CENTER
+                      text: "AC SETPOINTS"
+                      text_font: montserrat_20
+                      text_color: 0xFFFFFF
+
+                  # AC current limit
+                  - obj:
+                      align: TOP_MID
+                      y: 65
+                      width: 360
+                      height: 50
+                      bg_opa: 0%
+                      border_width: 0
+                      pad_all: 0
+                      scrollable: false
+
+                      widgets:
+                        - label:
+                            align: LEFT_MID
+                            x: 0
+                            width: 115
+                            text: "Current Limit"
+                            text_font: montserrat_16
+                            text_color: 0x8B96A0
+
+                        - button:
+                            align: LEFT_MID
+                            x: 125
+                            styles: style_dialog_step_button
+
+                            widgets:
+                              - label:
+                                  align: CENTER
+                                  text: "-"
+                                  text_font: montserrat_20
+
+                            on_press:
+                              - lvgl.spinbox.decrement:
+                                  id: ui_ac_setpoints_current_spinbox
+
+                            on_long_press_repeat:
+                              - lvgl.spinbox.decrement:
+                                  id: ui_ac_setpoints_current_spinbox
+
+                        - spinbox:
+                            id: ui_ac_setpoints_current_spinbox
+                            align: LEFT_MID
+                            x: 185
+                            width: 110
+                            height: 45
+                            range_from: ${ac_current_limit_min_a}
+                            range_to: ${ac_current_limit_max_a}
+                            decimal_places: 1
+                            selected_digit: 0
+                            text_align: CENTER
+                            styles: style_dialog_spinbox
+
+                            on_value:
+                              then:
+                                - lambda: |-
+                                    id(ui_ac_setpoints_current_edit) = x;
+
+                        - button:
+                            align: LEFT_MID
+                            x: 305
+                            styles: style_dialog_step_button
+
+                            widgets:
+                              - label:
+                                  align: CENTER
+                                  text: "+"
+                                  text_font: montserrat_20
+
+                            on_press:
+                              - lvgl.spinbox.increment:
+                                  id: ui_ac_setpoints_current_spinbox
+
+                            on_long_press_repeat:
+                              - lvgl.spinbox.increment:
+                                  id: ui_ac_setpoints_current_spinbox
+
+                  # Cancel
+                  - button:
+                      align: BOTTOM_MID
+                      x: -85
+                      y: -20
+                      styles: style_dialog_button
+
+                      widgets:
+                        - label:
+                            align: CENTER
+                            text: "CANCEL"
+                            text_font: montserrat_16
+
+                      on_short_click:
+                        - lvgl.widget.hide: ui_ac_setpoints_dialog
+
+                  # Save
+                  - button:
+                      align: BOTTOM_MID
+                      x: 85
+                      y: -20
+                      styles: style_dialog_button
+                      border_color: 0x5CFF7A
+
+                      widgets:
+                        - label:
+                            align: CENTER
+                            text: "SAVE"
+                            text_font: montserrat_16
+
+                      on_short_click:
+                        - script.execute:
+                            id: ui_command_set_ac_current_limit
+                            value: !lambda |-
+                              return id(ui_ac_setpoints_current_edit);
+
+                        - lvgl.widget.hide: ui_ac_setpoints_dialog
+
+      # ---------------------------------------------------------------------------
+      # DC SETPOINTS DIALOG
+      # ---------------------------------------------------------------------------
+
+      - obj:
+          id: ui_dc_setpoints_dialog
+          x: 0
+          y: 0
+          width: 800
+          height: 480
+          hidden: true
+          clickable: true
+          bg_color: 0x000000
+          bg_opa: 55%
+          border_width: 0
+          radius: 0
+          pad_all: 0
+          scrollable: false
+          scrollbar_mode: "OFF"
+
+          widgets:
+            - obj:
+                align: CENTER
+                width: 460
+                height: 300
+                styles: style_dialog_panel
+                scrollable: false
+                scrollbar_mode: "OFF"
+
+                widgets:
+                  - label:
+                      x: 20
+                      y: 16
+                      width: 420
+                      text_align: CENTER
+                      text: "DC SETPOINTS"
+                      text_font: montserrat_20
+                      text_color: 0xFFFFFF
+
+                  # DC voltage limit
+                  - obj:
+                      align: TOP_MID
+                      y: 55
+                      width: 360
+                      height: 50
+                      bg_opa: 0%
+                      border_width: 0
+                      pad_all: 0
+                      scrollable: false
+
+                      widgets:
+                        - label:
+                            align: LEFT_MID
+                            x: 0
+                            width: 115
+                            text: "Voltage Limit"
+                            text_font: montserrat_16
+                            text_color: 0x8B96A0
+
+                        - button:
+                            align: LEFT_MID
+                            x: 125
+                            styles: style_dialog_step_button
+
+                            widgets:
+                              - label:
+                                  align: CENTER
+                                  text: "-"
+                                  text_font: montserrat_20
+
+                            on_press:
+                              - lvgl.spinbox.decrement:
+                                  id: ui_dc_setpoints_voltage_spinbox
+
+                            on_long_press_repeat:
+                              - lvgl.spinbox.decrement:
+                                  id: ui_dc_setpoints_voltage_spinbox
+
+                        - spinbox:
+                            id: ui_dc_setpoints_voltage_spinbox
+                            align: LEFT_MID
+                            x: 185
+                            width: 110
+                            height: 45
+                            range_from: ${dc_voltage_min_v}
+                            range_to: ${dc_voltage_max_v}
+                            decimal_places: 1
+                            selected_digit: 0
+                            text_align: CENTER
+                            styles: style_dialog_spinbox
+
+                            on_value:
+                              then:
+                                - lambda: |-
+                                    id(ui_dc_setpoints_voltage_edit) = x;
+
+                        - button:
+                            align: LEFT_MID
+                            x: 305
+                            styles: style_dialog_step_button
+
+                            widgets:
+                              - label:
+                                  align: CENTER
+                                  text: "+"
+                                  text_font: montserrat_20
+
+                            on_press:
+                              - lvgl.spinbox.increment:
+                                  id: ui_dc_setpoints_voltage_spinbox
+
+                            on_long_press_repeat:
+                              - lvgl.spinbox.increment:
+                                  id: ui_dc_setpoints_voltage_spinbox
+
+                  # DC sum power
+                  - obj:
+                      align: TOP_MID
+                      y: 115
+                      width: 360
+                      height: 50
+                      bg_opa: 0%
+                      border_width: 0
+                      pad_all: 0
+                      scrollable: false
+
+                      widgets:
+                        - label:
+                            align: LEFT_MID
+                            x: 0
+                            width: 115
+                            text: "Sum Power"
+                            text_font: montserrat_16
+                            text_color: 0x8B96A0
+
+                        - button:
+                            align: LEFT_MID
+                            x: 125
+                            styles: style_dialog_step_button
+
+                            widgets:
+                              - label:
+                                  align: CENTER
+                                  text: "-"
+                                  text_font: montserrat_20
+
+                            on_press:
+                              - lvgl.spinbox.decrement:
+                                  id: ui_dc_setpoints_power_spinbox
+
+                            on_long_press_repeat:
+                              - lvgl.spinbox.decrement:
+                                  id: ui_dc_setpoints_power_spinbox
+
+                        - spinbox:
+                            id: ui_dc_setpoints_power_spinbox
+                            align: LEFT_MID
+                            x: 185
+                            width: 110
+                            height: 45
+                            range_from: ${dc_sum_power_min_kw}
+                            range_to: ${dc_sum_power_max_kw}
+                            decimal_places: 1
+                            selected_digit: 0
+                            text_align: CENTER
+                            styles: style_dialog_spinbox
+
+                            on_value:
+                              then:
+                                - lambda: |-
+                                    id(ui_dc_setpoints_power_edit) = x;
+
+                        - button:
+                            align: LEFT_MID
+                            x: 305
+                            styles: style_dialog_step_button
+
+                            widgets:
+                              - label:
+                                  align: CENTER
+                                  text: "+"
+                                  text_font: montserrat_20
+
+                            on_press:
+                              - lvgl.spinbox.increment:
+                                  id: ui_dc_setpoints_power_spinbox
+
+                            on_long_press_repeat:
+                              - lvgl.spinbox.increment:
+                                  id: ui_dc_setpoints_power_spinbox
+
+                  # Cancel
+                  - button:
+                      align: BOTTOM_MID
+                      x: -85
+                      y: -20
+                      styles: style_dialog_button
+
+                      widgets:
+                        - label:
+                            align: CENTER
+                            text: "CANCEL"
+                            text_font: montserrat_16
+
+                      on_short_click:
+                        - lvgl.widget.hide: ui_dc_setpoints_dialog
+
+                  # Save
+                  - button:
+                      align: BOTTOM_MID
+                      x: 85
+                      y: -20
+                      styles: style_dialog_button
+                      border_color: 0x5CFF7A
+
+                      widgets:
+                        - label:
+                            align: CENTER
+                            text: "SAVE"
+                            text_font: montserrat_16
+
+                      on_short_click:
+                        - script.execute:
+                            id: ui_command_set_dc_setpoints
+                            voltage: !lambda |-
+                              return id(ui_dc_setpoints_voltage_edit);
+                            power: !lambda |-
+                              return id(ui_dc_setpoints_power_edit);
+
+                        - lvgl.widget.hide: ui_dc_setpoints_dialog
+
+      # ==============================================================================
+      # CONFIRMATION DIALOGS
+      # ==============================================================================
+
+      # ---------------------------------------------------------------------------
+      # CHARGER START
+      # ---------------------------------------------------------------------------
+
+      - obj:
+          id: ui_start_charger_dialog
+          x: 0
+          y: 0
+          width: 800
+          height: 480
+          hidden: true
+          clickable: true
+          bg_color: 0x000000
+          bg_opa: 55%
+          border_width: 0
+          radius: 0
+          pad_all: 0
+          scrollable: false
+          scrollbar_mode: "OFF"
+
+          widgets:
+            - obj:
+                align: CENTER
+                width: 460
+                height: 250
+                styles: style_dialog_panel
+                scrollable: false
+                scrollbar_mode: "OFF"
+
+                widgets:
+                  - label:
+                      x: 20
+                      y: 18
+                      width: 420
+                      text_align: CENTER
+                      text: "START CHARGER"
+                      text_font: montserrat_20
+                      text_color: 0xFFFFFF
+
+                  - label:
+                      x: 35
+                      y: 70
+                      width: 390
+                      text_align: CENTER
+                      text: "Start all available and ready rectifier units?\n\nSafety checks are applied individually before startup."
+                      text_font: montserrat_18
+                      text_color: 0xDDE3E8
+
+                  - button:
+                      id: ui_start_cancel_button
+                      align: BOTTOM_MID
+                      x: -85
+                      y: -20
+                      styles: style_dialog_button
+
+                      widgets:
+                        - label:
+                            align: CENTER
+                            text: "CANCEL"
+                            text_font: montserrat_16
+                            text_color: 0xFFFFFF
+
+                      on_click:
+                        - lvgl.widget.hide: ui_start_charger_dialog
+
+                  - button:
+                      id: ui_start_confirm_button
+                      align: BOTTOM_MID
+                      x: 85
+                      y: -20
+                      styles: style_dialog_button
+                      border_color: 0x5CFF7A
+
+                      widgets:
+                        - label:
+                            align: CENTER
+                            text: "START"
+                            text_font: montserrat_16
+                            text_color: 0xFFFFFF
+
+                      on_click:
+                        - lvgl.widget.hide: ui_start_charger_dialog
+
+                        - lambda: |-
+                            id(ui_charger_power_pending) = 1;
+                            id(ui_charger_power_pending_since) = millis();
+
+                        - lvgl.widget.disable:
+                            id: ui_dashboard_power_button
+
+                        - lvgl.label.update:
+                            id: ui_dashboard_power_button_label
+                            text: "STARTING..."
+
+                        - script.execute: ui_command_charger_start
+
+      # ---------------------------------------------------------------------------
+      # CHARGER STOP
+      # ---------------------------------------------------------------------------
+
+      - obj:
+          id: ui_stop_charger_dialog
+          x: 0
+          y: 0
+          width: 800
+          height: 480
+          hidden: true
+          clickable: true
+          bg_color: 0x000000
+          bg_opa: 55%
+          border_width: 0
+          radius: 0
+          pad_all: 0
+          scrollable: false
+          scrollbar_mode: "OFF"
+
+          widgets:
+            - obj:
+                align: CENTER
+                width: 460
+                height: 220
+                styles: style_dialog_panel
+                scrollable: false
+                scrollbar_mode: "OFF"
+
+                widgets:
+                  - label:
+                      x: 20
+                      y: 18
+                      width: 420
+                      text_align: CENTER
+                      text: "STOP CHARGER"
+                      text_font: montserrat_20
+                      text_color: 0xFFFFFF
+
+                  - label:
+                      x: 35
+                      y: 80
+                      width: 390
+                      text_align: CENTER
+                      text: "Stop all rectifier units?"
+                      text_font: montserrat_18
+                      text_color: 0xDDE3E8
+
+                  - button:
+                      id: ui_stop_cancel_button
+                      align: BOTTOM_MID
+                      x: -85
+                      y: -20
+                      styles: style_dialog_button
+
+                      widgets:
+                        - label:
+                            align: CENTER
+                            text: "CANCEL"
+                            text_font: montserrat_16
+                            text_color: 0xFFFFFF
+
+                      on_click:
+                        - lvgl.widget.hide: ui_stop_charger_dialog
+
+                  - button:
+                      id: ui_stop_confirm_button
+                      align: BOTTOM_MID
+                      x: 85
+                      y: -20
+                      styles: style_dialog_button
+                      border_color: 0xFF5C5C
+
+                      widgets:
+                        - label:
+                            align: CENTER
+                            text: "STOP"
+                            text_font: montserrat_16
+                            text_color: 0xFFFFFF
+
+                      on_click:
+                        - lvgl.widget.hide: ui_stop_charger_dialog
+
+                        - lambda: |-
+                            id(ui_charger_power_pending) = 2;
+                            id(ui_charger_power_pending_since) = millis();
+
+                        - lvgl.widget.disable:
+                            id: ui_dashboard_power_button
+
+                        - lvgl.label.update:
+                            id: ui_dashboard_power_button_label
+                            text: "STOPPING..."
+
+                        - script.execute: ui_command_charger_stop

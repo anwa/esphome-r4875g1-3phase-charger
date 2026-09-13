@@ -1,0 +1,14 @@
+# ==============================================================================
+# SHARED V6 BATTERY PRESENTATION
+# ==============================================================================
+#
+# Defines the Battery page shared by the Charger Controller and Remote HMI
+# targets.
+#
+# Runtime state is consumed exclusively through the shared UI model.
+# ==============================================================================
+
+lvgl:
+
+  pages:
+    - !include pages/battery.yaml

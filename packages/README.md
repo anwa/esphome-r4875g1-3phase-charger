@@ -2,13 +2,16 @@
 
 This directory contains the modular ESPHome implementation of the three-phase Huawei R4875G1 charger controller.
 
-The root configuration:
+The V6 architecture contains two ESPHome root configurations:
 
 ```text
 ../r4875g1-3phase-charger.yaml
+../r4875g1-remote-hmi.yaml
 ```
 
-assembles these packages into the complete firmware.
+r4875g1-3phase-charger.yaml assembles the locally attached Charger Controller.
+
+r4875g1-remote-hmi.yaml assembles the Remote HMI target without charger-side CAN or external peripherals.
 
 For project-level hardware, operation and safety documentation, see:
 
@@ -32,23 +35,64 @@ The firmware version is intentionally not duplicated here.
 ```text
 packages/
 ├── version.yaml
-├── core.yaml
-├── hardware.yaml
+│
+├── shared/
+│   ├── ui-rectifier-unit.yaml
+│   ├── ui-battery-unit.yaml
+│   ├── ui-contract.yaml
+│   ├── battery-bank.yaml
+│   ├── battery-monitoring.yaml
+│   ├── battery-ui-backend.yaml
+│   ├── battery-ui-unit-backend.yaml
+│   ├── core.yaml
+│   ├── local-diagnostics.yaml
+│   ├── hardware.yaml
+│   └── ui-model.yaml
+│
+├── controller/
+│   ├── ui-rectifier-backend.yaml
+│   ├── hardware.yaml
+│   ├── mqtt.yaml
+│   ├── ui-backend.yaml
+│   └── ui-commands.yaml
+│
+├── remote-hmi/
+│   ├── connection-status.yaml
+│   ├── ha-entity-map.yaml
+│   ├── ha-backend.yaml
+│   └── ui-commands.yaml
+│
 ├── controls.yaml
 ├── cooling.yaml
-├── battery-bank.yaml
 ├── display.yaml
 ├── rectifier-shared.yaml
 ├── rectifier-unit.yaml
 ├── README.md
 │
 ├── display/
+│   ├── ui-state.yaml
+│   ├── trend-state.yaml
+│   ├── chart-support.yaml
+│   ├── header-ui.yaml
+│   ├── dashboard-ui.yaml
+│   ├── dashboard-command-state.yaml
+│   ├── rectifiers-ui.yaml
+│   ├── battery-ui.yaml
+│   ├── cooling-ui.yaml
+│   ├── system-ui.yaml
+│   ├── trends-ui.yaml
+│   ├── fallback-dialog.yaml
+│   ├── rectifier-power-dialogs.yaml
+│   ├── shared-rectifiers.yaml
+│   ├── shared-battery.yaml
+│   ├── shared-cooling.yaml
+│   ├── shared-system.yaml
+│   ├── shared-trends.yaml
+│   ├── shared-navigation.yaml
 │   ├── hardware.yaml
 │   ├── theme.yaml
-│   ├── ui.yaml
 │   ├── header.yaml
 │   ├── command-state.yaml
-│   ├── controller-battery.yaml
 │   ├── battery.yaml
 │   ├── dashboard.yaml
 │   ├── rectifiers.yaml
@@ -56,6 +100,9 @@ packages/
 │   ├── cooling.yaml
 │   ├── system.yaml
 │   ├── trends.yaml
+│   ├── shared-hmi.yaml
+│   ├── shared-dashboard.yaml
+│   ├── local-battery-header.yaml
 │   │
 │   └── pages/
 │       ├── dashboard.yaml
@@ -84,11 +131,68 @@ Package ownership is intentionally separated so that hardware, shared charger lo
 The main ownership boundaries are:
 
 ```text
-core.yaml
-    controller-wide ESPHome infrastructure
+shared/core.yaml
+    target-neutral ESP32-S3 platform and network services
 
-hardware.yaml
-    physical controller buses and peripherals
+shared/hardware.yaml
+    target-neutral Waveshare board peripherals
+
+shared/local-diagnostics.yaml
+    target-local network, ESP32 and runtime diagnostics shared by both V6 targets
+
+shared/ui-model.yaml
+    target-neutral aggregate state contract consumed by the HMI
+
+shared/ui-contract.yaml
+    shared HMI command ranges used by both V6 targets
+
+shared/battery-bank.yaml
+    shared Home Assistant solar-battery telemetry import and availability state
+
+shared/battery-monitoring.yaml
+    composes the shared battery source and aggregate/per-unit UI-model backends
+
+shared/battery-ui-backend.yaml
+    publishes validated aggregate battery-bank monitoring state into the shared UI model
+
+shared/battery-ui-unit-backend.yaml
+    publishes one validated battery unit into the shared per-unit UI model
+
+shared/ui-battery-unit.yaml
+    parameterized target-neutral UI state for one solar-battery unit
+
+shared/ui-rectifier-unit.yaml
+    parameterized target-neutral UI state for one rectifier
+
+controller/hardware.yaml
+    Charger Controller buses and charger-side peripherals
+
+controller/mqtt.yaml
+    Charger Controller MQTT transport
+
+controller/ui-backend.yaml
+    publishes authoritative local charger state into the shared UI model
+
+controller/ui-commands.yaml
+    executes shared UI command intents through local Charger Controller entities
+
+controller/ui-rectifier-backend.yaml
+    publishes one local rectifier into the shared per-unit UI model
+
+remote-hmi/connection-status.yaml
+    exposes persistent Remote HMI Home Assistant / charger-data connectivity in the shared header
+
+remote-hmi/ha-entity-map.yaml
+    derives paired Charger Controller Home Assistant entities from one configurable prefix
+
+remote-hmi/ha-backend.yaml
+    imports authoritative Charger Controller state through Home Assistant
+
+remote-hmi/ui-commands.yaml
+    transports shared UI command intents to the Charger Controller through Home Assistant
+
+remote-hmi/rectifier-backend.yaml
+    imports one authoritative rectifier state through Home Assistant
 
 controls.yaml
     charger-wide user setpoints and controls
@@ -96,8 +200,8 @@ controls.yaml
 cooling.yaml
     external chassis cooling
 
-battery-bank.yaml
-    Home Assistant solar-battery telemetry import and availability state
+display.yaml
+    display package aggregation
 
 rectifier-shared.yaml
     cross-unit lifecycle, safety and CAN scheduling
@@ -105,19 +209,94 @@ rectifier-shared.yaml
 rectifier-unit.yaml
     parameterized per-unit state and telemetry
 
-rectifier-can/*.yaml
-    parameterized CAN receive fragments
+display/*.yaml
+    persistent and page-specific display runtime
 
-display.yaml
-    display package aggregation
+display/ui-state.yaml
+    shared LVGL presentation, navigation and command-pending state
+
+display/trend-state.yaml
+    shared local 10-minute HMI trend history sampled from the target-neutral UI model
+
+display/chart-support.yaml
+    shared LVGL chart build support used by both V6 HMI targets
+
+display/header-ui.yaml
+    shared persistent header layout
+
+display/dashboard-ui.yaml
+    shared Dashboard page and Dashboard-specific dialogs
+
+display/dashboard-command-state.yaml
+    shared charger-wide START/STOP presentation state
+
+display/command-state.yaml
+    shared per-rectifier START/STOP pending-state resolution
+
+display/shared-hmi.yaml
+    shared display infrastructure, chart support, persistent header, trend history and presentation state
+
+display/shared-dashboard.yaml
+    shared Dashboard presentation and runtime consumed by both V6 firmware targets
+
+display/shared-rectifiers.yaml
+    shared Rectifiers composition consumed by both V6 firmware targets
+
+display/shared-battery.yaml
+    shared Battery presentation and runtime consumed by both V6 firmware targets
+
+display/shared-cooling.yaml
+    shared Cooling presentation and runtime consumed by both V6 firmware targets
+
+display/shared-system.yaml
+    shared System presentation and runtime consumed by both V6 firmware targets
+
+display/shared-trends.yaml
+    shared Trends presentation and chart runtime consumed by both V6 firmware targets
+
+display/shared-navigation.yaml
+    shared Dashboard, Rectifiers, Battery, System, Cooling and Trends bottom navigation
+
+display/rectifiers-ui.yaml
+    shared Rectifiers Overview and Detail presentation
+
+display/battery-ui.yaml
+    shared Battery page presentation
+
+display/cooling-ui.yaml
+    shared Cooling page presentation
+
+display/trends-ui.yaml
+    shared Trends page presentation
+
+display/cooling.yaml
+    shared Cooling page runtime
+
+display/system-ui.yaml
+    shared System page presentation
+
+display/system.yaml
+    shared local-target diagnostics and rectifier-status page runtime
+
+display/trends.yaml
+    shared native LVGL Trends chart runtime
+
+display/fallback-dialog.yaml
+    shared fallback-setpoint dialog
+
+display/rectifier-power-dialogs.yaml
+    parameterized shared per-unit START/STOP dialogs
+
+display/local-battery-header.yaml
+    shared local display-controller backup-battery header runtime
 
 display/pages/*.yaml
     static LVGL page layouts
 
-display/*.yaml
-    persistent and page-specific display runtime
-```
+rectifier-can/*.yaml
+    parameterized CAN receive fragments
 
+```
 A package SHOULD own one coherent responsibility and SHOULD NOT duplicate runtime state or hardware definitions owned elsewhere.
 
 ---
@@ -138,45 +317,159 @@ Documentation-only and repository-cleanup commits do not require a firmware vers
 
 ---
 
-## `core.yaml`
+## `shared/core.yaml`
 
-Owns controller-wide ESPHome infrastructure.
+Owns target-neutral ESP32-S3 platform and network infrastructure shared by the Charger Controller and Remote HMI.
 
 Responsibilities include:
 
 - ESP32-S3 platform and framework configuration
 - Flash and PSRAM configuration
+- logging
 - Wi-Fi
 - ESPHome native API
-- MQTT
 - web server
 - OTA
 - time synchronization
-- general controller services
+- ESPHome debug-component support
 
-Hardware-specific charger logic does not belong in this package.
+Target-specific command and telemetry transports do not belong in this package.
 
 ---
 
-## `hardware.yaml`
+## `shared/local-diagnostics.yaml`
 
-Owns the physical V5 controller hardware that is shared across multiple functional packages.
+Owns target-local diagnostic entities that are common to the Charger Controller and Remote HMI.
 
-The current controller target is the Waveshare ESP32-S3-Touch-LCD-7.
+Responsibilities include:
+
+- heap and PSRAM diagnostics
+- maximum free heap block
+- ESPHome loop time
+- CPU frequency and temperature
+- device uptime
+- Wi-Fi RSSI and IP address
+- ESPHome version
+- device information and reset reason
+
+The diagnostics describe the ESP32 running the current firmware target. They do not represent charger operational state and do not participate in charger control or safety.
+
+---
+
+## `shared/hardware.yaml`
+
+Owns physical Waveshare ESP32-S3-Touch-LCD-7 hardware that is independent of the charger-side backend.
 
 Responsibilities include:
 
 - onboard I2C bus
-- dedicated external I2C bus
-- MCP23017 external I/O expander
 - GT911 touchscreen
 - CH422G onboard I/O expander
+- local display-controller backup-battery ADC and SOC estimate
+
+This package contains board hardware that can be reused by multiple firmware targets without requiring charger-side peripherals. Local backup-battery entity names use the target's `diagnostics_device_label`, while the internal runtime IDs remain target-neutral.
+
+---
+
+## `shared/ui-model.yaml`
+
+Owns the target-neutral runtime state consumed by shared HMI code.
+
+The model isolates LVGL presentation from the source of charger data. Charger Controller and Remote HMI backends publish into the same model IDs so shared display code does not need target-specific telemetry paths.
+
+The current model includes Dashboard AC/DC aggregate telemetry, active and fallback charger setpoints, rectifier availability/run state, per-rectifier overview and detail telemetry, highest output temperature, conversion efficiency and aggregate solar-battery-bank monitoring state. Parameterized per-battery monitoring state is defined in `shared/ui-battery-unit.yaml`.
+
+---
+
+## `controller/hardware.yaml`
+
+Owns physical hardware that exists only on the Charger Controller.
+
+Responsibilities include:
+
+- dedicated charger-side external I2C bus
+- MCP23017 external I/O expander
+- backup rotary-encoder inputs
 - USB/CAN routing selection
 - ESP32-S3 TWAI / onboard CAN interface
-- backup rotary-encoder inputs
-- controller backup-battery ADC and SOC estimate
 
-### I2C Topology
+---
+
+## `controller/mqtt.yaml`
+
+Owns the Charger Controller MQTT transport.
+
+MQTT remains optional for charger operation and is independent from the native ESPHome API used by Home Assistant.
+
+The Remote HMI does not require this package.
+
+---
+
+## `controller/ui-backend.yaml`
+
+Owns translation from authoritative local Charger Controller runtime state into the shared UI model.
+
+This backend does not own charger state itself. The existing controller runtime remains authoritative.
+
+---
+
+## `controller/ui-commands.yaml`
+
+Implements the shared HMI command interface for the Charger Controller target.
+
+The command scripts translate target-neutral Dashboard, fallback-setpoint and per-rectifier command intent into the existing local ESPHome controls. Charger safety, validation and CAN execution remain owned by the existing Controller entities and scripts.
+
+---
+
+## `remote-hmi/connection-status.yaml`
+
+Provides persistent Remote-HMI-specific connectivity presentation in the target-specific status area of the shared persistent header.
+
+The status clearly indicates whether authoritative Charger Controller data is currently available through Home Assistant across the shared HMI pages. It does not duplicate charger state or safety logic.
+
+---
+
+## `remote-hmi/ha-entity-map.yaml`
+
+Owns the Home Assistant entity mapping for the Charger Controller paired with a Remote HMI.
+
+The Remote HMI root defines one installation-specific `ha_charger_entity_prefix`. The entity map derives the Dashboard telemetry, setpoint, charger-wide command, per-rectifier state and per-rectifier command entity IDs from that prefix.
+
+This keeps Home Assistant entity naming out of the state and command backends and allows another Charger Controller to be paired by changing one configuration value.
+
+The same prefix is used for all three rectifier backends, so per-unit Home Assistant mappings do not require separate installation-specific configuration.
+
+The configured prefix must match the actual Home Assistant entity IDs. Home Assistant may preserve existing entity IDs after an ESPHome device is renamed, so the prefix is not inferred dynamically from the current device name.
+
+---
+
+## `remote-hmi/ha-backend.yaml`
+
+Owns the Remote HMI Home Assistant transport.
+
+It imports authoritative Charger Controller entities from Home Assistant and publishes them into the shared UI model. Shared LVGL code therefore consumes the same `ui_model_*` entities on both firmware targets.
+
+The backend supplies Charger-side Dashboard telemetry, active and fallback setpoint state required by the shared UI model. Charger command transport remains separate.
+
+Loss of the Home Assistant state-subscription connection invalidates Remote HMI charger state so stale values cannot appear as live telemetry.
+
+Home Assistant entity IDs are supplied by `remote-hmi/ha-entity-map.yaml` rather than being embedded in the backend.
+
+---
+
+## `remote-hmi/ui-commands.yaml`
+
+Implements the shared HMI command interface for the Remote HMI target.
+
+The backend sends charger-wide, fallback-setpoint and per-rectifier command requests through Home Assistant to the Charger Controller entities. It does not duplicate safety logic and does not treat a request as confirmed charger state.
+
+The shared UI model remains authoritative for displayed command results after Home Assistant reports the resulting Charger Controller state.
+
+Command target entity IDs are supplied by `remote-hmi/ha-entity-map.yaml`.
+
+---
+
+## Charger Controller I2C Topology
 
 The controller uses two independent physical I2C buses. The onboard bus is reserved for Waveshare peripherals, while external peripherals use a dedicated bus to avoid address collisions with the onboard CH422G.
 
@@ -197,7 +490,7 @@ ESP32-S3
     └── EMC2101 @ 0x4C
 ```
 
-The physical I2C buses and MCP23017 are configured in `hardware.yaml`. The AHT10 sensor is configured in the root `r4875g1-3phase-charger.yaml`, while the EMC2101 fan controller is configured in `cooling.yaml`.
+The onboard I2C bus is configured in `shared/hardware.yaml`. The charger-side external I2C bus and MCP23017 are configured in `controller/hardware.yaml`. The AHT10 sensor remains configured in the root `r4875g1-3phase-charger.yaml`, while the EMC2101 fan controller is configured in `cooling.yaml`.
 
 ### MCP23017 Allocation
 
@@ -211,7 +504,7 @@ GPA5 -> Cooling Fan 2 tachometer
 ```
 
 The backup encoder inputs currently provide hardware entities only.
-No charger-control or navigation actions are assigned to them in the current V5 firmware.
+No charger-control or navigation actions are assigned to them in the current V6 firmware.
 
 ---
 
@@ -274,7 +567,7 @@ Automatic cooling fails safe to enabled fan power and maximum PWM if the compart
 
 ---
 
-## `battery-bank.yaml`
+## `shared/battery-bank.yaml`
 
 Owns Home Assistant telemetry import for the external solar battery bank.
 
@@ -291,6 +584,38 @@ Responsibilities include:
 Warning and fault entities are intentionally imported as text so unavailable source data remains distinguishable from a genuine inactive warning or fault.
 
 This package is monitoring-only and MUST NOT participate in charger control, CAN commands, lifecycle decisions or safety limits.
+
+---
+
+## `shared/battery-monitoring.yaml`
+
+Composes the Home Assistant battery source, aggregate UI backend and four parameterized per-unit UI-model/backend pairs used by both V6 targets.
+
+The aggregate battery-bank model remains part of `shared/ui-model.yaml`; per-unit Battery-page state is provided by `shared/ui-battery-unit.yaml`.
+
+---
+
+## `shared/ui-battery-unit.yaml`
+
+Defines target-neutral monitoring state for one solar-battery unit.
+
+Each instance provides per-unit data availability, warning/fault state, voltage, current, power, state of charge, temperature and cell drift.
+
+---
+
+## `shared/battery-ui-backend.yaml`
+
+Publishes validated aggregate battery-bank monitoring state into the shared UI model and exposes the common Home Assistant battery-source connectivity state.
+
+Unavailable aggregate battery data is invalidated before it reaches shared LVGL code so stale monitoring values cannot appear as live state.
+
+---
+
+## `shared/battery-ui-unit-backend.yaml`
+
+Publishes one validated battery unit into the parameterized per-unit UI model.
+
+Both V6 targets use the same Home Assistant battery source package, so this backend is shared rather than target-specific. Raw warning and fault text states are validated by `shared/battery-bank.yaml` and normalized to boolean UI-model state here.
 
 ---
 
@@ -337,7 +662,6 @@ Major responsibilities include:
 - active setpoint routing
 - blackstart START/STOP sequences
 - periodic setpoint refresh
-- local trend sampling
 
 ### Lifecycle
 
@@ -494,54 +818,38 @@ Publishes:
 
 # Display Architecture
 
-The V5 display implementation separates static LVGL layout from periodic runtime updates.
+The V6 display implementation uses one shared presentation architecture for the Charger Controller and Remote HMI. Static LVGL layout, page runtime, trend history and bottom navigation are shared; target-specific telemetry acquisition and command transport remain behind the shared UI-model and `ui_command_*` boundaries.
 
-This separation is important because updating every widget continuously caused unnecessary LVGL load on the controller.
+The Charger Controller composes the shared display stack through `display.yaml`. The Remote HMI root composes the same shared packages directly.
 
 The current architecture is:
 
 ```text
-display.yaml
-│
-├── display/hardware.yaml
-├── display/theme.yaml
-├── display/ui.yaml
-│
-├── persistent/global runtime
-│   ├── display/header.yaml
-│   ├── display/command-state.yaml
-│   └── display/controller-battery.yaml
-│
-├── page-specific runtime
-│   ├── display/dashboard.yaml
-│   ├── display/rectifiers.yaml
-│   ├── display/rectifier-detail.yaml
-│   ├── display/battery.yaml
-│   ├── display/cooling.yaml
-│   ├── display/system.yaml
-│   └── display/trends.yaml
-│
-└── static page layouts
-    └── display/pages/*.yaml
+display/shared-hmi.yaml
+    shared display hardware, theme, chart support, UI state,
+    local trend history and persistent header
+
+display/shared-dashboard.yaml
+display/shared-rectifiers.yaml
+display/shared-battery.yaml
+display/shared-cooling.yaml
+display/shared-system.yaml
+display/shared-trends.yaml
+    page-specific shared presentation and runtime
+
+display/shared-navigation.yaml
+    shared six-page bottom navigation
 ```
 
-Only the currently visible page receives normal page-specific runtime updates.
-
-Persistent header state, command-transition state and controller-battery display updates continue independently.
+Only the currently visible page receives normal page-specific display refreshes. Persistent header state, local backup-battery presentation, command-transition state and local trend sampling continue independently.
 
 ---
 
 ## `display.yaml`
 
-Display package aggregator.
+Charger Controller display-package aggregator.
 
-It includes:
-
-- physical display hardware
-- theme and styles
-- shared UI tree
-- persistent display runtimes
-- page-specific runtimes
+It composes the same shared HMI infrastructure, six shared main pages and shared bottom navigation used by the Remote HMI. The Remote HMI root composes those shared packages directly because it also owns target-specific Home Assistant backends and connectivity presentation.
 
 It should contain package composition rather than page logic.
 
@@ -549,17 +857,20 @@ It should contain package composition rather than page logic.
 
 ## `display/hardware.yaml`
 
-Owns the Waveshare RGB display hardware.
+Owns the Waveshare RGB display, backlight and LVGL hardware integration shared by both V6 targets.
 
 Responsibilities include:
 
 - 800 × 480 RGB panel configuration
-- display timing
 - framebuffer configuration
 - LVGL display binding
+- shared touchscreen binding
 - backlight control
+- boot-time display/LVGL ordering behind network recovery services
 
-Touchscreen hardware is owned by the controller-wide `hardware.yaml` because GT911 shares the main I2C bus and reset infrastructure with other controller hardware.
+The physical GT911 touchscreen is owned by `shared/hardware.yaml`; `display/hardware.yaml` binds that shared touchscreen to LVGL.
+
+The RGB display and LVGL use explicit setup priorities below Wi-Fi and the API/OTA services. This allows networking to reserve scarce internal and DMA-capable memory before the display stack starts while preserving the required display-before-LVGL dependency.
 
 ---
 
@@ -578,21 +889,38 @@ It should not own live telemetry or control-state logic.
 
 ---
 
-## `display/ui.yaml`
+## `display/shared-hmi.yaml`
 
-Owns the persistent LVGL widget tree and shared UI state.
+Owns common display infrastructure and persistent presentation state used by all shared pages.
 
 Responsibilities include:
 
-- page aggregation
-- persistent header layout
-- bottom navigation
-- shared dialogs
-- shared UI globals
-- fallback-edit dialog state
-- active display-page tracking
+- RGB display/LVGL integration
+- shared theme
+- native LVGL chart support
+- active-page and presentation state
+- local ten-minute trend-history state
+- persistent shared header
+- local display-controller backup-battery presentation
 
-Periodic telemetry refresh does not belong in this file.
+Page-specific layout and runtime remain in the corresponding `shared-*.yaml` composition packages.
+
+---
+
+## `display/shared-navigation.yaml`
+
+Owns the six main navigation buttons shared by both V6 targets:
+
+```text
+Dashboard
+Rectifiers
+Battery
+System
+Cooling
+Trends
+```
+
+Rectifier Detail remains a hierarchical child page and is not a seventh main-navigation item.
 
 ---
 
@@ -600,20 +928,22 @@ Periodic telemetry refresh does not belong in this file.
 
 ## `display/header.yaml`
 
-Updates the persistent header independently of the active page.
+Updates the persistent shared header independently of the active page.
 
 Typical header information includes:
 
 - date/time
 - firmware identity
 - charger run state
-- controller backup-battery indication
+- local display-controller backup-battery indication
+
+The Remote HMI adds its Home Assistant connectivity state through the target-specific `remote-hmi/connection-status.yaml` fragment.
 
 ---
 
 ## `display/command-state.yaml`
 
-Owns asynchronous START/STOP transition display state.
+Owns asynchronous per-rectifier START/STOP transition display state.
 
 Pending command state remains active even if the user leaves the page where the command originated.
 
@@ -621,11 +951,27 @@ This prevents command-completion handling from depending on one visible page.
 
 ---
 
-## `display/controller-battery.yaml`
+## `display/local-battery-header.yaml`
 
-Updates controller backup-battery presentation.
+Updates the local Waveshare display-controller backup-battery presentation shared by both targets.
 
 Battery values change slowly and therefore use an independent low-rate refresh rather than being tied to faster page runtimes.
+
+---
+
+## `display/shared-dashboard.yaml`
+
+Composes Dashboard-specific presentation and runtime consumed identically by both firmware targets.
+
+Shared display infrastructure and persistent state are owned separately by `display/shared-hmi.yaml`. Target-specific state acquisition and command transport remain outside the Dashboard package behind the shared UI-model and `ui_command_*` interfaces.
+
+---
+
+## `display/shared-trends.yaml`
+
+Composes the shared Trends page presentation and native chart runtime for both firmware targets.
+
+Trend history and native chart build support remain owned by `display/shared-hmi.yaml` through `trend-state.yaml` and `chart-support.yaml`.
 
 ---
 
@@ -702,32 +1048,33 @@ External chassis-fan control is owned by `cooling.yaml`.
 
 ## `display/system.yaml`
 
-Updates controller diagnostics including:
+Updates target-local diagnostics and shared rectifier status including:
 
 - network information
-- controller runtime information
+- target runtime information
 - memory information
-- CAN / rectifier status
+- rectifier connectivity state
 
-Controller battery values are updated separately by `display/controller-battery.yaml`.
+Local display-controller battery values are updated separately by `display/local-battery-header.yaml`.
 
 ---
 
 ## `display/trends.yaml`
 
-Owns the native LVGL chart runtime.
+Owns the shared native LVGL chart runtime.
 
-Five independent 120-sample ring buffers are recorded continuously by `rectifier-shared.yaml`.
+Five independent 120-sample ring buffers are maintained locally on each V6 target by `display/trend-state.yaml`. They are sampled every five seconds from the target-neutral shared UI model, providing ten minutes of local history without Home Assistant history queries.
 
 The display runtime:
 
 - selects the active trend
+- reads the live value from the shared UI model
 - calculates current/minimum/maximum values
 - determines the dynamic Y-axis range
 - populates the LVGL series
 - renders unavailable samples as gaps
 
-The native LVGL chart helper remains in:
+Native LVGL chart support is enabled by `display/chart-support.yaml`; the helper declarations remain in:
 
 ```text
 ../trend_helpers.h
@@ -765,8 +1112,8 @@ The main navigation exposes:
 Dashboard
 Rectifiers
 Battery
-Cooling
 System
+Cooling
 Trends
 ```
 
@@ -778,7 +1125,7 @@ Rectifier Detail is a hierarchical child view rather than an additional main nav
 
 ## Telemetry Path
 
-Normal per-unit telemetry follows:
+The Charger Controller receives authoritative rectifier telemetry locally and publishes the HMI-facing state through the Controller UI backend:
 
 ```text
 R4875G1
@@ -792,10 +1139,41 @@ rectifier-unit.yaml sensors
    │
    ├── Home Assistant / MQTT / Web
    │
-   └── display page runtimes
+   ▼
+controller/ui-backend.yaml
+controller/ui-rectifier-backend.yaml
+   │
+   ▼
+shared UI model
+   │
+   ▼
+shared page runtimes
+   │
+   ▼
+currently visible LVGL page
 ```
 
-Shared aggregate values are calculated above the per-unit telemetry layer.
+The Remote HMI receives the same authoritative charger state through Home Assistant and translates it into the same shared UI model:
+
+```text
+Charger Controller entities
+   │
+   │ Home Assistant
+   ▼
+remote-hmi/ha-backend.yaml
+remote-hmi/rectifier-backend.yaml
+   │
+   ▼
+shared UI model
+   │
+   ▼
+shared page runtimes
+   │
+   ▼
+currently visible LVGL page
+```
+
+Shared LVGL code therefore does not depend directly on CAN or raw Home Assistant transport entities.
 
 ---
 
@@ -854,24 +1232,26 @@ Discovery is serialized because multi-frame property traffic temporarily require
 ## Display Update Path
 
 ```text
-sensor / control state
-        │
-        ▼
+shared UI model
+      │
+      ▼
 page-specific runtime
-        │
-        ▼
+      │
+      ▼
 currently visible LVGL page
 ```
 
-Persistent state uses separate runtimes:
+Persistent or target-local presentation uses separate runtimes:
 
 ```text
-header
+shared header
 command transitions
-controller battery
+local display-controller battery
+local trend sampling
+Remote HMI connection status
 ```
 
-This architecture avoids continuously refreshing hidden pages.
+This architecture avoids continuously refreshing hidden pages while keeping persistent state independent of page visibility.
 
 ---
 

@@ -1,0 +1,15 @@
+# ==============================================================================
+# SHARED V6 BATTERY DISPLAY PACKAGE
+# ==============================================================================
+#
+# Composes the Battery page presentation and runtime shared by the Charger
+# Controller and Remote HMI targets.
+#
+# Battery telemetry is monitoring-only and is consumed exclusively through the
+# target-neutral UI-model boundary.
+# ==============================================================================
+
+packages:
+
+  display_battery_ui: !include battery-ui.yaml
+  display_battery_runtime: !include battery.yaml

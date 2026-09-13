@@ -1,0 +1,28 @@
+# ==============================================================================
+# SHARED V6 DASHBOARD DISPLAY PACKAGE
+# ==============================================================================
+#
+# Composes Dashboard-specific presentation and runtime shared by the Charger
+# Controller and Remote HMI targets.
+#
+# Shared display infrastructure, persistent header and presentation state are
+# owned by display/shared-hmi.yaml.
+#
+# Target-specific state acquisition and command transport remain behind the
+# shared UI-model and ui_command_* backend boundaries.
+# ==============================================================================
+
+packages:
+
+  # ---------------------------------------------------------------------------
+  # DASHBOARD PRESENTATION
+  # ---------------------------------------------------------------------------
+
+  display_dashboard_ui: !include dashboard-ui.yaml
+
+  # ---------------------------------------------------------------------------
+  # DASHBOARD RUNTIMES
+  # ---------------------------------------------------------------------------
+
+  display_dashboard_command_state: !include dashboard-command-state.yaml
+  display_dashboard: !include dashboard.yaml

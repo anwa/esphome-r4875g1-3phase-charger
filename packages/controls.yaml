@@ -305,8 +305,8 @@ number:
   - platform: template
     name: "Set AC Current Limit"
     id: set_ac_current_limit
-    min_value: 0
-    max_value: 21
+    min_value: ${ac_current_limit_min_a}
+    max_value: ${ac_current_limit_max_a}
     step: 0.1
     unit_of_measurement: "A"
     optimistic: true
@@ -377,8 +377,8 @@ number:
     id: set_dc_sum_power
     unit_of_measurement: "kW"
     icon: "mdi:flash"
-    min_value: 0.1
-    max_value: 12.0
+    min_value: ${dc_sum_power_min_kw}
+    max_value: ${dc_sum_power_max_kw}
     step: 0.1
     optimistic: true
     restore_value: true
