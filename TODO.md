@@ -54,20 +54,6 @@ Motion-based display wake is intentionally optional per target. Both current tar
 - [ ] Verify that touching a sleeping display still wakes it without activating the control underneath the wake-up touch.
 - [ ] Confirm that no dummy Home Assistant entity or target-specific workaround is required when motion wake is disabled.
 
-## P1 — Extend Trends History to 60 Minutes
-
-The shared Trends implementation should provide one hour of local history while retaining enough horizontal resolution for a clean native LVGL line chart. Use 360 samples per trend at a ten-second interval and ten-minute X-axis divisions.
-
-- [ ] Increase all five local trend ring buffers to 360 samples.
-- [ ] Use a ten-second sampling interval.
-- [ ] Increase the native LVGL chart point count to 360.
-- [ ] Change the fixed X-axis labels to `-60 min`, `-50 min`, `-40 min`, `-30 min`, `-20 min`, `-10 min` and `now`.
-- [ ] Align the seven time labels and vertical grid divisions with the ten-minute intervals.
-- [ ] Preserve NAN gaps for unavailable telemetry.
-- [ ] Verify current, minimum and maximum calculations across the full sixty-minute history.
-- [ ] Validate and compile both V6 targets because Trends is shared HMI runtime.
-- [ ] Check heap, largest free heap block and sustained runtime stability after the larger chart is created lazily.
-
 ## P2 — Final Per-Target Motion Sensor Configuration
 
 The two current V6 targets temporarily use the same Home Assistant occupancy entity. The architecture already supports independent target-specific entity IDs.
