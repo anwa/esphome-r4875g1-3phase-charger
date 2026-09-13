@@ -5,7 +5,7 @@
 # Native LVGL chart support for the Trends page.
 #
 # Current values are consumed through the target-neutral shared UI model.
-# Trend acquisition and the five 120-sample ring buffers are owned by:
+# Trend acquisition and the five 360-sample ring buffers are owned by:
 #   display/trend-state.yaml
 #
 # The page itself is defined in:
@@ -20,7 +20,7 @@ script:
 
     then:
       - lambda: |-
-          constexpr uint16_t TREND_POINTS = 120;
+          constexpr uint16_t TREND_POINTS = 360;
 
           static lv_obj_t *chart = nullptr;
           static lv_chart_series_t *series = nullptr;
@@ -67,7 +67,7 @@ script:
             lv_chart_set_div_line_count(
               chart,
               5,
-              6
+              7
             );
 
             lv_obj_set_style_border_width(
@@ -299,7 +299,7 @@ script:
           last_sample_count = sample_count;
 
 
-          // Rewrite 120-point series
+          // Rewrite 360-point series
           float minimum = NAN;
           float maximum = NAN;
 

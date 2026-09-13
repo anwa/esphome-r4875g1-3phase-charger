@@ -450,7 +450,7 @@ On the Remote HMI, local device diagnostics remain available independently of Ho
 
 ### Trends
 
-Five independent ten-minute ring buffers are maintained continuously:
+Five independent sixty-minute ring buffers are maintained continuously:
 
 ```text
 Combined DC Power
@@ -463,10 +463,12 @@ Rectifier Compartment Temperature
 Sampling uses:
 
 ```text
-5-second interval
-120 samples
-10-minute history
+10-second interval
+360 samples
+60-minute history
 ```
+
+The chart time axis uses ten-minute divisions labeled from `-60 min` through `-10 min` and `now`.
 
 Invalid source values are preserved as gaps instead of being converted to artificial zero values.
 

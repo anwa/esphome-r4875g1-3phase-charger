@@ -217,7 +217,7 @@ display/ui-state.yaml
     shared LVGL presentation, navigation and command-pending state
 
 display/trend-state.yaml
-    shared local 10-minute HMI trend history sampled from the target-neutral UI model
+    shared local 60-minute HMI trend history sampled from the target-neutral UI model
 
 display/chart-support.yaml
     shared LVGL chart build support used by both V6 HMI targets
@@ -903,7 +903,7 @@ Responsibilities include:
 - shared theme
 - native LVGL chart support
 - active-page and presentation state
-- local ten-minute trend-history state
+- local sixty-minute trend-history state
 - persistent shared header
 - local display-controller backup-battery presentation
 
@@ -1067,7 +1067,7 @@ Local display-controller battery values are updated separately by `display/local
 
 Owns the shared native LVGL chart runtime.
 
-Five independent 120-sample ring buffers are maintained locally on each V6 target by `display/trend-state.yaml`. They are sampled every five seconds from the target-neutral shared UI model, providing ten minutes of local history without Home Assistant history queries.
+Five independent 360-sample ring buffers are maintained locally on each V6 target by `display/trend-state.yaml`. They are sampled every ten seconds from the target-neutral shared UI model, providing sixty minutes of local history without Home Assistant history queries.
 
 The display runtime:
 

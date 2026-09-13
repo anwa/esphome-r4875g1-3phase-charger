@@ -302,7 +302,7 @@ Normal page telemetry is refreshed only while the corresponding page is visible.
 
 This page-aware runtime architecture reduces unnecessary LVGL workload and stack pressure compared with refreshing all hidden widgets from one global loop.
 
-The Dashboard provides charger-wide telemetry, charger controls and aggregate solar-battery-bank monitoring. Rectifiers provides the three-unit overview and hierarchical detail access. Battery provides detailed monitoring of the four external battery units. Cooling displays rear-compartment environmental data and internal rectifier-fan telemetry. System exposes controller and CAN diagnostics. Trends displays continuously sampled ten-minute charger telemetry histories.
+The Dashboard provides charger-wide telemetry, charger controls and aggregate solar-battery-bank monitoring. Rectifiers provides the three-unit overview and hierarchical detail access. Battery provides detailed monitoring of the four external battery units. Cooling displays rear-compartment environmental data and internal rectifier-fan telemetry. System exposes controller and CAN diagnostics. Trends displays continuously sampled sixty-minute charger telemetry histories.
 
 The persistent header includes charger identity/runtime information, charger run state and controller backup-battery indication.
 
