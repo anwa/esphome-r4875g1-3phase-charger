@@ -1125,7 +1125,7 @@ Rectifier Detail is a hierarchical child view rather than an additional main nav
 
 ## Telemetry Path
 
-Normal per-unit telemetry follows:
+The Charger Controller receives authoritative rectifier telemetry locally and publishes the HMI-facing state through the Controller UI backend:
 
 ```text
 R4875G1
@@ -1139,10 +1139,41 @@ rectifier-unit.yaml sensors
    │
    ├── Home Assistant / MQTT / Web
    │
-   └── display page runtimes
+   ▼
+controller/ui-backend.yaml
+controller/ui-rectifier-backend.yaml
+   │
+   ▼
+shared UI model
+   │
+   ▼
+shared page runtimes
+   │
+   ▼
+currently visible LVGL page
 ```
 
-Shared aggregate values are calculated above the per-unit telemetry layer.
+The Remote HMI receives the same authoritative charger state through Home Assistant and translates it into the same shared UI model:
+
+```text
+Charger Controller entities
+   │
+   │ Home Assistant
+   ▼
+remote-hmi/ha-backend.yaml
+remote-hmi/rectifier-backend.yaml
+   │
+   ▼
+shared UI model
+   │
+   ▼
+shared page runtimes
+   │
+   ▼
+currently visible LVGL page
+```
+
+Shared LVGL code therefore does not depend directly on CAN or raw Home Assistant transport entities.
 
 ---
 
@@ -1201,24 +1232,26 @@ Discovery is serialized because multi-frame property traffic temporarily require
 ## Display Update Path
 
 ```text
-sensor / control state
-        │
-        ▼
+shared UI model
+      │
+      ▼
 page-specific runtime
-        │
-        ▼
+      │
+      ▼
 currently visible LVGL page
 ```
 
-Persistent state uses separate runtimes:
+Persistent or target-local presentation uses separate runtimes:
 
 ```text
-header
+shared header
 command transitions
-controller battery
+local display-controller battery
+local trend sampling
+Remote HMI connection status
 ```
 
-This architecture avoids continuously refreshing hidden pages.
+This architecture avoids continuously refreshing hidden pages while keeping persistent state independent of page visibility.
 
 ---
 

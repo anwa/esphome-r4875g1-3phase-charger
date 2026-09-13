@@ -9,7 +9,7 @@ ESPHome-based controller for three Huawei R4875G1 rectifiers operated as a coord
 The V6 firmware generation uses two coordinated targets based on the **Waveshare ESP32-S3-Touch-LCD-7**:
 
 - the Charger Controller, physically attached to the rectifiers and responsible for CAN, charger control, safety and local blackstart
-- the Remote HMI, which uses the shared Dashboard, Rectifiers, Battery and System presentation while receiving authoritative charger state and sending HMI command requests through Home Assistant
+- the Remote HMI, which uses the same shared Dashboard, Rectifiers, Battery, System, Cooling and Trends presentation while receiving authoritative charger state and sending HMI command requests through Home Assistant
 
 Remote HMI charger commands use Home Assistant transport and remain subject to authoritative validation and execution by the Charger Controller.
 
@@ -651,71 +651,83 @@ Home Assistant can therefore expose charger telemetry, diagnostics, setpoints an
 
 ## Firmware Architecture
 
-The firmware is assembled from modular ESPHome packages.
+The V6 generation is assembled from two root configurations plus shared and target-specific ESPHome packages.
 
 ```text
 r4875g1-3phase-charger.yaml
+r4875g1-remote-hmi.yaml
 trend_helpers.h
 
 packages/
 ├── version.yaml
-├── core.yaml
-├── hardware.yaml
 ├── controls.yaml
 ├── cooling.yaml
-├── battery-bank.yaml
 ├── display.yaml
 ├── rectifier-shared.yaml
 ├── rectifier-unit.yaml
 │
-├── display/
+├── shared/
+│   ├── core.yaml
 │   ├── hardware.yaml
-│   ├── theme.yaml
-│   ├── ui.yaml
-│   ├── header.yaml
-│   ├── command-state.yaml
-│   ├── controller-battery.yaml
-│   ├── dashboard.yaml
-│   ├── rectifiers.yaml
-│   ├── rectifier-detail.yaml
-│   ├── battery.yaml
-│   ├── cooling.yaml
-│   ├── system.yaml
-│   ├── trends.yaml
-│   │
+│   ├── local-diagnostics.yaml
+│   ├── ui-model.yaml
+│   ├── ui-contract.yaml
+│   └── battery-monitoring.yaml
+│
+├── controller/
+│   ├── hardware.yaml
+│   ├── mqtt.yaml
+│   ├── ui-backend.yaml
+│   ├── ui-rectifier-backend.yaml
+│   └── ui-commands.yaml
+│
+├── remote-hmi/
+│   ├── connection-status.yaml
+│   ├── ha-entity-map.yaml
+│   ├── ha-backend.yaml
+│   ├── rectifier-backend.yaml
+│   └── ui-commands.yaml
+│
+├── display/
+│   ├── shared-hmi.yaml
+│   ├── shared-dashboard.yaml
+│   ├── shared-rectifiers.yaml
+│   ├── shared-battery.yaml
+│   ├── shared-system.yaml
+│   ├── shared-cooling.yaml
+│   ├── shared-trends.yaml
+│   ├── shared-navigation.yaml
 │   └── pages/
-│       ├── dashboard.yaml
-│       ├── rectifiers.yaml
-│       ├── rectifier-detail.yaml
-│       ├── battery.yaml
-│       ├── cooling.yaml
-│       ├── system.yaml
-│       └── trends.yaml
 │
 └── rectifier-can/
-    ├── property-start.yaml
-    ├── property-end.yaml
-    ├── cyclic-telemetry.yaml
-    ├── fan-telemetry.yaml
-    ├── address-data.yaml
-    └── power-state.yaml
+    └── parameterized CAN receive handlers
 ```
 
 ### Package Responsibilities
 
 | Package | Responsibility |
 | --- | --- |
-| `version.yaml` | firmware version source of truth |
-| `core.yaml` | ESP32, network, API, MQTT, OTA, web and time services |
-| `hardware.yaml` | controller buses, I2C expansion, touch, CAN, encoder and backup battery |
+| `version.yaml` | coordinated V6 firmware version source of truth |
+| `shared/core.yaml` | shared ESP32 platform, network, API, web, OTA and time services |
+| `shared/hardware.yaml` | shared Waveshare board peripherals and local backup-battery monitoring |
+| `shared/ui-model.yaml` | target-neutral state consumed by the shared HMI |
+| `shared/battery-monitoring.yaml` | shared Home Assistant solar-battery monitoring and UI-model backends |
+| `controller/hardware.yaml` | Charger Controller CAN, external I2C and charger-side hardware |
+| `controller/ui-backend.yaml` | publishes authoritative local charger state into the shared UI model |
+| `controller/ui-commands.yaml` | executes shared HMI command intents on the Charger Controller |
+| `remote-hmi/ha-backend.yaml` | imports authoritative Charger Controller state through Home Assistant |
+| `remote-hmi/ui-commands.yaml` | transports shared HMI command intents through Home Assistant |
+| `remote-hmi/connection-status.yaml` | persistent Remote HMI Home Assistant connectivity presentation |
 | `controls.yaml` | charger-wide user setpoints and controls |
-| `cooling.yaml` | external chassis-fan control and RPM monitoring |
-| `display.yaml` | complete LVGL package aggregation |
+| `cooling.yaml` | Charger Controller external chassis-fan control and RPM monitoring |
+| `display.yaml` | Charger Controller aggregation of the shared display packages |
+| `display/shared-hmi.yaml` | shared display infrastructure, presentation state, header and local trend history |
+| `display/shared-*.yaml` | shared page presentation/runtime compositions for both V6 targets |
+| `display/shared-navigation.yaml` | shared six-page bottom navigation |
 | `rectifier-shared.yaml` | shared lifecycle, safety, discovery, CAN scheduling and control |
 | `rectifier-unit.yaml` | parameterized per-unit state and telemetry |
 | `rectifier-can/*.yaml` | parameterized CAN receive handlers |
-| `trend_helpers.h` | native LVGL chart support |
-| `battery-bank.yaml` | Home Assistant solar-battery telemetry import and availability state |
+| `trend_helpers.h` | native LVGL chart declarations used by the shared Trends runtime |
 
 The detailed ownership model is documented in [`packages/README.md`](packages/README.md).
 
@@ -723,57 +735,63 @@ The detailed ownership model is documented in [`packages/README.md`](packages/RE
 
 ## Display Architecture
 
-The V6 display implementation separates static UI layout from periodic runtime updates.
+Both V6 targets use the same shared LVGL presentation. Target-specific backends translate their native state into the shared UI model, and shared page runtimes consume only that target-neutral model.
 
 ```text
-display.yaml
-│
-├── hardware.yaml
-├── theme.yaml
-├── ui.yaml
-│
-├── persistent runtimes
-│   ├── header.yaml
-│   ├── command-state.yaml
-│   └── controller-battery.yaml
-│
-├── page runtimes
-│   ├── dashboard.yaml
-│   ├── rectifiers.yaml
-│   ├── rectifier-detail.yaml
-│   ├── battery.yaml
-│   ├── cooling.yaml
-│   ├── system.yaml
-│   └── trends.yaml
-│
-└── page layouts
-    └── pages/*.yaml
+                         Shared LVGL HMI
+                               │
+                               ▼
+                       Shared UI model
+                               │
+                ┌──────────────┴──────────────┐
+                ▼                             ▼
+      Charger Controller backend       Remote HMI backend
+                │                             │
+                ▼                             ▼
+       Local runtime / CAN          Home Assistant entities
 ```
 
-Only the currently visible page receives its normal page-specific runtime updates.
+The shared display composition contains:
 
-Persistent header, command-state handling and controller backup-battery presentation continue independently.
+```text
+shared-hmi
+shared-dashboard
+shared-rectifiers
+shared-battery
+shared-system
+shared-cooling
+shared-trends
+shared-navigation
+```
 
-This reduces unnecessary LVGL update load and keeps the controller responsive.
+Only the currently visible page receives normal page-specific display refreshes. Persistent header state, command-transition state, local backup-battery presentation and local trend sampling continue independently on each target.
 
 ---
 
 ## Building
 
-The main ESPHome configuration is:
+The two V6 ESPHome root configurations are:
 
 ```text
 r4875g1-3phase-charger.yaml
+r4875g1-remote-hmi.yaml
 ```
 
-Validate or compile using the normal ESPHome toolchain, for example:
+Validate and compile the Charger Controller with:
 
 ```bash
 esphome config r4875g1-3phase-charger.yaml
 esphome compile r4875g1-3phase-charger.yaml
 ```
 
-Hardware-dependent changes should always be validated on the actual controller after successful compilation.
+Validate and compile the Remote HMI with:
+
+```bash
+esphome config r4875g1-remote-hmi.yaml
+esphome compile r4875g1-remote-hmi.yaml
+```
+
+Changes to shared V6 HMI code or shared target contracts must be validated against both targets. Hardware-dependent behavior should also be tested on the affected physical target after successful compilation.
 
 ---
 
