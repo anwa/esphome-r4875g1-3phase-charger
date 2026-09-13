@@ -23,6 +23,7 @@ packages:
   # ---------------------------------------------------------------------------
 
   display_ui_state: !include ui-state.yaml
+  display_trend_state: !include trend-state.yaml
 
   # ---------------------------------------------------------------------------
   # PERSISTENT HEADER
