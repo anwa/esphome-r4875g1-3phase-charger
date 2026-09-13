@@ -140,13 +140,31 @@ widgets:
             text_font: montserrat_14
             text_color: 0x8B96A0
 
-        # Fixed X-axis labels
+        # Fixed X-axis labels aligned with the seven vertical chart divisions.
         - label:
             x: 55
             y: 204
             width: 80
             text_align: LEFT
-            text: "-10 min"
+            text: "-60 min"
+            text_font: montserrat_14
+            text_color: 0x8B96A0
+
+        - label:
+            x: 134
+            y: 204
+            width: 80
+            text_align: CENTER
+            text: "-50 min"
+            text_font: montserrat_14
+            text_color: 0x8B96A0
+
+        - label:
+            x: 253
+            y: 204
+            width: 80
+            text_align: CENTER
+            text: "-40 min"
             text_font: montserrat_14
             text_color: 0x8B96A0
 
@@ -155,7 +173,25 @@ widgets:
             y: 204
             width: 80
             text_align: CENTER
-            text: "-5 min"
+            text: "-30 min"
+            text_font: montserrat_14
+            text_color: 0x8B96A0
+
+        - label:
+            x: 492
+            y: 204
+            width: 80
+            text_align: CENTER
+            text: "-20 min"
+            text_font: montserrat_14
+            text_color: 0x8B96A0
+
+        - label:
+            x: 611
+            y: 204
+            width: 80
+            text_align: CENTER
+            text: "-10 min"
             text_font: montserrat_14
             text_color: 0x8B96A0
 

@@ -6,7 +6,7 @@
 # Controller and Remote HMI targets.
 #
 # Live values are consumed through the target-neutral shared UI model. Each
-# target maintains its own local ten-minute history through trend-state.yaml.
+# target maintains its own local sixty-minute history through trend-state.yaml.
 # ==============================================================================
 
 packages:
