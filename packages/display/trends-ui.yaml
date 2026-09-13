@@ -1,0 +1,16 @@
+# ==============================================================================
+# SHARED V6 TRENDS PRESENTATION
+# ==============================================================================
+#
+# Defines the Trends page shared by the Charger Controller and Remote HMI
+# targets.
+#
+# Trend history is owned by display/trend-state.yaml, native chart support by
+# display/chart-support.yaml and shared bottom navigation by
+# display/shared-navigation.yaml.
+# ==============================================================================
+
+lvgl:
+
+  pages:
+    - !include pages/trends.yaml

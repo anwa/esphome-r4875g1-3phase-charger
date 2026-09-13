@@ -67,7 +67,8 @@ substitutions:
 # ==============================================================================
 #
 # Composes the shared platform, Home Assistant state/command backends and the
-# shared V6 Dashboard, Rectifiers, Battery, Cooling and System presentation
+# shared V6 Dashboard, Rectifiers, Battery, Cooling, System and Trends
+# presentation
 # used by the Remote HMI.
 # ==============================================================================
 
@@ -178,6 +179,7 @@ packages:
   display_shared_battery: !include packages/display/shared-battery.yaml
   display_shared_cooling: !include packages/display/shared-cooling.yaml
   display_shared_system: !include packages/display/shared-system.yaml
+  display_shared_trends: !include packages/display/shared-trends.yaml
   display_shared_navigation: !include packages/display/shared-navigation.yaml
   remote_connection_status: !include packages/remote-hmi/connection-status.yaml
 

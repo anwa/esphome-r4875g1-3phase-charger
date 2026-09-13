@@ -2,10 +2,8 @@
 # SHARED V6 BOTTOM NAVIGATION
 # ==============================================================================
 #
-# Defines the Dashboard, Rectifiers, Battery, System and Cooling navigation
-# shared by both V6 firmware targets.
-#
-# Target-specific content may use the remaining sixth bottom slot.
+# Defines the complete six-page bottom navigation shared by both V6 firmware
+# targets: Dashboard, Rectifiers, Battery, System, Cooling and Trends.
 # ==============================================================================
 
 lvgl:
@@ -101,3 +99,21 @@ lvgl:
                 id(ui_active_page) = 4;
 
             - lvgl.page.show: page_cooling
+
+      - button:
+          x: 670
+          y: 410
+          styles: style_nav_button
+
+          widgets:
+            - label:
+                align: CENTER
+                text: "Trends"
+                text_font: montserrat_18
+
+          on_short_click:
+            - lambda: |-
+                id(rectifier_detail_unit) = 0;
+                id(ui_active_page) = 6;
+
+            - lvgl.page.show: page_trends

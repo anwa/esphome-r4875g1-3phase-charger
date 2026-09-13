@@ -1,5 +1,5 @@
 # ==============================================================================
-# V6 TRENDS RUNTIME
+# SHARED V6 TRENDS RUNTIME
 # ==============================================================================
 #
 # Native LVGL chart support for the Trends page.
@@ -11,7 +11,7 @@
 # The page itself is defined in:
 #   display/pages/trends.yaml
 #
-# trend_helpers.h exposes the native LVGL chart API.
+# Shared native chart support is enabled by display/chart-support.yaml.
 # ==============================================================================
 
 script:
@@ -128,7 +128,7 @@ script:
 
             ESP_LOGI(
               "trend",
-              "V5 native LVGL trend chart created with %u points.",
+              "V6 native LVGL trend chart created with %u points.",
               TREND_POINTS
             );
           }

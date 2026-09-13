@@ -1,0 +1,15 @@
+# ==============================================================================
+# SHARED V6 TRENDS DISPLAY PACKAGE
+# ==============================================================================
+#
+# Composes the Trends page presentation and chart runtime shared by the Charger
+# Controller and Remote HMI targets.
+#
+# Live values are consumed through the target-neutral shared UI model. Each
+# target maintains its own local ten-minute history through trend-state.yaml.
+# ==============================================================================
+
+packages:
+
+  display_trends_ui: !include trends-ui.yaml
+  display_trends_runtime: !include trends.yaml
