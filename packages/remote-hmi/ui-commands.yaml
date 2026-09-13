@@ -283,7 +283,6 @@ script:
                 level: WARN
                 format: "Remote HMI rectifier STOP command rejected because charger data is unavailable."
 
-
   # ---------------------------------------------------------------------------
   # RECTIFIER FAN AUTO
   # ---------------------------------------------------------------------------
