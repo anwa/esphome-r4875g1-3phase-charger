@@ -6,6 +6,9 @@
 #
 # Runtime updates are handled by display/header.yaml and
 # display/local-battery-header.yaml.
+#
+# The space between the firmware version and centered clock is reserved for
+# compact target-specific persistent status fragments.
 # ==============================================================================
 
 lvgl:
@@ -39,7 +42,7 @@ lvgl:
                 id: ui_header_clock
                 x: 0
                 align: CENTER
-                width: 250
+                width: 200
                 text_align: CENTER
                 text: "--.--.---- --:--"
                 text_font: montserrat_18
