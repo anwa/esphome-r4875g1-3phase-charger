@@ -13,6 +13,7 @@
 #   ha_rectifier_connected_entity
 #   ha_rectifier_lifecycle_entity
 #   ha_rectifier_power_state_entity
+#   ha_rectifier_thermal_state_entity
 #   ha_rectifier_ac_voltage_entity
 #   ha_rectifier_ac_current_entity
 #   ha_rectifier_ac_power_entity
@@ -166,6 +167,11 @@ text_sensor:
     entity_id: ${ha_rectifier_power_state_entity}
     internal: true
 
+  - platform: homeassistant
+    id: remote_ha_rectifier_${ui_unit}_thermal_state
+    entity_id: ${ha_rectifier_thermal_state_entity}
+    internal: true
+
 
 interval:
 
@@ -186,6 +192,7 @@ interval:
             );
 
             id(ui_model_rectifier_${ui_unit}_power_state).publish_state("");
+            id(ui_model_rectifier_${ui_unit}_thermal_state).publish_state("");
 
             id(ui_model_rectifier_${ui_unit}_ac_voltage).publish_state(NAN);
             id(ui_model_rectifier_${ui_unit}_ac_current).publish_state(NAN);
@@ -283,6 +290,24 @@ interval:
 
           id(ui_model_rectifier_${ui_unit}_power_state).publish_state(
             power_state
+          );
+
+          std::string thermal_state;
+
+          if (id(remote_ha_rectifier_${ui_unit}_thermal_state).has_state()) {
+            thermal_state =
+              id(remote_ha_rectifier_${ui_unit}_thermal_state).state;
+
+            if (
+              thermal_state == "unknown" ||
+              thermal_state == "unavailable"
+            ) {
+              thermal_state.clear();
+            }
+          }
+
+          id(ui_model_rectifier_${ui_unit}_thermal_state).publish_state(
+            thermal_state
           );
 
           id(ui_model_rectifier_${ui_unit}_ac_voltage).publish_state(

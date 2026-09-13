@@ -36,6 +36,7 @@ interval:
             );
 
             id(ui_model_rectifier_${ui_unit}_power_state).publish_state("");
+            id(ui_model_rectifier_${ui_unit}_thermal_state).publish_state("");
 
             id(ui_model_rectifier_${ui_unit}_ac_voltage).publish_state(NAN);
             id(ui_model_rectifier_${ui_unit}_ac_current).publish_state(NAN);
@@ -87,6 +88,10 @@ interval:
             power_state == "UNKNOWN"
               ? ""
               : power_state
+          );
+
+          id(ui_model_rectifier_${ui_unit}_thermal_state).publish_state(
+            id(thermal_state_text_${ui_unit}).state
           );
 
           id(ui_model_rectifier_${ui_unit}_ac_voltage).publish_state(

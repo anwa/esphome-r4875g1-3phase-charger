@@ -64,6 +64,7 @@ substitutions:
   ha_rectifier_1_connected_entity: "binary_sensor.${ha_charger_entity_prefix}_can_communication_unit_1"
   ha_rectifier_1_lifecycle_entity: "sensor.${ha_charger_entity_prefix}_control_state_unit_1"
   ha_rectifier_1_power_state_entity: "sensor.${ha_charger_entity_prefix}_power_state_unit_1"
+  ha_rectifier_1_thermal_state_entity: "sensor.${ha_charger_entity_prefix}_thermal_state_unit_1"
 
   ha_rectifier_1_ac_voltage_entity: "sensor.${ha_charger_entity_prefix}_ac_voltage_unit_1"
   ha_rectifier_1_ac_current_entity: "sensor.${ha_charger_entity_prefix}_ac_current_unit_1"
@@ -92,6 +93,7 @@ substitutions:
   ha_rectifier_2_connected_entity: "binary_sensor.${ha_charger_entity_prefix}_can_communication_unit_2"
   ha_rectifier_2_lifecycle_entity: "sensor.${ha_charger_entity_prefix}_control_state_unit_2"
   ha_rectifier_2_power_state_entity: "sensor.${ha_charger_entity_prefix}_power_state_unit_2"
+  ha_rectifier_2_thermal_state_entity: "sensor.${ha_charger_entity_prefix}_thermal_state_unit_2"
 
   ha_rectifier_2_ac_voltage_entity: "sensor.${ha_charger_entity_prefix}_ac_voltage_unit_2"
   ha_rectifier_2_ac_current_entity: "sensor.${ha_charger_entity_prefix}_ac_current_unit_2"
@@ -120,6 +122,7 @@ substitutions:
   ha_rectifier_3_connected_entity: "binary_sensor.${ha_charger_entity_prefix}_can_communication_unit_3"
   ha_rectifier_3_lifecycle_entity: "sensor.${ha_charger_entity_prefix}_control_state_unit_3"
   ha_rectifier_3_power_state_entity: "sensor.${ha_charger_entity_prefix}_power_state_unit_3"
+  ha_rectifier_3_thermal_state_entity: "sensor.${ha_charger_entity_prefix}_thermal_state_unit_3"
 
   ha_rectifier_3_ac_voltage_entity: "sensor.${ha_charger_entity_prefix}_ac_voltage_unit_3"
   ha_rectifier_3_ac_current_entity: "sensor.${ha_charger_entity_prefix}_ac_current_unit_3"

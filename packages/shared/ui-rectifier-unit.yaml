@@ -167,3 +167,7 @@ text_sensor:
   - platform: template
     id: ui_model_rectifier_${ui_unit}_power_state
     internal: true
+
+  - platform: template
+    id: ui_model_rectifier_${ui_unit}_thermal_state
+    internal: true

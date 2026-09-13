@@ -107,6 +107,7 @@ packages:
       ha_rectifier_connected_entity: ${ha_rectifier_1_connected_entity}
       ha_rectifier_lifecycle_entity: ${ha_rectifier_1_lifecycle_entity}
       ha_rectifier_power_state_entity: ${ha_rectifier_1_power_state_entity}
+      ha_rectifier_thermal_state_entity: ${ha_rectifier_1_thermal_state_entity}
       ha_rectifier_ac_voltage_entity: ${ha_rectifier_1_ac_voltage_entity}
       ha_rectifier_ac_current_entity: ${ha_rectifier_1_ac_current_entity}
       ha_rectifier_ac_power_entity: ${ha_rectifier_1_ac_power_entity}
@@ -130,6 +131,7 @@ packages:
       ha_rectifier_connected_entity: ${ha_rectifier_2_connected_entity}
       ha_rectifier_lifecycle_entity: ${ha_rectifier_2_lifecycle_entity}
       ha_rectifier_power_state_entity: ${ha_rectifier_2_power_state_entity}
+      ha_rectifier_thermal_state_entity: ${ha_rectifier_2_thermal_state_entity}
       ha_rectifier_ac_voltage_entity: ${ha_rectifier_2_ac_voltage_entity}
       ha_rectifier_ac_current_entity: ${ha_rectifier_2_ac_current_entity}
       ha_rectifier_ac_power_entity: ${ha_rectifier_2_ac_power_entity}
@@ -153,6 +155,7 @@ packages:
       ha_rectifier_connected_entity: ${ha_rectifier_3_connected_entity}
       ha_rectifier_lifecycle_entity: ${ha_rectifier_3_lifecycle_entity}
       ha_rectifier_power_state_entity: ${ha_rectifier_3_power_state_entity}
+      ha_rectifier_thermal_state_entity: ${ha_rectifier_3_thermal_state_entity}
       ha_rectifier_ac_voltage_entity: ${ha_rectifier_3_ac_voltage_entity}
       ha_rectifier_ac_current_entity: ${ha_rectifier_3_ac_current_entity}
       ha_rectifier_ac_power_entity: ${ha_rectifier_3_ac_power_entity}
