@@ -72,6 +72,7 @@ packages/
 ├── display/
 │   ├── ui-state.yaml
 │   ├── trend-state.yaml
+│   ├── chart-support.yaml
 │   ├── header-ui.yaml
 │   ├── dashboard-ui.yaml
 │   ├── dashboard-command-state.yaml
@@ -216,6 +217,9 @@ display/ui-state.yaml
 display/trend-state.yaml
     shared local 10-minute HMI trend history sampled from the target-neutral UI model
 
+display/chart-support.yaml
+    shared LVGL chart build support used by both V6 HMI targets
+
 display/header-ui.yaml
     shared persistent header layout
 
@@ -229,7 +233,7 @@ display/command-state.yaml
     shared per-rectifier START/STOP pending-state resolution
 
 display/shared-hmi.yaml
-    shared display infrastructure, persistent header, trend history and presentation state
+    shared display infrastructure, chart support, persistent header, trend history and presentation state
 
 display/shared-dashboard.yaml
     shared Dashboard presentation and runtime consumed by both V6 firmware targets

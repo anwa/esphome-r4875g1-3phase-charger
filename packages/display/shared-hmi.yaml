@@ -17,6 +17,7 @@ packages:
 
   display_hardware: !include hardware.yaml
   display_theme: !include theme.yaml
+  display_chart_support: !include chart-support.yaml
 
   # ---------------------------------------------------------------------------
   # SHARED PRESENTATION STATE

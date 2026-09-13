@@ -76,7 +76,7 @@ function Get-ManagedFiles {
             }
     )
 
-    # Additional ESPHome source/include files required by the main YAML.
+    # Additional ESPHome source/include files required by the deployed configuration.
     $extraFiles = @(
         "trend_helpers.h"
     )
@@ -113,13 +113,16 @@ function Get-RemoteManagedPath([string]$RelativePath, [string]$NodeName) {
         return "packages/$NodeName/$packageRelativePath"
     }
 
-    # Repository root include files:
+    # Shared repository-root include files remain in the deployment root.
+    #
+    # ESPHome resolves esphome.includes paths relative to the root configuration
+    # directory, including includes declared by package YAML files.
     #
     #   trend_helpers.h
     #       ->
-    #   packages/<node-name>/trend_helpers.h
+    #   trend_helpers.h
     #
-    return "packages/$NodeName/$normalized"
+    return $normalized
 }
 
 function New-DeploymentProjectFile(
@@ -150,19 +153,6 @@ function New-DeploymentProjectFile(
         $content,
         '(?m)(file:\s*)packages/',
         "`$1packages/$NodeName/"
-    )
-
-    # Root-level ESPHome include files are deployed into the same node-specific
-    # package namespace.
-    #
-    #   - trend_helpers.h
-    #       ->
-    #   - packages/<node-name>/trend_helpers.h
-    #
-    $content = [regex]::Replace(
-        $content,
-        '(?m)^(\s*-\s*)trend_helpers\.h(\s*(?:#.*)?)$',
-        "`${1}packages/$NodeName/trend_helpers.h`${2}"
     )
 
     $sourceBaseName =
@@ -567,20 +557,22 @@ function Invoke-HaSsh([string]$Command) {
 
 function Send-HaDeploymentBundle(
     [string]$BundlePath,
-    [string]$RemotePath,
-    [string]$RemoteProjectFile,
-    [string]$RemoteHmiProjectFile
+    [string]$RemotePath
 ) {
+    # Upload every direct bundle entry so root-level shared include files are
+    # transferred together with the generated root YAMLs and package tree.
     $sources = @(
-        Join-Path $BundlePath $RemoteProjectFile
-        Join-Path $BundlePath $RemoteHmiProjectFile
-        Join-Path $BundlePath "packages"
+        Get-ChildItem `
+            -LiteralPath $BundlePath `
+            -Force |
+            Sort-Object Name |
+            ForEach-Object {
+                $_.FullName
+            }
     )
 
-    foreach ($source in $sources) {
-        if (-not (Test-Path -LiteralPath $source)) {
-            throw "Deployment bundle source is missing: $source"
-        }
+    if ($sources.Count -eq 0) {
+        throw "Deployment bundle is empty: $BundlePath"
     }
 
     $scpArgs = @(
@@ -1014,9 +1006,7 @@ try {
 
     Send-HaDeploymentBundle `
         -BundlePath $DeploymentBundlePath `
-        -RemotePath $StagingDir `
-        -RemoteProjectFile $RemoteProjectFile `
-        -RemoteHmiProjectFile $RemoteHmiProjectFile
+        -RemotePath $StagingDir
 
     Write-Ok "Upload complete"
 
