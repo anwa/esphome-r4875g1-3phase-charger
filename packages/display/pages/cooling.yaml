@@ -1,12 +1,12 @@
 # ==============================================================================
-# V5 LVGL PAGE: COOLING
+# V6 LVGL PAGE: COOLING
 # ==============================================================================
 #
 # Cooling overview for the three internal Huawei rectifier fans and the shared
 # rear-compartment temperature and humidity measurement.
 #
-# External chassis-fan control is implemented separately in packages/cooling.yaml
-# and is not currently exposed as a dedicated card on this page.
+# Fan-mode controls express user intent through the shared UI command boundary.
+# Controller-only external chassis-fan control is not exposed on this page.
 #
 # Runtime updates are handled by display/cooling.yaml.
 # ==============================================================================
@@ -154,7 +154,9 @@ widgets:
                   text_font: montserrat_16
 
             on_short_click:
-              - button.press: fan_auto_mode_button_1
+              - script.execute:
+                  id: ui_command_rectifier_fan_auto
+                  unit: 1
 
         - button:
             id: ui_cooling_r1_full_button
@@ -172,7 +174,9 @@ widgets:
                   text_font: montserrat_16
 
             on_short_click:
-              - button.press: fan_full_speed_button_1
+              - script.execute:
+                  id: ui_command_rectifier_fan_full
+                  unit: 1
 
   # ---------------------------------------------------------------------------
   # RECTIFIER 2 FAN
@@ -274,7 +278,9 @@ widgets:
                   text_font: montserrat_16
 
             on_short_click:
-              - button.press: fan_auto_mode_button_2
+              - script.execute:
+                  id: ui_command_rectifier_fan_auto
+                  unit: 2
 
         - button:
             id: ui_cooling_r2_full_button
@@ -292,7 +298,9 @@ widgets:
                   text_font: montserrat_16
 
             on_short_click:
-              - button.press: fan_full_speed_button_2
+              - script.execute:
+                  id: ui_command_rectifier_fan_full
+                  unit: 2
 
   # ---------------------------------------------------------------------------
   # RECTIFIER 3 FAN
@@ -394,7 +402,9 @@ widgets:
                   text_font: montserrat_16
 
             on_short_click:
-              - button.press: fan_auto_mode_button_3
+              - script.execute:
+                  id: ui_command_rectifier_fan_auto
+                  unit: 3
 
         - button:
             id: ui_cooling_r3_full_button
@@ -412,4 +422,6 @@ widgets:
                   text_font: montserrat_16
 
             on_short_click:
-              - button.press: fan_full_speed_button_3
+              - script.execute:
+                  id: ui_command_rectifier_fan_full
+                  unit: 3
