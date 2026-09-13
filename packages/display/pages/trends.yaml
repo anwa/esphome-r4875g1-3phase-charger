@@ -61,14 +61,12 @@ widgets:
         - lambda: |-
             if (tab == id(ui_trend_tab_power)) {
               id(trend_selection) = 0;
-            } else if (tab == id(ui_trend_tab_current)) {
+            } else if (tab == id(ui_trend_tab_dc_iv)) {
               id(trend_selection) = 1;
-            } else if (tab == id(ui_trend_tab_voltage)) {
-              id(trend_selection) = 2;
             } else if (tab == id(ui_trend_tab_output_temp)) {
-              id(trend_selection) = 3;
+              id(trend_selection) = 2;
             } else if (tab == id(ui_trend_tab_compartment)) {
-              id(trend_selection) = 4;
+              id(trend_selection) = 3;
             }
 
         - script.execute: trend_chart_refresh
@@ -78,12 +76,8 @@ widgets:
           id: ui_trend_tab_power
           widgets: []
 
-        - name: "Current"
-          id: ui_trend_tab_current
-          widgets: []
-
-        - name: "Voltage"
-          id: ui_trend_tab_voltage
+        - name: "DC I/V"
+          id: ui_trend_tab_dc_iv
           widgets: []
 
         - name: "Output Temp"
@@ -140,6 +134,40 @@ widgets:
             text_font: montserrat_14
             text_color: 0x8B96A0
 
+        # Secondary Y-axis labels are shown only by the combined DC I/V trend.
+        - label:
+            id: ui_trend_y2_max
+            x: 725
+            y: 8
+            width: 48
+            text_align: LEFT
+            text: "--"
+            text_font: montserrat_14
+            text_color: 0x4DB8FF
+            hidden: true
+
+        - label:
+            id: ui_trend_y2_mid
+            x: 725
+            y: 86
+            width: 48
+            text_align: LEFT
+            text: "--"
+            text_font: montserrat_14
+            text_color: 0x4DB8FF
+            hidden: true
+
+        - label:
+            id: ui_trend_y2_min
+            x: 725
+            y: 162
+            width: 48
+            text_align: LEFT
+            text: "--"
+            text_font: montserrat_14
+            text_color: 0x4DB8FF
+            hidden: true
+
         # Fixed X-axis labels aligned with the seven vertical chart divisions.
         - label:
             x: 55
@@ -151,7 +179,7 @@ widgets:
             text_color: 0x8B96A0
 
         - label:
-            x: 134
+            x: 125
             y: 204
             width: 80
             text_align: CENTER
@@ -160,7 +188,7 @@ widgets:
             text_color: 0x8B96A0
 
         - label:
-            x: 253
+            x: 235
             y: 204
             width: 80
             text_align: CENTER
@@ -169,7 +197,7 @@ widgets:
             text_color: 0x8B96A0
 
         - label:
-            x: 373
+            x: 345
             y: 204
             width: 80
             text_align: CENTER
@@ -178,7 +206,7 @@ widgets:
             text_color: 0x8B96A0
 
         - label:
-            x: 492
+            x: 455
             y: 204
             width: 80
             text_align: CENTER
@@ -187,7 +215,7 @@ widgets:
             text_color: 0x8B96A0
 
         - label:
-            x: 611
+            x: 565
             y: 204
             width: 80
             text_align: CENTER
@@ -196,7 +224,7 @@ widgets:
             text_color: 0x8B96A0
 
         - label:
-            x: 695
+            x: 640
             y: 204
             width: 75
             text_align: RIGHT
@@ -210,57 +238,109 @@ widgets:
 
   - obj:
       x: 10
-      y: 355
+      y: 350
       width: 780
-      height: 45
+      height: 55
       styles: style_card
       pad_all: 0
 
       widgets:
+        # Shared column headings for the primary and optional secondary series.
         - label:
-            x: 10
-            y: 14
-            width: 100
+            x: 130
+            y: 1
+            width: 140
+            text_align: CENTER
             styles: style_desc_label
-            text: "CURRENT:"
+            text: "NOW"
+
+        - label:
+            x: 340
+            y: 1
+            width: 140
+            text_align: CENTER
+            styles: style_desc_label
+            text: "MIN"
+
+        - label:
+            x: 550
+            y: 1
+            width: 140
+            text_align: CENTER
+            styles: style_desc_label
+            text: "MAX"
+
+        - label:
+            id: ui_trend_primary_name
+            x: 10
+            y: 17
+            width: 110
+            styles: style_desc_label
+            text: "POWER"
 
         - label:
             id: ui_trend_current
-            x: 110
-            y: 11
-            width: 120
+            x: 120
+            y: 15
+            width: 160
             styles: style_value_label
             text_align: CENTER
             text: "--"
 
         - label:
-            x: 265
-            y: 14
-            width: 100
-            styles: style_desc_label
-            text: "MINIMUM:"
-
-        - label:
             id: ui_trend_min
-            x: 365
-            y: 11
-            width: 120
+            x: 330
+            y: 15
+            width: 160
             styles: style_value_label
             text_align: CENTER
-            text: "MIN --"
-
-        - label:
-            x: 517
-            y: 14
-            width: 100
-            styles: style_desc_label
-            text: "MAXIMUM:"
+            text: "--"
 
         - label:
             id: ui_trend_max
-            x: 617
-            y: 11
-            width: 120
+            x: 540
+            y: 15
+            width: 160
             styles: style_value_label
             text_align: CENTER
-            text: "MAX --"
+            text: "--"
+
+        # The secondary row is used only by the combined DC current/voltage tab.
+        - label:
+            id: ui_trend_secondary_name
+            x: 10
+            y: 34
+            width: 110
+            styles: style_desc_label
+            text: "VOLTAGE"
+            hidden: true
+
+        - label:
+            id: ui_trend_secondary_current
+            x: 120
+            y: 32
+            width: 160
+            styles: style_value_label
+            text_align: CENTER
+            text: "--"
+            hidden: true
+
+        - label:
+            id: ui_trend_secondary_min
+            x: 330
+            y: 32
+            width: 160
+            styles: style_value_label
+            text_align: CENTER
+            text: "--"
+            hidden: true
+
+        - label:
+            id: ui_trend_secondary_max
+            x: 540
+            y: 32
+            width: 160
+            styles: style_value_label
+            text_align: CENTER
+            text: "--"
+            hidden: true

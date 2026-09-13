@@ -24,6 +24,7 @@ script:
 
           static lv_obj_t *chart = nullptr;
           static lv_chart_series_t *series = nullptr;
+          static lv_chart_series_t *secondary_series = nullptr;
 
           static int last_selection = -1;
           static uint16_t last_write_index = 0xFFFF;
@@ -39,7 +40,7 @@ script:
 
             lv_obj_set_size(
               chart,
-              715,
+              660,
               190
             );
 
@@ -106,6 +107,18 @@ script:
               LV_CHART_AXIS_PRIMARY_Y
             );
 
+            secondary_series = lv_chart_add_series(
+              chart,
+              lv_color_hex(0x4DB8FF),
+              LV_CHART_AXIS_SECONDARY_Y
+            );
+
+            lv_chart_hide_series(
+              chart,
+              secondary_series,
+              true
+            );
+
             lv_obj_set_style_line_width(
               chart,
               2,
@@ -124,6 +137,15 @@ script:
               LV_CHART_AXIS_PRIMARY_Y,
               0,
               100
+            );
+
+            // Safe initial voltage range until the first dual-axis refresh
+            // derives a dynamic secondary range.
+            lv_chart_set_range(
+              chart,
+              LV_CHART_AXIS_SECONDARY_Y,
+              4500,
+              6000
             );
 
             ESP_LOGI(
@@ -149,8 +171,9 @@ script:
 
           // Select source
           const std::vector<float> *buffer = nullptr;
+          const std::vector<float> *secondary_buffer = nullptr;
 
-          const char *title = "DC POWER";
+          const char *title = "POWER";
           const char *unit = "kW";
 
           float scale = 100.0f;
@@ -158,13 +181,17 @@ script:
           bool zero_floor = true;
           int decimals = 2;
 
+          bool dual_axis = false;
+          constexpr float secondary_scale = 100.0f;
+
           float current = NAN;
+          float secondary_current = NAN;
 
           switch (selection) {
 
             case 0:
               buffer = &id(trend_buffer_dc_power);
-              title = "DC POWER";
+              title = "POWER";
               unit = "kW";
               scale = 100.0f;
               minimum_span = 1.0f;
@@ -175,27 +202,19 @@ script:
 
             case 1:
               buffer = &id(trend_buffer_dc_current);
-              title = "DC CURRENT";
+              secondary_buffer = &id(trend_buffer_dc_voltage);
+              title = "CURRENT";
               unit = "A";
               scale = 10.0f;
               minimum_span = 10.0f;
               zero_floor = true;
               decimals = 1;
               current = id(ui_model_dc_current).state;
+              secondary_current = id(ui_model_dc_voltage).state;
+              dual_axis = true;
               break;
 
             case 2:
-              buffer = &id(trend_buffer_dc_voltage);
-              title = "DC VOLTAGE";
-              unit = "V";
-              scale = 100.0f;
-              minimum_span = 1.0f;
-              zero_floor = false;
-              decimals = 1;
-              current = id(ui_model_dc_voltage).state;
-              break;
-
-            case 3:
               buffer = &id(trend_buffer_output_temp);
               title = "OUTPUT TEMP";
               unit = "C";
@@ -206,7 +225,7 @@ script:
               current = id(ui_model_highest_output_temperature).state;
               break;
 
-            case 4:
+            case 3:
               buffer = &id(trend_buffer_compartment_temp);
               title = "COMPARTMENT";
               unit = "C";
@@ -222,6 +241,17 @@ script:
               return;
           }
 
+          lv_label_set_text(
+            id(ui_trend_primary_name),
+            title
+          );
+
+          lv_chart_hide_series(
+            chart,
+            secondary_series,
+            !dual_axis
+          );
+
           // Select the active trend buffer and display unit.
           const lv_color_t normal =
             lv_color_hex(0x202830);
@@ -236,20 +266,20 @@ script:
             lv_color_hex(0x5CFF7A);
 
           lv_obj_set_style_text_color(
-            id(ui_trend_tab_voltage),
-            selection == 2 ? active_text : normal_text,
+            id(ui_trend_tab_dc_iv),
+            selection == 1 ? active_text : normal_text,
             LV_PART_MAIN
           );
 
           lv_obj_set_style_text_color(
             id(ui_trend_tab_output_temp),
-            selection == 3 ? active_text : normal_text,
+            selection == 2 ? active_text : normal_text,
             LV_PART_MAIN
           );
 
           lv_obj_set_style_text_color(
             id(ui_trend_tab_compartment),
-            selection == 4 ? active_text : normal_text,
+            selection == 3 ? active_text : normal_text,
             LV_PART_MAIN
           );
 
@@ -285,6 +315,64 @@ script:
             current_text.c_str()
           );
 
+          if (dual_axis) {
+
+            const std::string secondary_current_text =
+              isnan(secondary_current)
+                ? "--"
+                : str_sprintf(
+                    "%.1f V",
+                    secondary_current
+                  );
+
+            lv_label_set_text(
+              id(ui_trend_secondary_current),
+              secondary_current_text.c_str()
+            );
+
+            lv_obj_clear_flag(
+              id(ui_trend_secondary_name),
+              LV_OBJ_FLAG_HIDDEN
+            );
+
+            lv_obj_clear_flag(
+              id(ui_trend_secondary_current),
+              LV_OBJ_FLAG_HIDDEN
+            );
+
+            lv_obj_clear_flag(
+              id(ui_trend_secondary_min),
+              LV_OBJ_FLAG_HIDDEN
+            );
+
+            lv_obj_clear_flag(
+              id(ui_trend_secondary_max),
+              LV_OBJ_FLAG_HIDDEN
+            );
+
+          } else {
+
+            lv_obj_add_flag(
+              id(ui_trend_secondary_name),
+              LV_OBJ_FLAG_HIDDEN
+            );
+
+            lv_obj_add_flag(
+              id(ui_trend_secondary_current),
+              LV_OBJ_FLAG_HIDDEN
+            );
+
+            lv_obj_add_flag(
+              id(ui_trend_secondary_min),
+              LV_OBJ_FLAG_HIDDEN
+            );
+
+            lv_obj_add_flag(
+              id(ui_trend_secondary_max),
+              LV_OBJ_FLAG_HIDDEN
+            );
+          }
+
           // Nothing new for graph?
           if (
             selection == last_selection &&
@@ -302,6 +390,8 @@ script:
           // Rewrite 360-point series
           float minimum = NAN;
           float maximum = NAN;
+          float secondary_minimum = NAN;
+          float secondary_maximum = NAN;
 
           const uint16_t leading_empty =
             TREND_POINTS - sample_count;
@@ -320,6 +410,15 @@ script:
                 chart_index,
                 LV_CHART_POINT_NONE
               );
+
+              if (dual_axis) {
+                lv_chart_set_value_by_id(
+                  chart,
+                  secondary_series,
+                  chart_index,
+                  LV_CHART_POINT_NONE
+                );
+              }
 
               continue;
             }
@@ -355,31 +454,75 @@ script:
                 LV_CHART_POINT_NONE
               );
 
-              continue;
+            } else {
+
+              if (
+                isnan(minimum) ||
+                value < minimum
+              ) {
+                minimum = value;
+              }
+
+              if (
+                isnan(maximum) ||
+                value > maximum
+              ) {
+                maximum = value;
+              }
+
+              lv_chart_set_value_by_id(
+                chart,
+                series,
+                chart_index,
+                static_cast<int32_t>(
+                  lroundf(value * scale)
+                )
+              );
             }
 
-            if (
-              isnan(minimum) ||
-              value < minimum
-            ) {
-              minimum = value;
-            }
+            if (dual_axis) {
 
-            if (
-              isnan(maximum) ||
-              value > maximum
-            ) {
-              maximum = value;
-            }
+              const float secondary_value =
+                (*secondary_buffer)[buffer_index];
 
-            lv_chart_set_value_by_id(
-              chart,
-              series,
-              chart_index,
-              static_cast<int32_t>(
-                lroundf(value * scale)
-              )
-            );
+              if (isnan(secondary_value)) {
+
+                lv_chart_set_value_by_id(
+                  chart,
+                  secondary_series,
+                  chart_index,
+                  LV_CHART_POINT_NONE
+                );
+
+              } else {
+
+                if (
+                  isnan(secondary_minimum) ||
+                  secondary_value < secondary_minimum
+                ) {
+                  secondary_minimum = secondary_value;
+                }
+
+                if (
+                  isnan(secondary_maximum) ||
+                  secondary_value > secondary_maximum
+                ) {
+                  secondary_maximum = secondary_value;
+                }
+
+                lv_chart_set_value_by_id(
+                  chart,
+                  secondary_series,
+                  chart_index,
+                  static_cast<int32_t>(
+                    lroundf(
+                      secondary_value *
+                      secondary_scale
+                    )
+                  )
+                );
+              }
+            }
           }
 
           // Dynamic y range
@@ -535,6 +678,161 @@ script:
             y_min.c_str()
           );
 
+          // Secondary voltage Y-axis
+          if (
+            dual_axis &&
+            !isnan(secondary_minimum) &&
+            !isnan(secondary_maximum)
+          ) {
+
+            float secondary_axis_low =
+              secondary_minimum;
+
+            float secondary_axis_high =
+              secondary_maximum;
+
+            float secondary_span =
+              secondary_axis_high -
+              secondary_axis_low;
+
+            constexpr float SECONDARY_MINIMUM_SPAN =
+              1.0f;
+
+            if (
+              secondary_span <
+              SECONDARY_MINIMUM_SPAN
+            ) {
+
+              const float secondary_center =
+                (
+                  secondary_axis_low +
+                  secondary_axis_high
+                ) * 0.5f;
+
+              secondary_axis_low =
+                secondary_center -
+                SECONDARY_MINIMUM_SPAN * 0.5f;
+
+              secondary_axis_high =
+                secondary_center +
+                SECONDARY_MINIMUM_SPAN * 0.5f;
+
+              secondary_span =
+                SECONDARY_MINIMUM_SPAN;
+            }
+
+            const float secondary_padding =
+              secondary_span * 0.10f;
+
+            secondary_axis_low -=
+              secondary_padding;
+
+            secondary_axis_high +=
+              secondary_padding;
+
+            int32_t secondary_chart_low =
+              static_cast<int32_t>(
+                floorf(
+                  secondary_axis_low *
+                  secondary_scale
+                )
+              );
+
+            int32_t secondary_chart_high =
+              static_cast<int32_t>(
+                ceilf(
+                  secondary_axis_high *
+                  secondary_scale
+                )
+              );
+
+            if (
+              secondary_chart_high <=
+              secondary_chart_low
+            ) {
+              secondary_chart_high =
+                secondary_chart_low + 1;
+            }
+
+            lv_chart_set_range(
+              chart,
+              LV_CHART_AXIS_SECONDARY_Y,
+              secondary_chart_low,
+              secondary_chart_high
+            );
+
+            const float secondary_axis_mid =
+              (
+                secondary_axis_low +
+                secondary_axis_high
+              ) * 0.5f;
+
+            const std::string y2_max =
+              str_sprintf(
+                "%.1f",
+                secondary_axis_high
+              );
+
+            const std::string y2_mid =
+              str_sprintf(
+                "%.1f",
+                secondary_axis_mid
+              );
+
+            const std::string y2_min =
+              str_sprintf(
+                "%.1f",
+                secondary_axis_low
+              );
+
+            lv_label_set_text(
+              id(ui_trend_y2_max),
+              y2_max.c_str()
+            );
+
+            lv_label_set_text(
+              id(ui_trend_y2_mid),
+              y2_mid.c_str()
+            );
+
+            lv_label_set_text(
+              id(ui_trend_y2_min),
+              y2_min.c_str()
+            );
+
+            lv_obj_clear_flag(
+              id(ui_trend_y2_max),
+              LV_OBJ_FLAG_HIDDEN
+            );
+
+            lv_obj_clear_flag(
+              id(ui_trend_y2_mid),
+              LV_OBJ_FLAG_HIDDEN
+            );
+
+            lv_obj_clear_flag(
+              id(ui_trend_y2_min),
+              LV_OBJ_FLAG_HIDDEN
+            );
+
+          } else {
+
+            lv_obj_add_flag(
+              id(ui_trend_y2_max),
+              LV_OBJ_FLAG_HIDDEN
+            );
+
+            lv_obj_add_flag(
+              id(ui_trend_y2_mid),
+              LV_OBJ_FLAG_HIDDEN
+            );
+
+            lv_obj_add_flag(
+              id(ui_trend_y2_min),
+              LV_OBJ_FLAG_HIDDEN
+            );
+          }
+
           // Min / Max labels
           std::string minimum_text;
           std::string maximum_text;
@@ -596,6 +894,35 @@ script:
             id(ui_trend_max),
             maximum_text.c_str()
           );
+
+          if (dual_axis) {
+
+            const std::string secondary_minimum_text =
+              isnan(secondary_minimum)
+                ? "--"
+                : str_sprintf(
+                    "%.1f V",
+                    secondary_minimum
+                  );
+
+            const std::string secondary_maximum_text =
+              isnan(secondary_maximum)
+                ? "--"
+                : str_sprintf(
+                    "%.1f V",
+                    secondary_maximum
+                  );
+
+            lv_label_set_text(
+              id(ui_trend_secondary_min),
+              secondary_minimum_text.c_str()
+            );
+
+            lv_label_set_text(
+              id(ui_trend_secondary_max),
+              secondary_maximum_text.c_str()
+            );
+          }
 
           // Final chart refresh
           lv_chart_refresh(chart);
