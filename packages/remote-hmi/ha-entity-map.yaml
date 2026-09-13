@@ -58,6 +58,13 @@ substitutions:
   ha_charger_conversion_efficiency_entity: "sensor.${ha_charger_entity_prefix}_conversion_efficiency_all_units"
 
   # ---------------------------------------------------------------------------
+  # COOLING ENVIRONMENT
+  # ---------------------------------------------------------------------------
+
+  ha_cooling_compartment_temperature_entity: "sensor.${ha_charger_entity_prefix}_rectifier_compartment_temperature"
+  ha_cooling_compartment_humidity_entity: "sensor.${ha_charger_entity_prefix}_rectifier_compartment_humidity"
+
+  # ---------------------------------------------------------------------------
   # RECTIFIER 1
   # ---------------------------------------------------------------------------
 
@@ -161,3 +168,13 @@ substitutions:
 
   ha_rectifier_3_start_button_entity: "button.${ha_charger_entity_prefix}_turn_on_unit_3"
   ha_rectifier_3_stop_button_entity: "button.${ha_charger_entity_prefix}_turn_off_unit_3"
+
+  # Per-rectifier internal fan-mode commands.
+  ha_rectifier_1_fan_auto_button_entity: "button.${ha_charger_entity_prefix}_set_fan_auto_mode_unit_1"
+  ha_rectifier_1_fan_full_button_entity: "button.${ha_charger_entity_prefix}_set_fan_full_speed_unit_1"
+
+  ha_rectifier_2_fan_auto_button_entity: "button.${ha_charger_entity_prefix}_set_fan_auto_mode_unit_2"
+  ha_rectifier_2_fan_full_button_entity: "button.${ha_charger_entity_prefix}_set_fan_full_speed_unit_2"
+
+  ha_rectifier_3_fan_auto_button_entity: "button.${ha_charger_entity_prefix}_set_fan_auto_mode_unit_3"
+  ha_rectifier_3_fan_full_button_entity: "button.${ha_charger_entity_prefix}_set_fan_full_speed_unit_3"

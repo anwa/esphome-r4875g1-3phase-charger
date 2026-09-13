@@ -282,3 +282,130 @@ script:
             - logger.log:
                 level: WARN
                 format: "Remote HMI rectifier STOP command rejected because charger data is unavailable."
+
+
+  # ---------------------------------------------------------------------------
+  # RECTIFIER FAN AUTO
+  # ---------------------------------------------------------------------------
+
+  - id: ui_command_rectifier_fan_auto
+    parameters:
+      unit: int
+
+    then:
+      - if:
+          condition:
+            lambda: |-
+              return id(ui_model_data_available).state;
+
+          then:
+            - if:
+                condition:
+                  lambda: |-
+                    return unit == 1;
+
+                then:
+                  - homeassistant.action:
+                      action: button.press
+                      data:
+                        entity_id: ${ha_rectifier_1_fan_auto_button_entity}
+
+                else:
+                  - if:
+                      condition:
+                        lambda: |-
+                          return unit == 2;
+
+                      then:
+                        - homeassistant.action:
+                            action: button.press
+                            data:
+                              entity_id: ${ha_rectifier_2_fan_auto_button_entity}
+
+                      else:
+                        - if:
+                            condition:
+                              lambda: |-
+                                return unit == 3;
+
+                            then:
+                              - homeassistant.action:
+                                  action: button.press
+                                  data:
+                                    entity_id: ${ha_rectifier_3_fan_auto_button_entity}
+
+                            else:
+                              - lambda: |-
+                                  ESP_LOGW(
+                                    "ui_command",
+                                    "Invalid Remote HMI rectifier fan AUTO unit: %d",
+                                    unit
+                                  );
+
+          else:
+            - logger.log:
+                level: WARN
+                format: "Remote HMI rectifier fan AUTO command rejected because charger data is unavailable."
+
+  # ---------------------------------------------------------------------------
+  # RECTIFIER FAN FULL
+  # ---------------------------------------------------------------------------
+
+  - id: ui_command_rectifier_fan_full
+    parameters:
+      unit: int
+
+    then:
+      - if:
+          condition:
+            lambda: |-
+              return id(ui_model_data_available).state;
+
+          then:
+            - if:
+                condition:
+                  lambda: |-
+                    return unit == 1;
+
+                then:
+                  - homeassistant.action:
+                      action: button.press
+                      data:
+                        entity_id: ${ha_rectifier_1_fan_full_button_entity}
+
+                else:
+                  - if:
+                      condition:
+                        lambda: |-
+                          return unit == 2;
+
+                      then:
+                        - homeassistant.action:
+                            action: button.press
+                            data:
+                              entity_id: ${ha_rectifier_2_fan_full_button_entity}
+
+                      else:
+                        - if:
+                            condition:
+                              lambda: |-
+                                return unit == 3;
+
+                            then:
+                              - homeassistant.action:
+                                  action: button.press
+                                  data:
+                                    entity_id: ${ha_rectifier_3_fan_full_button_entity}
+
+                            else:
+                              - lambda: |-
+                                  ESP_LOGW(
+                                    "ui_command",
+                                    "Invalid Remote HMI rectifier fan FULL unit: %d",
+                                    unit
+                                  );
+
+          else:
+            - logger.log:
+                level: WARN
+                format: "Remote HMI rectifier fan FULL command rejected because charger data is unavailable."

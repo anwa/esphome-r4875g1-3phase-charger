@@ -169,3 +169,90 @@ script:
                               "Invalid rectifier STOP unit: %d",
                               unit
                             );
+
+
+  # ---------------------------------------------------------------------------
+  # RECTIFIER FAN AUTO
+  # ---------------------------------------------------------------------------
+
+  - id: ui_command_rectifier_fan_auto
+    parameters:
+      unit: int
+
+    then:
+      - if:
+          condition:
+            lambda: |-
+              return unit == 1;
+
+          then:
+            - button.press: fan_auto_mode_button_1
+
+          else:
+            - if:
+                condition:
+                  lambda: |-
+                    return unit == 2;
+
+                then:
+                  - button.press: fan_auto_mode_button_2
+
+                else:
+                  - if:
+                      condition:
+                        lambda: |-
+                          return unit == 3;
+
+                      then:
+                        - button.press: fan_auto_mode_button_3
+
+                      else:
+                        - lambda: |-
+                            ESP_LOGW(
+                              "ui_command",
+                              "Invalid rectifier fan AUTO unit: %d",
+                              unit
+                            );
+
+  # ---------------------------------------------------------------------------
+  # RECTIFIER FAN FULL
+  # ---------------------------------------------------------------------------
+
+  - id: ui_command_rectifier_fan_full
+    parameters:
+      unit: int
+
+    then:
+      - if:
+          condition:
+            lambda: |-
+              return unit == 1;
+
+          then:
+            - button.press: fan_full_speed_button_1
+
+          else:
+            - if:
+                condition:
+                  lambda: |-
+                    return unit == 2;
+
+                then:
+                  - button.press: fan_full_speed_button_2
+
+                else:
+                  - if:
+                      condition:
+                        lambda: |-
+                          return unit == 3;
+
+                      then:
+                        - button.press: fan_full_speed_button_3
+
+                      else:
+                        - lambda: |-
+                            ESP_LOGW(
+                              "ui_command",
+                              "Invalid rectifier fan FULL unit: %d",
+                              unit
+                            );

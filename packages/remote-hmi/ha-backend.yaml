@@ -205,6 +205,28 @@ sensor:
         - lambda: |-
             id(ui_model_conversion_efficiency).publish_state(x);
 
+  # ---------------------------------------------------------------------------
+  # COOLING ENVIRONMENT
+  # ---------------------------------------------------------------------------
+
+  - platform: homeassistant
+    id: remote_ha_cooling_compartment_temperature
+    entity_id: ${ha_cooling_compartment_temperature_entity}
+    internal: true
+    on_value:
+      then:
+        - lambda: |-
+            id(ui_model_cooling_compartment_temperature).publish_state(x);
+
+  - platform: homeassistant
+    id: remote_ha_cooling_compartment_humidity
+    entity_id: ${ha_cooling_compartment_humidity_entity}
+    internal: true
+    on_value:
+      then:
+        - lambda: |-
+            id(ui_model_cooling_compartment_humidity).publish_state(x);
+
 # ==============================================================================
 # BACKEND AVAILABILITY
 # ==============================================================================
@@ -251,6 +273,9 @@ interval:
             id(ui_model_running_units).publish_state(NAN);
             id(ui_model_highest_output_temperature).publish_state(NAN);
             id(ui_model_conversion_efficiency).publish_state(NAN);
+
+            id(ui_model_cooling_compartment_temperature).publish_state(NAN);
+            id(ui_model_cooling_compartment_humidity).publish_state(NAN);
 
             return;
           }
