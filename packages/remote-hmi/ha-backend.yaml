@@ -227,6 +227,15 @@ sensor:
         - lambda: |-
             id(ui_model_cooling_compartment_humidity).publish_state(x);
 
+  - platform: homeassistant
+    id: remote_ha_cooling_compartment_sea_level_pressure
+    entity_id: ${ha_cooling_compartment_sea_level_pressure_entity}
+    internal: true
+    on_value:
+      then:
+        - lambda: |-
+            id(ui_model_cooling_compartment_sea_level_pressure).publish_state(x);
+
 # ==============================================================================
 # BACKEND AVAILABILITY
 # ==============================================================================
@@ -276,6 +285,7 @@ interval:
 
             id(ui_model_cooling_compartment_temperature).publish_state(NAN);
             id(ui_model_cooling_compartment_humidity).publish_state(NAN);
+            id(ui_model_cooling_compartment_sea_level_pressure).publish_state(NAN);
 
             return;
           }

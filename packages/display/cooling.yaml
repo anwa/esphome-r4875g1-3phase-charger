@@ -47,6 +47,22 @@ interval:
                     id(ui_model_cooling_compartment_humidity).state
                   );
 
+            - lvgl.label.update:
+                id: ui_cooling_compartment_pressure
+                text: !lambda |-
+                  if (
+                    isnan(
+                      id(ui_model_cooling_compartment_sea_level_pressure).state
+                    )
+                  ) {
+                    return std::string("----.- hPa");
+                  }
+
+                  return str_sprintf(
+                    "%.1f hPa",
+                    id(ui_model_cooling_compartment_sea_level_pressure).state
+                  );
+
             # ---------------------------------------------------------------------------
             # RECTIFIER 1
             # ---------------------------------------------------------------------------

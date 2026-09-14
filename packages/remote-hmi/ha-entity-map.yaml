@@ -63,6 +63,7 @@ substitutions:
 
   ha_cooling_compartment_temperature_entity: "sensor.${ha_charger_entity_prefix}_rectifier_compartment_temperature"
   ha_cooling_compartment_humidity_entity: "sensor.${ha_charger_entity_prefix}_rectifier_compartment_humidity"
+  ha_cooling_compartment_sea_level_pressure_entity: "sensor.${ha_charger_entity_prefix}_rectifier_compartment_sea_level_pressure"
 
   # ---------------------------------------------------------------------------
   # RECTIFIER 1
