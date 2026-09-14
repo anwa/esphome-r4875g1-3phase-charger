@@ -156,6 +156,14 @@ Refactor persistent header runtime
 
 Do not list every modified line.
 
+## Commit Message Handoff
+
+When an AI agent prepares a commit message for the user, it MUST present the complete commit message as a standalone plain-text block.
+
+The commit message MUST NOT be embedded in a `git commit` command or another shell command unless the user explicitly asks for the command form.
+
+The user remains responsible for creating the Git commit locally.
+
 ## Firmware Version in Commit Messages
 
 A functional firmware commit MAY mention its resulting version when useful.
