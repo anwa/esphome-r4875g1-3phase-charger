@@ -185,17 +185,17 @@ If present, insert one comment-only blank line after the title separator:
 
 ```yaml
   # ---------------------------------------------------------------------------
-  # RECTIFIER COMPARTMENT TEMPERATURE AND HUMIDITY
+  # RECTIFIER COMPARTMENT ENVIRONMENT
   # ---------------------------------------------------------------------------
   #
-  # AHT10 installed in the shared rear connection compartment behind the
+  # BME280 installed in the shared rear connection compartment behind the
   # three rectifier units.
   #
   # Connected through:
-  #   external I2C -> AHT10 @ 0x38
+  #   external I2C -> BME280 @ 0x76
   # ---------------------------------------------------------------------------
 
-  - platform: aht10
+  - platform: bme280_i2c
 ```
 
 For descriptive Minor Sections, repeat the Minor Section separator after the description.

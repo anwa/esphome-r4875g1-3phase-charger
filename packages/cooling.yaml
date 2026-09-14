@@ -14,7 +14,7 @@
 #   - EMC2101 provides the common four-pin fan PWM signal
 #   - EMC2101 monitors Cooling Fan 3 tachometer
 #
-# Cooling Fan 3 ventilates the rear rectifier compartment monitored by AHT10.
+# Cooling Fan 3 ventilates the rear rectifier compartment monitored by BME280.
 #
 # Supported operation:
 #   - common switched fan supply
@@ -32,7 +32,7 @@
 #
 # It provides the common PWM signal for all connected four-pin chassis fans.
 # Its dedicated tachometer input monitors Cooling Fan 3, which ventilates the
-# rear rectifier compartment monitored by the AHT10.
+# rear rectifier compartment monitored by the BME280.
 #
 # PWM configuration:
 #   360 kHz / (2 × 7 × 1) ≈ 25.7 kHz

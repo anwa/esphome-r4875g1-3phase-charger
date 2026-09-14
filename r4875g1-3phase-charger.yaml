@@ -22,7 +22,7 @@
 # External hardware:
 #   - dedicated external I2C bus on GPIO44 / GPIO43
 #   - MCP23017 I/O expander @ 0x20
-#   - AHT10 compartment temperature/humidity sensor @ 0x38
+#   - BME280 compartment environment sensor @ 0x76
 #   - EMC2101 external cooling-fan controller @ 0x4C
 #   - rotary encoder connected through the MCP23017
 #   - external three/four-pin cooling-fan interface
@@ -115,6 +115,13 @@ substitutions:
   mqtt_command_prefix: "HG/DG/Technik/Charger"
   fallback_ap_ssid: "Charger Fallback Hotspot"
   diagnostics_device_label: "Controller"
+
+  # ---------------------------------------------------------------------------
+  # INSTALLATION ENVIRONMENT
+  # ---------------------------------------------------------------------------
+  # Fixed site altitude used for standard-atmosphere sea-level pressure
+  # correction of the compartment BME280 station-pressure measurement.
+  installation_altitude_m: "316.0"
 
   # ---------------------------------------------------------------------------
   # V6 CHARGER CONTROLLER GPIO MAP
@@ -303,6 +310,7 @@ packages:
   shared_battery_monitoring: !include packages/shared/battery-monitoring.yaml
 
   controller_hardware: !include packages/controller/hardware.yaml
+  controller_environment: !include packages/controller/environment.yaml
   controller_mqtt: !include packages/controller/mqtt.yaml
   controller_ui_backend: !include packages/controller/ui-backend.yaml
   controller_ui_rectifier_1: !include
@@ -407,43 +415,12 @@ esphome:
 # PROJECT-WIDE / AGGREGATE SENSORS
 # ==============================================================================
 #
-# Controller-only compartment/environment measurements and charger-wide
-# aggregate telemetry that do not belong to one parameterized rectifier
-# instance.
+# Charger-wide aggregate telemetry that does not belong to one parameterized
+# rectifier instance. Charger-side environment sensing is owned by
+# controller/environment.yaml.
 # ==============================================================================
 
 sensor:
-
-  # ---------------------------------------------------------------------------
-  # RECTIFIER COMPARTMENT TEMPERATURE AND HUMIDITY
-  # ---------------------------------------------------------------------------
-  #
-  # AHT10 installed in the shared rear connection compartment behind the
-  # three rectifier units.
-  #
-  # Connected directly to the dedicated external I2C bus.
-  # ---------------------------------------------------------------------------
-
-  - platform: aht10
-    variant: AHT10
-    i2c_id: external_i2c_bus
-    update_interval: 60s
-
-    temperature:
-      name: "Rectifier Compartment Temperature"
-      id: rectifier_compartment_temperature
-      device_class: temperature
-      state_class: measurement
-      accuracy_decimals: 1
-      icon: "mdi:thermometer"
-
-    humidity:
-      name: "Rectifier Compartment Humidity"
-      id: rectifier_compartment_humidity
-      device_class: humidity
-      state_class: measurement
-      accuracy_decimals: 1
-      icon: "mdi:water-percent"
 
   # ---------------------------------------------------------------------------
   # EFFECTIVE DC CURRENT LIMIT
