@@ -68,8 +68,10 @@
 #
 # The backup rotary encoder provides a local staged editor for the charger-wide
 # DC voltage and nominal DC sum-power setpoints. Saved values use the same
-# authoritative command path as the touchscreen. Encoder START/STOP actions are
-# not assigned in the current implementation.
+# authoritative command path as the touchscreen. A deliberate long button
+# press provides local charger START/STOP while the setpoint editor is idle.
+# Power requests use the existing authoritative Charger Controller command
+# paths rather than implementing separate CAN or safety logic.
 #
 # Offline operation:
 #

@@ -133,6 +133,11 @@ binary_sensor:
         then:
           - script.execute: backup_encoder_short_click
 
+      - min_length: 2s
+        max_length: 10s
+        then:
+          - script.execute: backup_encoder_power_long_click
+
 # ==============================================================================
 # USB / CAN MODE SELECTION
 # ==============================================================================

@@ -20,7 +20,12 @@
 # Setpoint application uses the existing ui_command_set_dc_setpoints command
 # path. The encoder therefore does not implement its own CAN or safety logic.
 #
-# Long button presses are currently unassigned.
+# A deliberate long button press requests charger START or STOP while the
+# setpoint editor is idle. The request is forwarded through the existing
+# ui_command_charger_start / ui_command_charger_stop command paths.
+#
+# If charger state is unavailable, the encoder uses the fail-safe action and
+# requests STOP rather than attempting a START with incomplete state.
 # ==============================================================================
 
 globals:
@@ -293,6 +298,81 @@ script:
                   - lambda: |-
                       id(backup_encoder_edit_stage) = 0;
                       id(backup_encoder_transition_accumulator) = 0;
+
+  # ---------------------------------------------------------------------------
+  # LONG BUTTON PRESS - CHARGER START / STOP
+  # ---------------------------------------------------------------------------
+  #
+  # Power control is accepted only while the setpoint editor is idle.
+  #
+  # When running state is known and at least one unit is running, STOP is
+  # requested. START is allowed only when running state is known to be zero and
+  # at least one rectifier is available.
+  #
+  # Unknown or unavailable state uses the fail-safe action and requests STOP.
+  # The encoder never sends CAN commands directly.
+  # ---------------------------------------------------------------------------
+
+  - id: backup_encoder_power_long_click
+
+    then:
+      - if:
+          condition:
+            lambda: |-
+              return id(backup_encoder_edit_stage) != 0;
+
+          then:
+            - lambda: |-
+                ESP_LOGW(
+                  "backup_encoder",
+                  "Power hold ignored while setpoint editor is active."
+                );
+
+          else:
+            - if:
+                condition:
+                  lambda: |-
+                    return
+                      !isnan(id(running_units).state) &&
+                      id(running_units).state > 0.0f;
+
+                then:
+                  - lambda: |-
+                      ESP_LOGI(
+                        "backup_encoder",
+                        "Local charger STOP requested by long button press."
+                      );
+
+                  - script.execute: ui_command_charger_stop
+
+                else:
+                  - if:
+                      condition:
+                        lambda: |-
+                          return
+                            !isnan(id(running_units).state) &&
+                            id(running_units).state == 0.0f &&
+                            !isnan(id(available_units).state) &&
+                            id(available_units).state > 0.0f;
+
+                      then:
+                        - lambda: |-
+                            ESP_LOGI(
+                              "backup_encoder",
+                              "Local charger START requested by long button press."
+                            );
+
+                        - script.execute: ui_command_charger_start
+
+                      else:
+                        - lambda: |-
+                            ESP_LOGW(
+                              "backup_encoder",
+                              "Charger state unavailable for safe START; "
+                              "requesting fail-safe STOP."
+                            );
+
+                        - script.execute: ui_command_charger_stop
 
 # ==============================================================================
 # EDIT TIMEOUT
