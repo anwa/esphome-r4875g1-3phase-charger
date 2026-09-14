@@ -84,3 +84,7 @@ interval:
           id(ui_model_cooling_compartment_humidity).publish_state(
             id(rectifier_compartment_humidity).state
           );
+
+          id(ui_model_cooling_compartment_sea_level_pressure).publish_state(
+            id(rectifier_compartment_sea_level_pressure).state
+          );

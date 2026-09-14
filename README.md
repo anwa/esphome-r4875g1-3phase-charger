@@ -124,13 +124,15 @@ ESP32-S3
     │   ├── external fan power enable
     │   ├── Cooling Fan 1 tachometer
     │   └── Cooling Fan 2 tachometer
-    ├── AHT10 @ 0x38
+    ├── BME280 @ 0x76
     │   ├── rectifier-compartment temperature
-    │   └── rectifier-compartment humidity
+    │   ├── rectifier-compartment humidity
+    │   └── station pressure
     └── EMC2101 @ 0x4C
         ├── external fan PWM
         └── Cooling Fan 3 tachometer
 ```
+The BME280 station pressure is exposed directly. A second pressure entity publishes the standard-atmosphere sea-level equivalent for the fixed 316 m installation altitude.
 
 Unused MCP23017 pins remain available for future expansion.
 
@@ -515,7 +517,7 @@ The EMC2101 generates the shared hardware PWM signal at approximately:
 25.7 kHz
 ```
 
-Cooling Fan 3 ventilates the rear rectifier compartment where the AHT10 temperature/humidity sensor is installed.
+Cooling Fan 3 ventilates the rear rectifier compartment where the BME280 temperature/humidity/pressure sensor is installed.
 
 ### Web Controls and EMC2101 Telemetry
 

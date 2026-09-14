@@ -3,7 +3,7 @@
 # ==============================================================================
 #
 # Cooling overview for the three internal Huawei rectifier fans and the shared
-# rear-compartment temperature and humidity measurement.
+# rear-compartment temperature, humidity and sea-level pressure measurements.
 #
 # Fan-mode controls express user intent through the shared UI command boundary.
 # Controller-only external chassis-fan control is not exposed on this page.
@@ -36,9 +36,9 @@ widgets:
 
         - label:
             id: ui_cooling_compartment_temperature
-            x: 270
+            x: 170
             y: 13
-            width: 180
+            width: 170
             text_align: CENTER
             text: "--.- °C"
             text_font: montserrat_24
@@ -46,11 +46,21 @@ widgets:
 
         - label:
             id: ui_cooling_compartment_humidity
-            x: 530
+            x: 375
+            y: 13
+            width: 170
+            text_align: CENTER
+            text: "--.- %"
+            text_font: montserrat_24
+            text_color: 0xFFFFFF
+
+        - label:
+            id: ui_cooling_compartment_pressure
+            x: 580
             y: 13
             width: 180
             text_align: CENTER
-            text: "--.- %"
+            text: "----.- hPa"
             text_font: montserrat_24
             text_color: 0xFFFFFF
 

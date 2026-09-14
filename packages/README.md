@@ -51,6 +51,7 @@ packages/
 │
 ├── controller/
 │   ├── ui-rectifier-backend.yaml
+│   ├── environment.yaml
 │   ├── hardware.yaml
 │   ├── mqtt.yaml
 │   ├── ui-backend.yaml
@@ -167,6 +168,9 @@ shared/ui-rectifier-unit.yaml
 
 controller/hardware.yaml
     Charger Controller buses and charger-side peripherals
+
+controller/environment.yaml
+    Charger Controller rectifier-compartment environment sensing
 
 controller/mqtt.yaml
     Charger Controller MQTT transport
@@ -399,6 +403,21 @@ Responsibilities include:
 
 ---
 
+## `controller/environment.yaml`
+
+Owns the Charger Controller rear-compartment environmental sensor.
+
+Responsibilities include:
+
+- BME280 access on the dedicated external I2C bus
+- rectifier-compartment temperature and humidity
+- physical station pressure
+- standard-atmosphere sea-level pressure correction for the configured 316 m installation altitude
+
+The established compartment temperature and humidity IDs remain unchanged so cooling control and the Controller UI backend continue to consume the same local interface.
+
+---
+
 ## `controller/mqtt.yaml`
 
 Owns the Charger Controller MQTT transport.
@@ -490,11 +509,11 @@ ESP32-S3
     ├── SDA -> GPIO44
     ├── SCL -> GPIO43
     ├── MCP23017 @ 0x20
-    ├── AHT10 @ 0x38
+    ├── BME280 @ 0x76
     └── EMC2101 @ 0x4C
 ```
 
-The onboard I2C bus is configured in `shared/hardware.yaml`. The charger-side external I2C bus and MCP23017 are configured in `controller/hardware.yaml`. The AHT10 sensor remains configured in the root `r4875g1-3phase-charger.yaml`, while the EMC2101 fan controller is configured in `cooling.yaml`.
+The onboard I2C bus is configured in `shared/hardware.yaml`. The charger-side external I2C bus and MCP23017 are configured in `controller/hardware.yaml`. The BME280 environment sensor is configured in `controller/environment.yaml`, while the EMC2101 fan controller is configured in `cooling.yaml`.
 
 ### MCP23017 Allocation
 
@@ -547,7 +566,7 @@ MCP23017 GPA5 -> Cooling Fan 2 tachometer
 EMC2101 PWM   -> common four-pin fan PWM
 EMC2101 TACH  -> Cooling Fan 3 tachometer
 
-AHT10         -> rear-compartment temperature and humidity
+BME280        -> rear-compartment temperature, humidity and pressure
 ```
 
 Responsibilities include:
@@ -565,7 +584,7 @@ Automatic and manual PWM ownership is intentionally separated. Automatic mode wr
 
 `Cooling Fan PWM Actual` is the EMC2101 duty-cycle register readback and therefore represents the controller's programmed PWM setting rather than an independently measured waveform.
 
-Cooling Fan 3 ventilates the rear rectifier compartment monitored by the AHT10.
+Cooling Fan 3 ventilates the rear rectifier compartment monitored by the BME280.
 
 Automatic cooling fails safe to enabled fan power and maximum PWM if the compartment temperature becomes unavailable.
 

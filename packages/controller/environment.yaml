@@ -1,0 +1,77 @@
+# ==============================================================================
+# CHARGER CONTROLLER ENVIRONMENT
+# ==============================================================================
+#
+# Owns charger-side environmental sensing for the rear rectifier compartment.
+#
+# Hardware:
+#   - BME280 @ 0x76 on the dedicated external I2C bus
+#
+# Temperature and humidity retain the established entity IDs consumed by
+# charger cooling and the Controller UI backend.
+#
+# Pressure is exposed both as the physical station pressure and as a
+# standard-atmosphere sea-level equivalent using the configured installation
+# altitude.
+# ==============================================================================
+
+sensor:
+  - platform: bme280_i2c
+    i2c_id: external_i2c_bus
+    address: 0x76
+    update_interval: 60s
+
+    temperature:
+      name: "Rectifier Compartment Temperature"
+      id: rectifier_compartment_temperature
+      device_class: temperature
+      state_class: measurement
+      accuracy_decimals: 1
+      icon: "mdi:thermometer"
+
+    humidity:
+      name: "Rectifier Compartment Humidity"
+      id: rectifier_compartment_humidity
+      device_class: humidity
+      state_class: measurement
+      accuracy_decimals: 1
+      icon: "mdi:water-percent"
+
+    pressure:
+      name: "Rectifier Compartment Pressure"
+      id: rectifier_compartment_pressure
+      unit_of_measurement: "hPa"
+      device_class: atmospheric_pressure
+      state_class: measurement
+      accuracy_decimals: 1
+      icon: "mdi:gauge"
+
+      on_value:
+        then:
+          - sensor.template.publish:
+              id: rectifier_compartment_sea_level_pressure
+              state: !lambda |-
+                constexpr float altitude_m = ${installation_altitude_m}f;
+                constexpr float standard_temperature_k = 288.15f;
+                constexpr float lapse_rate_k_per_m = 0.0065f;
+                constexpr float exponent = 5.255f;
+
+                const float pressure_ratio = powf(
+                  1.0f - (
+                    (lapse_rate_k_per_m * altitude_m) /
+                    standard_temperature_k
+                  ),
+                  exponent
+                );
+
+                return x / pressure_ratio;
+
+  - platform: template
+    name: "Rectifier Compartment Sea-Level Pressure"
+    id: rectifier_compartment_sea_level_pressure
+    unit_of_measurement: "hPa"
+    device_class: atmospheric_pressure
+    state_class: measurement
+    accuracy_decimals: 1
+    update_interval: never
+    icon: "mdi:gauge"

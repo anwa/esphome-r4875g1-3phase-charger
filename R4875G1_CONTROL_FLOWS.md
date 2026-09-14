@@ -53,7 +53,7 @@ flowchart LR
     CTRL <--> EXT_I2C[External I2C bus]
     EXT_I2C --> MCP[MCP23017]
     EXT_I2C --> EMC[EMC2101]
-    EXT_I2C --> AHT[AHT10]
+    EXT_I2C --> BME[BME280]
 
     EMC --> FANS[External chassis fans]
     MCP --> FANS
@@ -75,6 +75,7 @@ The V5 firmware keeps charger-control, hardware, per-unit rectifier state and di
 | `packages/shared/hardware.yaml` | onboard I2C, CH422G, touch and controller backup-battery hardware |
 | `packages/shared/ui-model.yaml` | target-neutral charger state consumed by shared HMI code |
 | `packages/controller/hardware.yaml` | charger-side external I2C, MCP23017, backup encoder inputs and CAN |
+| `packages/controller/environment.yaml` | rear-compartment BME280 temperature, humidity and pressure |
 | `packages/controller/mqtt.yaml` | Charger Controller MQTT command and state transport |
 | `packages/controller/ui-backend.yaml` | maps authoritative local Controller state into the shared UI model |
 | `packages/controls.yaml` | charger-wide controls and setpoints |

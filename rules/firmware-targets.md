@@ -165,7 +165,7 @@ Examples of Charger-Controller-only hardware may include:
 
 * CAN
 * MCP23017 charger-side expansion
-* AHT10 charger-compartment monitoring
+* BME280 charger-compartment monitoring
 * EMC2101 charger cooling
 * charger-side rotary encoder wiring
 
