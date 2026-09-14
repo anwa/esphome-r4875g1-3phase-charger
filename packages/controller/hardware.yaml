@@ -82,6 +82,14 @@ binary_sensor:
         pullup: true
       inverted: true
 
+    on_state:
+      then:
+        - script.execute:
+            id: backup_encoder_process_transition
+            pin_a_state: !lambda |-
+              return id(backup_encoder_a).state;
+            pin_b_state: !lambda |-
+              return id(backup_encoder_b).state;
 
   - platform: gpio
     id: backup_encoder_b
@@ -95,6 +103,14 @@ binary_sensor:
         pullup: true
       inverted: true
 
+    on_state:
+      then:
+        - script.execute:
+            id: backup_encoder_process_transition
+            pin_a_state: !lambda |-
+              return id(backup_encoder_a).state;
+            pin_b_state: !lambda |-
+              return id(backup_encoder_b).state;
 
   - platform: gpio
     id: backup_encoder_button
@@ -111,6 +127,11 @@ binary_sensor:
     filters:
       - delayed_on_off: 20ms
 
+    on_click:
+      - min_length: 50ms
+        max_length: 600ms
+        then:
+          - script.execute: backup_encoder_short_click
 
 # ==============================================================================
 # USB / CAN MODE SELECTION

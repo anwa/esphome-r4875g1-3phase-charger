@@ -1,0 +1,325 @@
+# ==============================================================================
+# CHARGER CONTROLLER BACKUP ROTARY ENCODER
+# ==============================================================================
+#
+# Implements the local backup rotary-encoder control path for the Charger
+# Controller.
+#
+# The touchscreen remains the primary HMI. The encoder provides a network-
+# independent local path for editing the charger-wide DC voltage and nominal
+# DC sum-power setpoints.
+#
+# Encoder operation:
+#   - first short click enters DC-voltage editing
+#   - rotation changes the pending voltage in 0.1 V steps
+#   - second short click switches to DC sum-power editing
+#   - rotation changes the pending power in 0.1 kW steps
+#   - third short click applies both pending values together
+#   - inactivity cancels the pending edit without changing charger setpoints
+#
+# Setpoint application uses the existing ui_command_set_dc_setpoints command
+# path. The encoder therefore does not implement its own CAN or safety logic.
+#
+# Long button presses are currently unassigned.
+# ==============================================================================
+
+globals:
+
+  # ---------------------------------------------------------------------------
+  # QUADRATURE DECODER STATE
+  # ---------------------------------------------------------------------------
+
+  - id: backup_encoder_previous_phase
+    type: uint8_t
+    restore_value: false
+    initial_value: "0"
+
+  - id: backup_encoder_transition_accumulator
+    type: int
+    restore_value: false
+    initial_value: "0"
+
+  # ---------------------------------------------------------------------------
+  # EDIT STATE
+  # ---------------------------------------------------------------------------
+  #
+  # 0 = idle
+  # 1 = DC voltage
+  # 2 = DC sum power
+  # ---------------------------------------------------------------------------
+
+  - id: backup_encoder_edit_stage
+    type: uint8_t
+    restore_value: false
+    initial_value: "0"
+
+  - id: backup_encoder_voltage_edit
+    type: float
+    restore_value: false
+    initial_value: "0.0"
+
+  - id: backup_encoder_power_edit
+    type: float
+    restore_value: false
+    initial_value: "0.0"
+
+  - id: backup_encoder_last_activity_ms
+    type: uint32_t
+    restore_value: false
+    initial_value: "0"
+
+# ==============================================================================
+# ENCODER RUNTIME
+# ==============================================================================
+
+script:
+
+  # ---------------------------------------------------------------------------
+  # QUADRATURE TRANSITION DECODER
+  # ---------------------------------------------------------------------------
+  #
+  # MCP23017 pins cannot be used by ESPHome's native rotary_encoder component.
+  # Each A/B input transition is therefore passed here by hardware.yaml.
+  #
+  # The transition table rejects invalid phase changes and naturally cancels
+  # normal mechanical contact bounce that reverses a valid transition.
+  # ---------------------------------------------------------------------------
+
+  - id: backup_encoder_process_transition
+    mode: queued
+    max_runs: 32
+
+    parameters:
+      pin_a_state: bool
+      pin_b_state: bool
+
+    then:
+      - lambda: |-
+          const uint8_t current_phase =
+            (pin_a_state ? 0x02 : 0x00) |
+            (pin_b_state ? 0x01 : 0x00);
+
+          // Ignore rotation outside edit mode, but keep the decoder synchronized
+          // with the physical encoder position.
+          if (id(backup_encoder_edit_stage) == 0) {
+            id(backup_encoder_previous_phase) = current_phase;
+            id(backup_encoder_transition_accumulator) = 0;
+            return;
+          }
+
+          const uint8_t previous_phase =
+            id(backup_encoder_previous_phase);
+
+          id(backup_encoder_previous_phase) = current_phase;
+
+          if (current_phase == previous_phase) {
+            return;
+          }
+
+          const uint8_t transition =
+            static_cast<uint8_t>(
+              (previous_phase << 2) | current_phase
+            );
+
+          static constexpr int8_t transition_table[16] = {
+             0, -1,  1,  0,
+             1,  0,  0, -1,
+            -1,  0,  0,  1,
+             0,  1, -1,  0
+          };
+
+          int8_t delta = transition_table[transition];
+
+          delta *= ${backup_encoder_direction_multiplier};
+
+          // A two-bit jump indicates that at least one phase transition was
+          // missed. Discard the partial detent instead of producing a false
+          // encoder step.
+          if (delta == 0) {
+            id(backup_encoder_transition_accumulator) = 0;
+            return;
+          }
+
+          id(backup_encoder_transition_accumulator) += delta;
+
+          if (
+            id(backup_encoder_transition_accumulator) >=
+              ${backup_encoder_transitions_per_detent}
+          ) {
+            id(backup_encoder_transition_accumulator) -=
+              ${backup_encoder_transitions_per_detent};
+
+            id(backup_encoder_apply_detent)->execute(1);
+
+          } else if (
+            id(backup_encoder_transition_accumulator) <=
+              -${backup_encoder_transitions_per_detent}
+          ) {
+            id(backup_encoder_transition_accumulator) +=
+              ${backup_encoder_transitions_per_detent};
+
+            id(backup_encoder_apply_detent)->execute(-1);
+          }
+
+  # ---------------------------------------------------------------------------
+  # APPLY ONE ENCODER DETENT
+  # ---------------------------------------------------------------------------
+
+  - id: backup_encoder_apply_detent
+    mode: queued
+    max_runs: 8
+
+    parameters:
+      direction: int
+
+    then:
+      - lambda: |-
+          id(backup_encoder_last_activity_ms) = millis();
+
+          if (id(backup_encoder_edit_stage) == 1) {
+            float value =
+              id(backup_encoder_voltage_edit) +
+              (static_cast<float>(direction) * 0.1f);
+
+            value = roundf(value * 10.0f) / 10.0f;
+
+            value = std::max(
+              ${dc_voltage_min_v}f,
+              std::min(${dc_voltage_max_v}f, value)
+            );
+
+            id(backup_encoder_voltage_edit) = value;
+
+            ESP_LOGI(
+              "backup_encoder",
+              "Pending DC voltage: %.1f V",
+              value
+            );
+
+          } else if (id(backup_encoder_edit_stage) == 2) {
+            float value =
+              id(backup_encoder_power_edit) +
+              (static_cast<float>(direction) * 0.1f);
+
+            value = roundf(value * 10.0f) / 10.0f;
+
+            value = std::max(
+              ${dc_sum_power_min_kw}f,
+              std::min(${dc_sum_power_max_kw}f, value)
+            );
+
+            id(backup_encoder_power_edit) = value;
+
+            ESP_LOGI(
+              "backup_encoder",
+              "Pending DC sum power: %.1f kW",
+              value
+            );
+          }
+
+  # ---------------------------------------------------------------------------
+  # SHORT BUTTON CLICK
+  # ---------------------------------------------------------------------------
+
+  - id: backup_encoder_short_click
+
+    then:
+      - if:
+          condition:
+            lambda: |-
+              return id(backup_encoder_edit_stage) == 0;
+
+          then:
+            - lambda: |-
+                id(backup_encoder_voltage_edit) =
+                  id(set_dc_voltage_limit).state;
+
+                id(backup_encoder_power_edit) =
+                  id(set_dc_sum_power).state;
+
+                id(backup_encoder_edit_stage) = 1;
+                id(backup_encoder_last_activity_ms) = millis();
+
+                // Start every editing session from the physical encoder's
+                // current phase so the first detent is decoded completely.
+                id(backup_encoder_previous_phase) =
+                  (id(backup_encoder_a).state ? 0x02 : 0x00) |
+                  (id(backup_encoder_b).state ? 0x01 : 0x00);
+
+                id(backup_encoder_transition_accumulator) = 0;
+
+                ESP_LOGI(
+                  "backup_encoder",
+                  "Edit DC voltage: %.1f V",
+                  id(backup_encoder_voltage_edit)
+                );
+
+          else:
+            - if:
+                condition:
+                  lambda: |-
+                    return id(backup_encoder_edit_stage) == 1;
+
+                then:
+                  - lambda: |-
+                      id(backup_encoder_edit_stage) = 2;
+                      id(backup_encoder_last_activity_ms) = millis();
+                      id(backup_encoder_transition_accumulator) = 0;
+
+                      ESP_LOGI(
+                        "backup_encoder",
+                        "Edit DC sum power: %.1f kW",
+                        id(backup_encoder_power_edit)
+                      );
+
+                else:
+                  - lambda: |-
+                      ESP_LOGI(
+                        "backup_encoder",
+                        "Apply DC setpoints: %.1f V / %.1f kW",
+                        id(backup_encoder_voltage_edit),
+                        id(backup_encoder_power_edit)
+                      );
+
+                  - script.execute:
+                      id: ui_command_set_dc_setpoints
+
+                      voltage: !lambda |-
+                        return id(backup_encoder_voltage_edit);
+
+                      power: !lambda |-
+                        return id(backup_encoder_power_edit);
+
+                  - lambda: |-
+                      id(backup_encoder_edit_stage) = 0;
+                      id(backup_encoder_transition_accumulator) = 0;
+
+# ==============================================================================
+# EDIT TIMEOUT
+# ==============================================================================
+#
+# An abandoned edit is cancelled rather than implicitly applied.
+# ==============================================================================
+
+interval:
+  - interval: 250ms
+
+    then:
+      - if:
+          condition:
+            lambda: |-
+              return
+                id(backup_encoder_edit_stage) != 0 &&
+                static_cast<uint32_t>(
+                  millis() - id(backup_encoder_last_activity_ms)
+                ) >= ${backup_encoder_edit_timeout_ms}U;
+
+          then:
+            - lambda: |-
+                ESP_LOGI(
+                  "backup_encoder",
+                  "Edit timeout; pending DC setpoint changes discarded."
+                );
+
+                id(backup_encoder_edit_stage) = 0;
+                id(backup_encoder_transition_accumulator) = 0;

@@ -66,8 +66,10 @@
 #          +--> charger and per-unit START/STOP controls
 #          +--> fallback voltage/current adjustment
 #
-# Backup rotary-encoder inputs are connected through the MCP23017 but currently
-# have no assigned charger-control or navigation actions.
+# The backup rotary encoder provides a local staged editor for the charger-wide
+# DC voltage and nominal DC sum-power setpoints. Saved values use the same
+# authoritative command path as the touchscreen. Encoder START/STOP actions are
+# not assigned in the current implementation.
 #
 # Offline operation:
 #
@@ -143,6 +145,20 @@ substitutions:
   mcp_fan_enable_pin: "3"
   mcp_fan1_tach_pin: "4"
   mcp_fan2_tach_pin: "5"
+
+  # ---------------------------------------------------------------------------
+  # BACKUP ROTARY ENCODER
+  # ---------------------------------------------------------------------------
+
+  # A normal mechanical encoder produces four valid phase transitions for one
+  # complete detent. This value can be adjusted after the first hardware test.
+  backup_encoder_transitions_per_detent: "4"
+
+  # Change to -1 if the physical clockwise direction is reversed.
+  backup_encoder_direction_multiplier: "1"
+
+  # Pending setpoint edits are discarded after 15 seconds without activity.
+  backup_encoder_edit_timeout_ms: "15000"
 
   # ---------------------------------------------------------------------------
   # DISPLAY DEFAULTS
@@ -328,6 +344,8 @@ packages:
     vars:
       ui_unit: "3"
   controller_ui_commands: !include packages/controller/ui-commands.yaml
+
+  controller_encoder: !include packages/controller/encoder.yaml
 
   cooling: !include packages/cooling.yaml
   display: !include packages/display.yaml
