@@ -162,6 +162,9 @@ substitutions:
   # Pending setpoint edits are discarded after 15 seconds without activity.
   backup_encoder_edit_timeout_ms: "15000"
 
+  # Transient encoder status overlays remain visible for 1.5 seconds.
+  backup_encoder_ui_status_timeout_ms: "1500"
+
   # ---------------------------------------------------------------------------
   # DISPLAY DEFAULTS
   # ---------------------------------------------------------------------------
@@ -351,6 +354,7 @@ packages:
 
   cooling: !include packages/cooling.yaml
   display: !include packages/display.yaml
+  controller_encoder_ui: !include packages/controller/encoder-ui.yaml
 
   # Optional target-specific Home Assistant motion source for display activity.
   # Remove this package entry to use only the original touch/idle behavior.

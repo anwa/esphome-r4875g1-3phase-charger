@@ -201,6 +201,8 @@ script:
               value
             );
 
+            id(backup_encoder_ui_show_voltage)->execute(value);
+
           } else if (id(backup_encoder_edit_stage) == 2) {
             float value =
               id(backup_encoder_power_edit) +
@@ -220,6 +222,8 @@ script:
               "Pending DC sum power: %.1f kW",
               value
             );
+
+            id(backup_encoder_ui_show_power)->execute(value);
           }
 
   # ---------------------------------------------------------------------------
@@ -259,6 +263,10 @@ script:
                   id(backup_encoder_voltage_edit)
                 );
 
+                id(backup_encoder_ui_show_voltage)->execute(
+                  id(backup_encoder_voltage_edit)
+                );
+
           else:
             - if:
                 condition:
@@ -277,6 +285,10 @@ script:
                         id(backup_encoder_power_edit)
                       );
 
+                      id(backup_encoder_ui_show_power)->execute(
+                        id(backup_encoder_power_edit)
+                      );
+
                 else:
                   - lambda: |-
                       ESP_LOGI(
@@ -292,6 +304,13 @@ script:
                       voltage: !lambda |-
                         return id(backup_encoder_voltage_edit);
 
+                      power: !lambda |-
+                        return id(backup_encoder_power_edit);
+
+                  - script.execute:
+                      id: backup_encoder_ui_show_saved
+                      voltage: !lambda |-
+                        return id(backup_encoder_voltage_edit);
                       power: !lambda |-
                         return id(backup_encoder_power_edit);
 
@@ -345,6 +364,8 @@ script:
 
                   - script.execute: ui_command_charger_stop
 
+                  - script.execute: backup_encoder_ui_show_stop_requested
+
                 else:
                   - if:
                       condition:
@@ -364,6 +385,8 @@ script:
 
                         - script.execute: ui_command_charger_start
 
+                        - script.execute: backup_encoder_ui_show_start_requested
+
                       else:
                         - lambda: |-
                             ESP_LOGW(
@@ -373,6 +396,8 @@ script:
                             );
 
                         - script.execute: ui_command_charger_stop
+
+                        - script.execute: backup_encoder_ui_show_failsafe_stop
 
 # ==============================================================================
 # EDIT TIMEOUT
@@ -403,3 +428,5 @@ interval:
 
                 id(backup_encoder_edit_stage) = 0;
                 id(backup_encoder_transition_accumulator) = 0;
+
+            - script.execute: backup_encoder_ui_hide
