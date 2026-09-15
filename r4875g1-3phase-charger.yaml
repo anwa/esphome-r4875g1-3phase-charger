@@ -24,7 +24,7 @@
 #   - MCP23017 I/O expander @ 0x20
 #   - BME280 compartment environment sensor @ 0x76
 #   - EMC2101 external cooling-fan controller @ 0x4C
-#   - rotary encoder connected through the MCP23017
+#   - backup rotary encoder on GPIO11 / GPIO12 / GPIO13
 #   - external three/four-pin cooling-fan interface
 #   - 1S lithium controller backup battery on J3
 #   - battery-voltage measurement through TP1 / J8 AD / GPIO6
@@ -139,12 +139,16 @@ substitutions:
   pin_can_tx: "GPIO20"
   pin_can_rx: "GPIO19"
   pin_battery_adc: "GPIO6"
-  pin_mcp_interrupt: "GPIO13"
+
+  # GPIO11/GPIO12/GPIO13 are the unused TF-card SPI pins.
+  pin_backup_encoder_a: "GPIO11"
+  pin_backup_encoder_b: "GPIO12"
+  pin_backup_encoder_button: "GPIO13"
+
+  # GPIO16 shares the unused onboard RS485 interface.
+  pin_mcp_interrupt: "GPIO16"
 
   # MCP23017 pin allocation.
-  mcp_encoder_a_pin: "0"
-  mcp_encoder_b_pin: "1"
-  mcp_encoder_button_pin: "2"
   mcp_fan_enable_pin: "3"
   mcp_fan1_tach_pin: "4"
   mcp_fan2_tach_pin: "5"
@@ -153,12 +157,8 @@ substitutions:
   # BACKUP ROTARY ENCODER
   # ---------------------------------------------------------------------------
 
-  # A normal mechanical encoder produces four valid phase transitions for one
-  # complete detent. This value can be adjusted after the first hardware test.
-  backup_encoder_transitions_per_detent: "4"
-
-  # Change to -1 if the physical clockwise direction is reversed.
-  backup_encoder_direction_multiplier: "-1"
+  # One output step per complete quadrature cycle.
+  backup_encoder_resolution: "1"
 
   # Pending setpoint edits are discarded after 15 seconds without activity.
   backup_encoder_edit_timeout_ms: "15000"
