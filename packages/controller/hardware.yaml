@@ -7,7 +7,7 @@
 # Charger-side hardware:
 #   - dedicated external I2C bus
 #   - MCP23017 external I/O expander
-#   - backup rotary encoder inputs
+#   - direct-GPIO backup rotary encoder
 #   - USB/CAN routing selection
 #   - ESP32-S3 CAN controller
 #
@@ -27,7 +27,7 @@ i2c:
     sda: ${pin_external_i2c_sda}
     scl: ${pin_external_i2c_scl}
     scan: true
-    frequency: 100kHz
+    frequency: 400kHz
 
 # ==============================================================================
 # EXTERNAL I/O EXPANDER
@@ -36,14 +36,12 @@ i2c:
 # MCP23017 on the dedicated charger-side external I2C bus.
 #
 # Pin allocation:
-#   GPA0 / pin 0 -> rotary encoder A
-#   GPA1 / pin 1 -> rotary encoder B
-#   GPA2 / pin 2 -> rotary encoder button
-#   GPA3 / pin 3 -> external cooling-fan enable
-#   GPA4 / pin 4 -> cooling fan 1 tachometer
-#   GPA5 / pin 5 -> cooling fan 2 tachometer
+#   GPA0 / pin 0 -> external cooling-fan enable
+#   GPA1 / pin 1 -> cooling fan 1 tachometer
+#   GPA2 / pin 2 -> cooling fan 2 tachometer
 #
-# MCP23017 interrupt operation is not used.
+# INTA/INTB are intentionally left unconnected. The MCP23017 is used without
+# a dedicated ESP32-S3 interrupt line.
 # ==============================================================================
 
 mcp23017:
@@ -52,57 +50,56 @@ mcp23017:
     address: 0x20
 
 # ==============================================================================
-# BACKUP ROTARY ENCODER INPUTS
+# BACKUP ROTARY ENCODER
 # ==============================================================================
 #
-# Mechanical rotary encoder connected through the MCP23017 on the dedicated
-# external I2C bus.
+# The complete mechanical encoder is wired directly to ESP32-S3 GPIOs so the
+# native interrupt-driven rotary_encoder component can decode A/B without I2C.
 #
-# Pin allocation:
-#   GPA0 / pin 0 -> Encoder A
-#   GPA1 / pin 1 -> Encoder B
-#   GPA2 / pin 2 -> Encoder push button
+# Wiring:
+#   GPIO11 -> Encoder S1 / A
+#   GPIO12 -> Encoder S2 / B
+#   GPIO13 -> Encoder KEY / push button
 #
-# All inputs use the MCP23017 internal pull-ups. The mechanical encoder
-# therefore switches the inputs to GND.
-#
-# GPIO6 is dedicated to controller battery voltage measurement.
+# GPIO11/GPIO12/GPIO13 are the Waveshare TF-card SPI pins. The TF interface is
+# unavailable while the backup encoder uses these pins.
 # ==============================================================================
+
+sensor:
+  - platform: rotary_encoder
+    id: backup_encoder
+    internal: true
+    resolution: ${backup_encoder_resolution}
+
+    pin_a:
+      number: ${pin_backup_encoder_a}
+      mode:
+        input: true
+        pullup: true
+
+    pin_b:
+      number: ${pin_backup_encoder_b}
+      mode:
+        input: true
+        pullup: true
+
+    on_clockwise:
+      - script.execute:
+          id: backup_encoder_apply_detent
+          direction: -1
+
+    on_anticlockwise:
+      - script.execute:
+          id: backup_encoder_apply_detent
+          direction: 1
 
 binary_sensor:
-  - platform: gpio
-    id: backup_encoder_a
-    internal: true
-
-    pin:
-      mcp23xxx: external_io_expander
-      number: ${mcp_encoder_a_pin}
-      mode:
-        input: true
-        pullup: true
-      inverted: true
-
-
-  - platform: gpio
-    id: backup_encoder_b
-    internal: true
-
-    pin:
-      mcp23xxx: external_io_expander
-      number: ${mcp_encoder_b_pin}
-      mode:
-        input: true
-        pullup: true
-      inverted: true
-
-
   - platform: gpio
     id: backup_encoder_button
     internal: true
 
     pin:
-      mcp23xxx: external_io_expander
-      number: ${mcp_encoder_button_pin}
+      number: ${pin_backup_encoder_button}
       mode:
         input: true
         pullup: true
@@ -111,6 +108,16 @@ binary_sensor:
     filters:
       - delayed_on_off: 20ms
 
+    on_click:
+      - min_length: 50ms
+        max_length: 600ms
+        then:
+          - script.execute: backup_encoder_short_click
+
+      - min_length: 2s
+        max_length: 10s
+        then:
+          - script.execute: backup_encoder_power_long_click
 
 # ==============================================================================
 # USB / CAN MODE SELECTION

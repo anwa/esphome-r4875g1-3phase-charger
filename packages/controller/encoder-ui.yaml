@@ -1,0 +1,309 @@
+# ==============================================================================
+# CHARGER CONTROLLER BACKUP ENCODER UI
+# ==============================================================================
+#
+# Defines the Controller-only modal feedback overlay for the backup rotary
+# encoder.
+#
+# The shared V6 HMI remains target-neutral. This package is composed only by the
+# Charger Controller because the backup encoder is local charger-side hardware.
+#
+# While a setpoint is being edited, the full-screen overlay blocks touchscreen
+# controls so touch and encoder input cannot modify the same pending control
+# state concurrently. Saved setpoints and charger power requests use short
+# transient status messages.
+# ==============================================================================
+
+globals:
+  # Timestamp for automatic hiding of transient encoder status messages.
+  # A value of zero keeps the overlay visible until the encoder runtime hides it.
+  - id: backup_encoder_ui_hide_at_ms
+    type: uint32_t
+    restore_value: false
+    initial_value: "0"
+
+# ==============================================================================
+# ENCODER OVERLAY
+# ==============================================================================
+
+lvgl:
+  top_layer:
+    widgets:
+      - obj:
+          id: backup_encoder_ui_overlay
+          x: 0
+          y: 0
+          width: 800
+          height: 480
+          hidden: true
+          clickable: true
+          bg_color: 0x000000
+          bg_opa: 55%
+          border_width: 0
+          radius: 0
+          pad_all: 0
+          scrollable: false
+          scrollbar_mode: "OFF"
+
+          widgets:
+            - obj:
+                align: CENTER
+                width: 460
+                height: 220
+                styles: style_dialog_panel
+                clickable: false
+                scrollable: false
+                scrollbar_mode: "OFF"
+
+                widgets:
+                  - label:
+                      align: TOP_MID
+                      y: 18
+                      width: 420
+                      text_align: CENTER
+                      text: "BACKUP ENCODER"
+                      text_font: montserrat_20
+                      text_color: 0xFFFFFF
+
+                  - label:
+                      id: backup_encoder_ui_field
+                      align: TOP_MID
+                      y: 66
+                      width: 420
+                      text_align: CENTER
+                      text: ""
+                      text_font: montserrat_16
+                      text_color: 0x8B96A0
+
+                  - label:
+                      id: backup_encoder_ui_value
+                      align: TOP_MID
+                      y: 98
+                      width: 420
+                      text_align: CENTER
+                      text: ""
+                      text_font: montserrat_32
+                      text_color: 0xFFFFFF
+
+                  - label:
+                      id: backup_encoder_ui_hint
+                      align: BOTTOM_MID
+                      y: -20
+                      width: 420
+                      text_align: CENTER
+                      text: ""
+                      text_font: montserrat_14
+                      text_color: 0x8B96A0
+
+# ==============================================================================
+# ENCODER UI RUNTIME
+# ==============================================================================
+
+script:
+
+  # ---------------------------------------------------------------------------
+  # DC VOLTAGE EDIT
+  # ---------------------------------------------------------------------------
+
+  - id: backup_encoder_ui_show_voltage
+    parameters:
+      value: float
+
+    then:
+      - script.execute:
+          id: display_register_activity
+          wake: true
+
+      - lambda: |-
+          id(backup_encoder_ui_hide_at_ms) = 0;
+
+      - lvgl.label.update:
+          id: backup_encoder_ui_field
+          text: "DC VOLTAGE"
+
+      - lvgl.label.update:
+          id: backup_encoder_ui_value
+          text: !lambda |-
+            return str_sprintf("%.1f V", value);
+
+      - lvgl.label.update:
+          id: backup_encoder_ui_hint
+          text: "TURN: ADJUST   |   PRESS: NEXT"
+
+      - lvgl.widget.show: backup_encoder_ui_overlay
+
+  # ---------------------------------------------------------------------------
+  # DC SUM POWER EDIT
+  # ---------------------------------------------------------------------------
+
+  - id: backup_encoder_ui_show_power
+    parameters:
+      value: float
+
+    then:
+      - script.execute:
+          id: display_register_activity
+          wake: true
+
+      - lambda: |-
+          id(backup_encoder_ui_hide_at_ms) = 0;
+
+      - lvgl.label.update:
+          id: backup_encoder_ui_field
+          text: "DC SUM POWER"
+
+      - lvgl.label.update:
+          id: backup_encoder_ui_value
+          text: !lambda |-
+            return str_sprintf("%.1f kW", value);
+
+      - lvgl.label.update:
+          id: backup_encoder_ui_hint
+          text: "TURN: ADJUST   |   PRESS: SAVE"
+
+      - lvgl.widget.show: backup_encoder_ui_overlay
+
+  # ---------------------------------------------------------------------------
+  # SETPOINTS SAVED
+  # ---------------------------------------------------------------------------
+
+  - id: backup_encoder_ui_show_saved
+    parameters:
+      voltage: float
+      power: float
+
+    then:
+      - script.execute:
+          id: display_register_activity
+          wake: true
+
+      - lvgl.label.update:
+          id: backup_encoder_ui_field
+          text: "SETPOINTS SAVED"
+
+      - lvgl.label.update:
+          id: backup_encoder_ui_value
+          text: !lambda |-
+            return str_sprintf("%.1f V   /   %.1f kW", voltage, power);
+
+      - lvgl.label.update:
+          id: backup_encoder_ui_hint
+          text: "Applied through charger control path"
+
+      - lambda: |-
+          id(backup_encoder_ui_hide_at_ms) =
+            millis() + ${backup_encoder_ui_status_timeout_ms}U;
+
+      - lvgl.widget.show: backup_encoder_ui_overlay
+
+  # ---------------------------------------------------------------------------
+  # CHARGER POWER REQUESTS
+  # ---------------------------------------------------------------------------
+
+  - id: backup_encoder_ui_show_start_requested
+
+    then:
+      - script.execute:
+          id: display_register_activity
+          wake: true
+
+      - lvgl.label.update:
+          id: backup_encoder_ui_field
+          text: "CHARGER CONTROL"
+
+      - lvgl.label.update:
+          id: backup_encoder_ui_value
+          text: "START REQUESTED"
+
+      - lvgl.label.update:
+          id: backup_encoder_ui_hint
+          text: "Controller remains authoritative"
+
+      - lambda: |-
+          id(backup_encoder_ui_hide_at_ms) =
+            millis() + ${backup_encoder_ui_status_timeout_ms}U;
+
+      - lvgl.widget.show: backup_encoder_ui_overlay
+
+  - id: backup_encoder_ui_show_stop_requested
+
+    then:
+      - script.execute:
+          id: display_register_activity
+          wake: true
+
+      - lvgl.label.update:
+          id: backup_encoder_ui_field
+          text: "CHARGER CONTROL"
+
+      - lvgl.label.update:
+          id: backup_encoder_ui_value
+          text: "STOP REQUESTED"
+
+      - lvgl.label.update:
+          id: backup_encoder_ui_hint
+          text: "Controller remains authoritative"
+
+      - lambda: |-
+          id(backup_encoder_ui_hide_at_ms) =
+            millis() + ${backup_encoder_ui_status_timeout_ms}U;
+
+      - lvgl.widget.show: backup_encoder_ui_overlay
+
+  - id: backup_encoder_ui_show_failsafe_stop
+
+    then:
+      - script.execute:
+          id: display_register_activity
+          wake: true
+
+      - lvgl.label.update:
+          id: backup_encoder_ui_field
+          text: "CHARGER CONTROL"
+
+      - lvgl.label.update:
+          id: backup_encoder_ui_value
+          text: "FAIL-SAFE STOP"
+
+      - lvgl.label.update:
+          id: backup_encoder_ui_hint
+          text: "START blocked because charger state is unavailable"
+
+      - lambda: |-
+          id(backup_encoder_ui_hide_at_ms) =
+            millis() + ${backup_encoder_ui_status_timeout_ms}U;
+
+      - lvgl.widget.show: backup_encoder_ui_overlay
+
+  # ---------------------------------------------------------------------------
+  # HIDE OVERLAY
+  # ---------------------------------------------------------------------------
+
+  - id: backup_encoder_ui_hide
+
+    then:
+      - lambda: |-
+          id(backup_encoder_ui_hide_at_ms) = 0;
+
+      - lvgl.widget.hide: backup_encoder_ui_overlay
+
+# ==============================================================================
+# TRANSIENT STATUS TIMEOUT
+# ==============================================================================
+
+interval:
+  - interval: 100ms
+
+    then:
+      - if:
+          condition:
+            lambda: |-
+              const uint32_t hide_at =
+                id(backup_encoder_ui_hide_at_ms);
+
+              return
+                hide_at != 0 &&
+                static_cast<int32_t>(millis() - hide_at) >= 0;
+
+          then:
+            - script.execute: backup_encoder_ui_hide

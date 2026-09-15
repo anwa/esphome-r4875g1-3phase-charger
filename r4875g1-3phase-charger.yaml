@@ -24,7 +24,7 @@
 #   - MCP23017 I/O expander @ 0x20
 #   - BME280 compartment environment sensor @ 0x76
 #   - EMC2101 external cooling-fan controller @ 0x4C
-#   - rotary encoder connected through the MCP23017
+#   - backup rotary encoder on GPIO11 / GPIO12 / GPIO13
 #   - external three/four-pin cooling-fan interface
 #   - 1S lithium controller backup battery on J3
 #   - battery-voltage measurement through TP1 / J8 AD / GPIO6
@@ -66,8 +66,12 @@
 #          +--> charger and per-unit START/STOP controls
 #          +--> fallback voltage/current adjustment
 #
-# Backup rotary-encoder inputs are connected through the MCP23017 but currently
-# have no assigned charger-control or navigation actions.
+# The backup rotary encoder provides a local staged editor for the charger-wide
+# DC voltage and nominal DC sum-power setpoints. Saved values use the same
+# authoritative command path as the touchscreen. A deliberate long button
+# press provides local charger START/STOP while the setpoint editor is idle.
+# Power requests use the existing authoritative Charger Controller command
+# paths rather than implementing separate CAN or safety logic.
 #
 # Offline operation:
 #
@@ -136,13 +140,28 @@ substitutions:
   pin_can_rx: "GPIO19"
   pin_battery_adc: "GPIO6"
 
+  # GPIO11/GPIO12/GPIO13 are the unused TF-card SPI pins.
+  pin_backup_encoder_a: "GPIO11"
+  pin_backup_encoder_b: "GPIO12"
+  pin_backup_encoder_button: "GPIO13"
+
   # MCP23017 pin allocation.
-  mcp_encoder_a_pin: "0"
-  mcp_encoder_b_pin: "1"
-  mcp_encoder_button_pin: "2"
-  mcp_fan_enable_pin: "3"
-  mcp_fan1_tach_pin: "4"
-  mcp_fan2_tach_pin: "5"
+  mcp_fan_enable_pin: "0"
+  mcp_fan1_tach_pin: "1"
+  mcp_fan2_tach_pin: "2"
+
+  # ---------------------------------------------------------------------------
+  # BACKUP ROTARY ENCODER
+  # ---------------------------------------------------------------------------
+
+  # One output step per complete quadrature cycle.
+  backup_encoder_resolution: "1"
+
+  # Pending setpoint edits are discarded after 15 seconds without activity.
+  backup_encoder_edit_timeout_ms: "15000"
+
+  # Transient encoder status overlays remain visible for 1.5 seconds.
+  backup_encoder_ui_status_timeout_ms: "1500"
 
   # ---------------------------------------------------------------------------
   # DISPLAY DEFAULTS
@@ -329,8 +348,11 @@ packages:
       ui_unit: "3"
   controller_ui_commands: !include packages/controller/ui-commands.yaml
 
+  controller_encoder: !include packages/controller/encoder.yaml
+
   cooling: !include packages/cooling.yaml
   display: !include packages/display.yaml
+  controller_encoder_ui: !include packages/controller/encoder-ui.yaml
 
   # Optional target-specific Home Assistant motion source for display activity.
   # Remove this package entry to use only the original touch/idle behavior.

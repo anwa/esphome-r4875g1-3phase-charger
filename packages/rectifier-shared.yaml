@@ -9,38 +9,6 @@
 
 globals:
   # ---------------------------------------------------------------------------
-  # LOCAL ENCODER UI STATE
-  # ---------------------------------------------------------------------------
-  #
-  # The backup rotary-encoder inputs are exposed by the controller hardware,
-  # but the current firmware does not assign navigation or charger-control
-  # actions to them.
-  #
-  # These globals are therefore not part of the active touchscreen navigation
-  # or charger-control path.
-  # ---------------------------------------------------------------------------
-
-  - id: encoder_page
-    type: int
-    restore_value: false
-    initial_value: "0"
-
-  - id: encoder_selection
-    type: int
-    restore_value: false
-    initial_value: "0"
-
-  - id: encoder_edit_mode
-    type: bool
-    restore_value: false
-    initial_value: "false"
-
-  - id: encoder_edit_value
-    type: float
-    restore_value: false
-    initial_value: "0.0f"
-
-  # ---------------------------------------------------------------------------
   # COMMUNICATION SCHEDULER STATE
   # ---------------------------------------------------------------------------
 

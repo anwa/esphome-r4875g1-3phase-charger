@@ -1,0 +1,320 @@
+# ==============================================================================
+# CHARGER CONTROLLER BACKUP ROTARY ENCODER
+# ==============================================================================
+#
+# Implements the local backup rotary-encoder control path for the Charger
+# Controller.
+#
+# The touchscreen remains the primary HMI. The encoder provides a network-
+# independent local path for editing the charger-wide DC voltage and nominal
+# DC sum-power setpoints.
+#
+# Encoder operation:
+#   - first short click enters DC-voltage editing
+#   - rotation changes the pending voltage in 0.1 V steps
+#   - second short click switches to DC sum-power editing
+#   - rotation changes the pending power in 0.1 kW steps
+#   - third short click applies both pending values together
+#   - inactivity cancels the pending edit without changing charger setpoints
+#
+# Setpoint application uses the existing ui_command_set_dc_setpoints command
+# path. The encoder therefore does not implement its own CAN or safety logic.
+#
+# A deliberate long button press requests charger START or STOP while the
+# setpoint editor is idle. The request is forwarded through the existing
+# ui_command_charger_start / ui_command_charger_stop command paths.
+#
+# If charger state is unavailable, the encoder uses the fail-safe action and
+# requests STOP rather than attempting a START with incomplete state.
+# ==============================================================================
+
+globals:
+
+  # ---------------------------------------------------------------------------
+  # EDIT STATE
+  # ---------------------------------------------------------------------------
+  #
+  # 0 = idle
+  # 1 = DC voltage
+  # 2 = DC sum power
+  # ---------------------------------------------------------------------------
+
+  - id: backup_encoder_edit_stage
+    type: uint8_t
+    restore_value: false
+    initial_value: "0"
+
+  - id: backup_encoder_voltage_edit
+    type: float
+    restore_value: false
+    initial_value: "0.0"
+
+  - id: backup_encoder_power_edit
+    type: float
+    restore_value: false
+    initial_value: "0.0"
+
+  - id: backup_encoder_last_activity_ms
+    type: uint32_t
+    restore_value: false
+    initial_value: "0"
+
+# ==============================================================================
+# ENCODER RUNTIME
+# ==============================================================================
+
+script:
+
+  # ---------------------------------------------------------------------------
+  # APPLY ONE ENCODER DETENT
+  # ---------------------------------------------------------------------------
+
+  - id: backup_encoder_apply_detent
+    mode: queued
+    max_runs: 8
+
+    parameters:
+      direction: int
+
+    then:
+      - lambda: |-
+          id(backup_encoder_last_activity_ms) = millis();
+
+          if (id(backup_encoder_edit_stage) == 1) {
+            float value =
+              id(backup_encoder_voltage_edit) +
+              (static_cast<float>(direction) * 0.1f);
+
+            value = roundf(value * 10.0f) / 10.0f;
+
+            value = std::max(
+              ${dc_voltage_min_v}f,
+              std::min(${dc_voltage_max_v}f, value)
+            );
+
+            id(backup_encoder_voltage_edit) = value;
+
+            ESP_LOGI(
+              "backup_encoder",
+              "Pending DC voltage: %.1f V",
+              value
+            );
+
+            id(backup_encoder_ui_show_voltage)->execute(value);
+
+          } else if (id(backup_encoder_edit_stage) == 2) {
+            float value =
+              id(backup_encoder_power_edit) +
+              (static_cast<float>(direction) * 0.1f);
+
+            value = roundf(value * 10.0f) / 10.0f;
+
+            value = std::max(
+              ${dc_sum_power_min_kw}f,
+              std::min(${dc_sum_power_max_kw}f, value)
+            );
+
+            id(backup_encoder_power_edit) = value;
+
+            ESP_LOGI(
+              "backup_encoder",
+              "Pending DC sum power: %.1f kW",
+              value
+            );
+
+            id(backup_encoder_ui_show_power)->execute(value);
+          }
+
+  # ---------------------------------------------------------------------------
+  # SHORT BUTTON CLICK
+  # ---------------------------------------------------------------------------
+
+  - id: backup_encoder_short_click
+
+    then:
+      - if:
+          condition:
+            lambda: |-
+              return id(backup_encoder_edit_stage) == 0;
+
+          then:
+            - lambda: |-
+                id(backup_encoder_voltage_edit) =
+                  id(set_dc_voltage_limit).state;
+
+                id(backup_encoder_power_edit) =
+                  id(set_dc_sum_power).state;
+
+                id(backup_encoder_edit_stage) = 1;
+                id(backup_encoder_last_activity_ms) = millis();
+
+                ESP_LOGI(
+                  "backup_encoder",
+                  "Edit DC voltage: %.1f V",
+                  id(backup_encoder_voltage_edit)
+                );
+
+                id(backup_encoder_ui_show_voltage)->execute(
+                  id(backup_encoder_voltage_edit)
+                );
+
+          else:
+            - if:
+                condition:
+                  lambda: |-
+                    return id(backup_encoder_edit_stage) == 1;
+
+                then:
+                  - lambda: |-
+                      id(backup_encoder_edit_stage) = 2;
+                      id(backup_encoder_last_activity_ms) = millis();
+
+                      ESP_LOGI(
+                        "backup_encoder",
+                        "Edit DC sum power: %.1f kW",
+                        id(backup_encoder_power_edit)
+                      );
+
+                      id(backup_encoder_ui_show_power)->execute(
+                        id(backup_encoder_power_edit)
+                      );
+
+                else:
+                  - lambda: |-
+                      ESP_LOGI(
+                        "backup_encoder",
+                        "Apply DC setpoints: %.1f V / %.1f kW",
+                        id(backup_encoder_voltage_edit),
+                        id(backup_encoder_power_edit)
+                      );
+
+                  - script.execute:
+                      id: ui_command_set_dc_setpoints
+
+                      voltage: !lambda |-
+                        return id(backup_encoder_voltage_edit);
+
+                      power: !lambda |-
+                        return id(backup_encoder_power_edit);
+
+                  - script.execute:
+                      id: backup_encoder_ui_show_saved
+                      voltage: !lambda |-
+                        return id(backup_encoder_voltage_edit);
+                      power: !lambda |-
+                        return id(backup_encoder_power_edit);
+
+                  - lambda: |-
+                      id(backup_encoder_edit_stage) = 0;
+
+  # ---------------------------------------------------------------------------
+  # LONG BUTTON PRESS - CHARGER START / STOP
+  # ---------------------------------------------------------------------------
+  #
+  # Power control is accepted only while the setpoint editor is idle.
+  #
+  # When running state is known and at least one unit is running, STOP is
+  # requested. START is allowed only when running state is known to be zero and
+  # at least one rectifier is available.
+  #
+  # Unknown or unavailable state uses the fail-safe action and requests STOP.
+  # The encoder never sends CAN commands directly.
+  # ---------------------------------------------------------------------------
+
+  - id: backup_encoder_power_long_click
+
+    then:
+      - if:
+          condition:
+            lambda: |-
+              return id(backup_encoder_edit_stage) != 0;
+
+          then:
+            - lambda: |-
+                ESP_LOGW(
+                  "backup_encoder",
+                  "Power hold ignored while setpoint editor is active."
+                );
+
+          else:
+            - if:
+                condition:
+                  lambda: |-
+                    return
+                      !isnan(id(running_units).state) &&
+                      id(running_units).state > 0.0f;
+
+                then:
+                  - lambda: |-
+                      ESP_LOGI(
+                        "backup_encoder",
+                        "Local charger STOP requested by long button press."
+                      );
+
+                  - script.execute: ui_command_charger_stop
+
+                  - script.execute: backup_encoder_ui_show_stop_requested
+
+                else:
+                  - if:
+                      condition:
+                        lambda: |-
+                          return
+                            !isnan(id(running_units).state) &&
+                            id(running_units).state == 0.0f &&
+                            !isnan(id(available_units).state) &&
+                            id(available_units).state > 0.0f;
+
+                      then:
+                        - lambda: |-
+                            ESP_LOGI(
+                              "backup_encoder",
+                              "Local charger START requested by long button press."
+                            );
+
+                        - script.execute: ui_command_charger_start
+
+                        - script.execute: backup_encoder_ui_show_start_requested
+
+                      else:
+                        - lambda: |-
+                            ESP_LOGW(
+                              "backup_encoder",
+                              "Charger state unavailable for safe START; "
+                              "requesting fail-safe STOP."
+                            );
+
+                        - script.execute: ui_command_charger_stop
+
+                        - script.execute: backup_encoder_ui_show_failsafe_stop
+
+# ==============================================================================
+# EDIT TIMEOUT
+# ==============================================================================
+#
+# An abandoned edit is cancelled rather than implicitly applied.
+# ==============================================================================
+
+interval:
+  - interval: 250ms
+
+    then:
+      - if:
+          condition:
+            lambda: |-
+              return
+                id(backup_encoder_edit_stage) != 0 &&
+                static_cast<uint32_t>(
+                  millis() - id(backup_encoder_last_activity_ms)
+                ) >= ${backup_encoder_edit_timeout_ms}U;
+
+          then:
+            - lambda: |-
+                ESP_LOGI(
+                  "backup_encoder",
+                  "Edit timeout; pending DC setpoint changes discarded."
+                );
+
+                id(backup_encoder_edit_stage) = 0;
+
+            - script.execute: backup_encoder_ui_hide
