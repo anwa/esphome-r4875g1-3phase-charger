@@ -3,9 +3,9 @@
 This directory contains the KiCad schematic and PCB design for the V4 hardware generation of the R4875G1 three-phase charger controller.
 
 > [!IMPORTANT]
-> This KiCad project does **not** represent the current V5 controller hardware.
+> This KiCad project does **not** represent the current V6 Charger Controller hardware.
 >
-> The current V5 firmware targets the Waveshare ESP32-S3-Touch-LCD-7 and uses a substantially different display, CAN and external-I/O architecture.
+> The current V6 firmware targets the Waveshare ESP32-S3-Touch-LCD-7 and uses a substantially different display, CAN, backup-encoder and external-I/O architecture.
 >
 > The V4 hardware remains a maintained hardware variant on the `v4-maintenance` branch.
 
@@ -34,30 +34,31 @@ The KiCad design uses the following V4 controller assignments:
 | FAN3_TACH / FAN2_TACH / FAN1_TACH | 39, 40, 41 |
 | FAN_PWM | 42 |
 
-These assignments describe the V4 KiCad hardware and MUST NOT be used as the GPIO map for the current V5 firmware.
+These assignments describe the V4 KiCad hardware and MUST NOT be used as the GPIO map for the current V6 firmware.
 
-## V5 Hardware
+## V6 Charger Controller Hardware
 
-The current V5 controller uses the **Waveshare ESP32-S3-Touch-LCD-7** as its hardware platform.
+The current V6 Charger Controller uses the **Waveshare ESP32-S3-Touch-LCD-7** as its hardware platform.
 
 Important architectural differences include:
 
-| Function | V4 KiCad hardware | V5 hardware |
+| Function | V4 KiCad hardware | V6 Charger Controller |
 |---|---|---|
 | Controller | ESP32-S3-DevKitC-1 | Waveshare ESP32-S3-Touch-LCD-7 |
 | Display | External ILI9488 over SPI | Onboard 800×480 RGB LCD |
 | Touch | None | GT911 capacitive touch |
 | CAN | External CAN interface | Onboard CAN transceiver |
-| Rotary encoder | Direct ESP32 GPIOs | MCP23017 |
-| External fan enable | Direct ESP32 GPIO | MCP23017 |
-| Fan 1 / Fan 2 tachometer | Direct ESP32 GPIOs | MCP23017 |
+| Rotary encoder | Direct GPIO17 / GPIO18, button GPIO2 | Direct GPIO11 / GPIO12, button GPIO13 |
+| External fan enable | Direct ESP32 GPIO | MCP23017 GPA0 |
+| Fan 1 / Fan 2 tachometer | Direct ESP32 GPIOs | MCP23017 GPA1 / GPA2 |
+| MCP23017 interrupt | Not used | INTA / INTB intentionally unconnected |
 | Fan 3 tachometer | Direct ESP32 GPIO | EMC2101 |
 | External fan PWM | ESP32 PWM | EMC2101 |
-| External I2C bus | Shared main bus | Dedicated second ESP32 I2C bus |
+| External I2C bus | Shared main bus | Dedicated GPIO44 / GPIO43 bus |
 
-The V5 hardware architecture is documented in the repository root `README.md` and `packages/README.md`.
+The V6 hardware architecture is documented in the repository root `README.md` and `packages/README.md`.
 
-A V5 KiCad design should be maintained as a separate hardware design rather than modifying this V4 project in place.
+A V6 KiCad design should be maintained as a separate hardware design rather than modifying this V4 project in place.
 
 ## Project Files
 

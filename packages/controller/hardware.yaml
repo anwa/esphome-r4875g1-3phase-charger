@@ -57,9 +57,9 @@ mcp23017:
 # native interrupt-driven rotary_encoder component can decode A/B without I2C.
 #
 # Wiring:
-#   GPIO11 -> Encoder A
-#   GPIO12 -> Encoder B
-#   GPIO13 -> Encoder push button
+#   GPIO11 -> Encoder S1 / A
+#   GPIO12 -> Encoder S2 / B
+#   GPIO13 -> Encoder KEY / push button
 #
 # GPIO11/GPIO12/GPIO13 are the Waveshare TF-card SPI pins. The TF interface is
 # unavailable while the backup encoder uses these pins.

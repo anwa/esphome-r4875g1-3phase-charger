@@ -9,41 +9,21 @@ This file tracks current unfinished work for the primary V6 charger generation. 
 - **P2** — planned improvement or design decision
 - **P3** — deferred, external-dependency or long-term work
 
-## P0 — MCP23017 Reliability and Input Capture
+## P1 — Backup Blackstart Acceptance Validation
 
-The Charger Controller currently depends on the MCP23017 for the backup rotary encoder, external cooling-fan power enable and Cooling Fan 1 / Fan 2 tachometer inputs. Resolve the current MCP23017 problem before adding more behavior on top of these inputs.
+The backup rotary encoder now uses direct ESP32-S3 GPIOs and reuses the authoritative Charger Controller command paths. Before treating the next V6 milestone as a release checkpoint, validate the intended degraded-operation behavior explicitly.
 
-- [ ] Reproduce the current MCP23017 problem on the current V6 Charger Controller firmware.
-- [ ] Isolate the root cause without changing multiple suspected causes at the same time.
-- [ ] Verify stable operation of encoder A, encoder B and encoder push-button inputs.
-- [ ] Verify stable operation of the external cooling-fan enable output.
-- [ ] Verify Cooling Fan 1 and Cooling Fan 2 tachometer inputs across the expected RPM range.
-- [ ] Determine whether MCP23017-polled tachometer inputs can reliably capture the required pulse rate at high fan speed.
-- [ ] If the tachometer path is not reliable enough, choose one consistent replacement architecture instead of adding per-fan workarounds.
-- [ ] Perform sustained runtime testing after the MCP23017 issue is resolved.
+- [ ] Verify DC-voltage and nominal DC sum-power editing with Wi-Fi, Home Assistant and MQTT unavailable.
+- [ ] Verify long-press charger START/STOP with network services unavailable.
+- [ ] Verify that touchscreen interaction is not required for the encoder state machine or command path.
+- [ ] Verify that the 15-second edit timeout discards pending values without changing active setpoints.
 
-## P1 — V6 Documentation Consistency
+## P2 — MCP23017 Fan Tachometer Margin Validation
 
-Some detailed documentation still describes V5 as the current generation even though `main` now contains the V6 dual-target architecture.
+The MCP23017 is now reserved for external cooling-fan power and Fan 1 / Fan 2 tachometer inputs on GPA0–GPA2. INTA and INTB are intentionally unconnected.
 
-- [ ] Update `R4875G1_CONTROL_FLOWS.md` from the old current-V5 description to the current V6 architecture.
-- [ ] Review `R4875G1_CONTROL_FLOWS.md` for remaining single-target assumptions, especially hardware ownership, HMI ownership and backup-encoder wording.
-- [ ] Update `KiCAD/Charger/README.md` so the V4 KiCad project is compared with the current V6 hardware rather than the former V5 primary generation.
-- [ ] Search the current `main` branch for remaining stale `current V5` references after the documentation cleanup.
-- [ ] Keep this cleanup documentation-only and do not bump the firmware version.
-
-## P1 — Backup Rotary Encoder and Local Blackstart Controls
-
-This work is blocked by the MCP23017 reliability investigation above. The touchscreen remains the primary HMI; the rotary encoder is intended as a local backup control path.
-
-- [ ] Define the final encoder interaction model before implementing control actions.
-- [ ] Provide local adjustment of the DC voltage target.
-- [ ] Provide local adjustment of the nominal DC sum-power target.
-- [ ] Provide a deliberate local charger START/STOP interaction suitable for blackstart use.
-- [ ] Route encoder actions through the existing authoritative Charger Controller command/control paths rather than introducing a second CAN or safety implementation.
-- [ ] Preserve all existing START eligibility, thermal, lifecycle and capability checks.
-- [ ] Ensure the encoder control path remains usable without Wi-Fi, Home Assistant, MQTT or Internet access.
-- [ ] Validate blackstart operation with network services unavailable.
+- [ ] Verify Cooling Fan 1 and Cooling Fan 2 tachometer readings at the maximum expected fan speed.
+- [ ] Perform sustained high-speed fan runtime testing to confirm the non-interrupt MCP23017 input path has sufficient pulse-capture margin.
 
 ## P1 — Optional Motion-Wake Fallback Validation
 

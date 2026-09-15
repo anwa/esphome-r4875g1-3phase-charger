@@ -24,7 +24,7 @@ The Charger Controller currently provides:
 - thermal protection and derating
 - network-independent local blackstart operation
 - a 7-inch LVGL touchscreen interface
-- backup rotary-encoder hardware inputs
+- a direct-GPIO backup rotary encoder for network-independent setpoint and charger power control
 - external compartment cooling
 - controller backup-battery monitoring
 - Home Assistant solar-battery-bank monitoring
@@ -120,10 +120,9 @@ ESP32-S3
 │
 └── External I2C — GPIO44 / GPIO43
     ├── MCP23017 @ 0x20
-    │   ├── backup rotary encoder
-    │   ├── external fan power enable
-    │   ├── Cooling Fan 1 tachometer
-    │   └── Cooling Fan 2 tachometer
+    │   ├── GPA0 -> external fan power enable
+    │   ├── GPA1 -> Cooling Fan 1 tachometer
+    │   └── GPA2 -> Cooling Fan 2 tachometer
     ├── BME280 @ 0x76
     │   ├── rectifier-compartment temperature
     │   ├── rectifier-compartment humidity
@@ -132,6 +131,19 @@ ESP32-S3
         ├── external fan PWM
         └── Cooling Fan 3 tachometer
 ```
+
+The MCP23017 is used without a dedicated ESP32 interrupt line; INTA and INTB are intentionally left unconnected.
+
+The backup rotary encoder is connected directly to the ESP32-S3 rather than through I2C:
+
+```text
+GPIO11 -> Encoder S1 / A
+GPIO12 -> Encoder S2 / B
+GPIO13 -> Encoder KEY
+```
+
+GPIO11, GPIO12 and GPIO13 are the Waveshare TF-card SPI pins, so the TF-card interface is unavailable while the backup encoder uses them.
+
 The BME280 station pressure is exposed directly. A second pressure entity publishes the standard-atmosphere sea-level equivalent for the fixed 316 m installation altitude.
 
 Unused MCP23017 pins remain available for future expansion.
@@ -478,19 +490,34 @@ Invalid source values are preserved as gaps instead of being converted to artifi
 
 ---
 
-## Backup Rotary Encoder Hardware
+## Backup Rotary Encoder and Blackstart Control
 
-A mechanical rotary encoder is connected through the MCP23017.
+The Charger Controller uses a mechanical rotary encoder connected directly to ESP32-S3 GPIOs:
 
 ```text
-MCP23017 GPA0 -> Encoder A
-MCP23017 GPA1 -> Encoder B
-MCP23017 GPA2 -> Encoder button
+GPIO11 -> Encoder S1 / A
+GPIO12 -> Encoder S2 / B
+GPIO13 -> Encoder KEY
 ```
 
-The three inputs are implemented as internal MCP23017-backed GPIO entities.
+The native ESPHome `rotary_encoder` component decodes the two quadrature channels with one output step per complete quadrature cycle. The physical encoder direction is mapped so clockwise rotation increases the active edit value.
 
-The current V6 firmware does not assign charger-control or navigation actions to these backup encoder inputs.
+The backup interaction is intentionally independent from normal touchscreen navigation:
+
+```text
+short press 1 -> edit charger-wide DC voltage
+rotation      -> adjust voltage in 0.1 V steps
+short press 2 -> edit nominal DC sum power
+rotation      -> adjust power in 0.1 kW steps
+short press 3 -> apply both pending setpoints
+
+long press while idle -> request charger START or STOP
+15 s inactivity       -> discard pending edits
+```
+
+Setpoint saves and charger power requests reuse the authoritative Charger Controller command paths. The encoder does not implement separate CAN or safety logic, and normal START eligibility remains authoritative.
+
+The Controller-only LVGL overlay provides visual feedback while the display is available, but the encoder state machine and charger command path do not depend on touchscreen input, Home Assistant, MQTT or Internet access.
 
 ---
 
@@ -501,9 +528,9 @@ The external chassis cooling system is independent of the internal fans built in
 Three external fans are supported.
 
 ```text
-MCP23017 GPA3 -> common fan-supply enable
-MCP23017 GPA4 -> Fan 1 tachometer
-MCP23017 GPA5 -> Fan 2 tachometer
+MCP23017 GPA0 -> common fan-supply enable
+MCP23017 GPA1 -> Fan 1 tachometer
+MCP23017 GPA2 -> Fan 2 tachometer
 
 EMC2101 PWM   -> common four-pin fan PWM
 EMC2101 TACH  -> Fan 3 tachometer

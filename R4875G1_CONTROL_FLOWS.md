@@ -1,6 +1,6 @@
 # R4875G1 Three-Phase Charger — Control and Runtime Flows
 
-This document describes the current V5 charger-control, CAN, lifecycle, safety and runtime architecture.
+This document describes the current V6 charger-control, CAN, lifecycle, safety and runtime architecture, including the coordinated Charger Controller and Remote HMI targets.
 
 The firmware version is intentionally not duplicated here. `packages/version.yaml` is the single source of truth.
 
@@ -49,7 +49,7 @@ flowchart LR
     CTRL --> LCD[7-inch 800×480 RGB LCD]
     TOUCH[GT911 touchscreen] --> CTRL
 
-    ENC[Backup rotary encoder inputs] --> MCP
+    ENC[Direct backup rotary encoder] --> CTRL
     CTRL <--> EXT_I2C[External I2C bus]
     EXT_I2C --> MCP[MCP23017]
     EXT_I2C --> EMC[EMC2101]
@@ -59,6 +59,7 @@ flowchart LR
     MCP --> FANS
 
     CTRL <--> HA[Home Assistant]
+    RHMI[Remote HMI] <--> HA
     CTRL <--> MQTT[MQTT]
 ```
 
@@ -66,33 +67,35 @@ Core charging remains local. Wi-Fi, Home Assistant, MQTT and Internet access are
 
 # 2. Firmware module ownership
 
-The V5 firmware keeps charger-control, hardware, per-unit rectifier state and display runtime ownership separated into modular ESPHome packages:
+The V6 firmware keeps Charger Controller authority, Remote HMI transport, target-neutral UI state and shared LVGL presentation behind explicit ownership boundaries:
 
 | Source | Primary responsibility |
 |---|---|
-| `r4875g1-3phase-charger.yaml` | substitutions, unit instances, identity, boot sequence and aggregate entities |
-| `packages/shared/core.yaml` | shared ESP32-S3 platform, Wi-Fi, API, web, OTA, time and diagnostics |
-| `packages/shared/hardware.yaml` | onboard I2C, CH422G, touch and controller backup-battery hardware |
+| `r4875g1-3phase-charger.yaml` | Charger Controller composition, substitutions, unit instances, identity, boot sequence and aggregate entities |
+| `r4875g1-remote-hmi.yaml` | Remote HMI composition and installation-specific Home Assistant pairing |
+| `packages/shared/core.yaml` | target-neutral ESP32-S3 platform, Wi-Fi, API, web, OTA and time services |
+| `packages/shared/hardware.yaml` | target-neutral Waveshare onboard I2C, CH422G, touch and local backup-battery hardware |
+| `packages/shared/local-diagnostics.yaml` | target-local ESP32, network and runtime diagnostics shared by both V6 targets |
 | `packages/shared/ui-model.yaml` | target-neutral charger state consumed by shared HMI code |
-| `packages/controller/hardware.yaml` | charger-side external I2C, MCP23017, backup encoder inputs and CAN |
+| `packages/shared/battery-monitoring.yaml` | shared Home Assistant solar-battery monitoring composition and UI backends |
+| `packages/controller/hardware.yaml` | Charger Controller external I2C, MCP23017 fan I/O, direct backup encoder and CAN |
+| `packages/controller/encoder.yaml` | network-independent backup encoder setpoint and charger power control state machine |
+| `packages/controller/encoder-ui.yaml` | Controller-only LVGL feedback for backup encoder interaction |
 | `packages/controller/environment.yaml` | rear-compartment BME280 temperature, humidity and pressure |
 | `packages/controller/mqtt.yaml` | Charger Controller MQTT command and state transport |
-| `packages/controller/ui-backend.yaml` | maps authoritative local Controller state into the shared UI model |
+| `packages/controller/ui-backend.yaml` | authoritative local Controller state mapped into the shared UI model |
+| `packages/controller/ui-commands.yaml` | shared UI command intents executed through authoritative local Controller controls |
+| `packages/remote-hmi/ha-backend.yaml` | authoritative Charger Controller state imported through Home Assistant |
+| `packages/remote-hmi/rectifier-backend.yaml` | per-unit authoritative rectifier state imported through Home Assistant |
+| `packages/remote-hmi/ui-commands.yaml` | shared HMI command intents transported through Home Assistant |
 | `packages/controls.yaml` | charger-wide controls and setpoints |
 | `packages/cooling.yaml` | external chassis-fan control, EMC2101 telemetry, PWM management and RPM monitoring |
-| `packages/battery-bank.yaml` | Home Assistant solar-battery telemetry import and availability state |
 | `packages/rectifier-unit.yaml` | parameterized per-unit state, telemetry and discovery |
 | `packages/rectifier-shared.yaml` | cross-unit lifecycle, limits, CAN scheduling, recovery and control |
 | `packages/rectifier-can/*.yaml` | parameterized CAN receive handlers |
-| `packages/display.yaml` | complete display package aggregation |
-| `packages/display/hardware.yaml` | Waveshare RGB display and LVGL binding |
-| `packages/display/theme.yaml` | fonts, styles and shared presentation |
-| `packages/display/ui.yaml` | persistent widget tree, navigation, dialogs and shared UI state |
-| `packages/display/pages/*.yaml` | static LVGL page layouts |
-| `packages/display/header.yaml` | persistent header runtime |
-| `packages/display/command-state.yaml` | asynchronous START/STOP transition runtime |
-| `packages/display/controller-battery.yaml` | controller backup-battery display runtime |
-| `packages/display/{dashboard,rectifiers,rectifier-detail,battery,cooling,system,trends}.yaml` | page-specific display runtimes |
+| `packages/display/shared-*.yaml` | shared V6 HMI composition used by both targets |
+| `packages/display/pages/*.yaml` | static shared LVGL page layouts |
+| `packages/display/{header,command-state,dashboard,rectifiers,rectifier-detail,battery,cooling,system,trends}.yaml` | persistent and page-specific shared display runtimes |
 
 # 3. Rectifier lifecycle
 
@@ -226,17 +229,30 @@ START evaluates each rectifier independently. A unit must be `ONLINE`, CAN-fresh
 
 STOP remains unrestricted.
 
-The V5 controller provides touchscreen-based local control through the LVGL interface.
+The V6 Charger Controller provides touchscreen-based local control through the shared LVGL interface and a separate backup rotary-encoder path for blackstart use.
 
-A backup rotary encoder is physically connected through the MCP23017:
+The encoder is connected directly to the ESP32-S3:
 
 ```text
-GPA0 -> Encoder A
-GPA1 -> Encoder B
-GPA2 -> Encoder button
+GPIO11 -> Encoder S1 / A
+GPIO12 -> Encoder S2 / B
+GPIO13 -> Encoder KEY
 ```
 
-The current V5 firmware exposes these encoder inputs as internal hardware entities but does not assign charger-control or navigation actions to them.
+The encoder uses a staged local editor:
+
+```text
+short press 1 -> edit DC voltage
+rotation      -> adjust voltage in 0.1 V steps
+short press 2 -> edit nominal DC sum power
+rotation      -> adjust power in 0.1 kW steps
+short press 3 -> apply both pending setpoints
+15 s idle     -> discard pending edits
+```
+
+A long press while the editor is idle requests charger START or STOP. START/STOP and saved setpoints are forwarded through the existing authoritative Charger Controller `ui_command_*` paths, so lifecycle, CAN freshness, thermal protection and START eligibility are not duplicated in the encoder implementation.
+
+The LVGL encoder overlay is feedback-only. Touchscreen input, Home Assistant, MQTT and Internet connectivity are not dependencies of the backup encoder control state machine.
 
 # 16. Thermal derating
 
@@ -257,57 +273,53 @@ Cyclic selectors include operating hours (`0x0E`), AC power (`0x70`), frequency 
 
 Aggregate AC/DC power, average AC voltage, average AC phase current, DC current, average DC voltage, highest output temperature and efficiency include only CAN-fresh units with valid required telemetry. `Available Units` returns the CAN-reachable rectifier count. `Running Units` returns the number of CAN-reachable rectifiers explicitly reporting their power state as `ON`.
 
-Solar-battery telemetry is imported independently from Home Assistant through `packages/battery-bank.yaml`. Aggregate bank data and four per-battery data sets are used exclusively for display monitoring. Home Assistant battery availability does not participate in rectifier lifecycle, current limiting, START eligibility or CAN control.
+Solar-battery telemetry is imported independently from Home Assistant through `packages/shared/battery-monitoring.yaml`, which composes the source mappings and aggregate/per-unit UI backends. Aggregate bank data and four per-battery data sets are used exclusively for display monitoring. Home Assistant battery availability does not participate in rectifier lifecycle, current limiting, START eligibility or CAN control.
 
-# 18. V5 LVGL display behavior
+# 18. V6 shared LVGL display behavior
 
-The V5 controller uses the Waveshare ESP32-S3-Touch-LCD-7 with a 7-inch 800×480 RGB display and GT911 capacitive touchscreen.
+Both V6 targets use the Waveshare ESP32-S3-Touch-LCD-7 with a 7-inch 800×480 RGB display and GT911 capacitive touchscreen. Shared LVGL presentation consumes the target-neutral UI model; the Charger Controller publishes local authoritative state while the Remote HMI imports authoritative state through Home Assistant.
 
-LVGL tracks touchscreen inactivity. After the configured display idle timeout, the firmware pauses LVGL rendering and disables the CH422G-controlled display backlight while charger control and telemetry continue normally. A touchscreen release wakes the display, resumes LVGL and redraws the current interface. Automatic LVGL resume-on-input is disabled so the first blind touch is consumed as a wake-up action instead of operating the underlying control.
+LVGL tracks touchscreen inactivity. After the configured display idle timeout, the firmware pauses LVGL rendering and disables the CH422G-controlled display backlight while non-display runtime continues normally. A touchscreen release wakes the display without activating the control underneath the wake-up touch.
 
-The LVGL interface exposes six primary navigation pages:
+The shared LVGL interface exposes six primary navigation pages:
 
 ```text
 Dashboard
 Rectifiers
 Battery
-Cooling
 System
+Cooling
 Trends
 ```
 
 The Rectifiers page additionally opens one shared hierarchical Rectifier Detail view for Unit 1, Unit 2 or Unit 3.
 
-The display implementation separates static page layout from periodic runtime updates:
+The current shared display composition is:
 
 ```text
+display/shared-hmi.yaml
+    shared display hardware, theme, UI state, trend history and persistent header
+
+display/shared-dashboard.yaml
+display/shared-rectifiers.yaml
+display/shared-battery.yaml
+display/shared-cooling.yaml
+display/shared-system.yaml
+display/shared-trends.yaml
+    shared page-specific presentation and runtime
+
+display/shared-navigation.yaml
+    shared six-page bottom navigation
+
 display/pages/*.yaml
-    static LVGL layout
-
-display/header.yaml
-display/command-state.yaml
-display/controller-battery.yaml
-    persistent/global runtime
-
-display/dashboard.yaml
-display/rectifiers.yaml
-display/rectifier-detail.yaml
-display/battery.yaml
-display/cooling.yaml
-display/system.yaml
-display/trends.yaml
-    page-specific runtime
+    static shared LVGL page layouts
 ```
 
-Normal page telemetry is refreshed only while the corresponding page is visible. Persistent header state, command transitions and controller backup-battery presentation continue independently.
+Normal page telemetry is refreshed only while the corresponding page is visible. Persistent header state, command transitions, local backup-battery presentation and trend sampling continue independently.
 
-This page-aware runtime architecture reduces unnecessary LVGL workload and stack pressure compared with refreshing all hidden widgets from one global loop.
+The Charger Controller additionally composes `controller/encoder-ui.yaml` for local backup-encoder feedback. The Remote HMI does not include charger-side encoder hardware or duplicate charger safety logic.
 
-The Dashboard provides charger-wide telemetry, charger controls and aggregate solar-battery-bank monitoring. Rectifiers provides the three-unit overview and hierarchical detail access. Battery provides detailed monitoring of the four external battery units. Cooling displays rear-compartment environmental data and internal rectifier-fan telemetry. System exposes controller and CAN diagnostics. Trends displays continuously sampled sixty-minute charger telemetry histories, with combined DC current and average DC voltage sharing a dual-Y-axis chart.
-
-The persistent header includes charger identity/runtime information, charger run state and controller backup-battery indication.
-
-The display layer does not own charger safety policy. Lifecycle, CAN freshness, thermal protection and START eligibility remain in the rectifier control packages.
+The display layer does not own charger safety policy. Lifecycle, CAN freshness, thermal protection, command acceptance and START eligibility remain authoritative on the Charger Controller.
 
 # 19. TWAI BUS_OFF recovery
 
@@ -317,7 +329,7 @@ Every 2 seconds the controller checks TWAI state. `BUS_OFF` initiates recovery; 
 
 The 2026-08-27 physical test remains the validated CAN baseline: unplugging CAN while the rectifier stayed powered caused the 3-second watchdog to expire, lifecycle moved to OFFLINE, slow Single-Shot probes continued, reconnect triggered DISCOVERING, the 56-frame property exchange and capability/address discovery completed, active setpoints were restored, and lifecycle returned to ONLINE without an ESP reboot.
 
-The tested reduced-current connector configuration reported a 52 A capability. That trace remains valid protocol evidence because the V5 hardware and display migration did not change the validated rectifier CAN protocol and lifecycle model.
+The tested reduced-current connector configuration reported a 52 A capability. That trace remains valid protocol evidence because the current V6 HMI and hardware composition does not change the validated rectifier CAN protocol and lifecycle model.
 
 # 21. Safety and behavioral invariants
 
@@ -335,20 +347,22 @@ The tested reduced-current connector configuration reported a 52 A capability. T
 12. Thermal/hardware limits clamp applied current without overwriting requested current.
 13. Property discovery is serialized.
 14. BUS_OFF recovery is a final recovery layer.
-15. LVGL affects presentation only; charger control and safety decisions remain outside the display layer.
-16. Backup encoder inputs do not currently provide charger-control or navigation actions.
-17. Home Assistant solar-battery telemetry is monitoring-only and cannot affect charger control or safety behavior.
+15. LVGL affects presentation only; charger control and safety decisions remain outside the shared display layer.
+16. Backup encoder setpoint and START/STOP requests reuse authoritative Charger Controller command paths and do not duplicate CAN or safety policy.
+17. Remote HMI commands remain requests transported through Home Assistant; the Charger Controller remains authoritative for acceptance, execution and resulting state.
+18. Home Assistant solar-battery telemetry is monitoring-only and cannot affect charger control or safety behavior.
 
 ## Source status
 
-This document describes the current V5 implementation from:
+This document describes the current V6 implementation from:
 
 ```text
 r4875g1-3phase-charger.yaml
+r4875g1-remote-hmi.yaml
 packages/
 trend_helpers.h
 ```
 
 The firmware version is defined only in `packages/version.yaml`.
 
-The physical CAN disconnect/reconnect test from 2026-08-27 remains the validated protocol and lifecycle baseline for reconnect behavior. Current V5 hardware/display documentation reflects the Waveshare ESP32-S3-Touch-LCD-7 implementation.
+The physical CAN disconnect/reconnect test from 2026-08-27 remains the validated protocol and lifecycle baseline for reconnect behavior. Current V6 hardware and HMI documentation reflects the coordinated Charger Controller and Remote HMI architecture.

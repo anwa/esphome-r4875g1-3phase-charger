@@ -50,17 +50,20 @@ packages/
 │   └── ui-model.yaml
 │
 ├── controller/
-│   ├── ui-rectifier-backend.yaml
+│   ├── encoder-ui.yaml
+│   ├── encoder.yaml
 │   ├── environment.yaml
 │   ├── hardware.yaml
 │   ├── mqtt.yaml
 │   ├── ui-backend.yaml
-│   └── ui-commands.yaml
+│   ├── ui-commands.yaml
+│   └── ui-rectifier-backend.yaml
 │
 ├── remote-hmi/
 │   ├── connection-status.yaml
 │   ├── ha-entity-map.yaml
 │   ├── ha-backend.yaml
+│   ├── rectifier-backend.yaml
 │   └── ui-commands.yaml
 │
 ├── controls.yaml
@@ -180,6 +183,12 @@ controller/ui-backend.yaml
 
 controller/ui-commands.yaml
     executes shared UI command intents through local Charger Controller entities
+
+controller/encoder.yaml
+    owns the network-independent local backup encoder state machine and control requests
+
+controller/encoder-ui.yaml
+    provides Controller-only LVGL feedback for backup encoder interaction
 
 controller/ui-rectifier-backend.yaml
     publishes one local rectifier into the shared per-unit UI model
@@ -396,10 +405,12 @@ Owns physical hardware that exists only on the Charger Controller.
 Responsibilities include:
 
 - dedicated charger-side external I2C bus
-- MCP23017 external I/O expander
-- backup rotary-encoder inputs
+- MCP23017 external I/O expander for external fan power and tachometer signals
+- direct-GPIO backup rotary-encoder inputs
 - USB/CAN routing selection
 - ESP32-S3 TWAI / onboard CAN interface
+
+The MCP23017 INTA and INTB outputs are intentionally unconnected. The direct encoder uses GPIO11, GPIO12 and GPIO13, which makes the Waveshare TF-card interface unavailable on the Charger Controller.
 
 ---
 
@@ -441,6 +452,24 @@ This backend does not own charger state itself. The existing controller runtime 
 Implements the shared HMI command interface for the Charger Controller target.
 
 The command scripts translate target-neutral Dashboard, fallback-setpoint and per-rectifier command intent into the existing local ESPHome controls. Charger safety, validation and CAN execution remain owned by the existing Controller entities and scripts.
+
+---
+
+## `controller/encoder.yaml`
+
+Owns the Charger Controller backup rotary-encoder state machine.
+
+The encoder provides local DC-voltage and nominal DC sum-power editing plus deliberate long-press charger START/STOP requests. It reuses the existing `ui_command_*` command paths rather than duplicating charger safety or CAN logic.
+
+The control state is independent from normal LVGL navigation and from Home Assistant, MQTT and Internet connectivity.
+
+---
+
+## `controller/encoder-ui.yaml`
+
+Owns the Controller-only LVGL feedback overlay for backup encoder interaction.
+
+The overlay blocks touchscreen controls while an encoder setpoint edit is active and shows short status feedback after saved setpoints or charger power requests. It is presentation-only; charger-control authority remains outside LVGL.
 
 ---
 
@@ -515,19 +544,27 @@ ESP32-S3
 
 The onboard I2C bus is configured in `shared/hardware.yaml`. The charger-side external I2C bus and MCP23017 are configured in `controller/hardware.yaml`. The BME280 environment sensor is configured in `controller/environment.yaml`, while the EMC2101 fan controller is configured in `cooling.yaml`.
 
-### MCP23017 Allocation
+### Charger Controller Local I/O Allocation
+
+The backup rotary encoder is connected directly to the ESP32-S3:
 
 ```text
-GPA0 -> backup rotary encoder A
-GPA1 -> backup rotary encoder B
-GPA2 -> backup rotary encoder button
-GPA3 -> external cooling-fan supply enable
-GPA4 -> Cooling Fan 1 tachometer
-GPA5 -> Cooling Fan 2 tachometer
+GPIO11 -> Encoder S1 / A
+GPIO12 -> Encoder S2 / B
+GPIO13 -> Encoder KEY
 ```
 
-The backup encoder inputs currently provide hardware entities only.
-No charger-control or navigation actions are assigned to them in the current V6 firmware.
+The MCP23017 is reserved for external cooling-fan I/O:
+
+```text
+GPA0 -> external cooling-fan supply enable
+GPA1 -> Cooling Fan 1 tachometer
+GPA2 -> Cooling Fan 2 tachometer
+INTA -> not connected
+INTB -> not connected
+```
+
+The encoder hardware is defined in `controller/hardware.yaml`, while its local control state machine is owned by `controller/encoder.yaml`.
 
 ---
 
@@ -559,9 +596,9 @@ This subsystem is separate from the internal fans built into the Huawei rectifie
 Current external cooling hardware:
 
 ```text
-MCP23017 GPA3 -> common fan-supply enable
-MCP23017 GPA4 -> Cooling Fan 1 tachometer
-MCP23017 GPA5 -> Cooling Fan 2 tachometer
+MCP23017 GPA0 -> common fan-supply enable
+MCP23017 GPA1 -> Cooling Fan 1 tachometer
+MCP23017 GPA2 -> Cooling Fan 2 tachometer
 
 EMC2101 PWM   -> common four-pin fan PWM
 EMC2101 TACH  -> Cooling Fan 3 tachometer
