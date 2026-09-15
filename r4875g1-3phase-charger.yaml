@@ -149,9 +149,9 @@ substitutions:
   pin_mcp_interrupt: "GPIO16"
 
   # MCP23017 pin allocation.
-  mcp_fan_enable_pin: "3"
-  mcp_fan1_tach_pin: "4"
-  mcp_fan2_tach_pin: "5"
+  mcp_fan_enable_pin: "0"
+  mcp_fan1_tach_pin: "1"
+  mcp_fan2_tach_pin: "2"
 
   # ---------------------------------------------------------------------------
   # BACKUP ROTARY ENCODER

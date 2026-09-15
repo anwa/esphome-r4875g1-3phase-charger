@@ -36,9 +36,9 @@ i2c:
 # MCP23017 on the dedicated charger-side external I2C bus.
 #
 # Pin allocation:
-#   GPA3 / pin 3 -> external cooling-fan enable
-#   GPA4 / pin 4 -> cooling fan 1 tachometer
-#   GPA5 / pin 5 -> cooling fan 2 tachometer
+#   GPA0 / pin 0 -> external cooling-fan enable
+#   GPA1 / pin 1 -> cooling fan 1 tachometer
+#   GPA2 / pin 2 -> cooling fan 2 tachometer
 #
 # INTA is connected to the Controller GPIO defined by pin_mcp_interrupt.
 # ESPHome mirrors INTA/INTB internally and refreshes MCP input state only

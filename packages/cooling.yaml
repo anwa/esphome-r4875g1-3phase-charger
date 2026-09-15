@@ -8,9 +8,9 @@
 # whose speed, target duty and minimum duty are handled through CAN.
 #
 # Hardware:
-#   - MCP23017 GPA3 controls the common fan-supply enable
-#   - MCP23017 GPA4 monitors Cooling Fan 1 tachometer
-#   - MCP23017 GPA5 monitors Cooling Fan 2 tachometer
+#   - MCP23017 GPA0 controls the common fan-supply enable
+#   - MCP23017 GPA1 monitors Cooling Fan 1 tachometer
+#   - MCP23017 GPA2 monitors Cooling Fan 2 tachometer
 #   - EMC2101 provides the common four-pin fan PWM signal
 #   - EMC2101 monitors Cooling Fan 3 tachometer
 #
@@ -189,7 +189,7 @@ sensor:
   # COOLING FAN 1 RPM
   # ---------------------------------------------------------------------------
   #
-  # Fan 1 tachometer pulses are counted through MCP23017 GPA4.
+  # Fan 1 tachometer pulses are counted through MCP23017 GPA1.
   # ---------------------------------------------------------------------------
 
   - platform: template
@@ -215,7 +215,7 @@ sensor:
   # COOLING FAN 2 RPM
   # ---------------------------------------------------------------------------
   #
-  # Fan 2 tachometer pulses are counted through MCP23017 GPA5.
+  # Fan 2 tachometer pulses are counted through MCP23017 GPA2.
   # ---------------------------------------------------------------------------
 
   - platform: template
