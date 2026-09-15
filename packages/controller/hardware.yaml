@@ -27,7 +27,7 @@ i2c:
     sda: ${pin_external_i2c_sda}
     scl: ${pin_external_i2c_scl}
     scan: true
-    frequency: 100kHz
+    frequency: 400kHz
 
 # ==============================================================================
 # EXTERNAL I/O EXPANDER
@@ -43,13 +43,22 @@ i2c:
 #   GPA4 / pin 4 -> cooling fan 1 tachometer
 #   GPA5 / pin 5 -> cooling fan 2 tachometer
 #
-# MCP23017 interrupt operation is not used.
+# INTA is connected to the Controller GPIO defined by pin_mcp_interrupt.
+# ESPHome mirrors INTA/INTB internally and refreshes MCP input state only
+# when an interrupt occurs instead of relying on loop polling.
 # ==============================================================================
 
 mcp23017:
   - id: external_io_expander
     i2c_id: external_i2c_bus
     address: 0x20
+    open_drain_interrupt: true
+
+    interrupt_pin:
+      number: ${pin_mcp_interrupt}
+      mode:
+        input: true
+        pullup: true
 
 # ==============================================================================
 # BACKUP ROTARY ENCODER INPUTS

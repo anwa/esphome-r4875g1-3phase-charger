@@ -139,6 +139,7 @@ substitutions:
   pin_can_tx: "GPIO20"
   pin_can_rx: "GPIO19"
   pin_battery_adc: "GPIO6"
+  pin_mcp_interrupt: "GPIO13"
 
   # MCP23017 pin allocation.
   mcp_encoder_a_pin: "0"
@@ -157,7 +158,7 @@ substitutions:
   backup_encoder_transitions_per_detent: "4"
 
   # Change to -1 if the physical clockwise direction is reversed.
-  backup_encoder_direction_multiplier: "1"
+  backup_encoder_direction_multiplier: "-1"
 
   # Pending setpoint edits are discarded after 15 seconds without activity.
   backup_encoder_edit_timeout_ms: "15000"
