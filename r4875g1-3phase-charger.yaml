@@ -145,9 +145,6 @@ substitutions:
   pin_backup_encoder_b: "GPIO12"
   pin_backup_encoder_button: "GPIO13"
 
-  # GPIO16 shares the unused onboard RS485 interface.
-  pin_mcp_interrupt: "GPIO16"
-
   # MCP23017 pin allocation.
   mcp_fan_enable_pin: "0"
   mcp_fan1_tach_pin: "1"
