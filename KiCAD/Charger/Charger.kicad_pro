@@ -39,9 +39,9 @@
         "other_text_thickness": 0.15,
         "other_text_upright": false,
         "pads": {
-          "drill": 0.8,
-          "height": 1.27,
-          "width": 1.27
+          "drill": 1.02,
+          "height": 1.73,
+          "width": 2.03
         },
         "silk_line_width": 0.1,
         "silk_text_italic": false,
@@ -685,17 +685,13 @@
         "uuid": "7a93e01a-90df-4a46-8b10-5e4e0c5ef05c"
       }
     ],
-    "used_designators": "U1-3,R1-5,R7-9,R11-14,J1-14,Q1-3,C1-2,F1,#PWR1-24",
+    "used_designators": "U1-5,R1-5,R7-14,J1-14,Q1-3,C1-2,F1,#PWR1-31",
     "variants": []
   },
   "sheets": [
     [
       "7a93e01a-90df-4a46-8b10-5e4e0c5ef05c",
       "Charger"
-    ],
-    [
-      "78eac1aa-46f9-4060-8575-5b33fd376c77",
-      "Fan-Control"
     ]
   ],
   "text_variables": {},
