@@ -1,0 +1,4 @@
+(fp_lib_table
+	(version 7)
+	(lib (name "Charger") (type "KiCad") (uri "D:/Projekte/esphome-r4875g1-3phase-charger/KiCAD/Library/Charger.pretty") (options "") (descr ""))
+)
