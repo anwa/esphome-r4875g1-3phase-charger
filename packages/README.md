@@ -53,6 +53,7 @@ packages/
 │   ├── encoder-ui.yaml
 │   ├── encoder.yaml
 │   ├── environment.yaml
+│   ├── ha-contract.yaml
 │   ├── hardware.yaml
 │   ├── mqtt.yaml
 │   ├── ui-backend.yaml
@@ -174,6 +175,9 @@ controller/hardware.yaml
 
 controller/environment.yaml
     Charger Controller rectifier-compartment environment sensing
+
+controller/ha-contract.yaml
+    publishes the explicit Home Assistant charger-contract version used for compatible Charger Instance discovery
 
 controller/mqtt.yaml
     Charger Controller MQTT transport

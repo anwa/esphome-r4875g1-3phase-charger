@@ -330,6 +330,7 @@ packages:
 
   controller_hardware: !include packages/controller/hardware.yaml
   controller_environment: !include packages/controller/environment.yaml
+  controller_ha_contract: !include packages/controller/ha-contract.yaml
   controller_mqtt: !include packages/controller/mqtt.yaml
   controller_ui_backend: !include packages/controller/ui-backend.yaml
   controller_ui_rectifier_1: !include
