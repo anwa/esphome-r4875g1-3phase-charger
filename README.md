@@ -889,15 +889,22 @@ Changes that are genuinely shared between both hardware generations may be porte
 
 ---
 
-## Acknowledgements
+## Related Projects and References
 
-This project originally grew from the Huawei R48xx CAN work published by **mjpalmowski** in:
+The following projects and documentation were particularly useful during the development and verification of the R4875G1 Charger Controller:
 
-`CAN-BUS-control-R4875G1-with-ESPHome-and-MQTT`
+- [CAN-BUS-control-R4875G1-with-ESPHome-and-MQTT](https://github.com/mjpalmowski/CAN-BUS-control-R4875G1-with-ESPHome-and-MQTT)
+  This project originally grew from the Huawei R4875G1 CAN and ESPHome work published by **mjpalmowski**. It provided important groundwork for Huawei CAN protocol research, telemetry decoding, control commands, property and capability discovery, and ESPHome integration.
 
-That work provided important groundwork for Huawei CAN protocol research, telemetry decoding, control commands, property/capability discovery and ESPHome integration.
+- [patagonaa/huawei-r48xx](https://github.com/patagonaa/huawei-r48xx)
+  Extensive R48xx-series documentation covering connectors, mechanical models, CAN protocol details, register behavior, software-address negotiation and model-specific observations. Its 3D PSU and case models also provided useful reference geometry for the charger's mechanical enclosure development.
 
-The current project has since evolved into a dedicated three-unit charger with independent per-unit lifecycle management, local/offline control, automatic CAN recovery, capability-aware current limiting, thermal protection, a touchscreen controller platform and external cooling management.
+- [craigpeacock/Huawei_R4850G2_CAN](https://github.com/craigpeacock/Huawei_R4850G2_CAN)
+  Earlier public CAN protocol research for Huawei R48xx rectifiers and an additional useful reference while validating protocol behavior.
+
+The Controller implementation in this repository has since evolved into a dedicated three-unit charger with independent per-unit lifecycle management, local and network-independent control, automatic CAN recovery, capability-aware current limiting, thermal protection, local blackstart operation, a shared touchscreen HMI architecture and external cooling management.
+
+The implementation is independently maintained and contains additional multi-rectifier lifecycle, reconnect, capability, thermal, blackstart and HMI behavior specific to this project.
 
 ---
 
