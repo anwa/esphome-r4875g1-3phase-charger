@@ -286,6 +286,17 @@ substitutions:
   setpoint_refresh_interval: "30s"
 
   # ---------------------------------------------------------------------------
+  # SLOW-CHANGING TELEMETRY
+  # ---------------------------------------------------------------------------
+  #
+  # Stable diagnostic values are forwarded immediately when they change and
+  # repeated periodically so time-series consumers retain a recent sample even
+  # when the underlying charger state remains unchanged.
+  # ---------------------------------------------------------------------------
+
+  telemetry_heartbeat_interval: "60min"
+
+  # ---------------------------------------------------------------------------
   # DISCOVERY RETRY POLICY
   # ---------------------------------------------------------------------------
 
@@ -445,6 +456,32 @@ esphome:
 sensor:
 
   # ---------------------------------------------------------------------------
+  # REQUESTED DC CURRENT LIMIT
+  # ---------------------------------------------------------------------------
+  #
+  # Read-only telemetry mirror of the charger-wide DC current control. The
+  # number entity remains the authoritative control while this sensor provides
+  # change-driven and periodic history data for time-series consumers.
+  # ---------------------------------------------------------------------------
+
+  - platform: template
+    name: "Requested DC Current Limit"
+    id: requested_dc_current_limit_sensor
+    unit_of_measurement: "A"
+    device_class: current
+    entity_category: diagnostic
+    state_class: measurement
+    accuracy_decimals: 1
+    update_interval: 1s
+    lambda: |-
+      return id(set_dc_current_limit).state;
+    filters:
+      - or:
+          - delta: 0.0
+          - heartbeat: ${telemetry_heartbeat_interval}
+    icon: "mdi:current-dc"
+
+  # ---------------------------------------------------------------------------
   # EFFECTIVE DC CURRENT LIMIT
   # ---------------------------------------------------------------------------
   #
@@ -459,6 +496,10 @@ sensor:
     entity_category: diagnostic
     accuracy_decimals: 1
     update_interval: never
+    filters:
+      - or:
+          - delta: 0.0
+          - heartbeat: ${telemetry_heartbeat_interval}
     icon: "mdi:current-dc"
 
   # ---------------------------------------------------------------------------
@@ -474,6 +515,10 @@ sensor:
     accuracy_decimals: 1
     update_interval: 1s
     lambda: 'return id(thermal_dc_current_limit);'
+    filters:
+      - or:
+          - delta: 0.0
+          - heartbeat: ${telemetry_heartbeat_interval}
     icon: "mdi:thermometer-alert"
 
   - platform: template
@@ -490,6 +535,10 @@ sensor:
       float applied = std::min(requested, id(effective_dc_current_limit));
       applied = std::min(applied, id(thermal_dc_current_limit));
       return applied;
+    filters:
+      - or:
+          - delta: 0.0
+          - heartbeat: ${telemetry_heartbeat_interval}
     icon: "mdi:current-dc"
 
   # ---------------------------------------------------------------------------
@@ -689,6 +738,10 @@ sensor:
     state_class: measurement
     accuracy_decimals: 0
     update_interval: 1s
+    filters:
+      - or:
+          - delta: 0.0
+          - heartbeat: ${telemetry_heartbeat_interval}
     lambda: |-
       int count = 0;
 
@@ -722,6 +775,10 @@ sensor:
     state_class: measurement
     accuracy_decimals: 0
     update_interval: 500ms
+    filters:
+      - or:
+          - delta: 0.0
+          - heartbeat: ${telemetry_heartbeat_interval}
     lambda: |-
       int count = 0;
 
