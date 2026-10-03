@@ -1,0 +1,26 @@
+# ==============================================================================
+# CHARGER CONTROLLER HOME ASSISTANT CONTRACT
+# ==============================================================================
+#
+# Publishes the explicit semantic-interface version used by the R4875G1 Home
+# Assistant integration to identify a compatible Charger Controller.
+#
+# This value describes the Home Assistant entity/command contract rather than
+# the normal firmware version. Firmware releases may therefore change while
+# remaining compatible with the same contract version.
+#
+# The Charger Controller remains authoritative for all charger control and
+# safety behavior. This package publishes metadata only.
+# ==============================================================================
+
+text_sensor:
+  - platform: template
+    name: "R4875G1 Charger Contract"
+    id: ha_charger_contract_version
+    entity_category: diagnostic
+    icon: "mdi:api"
+
+    update_interval: 60s
+
+    lambda: |-
+      return {"1"};
