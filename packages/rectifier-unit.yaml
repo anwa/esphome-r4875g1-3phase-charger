@@ -694,6 +694,27 @@ sensor:
           return x;
     icon: "mdi:clock-outline"
 
+  # ---------------------------------------------------------------------------
+  # CAN COMMUNICATION HISTORY
+  # ---------------------------------------------------------------------------
+  #
+  # Numeric mirror of the authoritative CAN-connectivity binary sensor for
+  # time-series storage. State changes are published immediately while the
+  # last known 0/1 value is repeated periodically for historical consumers.
+  # ---------------------------------------------------------------------------
+
+  - platform: template
+    name: "CAN Communication State Unit ${ru_unit}"
+    id: can_communication_state_${ru_unit}
+    state_class: measurement
+    entity_category: diagnostic
+    accuracy_decimals: 0
+    update_interval: never
+    filters:
+      - heartbeat:
+          period: ${telemetry_heartbeat_interval}
+          optimistic: true
+    icon: "mdi:lan-connect"
 
 binary_sensor:
   # ---------------------------------------------------------------------------
@@ -721,6 +742,15 @@ binary_sensor:
         static_cast<uint32_t>(
           millis() - id(last_can_rx_${ru_unit})
         ) < timeout_ms;
+
+    trigger_on_initial_state: true
+
+    on_state:
+      then:
+        - lambda: |-
+            id(can_communication_state_${ru_unit}).publish_state(
+              x ? 1.0f : 0.0f
+            );
 
     on_press:
       then:
