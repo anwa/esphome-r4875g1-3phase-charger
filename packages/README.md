@@ -123,6 +123,7 @@ packages/
     ├── property-start.yaml
     ├── property-end.yaml
     ├── cyclic-telemetry.yaml
+    ├── alarm-status.yaml
     ├── fan-telemetry.yaml
     ├── address-data.yaml
     └── power-state.yaml
@@ -840,6 +841,26 @@ Decodes selector-based operational telemetry such as:
 - temperatures
 - operating hours
 - rectifier-reported current setpoint
+
+### `alarm-status.yaml`
+
+Handles:
+
+```text
+0x108${ru_unit}407E
+```
+
+Decodes the 32-bit Huawei register `0x0183` alarm/status word.
+
+The handler publishes:
+
+- an exact hexadecimal raw status value
+- one diagnostic binary sensor for each documented status bit 0-31
+- Huawei reference meanings for all documented bits
+
+Only the subset reproduced safely on the R4875G1 is marked as verified or observed. The remaining bit meanings follow the Huawei R48xx protocol documentation and remain diagnostic-only until independently confirmed on the R4875G1.
+
+Alarm/status telemetry does not participate in Charger safety or control decisions.
 
 ### `fan-telemetry.yaml`
 

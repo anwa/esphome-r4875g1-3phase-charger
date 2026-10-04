@@ -4,6 +4,20 @@
 #
 # Decodes the final cyclic telemetry frame containing register 0x0183.
 #
+# The 32-bit alarm/status mapping follows Huawei charging-module CAN protocol
+# documentation for the related R48xx family. Only a subset of the documented
+# bits can be safely reproduced and has been independently observed on the
+# R4875G1.
+#
+# Verified or observed on the R4875G1:
+#   Bit 3  -> protection shutdown during AC-loss transition
+#   Bit 9  -> module power off
+#   Bit 17 -> input undervoltage during AC loss
+#   Bit 29 -> input power failure after sustained AC loss
+#
+# All decoded states are diagnostic telemetry only and do not participate in
+# Charger safety or control decisions.
+#
 # Required substitution:
 #   ru_unit -> rectifier unit number (1..3)
 # ==============================================================================
@@ -13,17 +27,121 @@ use_extended_id: true
 then:
   - lambda: |-
       if (
-        x.size() >= 8 &&
-        static_cast<uint8_t>(x[0]) == 0x01 &&
-        static_cast<uint8_t>(x[1]) == 0x83
+        x.size() != 8 ||
+        static_cast<uint8_t>(x[0]) != 0x01 ||
+        static_cast<uint8_t>(x[1]) != 0x83
       ) {
-        id(last_can_rx_${ru_unit}) = millis();
-
-        const uint32_t value =
-          (static_cast<uint32_t>(x[4]) << 24) |
-          (static_cast<uint32_t>(x[5]) << 16) |
-          (static_cast<uint32_t>(x[6]) << 8) |
-          static_cast<uint32_t>(x[7]);
-
-        id(alarm_status_raw_${ru_unit}).publish_state(value);
+        return;
       }
+
+      id(last_can_rx_${ru_unit}) = millis();
+
+      const uint32_t value =
+        (static_cast<uint32_t>(x[4]) << 24) |
+        (static_cast<uint32_t>(x[5]) << 16) |
+        (static_cast<uint32_t>(x[6]) << 8) |
+        static_cast<uint32_t>(x[7]);
+
+      id(alarm_status_raw_${ru_unit}).publish_state(
+        str_sprintf(
+          "0x%08lX",
+          static_cast<unsigned long>(value)
+        )
+      );
+
+      id(alarm_status_bit_0_${ru_unit}).publish_state(
+        (value & (1UL << 0)) != 0
+      );
+      id(alarm_status_bit_1_${ru_unit}).publish_state(
+        (value & (1UL << 1)) != 0
+      );
+      id(alarm_status_bit_2_${ru_unit}).publish_state(
+        (value & (1UL << 2)) != 0
+      );
+      id(alarm_status_bit_3_${ru_unit}).publish_state(
+        (value & (1UL << 3)) != 0
+      );
+      id(alarm_status_bit_4_${ru_unit}).publish_state(
+        (value & (1UL << 4)) != 0
+      );
+      id(alarm_status_bit_5_${ru_unit}).publish_state(
+        (value & (1UL << 5)) != 0
+      );
+      id(alarm_status_bit_6_${ru_unit}).publish_state(
+        (value & (1UL << 6)) != 0
+      );
+      id(alarm_status_bit_7_${ru_unit}).publish_state(
+        (value & (1UL << 7)) != 0
+      );
+      id(alarm_status_bit_8_${ru_unit}).publish_state(
+        (value & (1UL << 8)) != 0
+      );
+      id(alarm_status_bit_9_${ru_unit}).publish_state(
+        (value & (1UL << 9)) != 0
+      );
+      id(alarm_status_bit_10_${ru_unit}).publish_state(
+        (value & (1UL << 10)) != 0
+      );
+      id(alarm_status_bit_11_${ru_unit}).publish_state(
+        (value & (1UL << 11)) != 0
+      );
+      id(alarm_status_bit_12_${ru_unit}).publish_state(
+        (value & (1UL << 12)) != 0
+      );
+      id(alarm_status_bit_13_${ru_unit}).publish_state(
+        (value & (1UL << 13)) != 0
+      );
+      id(alarm_status_bit_14_${ru_unit}).publish_state(
+        (value & (1UL << 14)) != 0
+      );
+      id(alarm_status_bit_15_${ru_unit}).publish_state(
+        (value & (1UL << 15)) != 0
+      );
+      id(alarm_status_bit_16_${ru_unit}).publish_state(
+        (value & (1UL << 16)) != 0
+      );
+      id(alarm_status_bit_17_${ru_unit}).publish_state(
+        (value & (1UL << 17)) != 0
+      );
+      id(alarm_status_bit_18_${ru_unit}).publish_state(
+        (value & (1UL << 18)) != 0
+      );
+      id(alarm_status_bit_19_${ru_unit}).publish_state(
+        (value & (1UL << 19)) != 0
+      );
+      id(alarm_status_bit_20_${ru_unit}).publish_state(
+        (value & (1UL << 20)) != 0
+      );
+      id(alarm_status_bit_21_${ru_unit}).publish_state(
+        (value & (1UL << 21)) != 0
+      );
+      id(alarm_status_bit_22_${ru_unit}).publish_state(
+        (value & (1UL << 22)) != 0
+      );
+      id(alarm_status_bit_23_${ru_unit}).publish_state(
+        (value & (1UL << 23)) != 0
+      );
+      id(alarm_status_bit_24_${ru_unit}).publish_state(
+        (value & (1UL << 24)) != 0
+      );
+      id(alarm_status_bit_25_${ru_unit}).publish_state(
+        (value & (1UL << 25)) != 0
+      );
+      id(alarm_status_bit_26_${ru_unit}).publish_state(
+        (value & (1UL << 26)) != 0
+      );
+      id(alarm_status_bit_27_${ru_unit}).publish_state(
+        (value & (1UL << 27)) != 0
+      );
+      id(alarm_status_bit_28_${ru_unit}).publish_state(
+        (value & (1UL << 28)) != 0
+      );
+      id(alarm_status_bit_29_${ru_unit}).publish_state(
+        (value & (1UL << 29)) != 0
+      );
+      id(alarm_status_bit_30_${ru_unit}).publish_state(
+        (value & (1UL << 30)) != 0
+      );
+      id(alarm_status_bit_31_${ru_unit}).publish_state(
+        (value & (1UL << 31)) != 0
+      );

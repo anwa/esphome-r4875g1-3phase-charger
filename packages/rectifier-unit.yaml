@@ -11,6 +11,7 @@
 # ==============================================================================
 
 globals:
+
   # ---------------------------------------------------------------------------
   # COMMUNICATION AND LIFECYCLE STATE
   # ---------------------------------------------------------------------------
@@ -384,21 +385,217 @@ script:
 sensor:
 
   # ---------------------------------------------------------------------------
-  # RECTIFIER ALARM / STATUS WORD
+  # RECTIFIER ALARM / STATUS BITS
   # ---------------------------------------------------------------------------
   #
-  # Raw 32-bit alarm/status field reported by register 0x0183. The individual
-  # bit meanings are intentionally not decoded until they have been verified
-  # against R4875G1 behavior.
+  # Decodes the 32-bit alarm/status word reported by register 0x0183.
+  #
+  # Bit meanings follow the Huawei charging-module CAN protocol documentation.
+  # The mapping is expected to be shared across the related R48xx family, but
+  # not every bit can be safely reproduced and independently verified on the
+  # R4875G1.
+  #
+  # Verified or observed on the R4875G1:
+  #   Bit 3  -> observed during AC-loss protection transition
+  #   Bit 9  -> verified when the module is commanded OFF
+  #   Bit 17 -> verified during AC input undervoltage/loss
+  #   Bit 29 -> verified after sustained AC input power loss
+  #
+  # All other meanings remain Huawei-reference mappings until independently
+  # observed on the R4875G1.
   # ---------------------------------------------------------------------------
 
   - platform: template
-    name: "Alarm Status Raw Unit ${ru_unit}"
-    id: alarm_status_raw_${ru_unit}
+    name: "Output Overvoltage Lockout Unit ${ru_unit}"
+    id: alarm_status_bit_0_${ru_unit}
     entity_category: diagnostic
-    accuracy_decimals: 0
-    update_interval: never
     icon: "mdi:alert-circle-outline"
+
+  - platform: template
+    name: "Overtemperature Shutdown Unit ${ru_unit}"
+    id: alarm_status_bit_1_${ru_unit}
+    entity_category: diagnostic
+    icon: "mdi:alert-circle-outline"
+
+  - platform: template
+    name: "Fault Shutdown Unit ${ru_unit}"
+    id: alarm_status_bit_2_${ru_unit}
+    entity_category: diagnostic
+    icon: "mdi:alert-circle-outline"
+
+  - platform: template
+    name: "Protection Shutdown Unit ${ru_unit}"
+    id: alarm_status_bit_3_${ru_unit}
+    entity_category: diagnostic
+    icon: "mdi:alert-circle-outline"
+
+  - platform: template
+    name: "Internal Fan Fault Unit ${ru_unit}"
+    id: alarm_status_bit_4_${ru_unit}
+    entity_category: diagnostic
+    icon: "mdi:fan-alert"
+
+  - platform: template
+    name: "EEPROM Error Unit ${ru_unit}"
+    id: alarm_status_bit_5_${ru_unit}
+    entity_category: diagnostic
+    icon: "mdi:memory"
+
+  - platform: template
+    name: "Output Overcurrent Unit ${ru_unit}"
+    id: alarm_status_bit_6_${ru_unit}
+    entity_category: diagnostic
+    icon: "mdi:current-dc"
+
+  - platform: template
+    name: "Output Undervoltage Unit ${ru_unit}"
+    id: alarm_status_bit_7_${ru_unit}
+    entity_category: diagnostic
+    icon: "mdi:flash-alert"
+
+  - platform: template
+    name: "Low Temperature Shutdown Unit ${ru_unit}"
+    id: alarm_status_bit_8_${ru_unit}
+    entity_category: diagnostic
+    icon: "mdi:snowflake-alert"
+
+  - platform: template
+    name: "Module Power Off Unit ${ru_unit}"
+    id: alarm_status_bit_9_${ru_unit}
+    entity_category: diagnostic
+    icon: "mdi:power"
+
+  - platform: template
+    name: "Fan Full Speed Mode Unit ${ru_unit}"
+    id: alarm_status_bit_10_${ru_unit}
+    entity_category: diagnostic
+    icon: "mdi:fan-speed-3"
+
+  - platform: template
+    name: "Alarm Status Reserved Bit 11 Unit ${ru_unit}"
+    id: alarm_status_bit_11_${ru_unit}
+    entity_category: diagnostic
+    icon: "mdi:help-circle-outline"
+
+  - platform: template
+    name: "Internal Overtemperature Unit ${ru_unit}"
+    id: alarm_status_bit_12_${ru_unit}
+    entity_category: diagnostic
+    icon: "mdi:thermometer-alert"
+
+  - platform: template
+    name: "Software Address Rearrangement Unit ${ru_unit}"
+    id: alarm_status_bit_13_${ru_unit}
+    entity_category: diagnostic
+    icon: "mdi:identifier"
+
+  - platform: template
+    name: "Automatic Output Mode Switching Unit ${ru_unit}"
+    id: alarm_status_bit_14_${ru_unit}
+    entity_category: diagnostic
+    icon: "mdi:swap-horizontal"
+
+  - platform: template
+    name: "CAN Communication Quality Poor Unit ${ru_unit}"
+    id: alarm_status_bit_15_${ru_unit}
+    entity_category: diagnostic
+    icon: "mdi:lan-disconnect"
+
+  - platform: template
+    name: "Sequential Startup Enabled Unit ${ru_unit}"
+    id: alarm_status_bit_16_${ru_unit}
+    entity_category: diagnostic
+    icon: "mdi:power-cycle"
+
+  - platform: template
+    name: "Input Undervoltage Unit ${ru_unit}"
+    id: alarm_status_bit_17_${ru_unit}
+    entity_category: diagnostic
+    icon: "mdi:flash-alert"
+
+  - platform: template
+    name: "AC Imbalance Protection Unit ${ru_unit}"
+    id: alarm_status_bit_18_${ru_unit}
+    entity_category: diagnostic
+    icon: "mdi:sine-wave"
+
+  - platform: template
+    name: "AC Phase Loss Unit ${ru_unit}"
+    id: alarm_status_bit_19_${ru_unit}
+    entity_category: diagnostic
+    icon: "mdi:transmission-tower-off"
+
+  - platform: template
+    name: "Severe AC Imbalance Unit ${ru_unit}"
+    id: alarm_status_bit_20_${ru_unit}
+    entity_category: diagnostic
+    icon: "mdi:sine-wave"
+
+  - platform: template
+    name: "Duplicate Serial Shutdown Unit ${ru_unit}"
+    id: alarm_status_bit_21_${ru_unit}
+    entity_category: diagnostic
+    icon: "mdi:identifier"
+
+  - platform: template
+    name: "Input Overvoltage Unit ${ru_unit}"
+    id: alarm_status_bit_22_${ru_unit}
+    entity_category: diagnostic
+    icon: "mdi:flash-alert"
+
+  - platform: template
+    name: "PFC Fault Unit ${ru_unit}"
+    id: alarm_status_bit_23_${ru_unit}
+    entity_category: diagnostic
+    icon: "mdi:alert-circle-outline"
+
+  - platform: template
+    name: "Current Sharing Imbalance Unit ${ru_unit}"
+    id: alarm_status_bit_24_${ru_unit}
+    entity_category: diagnostic
+    icon: "mdi:current-dc"
+
+  - platform: template
+    name: "Efficiency Optimization Shutdown Unit ${ru_unit}"
+    id: alarm_status_bit_25_${ru_unit}
+    entity_category: diagnostic
+    icon: "mdi:leaf"
+
+  - platform: template
+    name: "Internal Communication Error Unit ${ru_unit}"
+    id: alarm_status_bit_26_${ru_unit}
+    entity_category: diagnostic
+    icon: "mdi:alert-circle-outline"
+
+  - platform: template
+    name: "Output Current Limiting Unit ${ru_unit}"
+    id: alarm_status_bit_27_${ru_unit}
+    entity_category: diagnostic
+    icon: "mdi:current-dc"
+
+  - platform: template
+    name: "Current Limiting Mode Unit ${ru_unit}"
+    id: alarm_status_bit_28_${ru_unit}
+    entity_category: diagnostic
+    icon: "mdi:current-dc"
+
+  - platform: template
+    name: "Input Power Failure Unit ${ru_unit}"
+    id: alarm_status_bit_29_${ru_unit}
+    entity_category: diagnostic
+    icon: "mdi:transmission-tower-off"
+
+  - platform: template
+    name: "PFC Bus Imbalance Unit ${ru_unit}"
+    id: alarm_status_bit_30_${ru_unit}
+    entity_category: diagnostic
+    icon: "mdi:alert-circle-outline"
+
+  - platform: template
+    name: "PFC Bus Voltage Fault Unit ${ru_unit}"
+    id: alarm_status_bit_31_${ru_unit}
+    entity_category: diagnostic
+    icon: "mdi:flash-alert"
 
   # ---------------------------------------------------------------------------
   # TEMPERATURE
@@ -734,6 +931,7 @@ sensor:
     icon: "mdi:lan-connect"
 
 binary_sensor:
+
   # ---------------------------------------------------------------------------
   # CAN COMMUNICATION UNIT ${ru_unit}
   # ---------------------------------------------------------------------------
@@ -823,6 +1021,23 @@ binary_sensor:
         - script.execute: evaluate_rectifier_capabilities
 
 text_sensor:
+
+  # ---------------------------------------------------------------------------
+  # RECTIFIER ALARM / STATUS RAW VALUE
+  # ---------------------------------------------------------------------------
+  #
+  # Exact hexadecimal representation of the 32-bit 0x0183 alarm/status word.
+  # A text representation avoids precision loss that can occur when a complete
+  # 32-bit bitfield is transported through a floating-point sensor entity.
+  # ---------------------------------------------------------------------------
+
+  - platform: template
+    name: "Alarm Status Raw Unit ${ru_unit}"
+    id: alarm_status_raw_${ru_unit}
+    entity_category: diagnostic
+    update_interval: never
+    icon: "mdi:code-braces"
+
   # Human-readable OFFLINE / DISCOVERING / ONLINE lifecycle state.
   - platform: template
     id: rectifier_control_state_text_${ru_unit}
