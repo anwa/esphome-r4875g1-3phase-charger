@@ -31,31 +31,12 @@
 #   ha_rectifier_operating_hours_entity
 # ==============================================================================
 
-globals:
-
-  - id: remote_ha_rectifier_${ui_unit}_connected_received
-    type: bool
-    restore_value: false
-    initial_value: "false"
-
-
 binary_sensor:
 
   - platform: homeassistant
     id: remote_ha_rectifier_${ui_unit}_connected
     entity_id: ${ha_rectifier_connected_entity}
     internal: true
-
-    # The first Home Assistant binary-sensor state is published as an initial
-    # state and does not trigger on_state unless explicitly requested. The
-    # freshness latch depends on receiving that initial ON/OFF state.
-    trigger_on_initial_state: true
-
-    on_state:
-      then:
-        - lambda: |-
-            id(remote_ha_rectifier_${ui_unit}_connected_received) = true;
-
 
 sensor:
 
@@ -232,13 +213,12 @@ interval:
           };
 
           if (!ha_connected) {
-            id(remote_ha_rectifier_${ui_unit}_connected_received) = false;
             invalidate_model(false);
             return;
           }
 
           const bool received =
-            id(remote_ha_rectifier_${ui_unit}_connected_received);
+            id(remote_ha_rectifier_${ui_unit}_connected).has_state();
 
           const bool connected =
             received &&
