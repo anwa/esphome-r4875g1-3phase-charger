@@ -384,6 +384,23 @@ script:
 sensor:
 
   # ---------------------------------------------------------------------------
+  # RECTIFIER ALARM / STATUS WORD
+  # ---------------------------------------------------------------------------
+  #
+  # Raw 32-bit alarm/status field reported by register 0x0183. The individual
+  # bit meanings are intentionally not decoded until they have been verified
+  # against R4875G1 behavior.
+  # ---------------------------------------------------------------------------
+
+  - platform: template
+    name: "Alarm Status Raw Unit ${ru_unit}"
+    id: alarm_status_raw_${ru_unit}
+    entity_category: diagnostic
+    accuracy_decimals: 0
+    update_interval: never
+    icon: "mdi:alert-circle-outline"
+
+  # ---------------------------------------------------------------------------
   # TEMPERATURE
   # ---------------------------------------------------------------------------
 
