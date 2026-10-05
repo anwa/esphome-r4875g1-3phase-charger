@@ -32,6 +32,7 @@ then:
               case 0x71: id(ac_frequency_${ru_unit}).publish_state(value); break;
               case 0x72: id(ac_current_${ru_unit}).publish_state(value); break;
               case 0x73: id(dc_power_${ru_unit}).publish_state(value); break;
+              case 0x74: id(reported_efficiency_${ru_unit}).publish_state(value); break;
               case 0x75: id(dc_voltage_${ru_unit}).publish_state(value); break;
               case 0x76: id(max_dc_current_setpoint_${ru_unit}).publish_state(value); break;
               case 0x78: id(ac_voltage_${ru_unit}).publish_state(value); break;

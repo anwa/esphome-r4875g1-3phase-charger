@@ -838,6 +838,7 @@ Decodes selector-based operational telemetry such as:
 - DC power
 - DC voltage
 - DC current
+- rectifier-reported efficiency
 - temperatures
 - operating hours
 - rectifier-reported current setpoint

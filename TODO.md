@@ -77,3 +77,14 @@ The deployment script already retries file transfers, but intermittent SSH deplo
 - [ ] Reproduce the intermittent Home Assistant SSH deployment timeout if it still occurs.
 - [ ] Identify the root cause instead of relying only on retry behavior.
 - [ ] Keep deployment retries as resilience, not as a substitute for resolving a reproducible transport problem.
+
+## P3 — Installed-System Rectifier Telemetry Validation
+
+Several rectifier telemetry functions cannot be meaningfully or safely validated in the laboratory because the lab setup has no battery or suitable DC load. These checks are intentionally deferred until the charger is installed in the island system or another appropriate load is available.
+
+- [ ] Validate register `0x0174` reported efficiency under real DC load.
+- [ ] Compare `0x0174` reported efficiency against the calculated `DC Power / AC Power` efficiency at several stable load levels.
+- [ ] Check reported efficiency behavior at low, medium and high charger output power.
+- [ ] Observe additional `0x0183` alarm/status bits during normal operation where they occur naturally.
+- [ ] Do not intentionally provoke potentially destructive `0x0183` fault conditions solely to verify undocumented R4875G1 behavior.
+- [ ] Record any R4875G1-specific deviations from the Huawei reference bit mapping if they are observed.

@@ -833,6 +833,31 @@ sensor:
       - timeout: ${live_telemetry_timeout}
     icon: "mdi:flash"
 
+  # ---------------------------------------------------------------------------
+  # RECTIFIER-REPORTED EFFICIENCY
+  # ---------------------------------------------------------------------------
+  #
+  # Conversion efficiency reported directly by cyclic register 0x0174.
+  # The protocol value uses a 1024-based ratio and is converted to percent.
+  #
+  # This diagnostic remains separate from the Charger-wide calculated
+  # efficiency so both values can be compared during validation.
+  # ---------------------------------------------------------------------------
+
+  - platform: template
+    name: "Reported Efficiency Unit ${ru_unit}"
+    id: reported_efficiency_${ru_unit}
+    unit_of_measurement: "%"
+    state_class: measurement
+    entity_category: diagnostic
+    accuracy_decimals: 1
+    update_interval: never
+    filters:
+      - lambda: |-
+          return (x / id(voltage_scaling_factor)) * 100.0f;
+      - timeout: ${live_telemetry_timeout}
+    icon: "mdi:gauge"
+
   # Rectifier-reported active maximum-current setpoint: cyclic selector 0x76.
   - platform: template
     name: "Max DC Current Setpoint Unit ${ru_unit}"
