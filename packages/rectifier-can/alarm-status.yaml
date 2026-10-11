@@ -12,6 +12,7 @@
 # Verified or observed on the R4875G1:
 #   Bit 3  -> protection shutdown during AC-loss transition
 #   Bit 9  -> module power off
+#   Bit 10 -> fan full speed mode
 #   Bit 17 -> input undervoltage during AC loss
 #   Bit 29 -> input power failure after sustained AC loss
 #

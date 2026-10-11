@@ -398,6 +398,7 @@ sensor:
   # Verified or observed on the R4875G1:
   #   Bit 3  -> observed during AC-loss protection transition
   #   Bit 9  -> verified when the module is commanded OFF
+  #   Bit 10 -> fan full speed mode
   #   Bit 17 -> verified during AC input undervoltage/loss
   #   Bit 29 -> verified after sustained AC input power loss
   #
