@@ -79,6 +79,16 @@ display:
     model: ESP32-S3-TOUCH-LCD-7-800X480
     id: charger_display
 
+    # The predefined Waveshare model also claims CH422G EXIO2 as an enable
+    # pin. EXIO2 is owned separately by display_backlight so LVGL can switch
+    # the backlight independently. Keep only LCD_VDD_EN (EXIO6) under the
+    # MIPI-RGB display component.
+    enable_pin:
+      - ch422g: io_expander
+        number: 6
+        mode:
+          output: true
+
     # Wi-Fi initializes at priority 250 and API/OTA at priority 200. Starting
     # the RGB display afterwards preserves internal memory for network recovery
     # services while still completing before LVGL.
