@@ -330,46 +330,46 @@ script:
               secondary_current_text.c_str()
             );
 
-            lv_obj_clear_flag(
+            lv_obj_set_hidden(
               id(ui_trend_secondary_name),
-              LV_OBJ_FLAG_HIDDEN
+              false
             );
 
-            lv_obj_clear_flag(
+            lv_obj_set_hidden(
               id(ui_trend_secondary_current),
-              LV_OBJ_FLAG_HIDDEN
+              false
             );
 
-            lv_obj_clear_flag(
+            lv_obj_set_hidden(
               id(ui_trend_secondary_min),
-              LV_OBJ_FLAG_HIDDEN
+              false
             );
 
-            lv_obj_clear_flag(
+            lv_obj_set_hidden(
               id(ui_trend_secondary_max),
-              LV_OBJ_FLAG_HIDDEN
+              false
             );
 
           } else {
 
-            lv_obj_add_flag(
+            lv_obj_set_hidden(
               id(ui_trend_secondary_name),
-              LV_OBJ_FLAG_HIDDEN
+              true
             );
 
-            lv_obj_add_flag(
+            lv_obj_set_hidden(
               id(ui_trend_secondary_current),
-              LV_OBJ_FLAG_HIDDEN
+              true
             );
 
-            lv_obj_add_flag(
+            lv_obj_set_hidden(
               id(ui_trend_secondary_min),
-              LV_OBJ_FLAG_HIDDEN
+              true
             );
 
-            lv_obj_add_flag(
+            lv_obj_set_hidden(
               id(ui_trend_secondary_max),
-              LV_OBJ_FLAG_HIDDEN
+              true
             );
           }
 
@@ -800,36 +800,36 @@ script:
               y2_min.c_str()
             );
 
-            lv_obj_clear_flag(
+            lv_obj_set_hidden(
               id(ui_trend_y2_max),
-              LV_OBJ_FLAG_HIDDEN
+              false
             );
 
-            lv_obj_clear_flag(
+            lv_obj_set_hidden(
               id(ui_trend_y2_mid),
-              LV_OBJ_FLAG_HIDDEN
+              false
             );
 
-            lv_obj_clear_flag(
+            lv_obj_set_hidden(
               id(ui_trend_y2_min),
-              LV_OBJ_FLAG_HIDDEN
+              false
             );
 
           } else {
 
-            lv_obj_add_flag(
+            lv_obj_set_hidden(
               id(ui_trend_y2_max),
-              LV_OBJ_FLAG_HIDDEN
+              true
             );
 
-            lv_obj_add_flag(
+            lv_obj_set_hidden(
               id(ui_trend_y2_mid),
-              LV_OBJ_FLAG_HIDDEN
+              true
             );
 
-            lv_obj_add_flag(
+            lv_obj_set_hidden(
               id(ui_trend_y2_min),
-              LV_OBJ_FLAG_HIDDEN
+              true
             );
           }
 

@@ -199,7 +199,7 @@ packages:
 esphome:
   name: hg-dg-technik-charger-hmi
   friendly_name: HG|DG|Technik|Charger HMI
-  min_version: 2026.8.2
+  min_version: 2026.11.0
 
   project:
     name: "anwa.r4875-remote-hmi"
