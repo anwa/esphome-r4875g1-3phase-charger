@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import argparse
 import importlib.util
+import os
 import re
 import subprocess
 import sys
@@ -126,8 +127,11 @@ def load_controller_entities() -> list[Entity]:
         capture_output=True,
         text=True,
         encoding="utf-8",
+        # Force UTF-8 output; otherwise Windows uses the console code page
+        # and characters such as the degree sign break decoding.
+        env={**os.environ, "PYTHONUTF8": "1", "PYTHONIOENCODING": "utf-8"},
     )
-    if result.returncode != 0:
+    if result.returncode != 0 or result.stdout is None:
         print(result.stderr, file=sys.stderr)
         raise SystemExit(f"esphome config failed for {CONTROLLER_CONFIG}")
 
