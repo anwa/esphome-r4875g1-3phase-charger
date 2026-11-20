@@ -60,7 +60,23 @@ Do not assume that an earlier architecture or file location is still current.
 
 For repository work, the current branch is the source of truth.
 
+## Direct Working-Tree Edits
+
+Agents with local repository access apply changes directly to the working tree.
+
+When editing directly, agents:
+
+- inspect the affected files and their dependencies before editing
+- keep each change limited to the current concern
+- do not reformat, reflow or reorder unrelated content
+- review the resulting diff before reporting the change as complete
+- report which files changed and what validation was performed
+
+Git operations and their limits are defined in `rules/git-workflow.md`.
+
 ## Manual-Application Instructions
+
+This section applies when the user asks for changes to apply manually, or when the agent cannot edit the working tree.
 
 When an agent provides repository changes for a human to apply manually, the instructions MUST make the exact edit location unambiguous.
 
@@ -175,6 +191,8 @@ After a meaningful structural change:
 4. verify the changed function
 5. verify important adjacent functions
 6. observe runtime stability when appropriate
+
+Steps 1 and 2 are performed locally as defined in `rules/local-validation.md`. Steps 3 to 6 require the hardware and are performed by the user unless the current task explicitly says otherwise. An agent MUST NOT report steps 3 to 6 as done when it has not performed them.
 
 For multi-target firmware, validation scope depends on ownership:
 

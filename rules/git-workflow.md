@@ -35,25 +35,60 @@ Prohibited actions include, but are not limited to:
 
 Repository changes MUST first be applied to the user's local working tree.
 
-When an agent prepares a change, it SHOULD provide either:
-
-- an exact patch that can be applied locally, or
-- precise manual-application instructions following `rules/development-workflow.md`
-
-The user is responsible for:
-
-- applying the final change to the local repository
-- validating and compiling affected firmware targets
-- performing required hardware or runtime tests
-- creating Git commits
-- pushing commits to GitHub
-- performing merges, tags and releases
-
 Agents MAY inspect the resulting pushed commit afterwards to verify that it matches the intended and tested change.
 
 This policy applies even when the available GitHub integration technically provides write-capable tools.
 
 A write operation is permitted only when the user explicitly overrides this repository rule for the current task.
+
+## Local Repository Operations
+
+Agents with access to the local repository work directly in the working tree.
+
+Agents MAY:
+
+- edit, create and remove files in the working tree as required by the task
+- run read-only Git commands such as `git status`, `git diff`, `git log` and `git show`
+- run local validation and compilation as defined in `rules/local-validation.md`
+- create a local `feature/`, `fix/`, `refactor/` or `docs/` branch for the task
+- stage changes and create local commits when the user asks for commits
+
+Agents MUST NOT, unless the user explicitly asks for that specific operation in the current task:
+
+- push to any remote
+- merge into `main` or a maintenance branch
+- create, move or delete tags
+- create releases
+- delete branches
+- amend, rebase, reset or otherwise rewrite commits that already exist on a remote
+- use force options such as `push --force`, `reset --hard` or `checkout -- .` on uncommitted user work
+- skip Git hooks or commit signing
+
+Agents SHOULD NOT commit directly on `main` or a maintenance branch. When the task starts on such a branch, create a task branch first unless the user says otherwise.
+
+Before an agent commits a functional change, the affected targets MUST have passed the validation required by `rules/local-validation.md`. Steps that could not be performed, such as hardware tests, MUST be stated to the user.
+
+When an agent cannot edit the working tree, or the user asks for manual application, the agent SHOULD provide either:
+
+- an exact patch that can be applied locally, or
+- precise manual-application instructions following `rules/development-workflow.md`
+
+## Responsibilities
+
+The user is responsible for:
+
+- approving commits made by an agent
+- performing required hardware or runtime tests
+- deploying firmware through Home Assistant
+- pushing commits to GitHub
+- performing merges, tags and releases
+
+Agents are responsible for:
+
+- inspecting the current implementation before changing it
+- validating and compiling the affected firmware targets locally
+- reporting validation results and untested behavior accurately
+- preparing commit messages, merge recommendations, tag commands and release notes when asked
 
 ## Long-Lived Branches
 
@@ -158,11 +193,11 @@ Do not list every modified line.
 
 ## Commit Message Handoff
 
-When an AI agent prepares a commit message for the user, it MUST present the complete commit message as a standalone plain-text block.
+When an AI agent prepares a commit message for the user to commit, it MUST present the complete commit message as a standalone plain-text block.
 
 The commit message MUST NOT be embedded in a `git commit` command or another shell command unless the user explicitly asks for the command form.
 
-The user remains responsible for creating the Git commit locally.
+When an agent creates the commit itself, the same subject and body conventions apply. A `Co-Authored-By` trailer identifying the AI agent MAY be appended.
 
 ## Firmware Version in Commit Messages
 
