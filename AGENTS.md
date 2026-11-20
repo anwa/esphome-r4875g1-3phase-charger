@@ -99,7 +99,7 @@ The contract version marker is a separate compatibility axis:
 
 ### Cross-Repository Rules
 
-- Changing an entity `name:`, entity domain or platform of a Controller entity is a contract change, even when firmware behavior is unchanged. Check every consumer in the table above in the same task.
+- Changing an entity `name:`, entity domain or platform of a Controller entity is a contract change, even when firmware behavior is unchanged. Check every consumer in the table above in the same task, and run `scripts/check-contract.py` as described in `rules/local-validation.md`.
 - Adding a Controller entity intended for Home Assistant consumers SHOULD update `ENTITY_CONTRACT.md` and, when it maps to a semantic role, the integration role specifications.
 - An incompatible contract change requires a new contract version on both sides of the marker. Do not change one side alone.
 - Backend API v1 changes in the integration must be checked against the dashboard API client and types.
