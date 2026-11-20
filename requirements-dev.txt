@@ -1,0 +1,3 @@
+# Local development tooling for configuration validation and compilation.
+# Keep the ESPHome version aligned with the ESPHome add-on used in Home Assistant.
+esphome==2026.11.0

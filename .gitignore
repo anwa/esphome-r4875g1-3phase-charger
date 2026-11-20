@@ -30,3 +30,9 @@ KiCAD/Charger/.history
 thinktank
 *.patch
 *.bak
+
+# Local development environment
+.venv/
+
+# Claude Code per-user settings
+.claude/settings.local.json
