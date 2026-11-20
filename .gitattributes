@@ -1,0 +1,11 @@
+# Store text files with LF in the repository and check them out with LF on
+# every platform, independent of the local core.autocrlf setting.
+* text=auto eol=lf
+
+# Binary assets
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.pdf binary
+*.7z binary
+*.FCStd binary
