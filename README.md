@@ -826,6 +826,8 @@ esphome config r4875g1-remote-hmi.yaml
 esphome compile r4875g1-remote-hmi.yaml
 ```
 
+On Windows, `scripts/validate.ps1` runs the same checks with the ESPHome version pinned in `requirements-dev.txt`. Run `scripts/validate.ps1 -Setup` once to create the local `.venv`, then `scripts/validate.ps1` to validate and compile both targets, or `-ConfigOnly` to skip compilation. When no `secrets.yaml` exists, the script creates one from `secrets.example.yaml` with dummy values. Details are in `rules/local-validation.md`.
+
 Changes to shared V6 HMI code or shared target contracts must be validated against both targets. Hardware-dependent behavior should also be tested on the affected physical target after successful compilation.
 
 ---
@@ -859,7 +861,7 @@ AGENTS.md
 rules/
 ```
 
-`AGENTS.md` is the entry point for agents.
+`AGENTS.md` is the entry point for agents. `CLAUDE.md` loads it for Claude Code.
 
 All human-readable repository content created or substantially modified by the project is written in English.
 
@@ -868,10 +870,13 @@ The repository rules define:
 ```text
 development workflow
 Git workflow
+local validation
 versioning
 documentation
 YAML comment style
 ```
+
+The Home Assistant integration ([homeassistant-r4875g1-charger](https://github.com/anwa/homeassistant-r4875g1-charger)) and the dashboard card ([r4875g1-charger-dashboard](https://github.com/anwa/r4875g1-charger-dashboard)) are maintained in separate repositories. `AGENTS.md` describes how changes to the shared entity contract are coordinated across them.
 
 ---
 

@@ -338,7 +338,7 @@ def write_report(
     with output.open("w", encoding="utf-8", newline="\n") as out:
         out.write("# R4875G1 CAN / ESPHome analysis bundle\n\n")
         out.write(f"Generated: {dt.datetime.now():%Y-%m-%d %H:%M:%S}\n\n")
-        out.write("## Prompt for ChatGPT\n\n")
+        out.write("## Prompt for AI analysis\n\n")
         out.write(
             "Analyze the following preselected evidence from the R4875G1 three-phase charger. "
             "Focus on CAN communication loss/recovery, lifecycle transitions (OFFLINE/DISCOVERING/ONLINE), "
