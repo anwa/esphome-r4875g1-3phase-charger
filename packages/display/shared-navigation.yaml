@@ -4,6 +4,9 @@
 #
 # Defines the complete six-page bottom navigation shared by both V6 firmware
 # targets: Dashboard, Rectifiers, Battery, System, Cooling and Trends.
+#
+# Button size and positions follow the navigation geometry of the shared
+# Waveshare base. display/header.yaml marks the active button.
 # ==============================================================================
 
 lvgl:
@@ -11,15 +14,15 @@ lvgl:
     widgets:
 
       - button:
-          x: 10
-          y: 410
+          id: ui_nav_dashboard
+          x: ${ ui_nav_x0 + 0 * ui_nav_step }
+          y: ${ui_nav_y}
           styles: style_nav_button
 
           widgets:
             - label:
                 align: CENTER
                 text: "Dashboard"
-                text_font: montserrat_18
 
           on_short_click:
             - lambda: |-
@@ -29,15 +32,15 @@ lvgl:
             - lvgl.page.show: page_dashboard
 
       - button:
-          x: 142
-          y: 410
+          id: ui_nav_rectifiers
+          x: ${ ui_nav_x0 + 1 * ui_nav_step }
+          y: ${ui_nav_y}
           styles: style_nav_button
 
           widgets:
             - label:
                 align: CENTER
                 text: "Rectifiers"
-                text_font: montserrat_18
 
           on_short_click:
             - lambda: |-
@@ -47,15 +50,15 @@ lvgl:
             - lvgl.page.show: page_rectifiers
 
       - button:
-          x: 274
-          y: 410
+          id: ui_nav_battery
+          x: ${ ui_nav_x0 + 2 * ui_nav_step }
+          y: ${ui_nav_y}
           styles: style_nav_button
 
           widgets:
             - label:
                 align: CENTER
                 text: "Battery"
-                text_font: montserrat_18
 
           on_short_click:
             - lambda: |-
@@ -65,15 +68,15 @@ lvgl:
             - lvgl.page.show: page_battery
 
       - button:
-          x: 406
-          y: 410
+          id: ui_nav_system
+          x: ${ ui_nav_x0 + 3 * ui_nav_step }
+          y: ${ui_nav_y}
           styles: style_nav_button
 
           widgets:
             - label:
                 align: CENTER
                 text: "System"
-                text_font: montserrat_18
 
           on_short_click:
             - lambda: |-
@@ -83,15 +86,15 @@ lvgl:
             - lvgl.page.show: page_system
 
       - button:
-          x: 538
-          y: 410
+          id: ui_nav_cooling
+          x: ${ ui_nav_x0 + 4 * ui_nav_step }
+          y: ${ui_nav_y}
           styles: style_nav_button
 
           widgets:
             - label:
                 align: CENTER
                 text: "Cooling"
-                text_font: montserrat_18
 
           on_short_click:
             - lambda: |-
@@ -101,15 +104,15 @@ lvgl:
             - lvgl.page.show: page_cooling
 
       - button:
-          x: 670
-          y: 410
+          id: ui_nav_trends
+          x: ${ ui_nav_x0 + 5 * ui_nav_step }
+          y: ${ui_nav_y}
           styles: style_nav_button
 
           widgets:
             - label:
                 align: CENTER
                 text: "Trends"
-                text_font: montserrat_18
 
           on_short_click:
             - lambda: |-

@@ -121,6 +121,23 @@ substitutions:
   diagnostics_device_label: "Controller"
 
   # ---------------------------------------------------------------------------
+  # SHARED WAVESHARE BASE
+  # ---------------------------------------------------------------------------
+  #
+  # waveshare_base_ref pins the base release. waveshare_base_package selects
+  # the package entry file; scripts/use-local-base.ps1 of the base repository
+  # generates a local alternative for development, selected with
+  # `esphome -s waveshare_base_package <file>`.
+  # ---------------------------------------------------------------------------
+
+  waveshare_base_ref: v1.0.0
+  waveshare_base_package: packages/shared/waveshare-base.yaml
+
+  ui_header_title: "R4875 Charger"
+  ui_nav_count: "6"
+  battery_entity_prefix: ${diagnostics_device_label}
+
+  # ---------------------------------------------------------------------------
   # INSTALLATION ENVIRONMENT
   # ---------------------------------------------------------------------------
   # Fixed site altitude used for standard-atmosphere sea-level pressure
@@ -131,14 +148,12 @@ substitutions:
   # V6 CHARGER CONTROLLER GPIO MAP
   # ---------------------------------------------------------------------------
 
-  pin_touch_irq: "GPIO4"
-  pin_i2c_sda: "GPIO8"
-  pin_i2c_scl: "GPIO9"
+  # The onboard I2C, touch IRQ and battery ADC pins are owned by the shared
+  # Waveshare base.
   pin_external_i2c_sda: "GPIO44"
   pin_external_i2c_scl: "GPIO43"
   pin_can_tx: "GPIO20"
   pin_can_rx: "GPIO19"
-  pin_battery_adc: "GPIO6"
 
   # GPIO11/GPIO12/GPIO13 are the unused TF-card SPI pins.
   pin_backup_encoder_a: "GPIO11"
@@ -318,9 +333,9 @@ packages:
   version: !include packages/version.yaml
   shared_ui_contract: !include packages/shared/ui-contract.yaml
 
+  waveshare_base: !include ${waveshare_base_package}
   shared_core: !include packages/shared/core.yaml
   shared_local_diagnostics: !include packages/shared/local-diagnostics.yaml
-  shared_hardware: !include packages/shared/hardware.yaml
   shared_ui_model: !include packages/shared/ui-model.yaml
   shared_ui_rectifier_1: !include
     file: packages/shared/ui-rectifier-unit.yaml
@@ -365,13 +380,6 @@ packages:
   cooling: !include packages/cooling.yaml
   display: !include packages/display.yaml
   controller_encoder_ui: !include packages/controller/encoder-ui.yaml
-
-  # Optional target-specific Home Assistant motion source for display activity.
-  # Remove this package entry to use only the original touch/idle behavior.
-  display_motion: !include
-    file: packages/display/homeassistant-motion.yaml
-    vars:
-      display_motion_entity: ${display_motion_entity}
 
   controls: !include packages/controls.yaml
   rectifier_shared: !include packages/rectifier-shared.yaml

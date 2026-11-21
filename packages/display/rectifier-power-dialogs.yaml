@@ -50,7 +50,7 @@ lvgl:
                       width: 420
                       text_align: CENTER
                       text: "START RECTIFIER ${ui_unit}"
-                      text_font: montserrat_20
+                      text_font: font_20
                       text_color: 0xFFFFFF
 
                   - label:
@@ -59,7 +59,7 @@ lvgl:
                       width: 390
                       text_align: CENTER
                       text: "Start Rectifier ${ui_unit}?\n\nAll individual safety checks will be applied."
-                      text_font: montserrat_18
+                      text_font: font_18
                       text_color: 0xDDE3E8
 
                   - button:
@@ -72,7 +72,7 @@ lvgl:
                         - label:
                             align: CENTER
                             text: "CANCEL"
-                            text_font: montserrat_16
+                            text_font: font_16
                             text_color: 0xFFFFFF
 
                       on_click:
@@ -90,7 +90,7 @@ lvgl:
                         - label:
                             align: CENTER
                             text: "START"
-                            text_font: montserrat_16
+                            text_font: font_16
                             text_color: 0xFFFFFF
 
                       on_click:
@@ -149,7 +149,7 @@ lvgl:
                       width: 420
                       text_align: CENTER
                       text: "STOP RECTIFIER ${ui_unit}"
-                      text_font: montserrat_20
+                      text_font: font_20
                       text_color: 0xFFFFFF
 
                   - label:
@@ -158,7 +158,7 @@ lvgl:
                       width: 390
                       text_align: CENTER
                       text: "Stop Rectifier ${ui_unit}?"
-                      text_font: montserrat_18
+                      text_font: font_18
                       text_color: 0xDDE3E8
 
                   - button:
@@ -171,7 +171,7 @@ lvgl:
                         - label:
                             align: CENTER
                             text: "CANCEL"
-                            text_font: montserrat_16
+                            text_font: font_16
                             text_color: 0xFFFFFF
 
                       on_click:
@@ -189,7 +189,7 @@ lvgl:
                         - label:
                             align: CENTER
                             text: "STOP"
-                            text_font: montserrat_16
+                            text_font: font_16
                             text_color: 0xFFFFFF
 
                       on_click:

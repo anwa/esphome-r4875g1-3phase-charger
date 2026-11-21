@@ -3,7 +3,10 @@ param(
     [ValidateSet("all", "charger", "hmi")]
     [string]$Target = "all",
     [switch]$ConfigOnly,
-    [switch]$Setup
+    [switch]$Setup,
+    # Build against a local working tree of the shared Waveshare base through
+    # the ignored entry file written by its scripts/use-local-base.ps1.
+    [switch]$LocalBase
 )
 
 Set-StrictMode -Version Latest
@@ -95,6 +98,16 @@ if (-not (Test-Path -LiteralPath $VenvPython -PathType Leaf)) {
 
 Initialize-Secrets
 
+$baseArguments = @()
+if ($LocalBase) {
+    $localBaseFile = "packages/shared/waveshare-base.local.yaml"
+    if (-not (Test-Path -LiteralPath (Join-Path $RepoRoot $localBaseFile) -PathType Leaf)) {
+        throw "$localBaseFile not found. Run ..\..\waveshare-esphome-base\scripts\use-local-base.ps1 -Package packages/shared/waveshare-base.yaml first."
+    }
+    $baseArguments = @("-s", "waveshare_base_package", $localBaseFile)
+    Write-Warn "Using the local Waveshare base from $localBaseFile; validate without -LocalBase before committing."
+}
+
 $selected = if ($Target -eq "all") { @($Targets.Keys) } else { @($Target) }
 $failures = @()
 
@@ -104,11 +117,11 @@ try {
         $file = $Targets[$name]
 
         Write-Step "Validating configuration: $file"
-        & $VenvPython -m esphome config $file | Out-Null
+        & $VenvPython -m esphome @baseArguments config $file | Out-Null
         if ($LASTEXITCODE -ne 0) {
             Write-Fail "Configuration validation failed: $file"
             # Repeat with output so the validation error is visible.
-            & $VenvPython -m esphome config $file
+            & $VenvPython -m esphome @baseArguments config $file
             $failures += "$name (config)"
             continue
         }
@@ -119,7 +132,7 @@ try {
         }
 
         Write-Step "Compiling: $file"
-        & $VenvPython -m esphome compile $file
+        & $VenvPython -m esphome @baseArguments compile $file
         if ($LASTEXITCODE -ne 0) {
             Write-Fail "Compilation failed: $file"
             $failures += "$name (compile)"

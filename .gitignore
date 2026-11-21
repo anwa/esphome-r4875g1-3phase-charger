@@ -34,5 +34,8 @@ thinktank
 # Local development environment
 .venv/
 
+# Generated local-development package entry files
+*.local.yaml
+
 # Claude Code per-user settings
 .claude/settings.local.json

@@ -11,7 +11,7 @@
 # The page itself is defined in:
 #   display/pages/trends.yaml
 #
-# Shared native chart support is enabled by display/chart-support.yaml.
+# Native chart support is enabled by the shared Waveshare base.
 # ==============================================================================
 
 script:

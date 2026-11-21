@@ -11,7 +11,7 @@
 #   - USB/CAN routing selection
 #   - ESP32-S3 CAN controller
 #
-# Target-neutral Waveshare board hardware is owned by shared/hardware.yaml.
+# Target-neutral Waveshare board hardware is owned by the shared Waveshare base.
 # ==============================================================================
 
 # ==============================================================================

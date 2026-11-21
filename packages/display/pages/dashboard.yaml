@@ -36,7 +36,7 @@ widgets:
             align: TOP_MID
             y: 53
             text: "--.-- kW"
-            text_font: montserrat_28
+            text_font: font_28
             text_color: 0xFFFFFF
 
         - label:
@@ -95,7 +95,7 @@ widgets:
               - label:
                   align: CENTER
                   text: "SETPOINTS"
-                  text_font: montserrat_16
+                  text_font: font_16
 
             on_short_click:
               - lambda: |-
@@ -132,7 +132,7 @@ widgets:
             align: TOP_MID
             y: 53
             text: "--.-- kW"
-            text_font: montserrat_28
+            text_font: font_28
             text_color: 0xFFFFFF
 
         - label:
@@ -206,7 +206,7 @@ widgets:
               - label:
                   align: CENTER
                   text: "SETPOINTS"
-                  text_font: montserrat_16
+                  text_font: font_16
 
             on_short_click:
               - lambda: |-
@@ -319,7 +319,7 @@ widgets:
                   id: ui_dashboard_power_button_label
                   align: CENTER
                   text: "START CHARGER"
-                  text_font: montserrat_16
+                  text_font: font_16
 
             on_short_click:
               - if:
@@ -364,7 +364,7 @@ widgets:
             align: TOP_MID
             y: 53
             text: "--.- %"
-            text_font: montserrat_32
+            text_font: font_32
             text_color: 0xFFFFFF
 
         - label:
@@ -434,5 +434,5 @@ widgets:
             width: 169
             text_align: CENTER
             text: "HA OFFLINE"
-            text_font: montserrat_18
+            text_font: font_18
             text_color: 0x8B96A0

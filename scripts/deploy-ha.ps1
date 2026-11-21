@@ -17,6 +17,7 @@ $ProjectFile = "r4875g1-3phase-charger.yaml"
 $HmiProjectFile = "r4875g1-remote-hmi.yaml"
 
 $VersionFile = "packages/version.yaml"
+$WaveshareBaseUrl = "https://github.com/anwa/waveshare-esphome-base"
 $RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $Timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
 
@@ -64,9 +65,12 @@ function Get-ManagedFiles {
 
     $managedFiles = @()
 
-    # Home Assistant needs the ESPHome YAML package tree.
+    # Home Assistant needs the ESPHome YAML package tree. Generated
+    # *.local.yaml files point at a local working tree of the shared Waveshare
+    # base and are never deployed.
     $managedFiles += @(
         Get-ChildItem -LiteralPath $packageRoot -File -Recurse -Filter "*.yaml" |
+            Where-Object { $_.Name -notlike "*.local.yaml" } |
             Sort-Object FullName |
             ForEach-Object {
                 [System.IO.Path]::GetRelativePath(
@@ -76,25 +80,45 @@ function Get-ManagedFiles {
             }
     )
 
-    # Additional ESPHome source/include files required by the deployed configuration.
-    $extraFiles = @(
-        "trend_helpers.h"
-    )
-
-    foreach ($relativePath in $extraFiles) {
-        $fullPath = Join-Path $RepoRoot $relativePath
-
-        if (-not (Test-Path -LiteralPath $fullPath -PathType Leaf)) {
-            throw "Required deployment file is missing: $relativePath"
-        }
-
-        $managedFiles += $relativePath
-    }
-
     return @(
         $managedFiles |
             Sort-Object -Unique
     )
+}
+
+function Assert-PublishedBaseRef([string[]]$ProjectPaths) {
+    # The ESPHome add-on loads the shared Waveshare base from GitHub, so both
+    # targets must pin the same base release tag and it must be published.
+    $refs = @(
+        foreach ($projectPath in $ProjectPaths) {
+            $match =
+                Select-String `
+                    -LiteralPath $projectPath `
+                    -Pattern '^\s+waveshare_base_ref:\s*["'']?(v[0-9A-Za-z.-]+)["'']?\s*(?:#.*)?$' |
+                    Select-Object -First 1
+
+            if (-not $match) {
+                throw "Expected one literal waveshare_base_ref substitution in $projectPath."
+            }
+
+            $match.Matches[0].Groups[1].Value
+        }
+    )
+
+    $uniqueRefs = @($refs | Sort-Object -Unique)
+
+    if ($uniqueRefs.Count -ne 1) {
+        throw "Both targets must pin the same waveshare_base_ref: $($uniqueRefs -join ', ')"
+    }
+
+    $ref = $uniqueRefs[0]
+    $remote = (& git ls-remote --tags $WaveshareBaseUrl "refs/tags/$ref" 2>$null) -join ""
+
+    if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($remote)) {
+        throw "Waveshare base tag $ref is not published at $WaveshareBaseUrl."
+    }
+
+    return $ref
 }
 
 function Get-RemoteManagedPath([string]$RelativePath, [string]$NodeName) {
@@ -113,15 +137,7 @@ function Get-RemoteManagedPath([string]$RelativePath, [string]$NodeName) {
         return "packages/$NodeName/$packageRelativePath"
     }
 
-    # Shared repository-root include files remain in the deployment root.
-    #
-    # ESPHome resolves esphome.includes paths relative to the root configuration
-    # directory, including includes declared by package YAML files.
-    #
-    #   trend_helpers.h
-    #       ->
-    #   trend_helpers.h
-    #
+    # Any other managed file keeps its repository-relative path.
     return $normalized
 }
 
@@ -152,6 +168,18 @@ function New-DeploymentProjectFile(
     $content = [regex]::Replace(
         $content,
         '(?m)(file:\s*)packages/',
+        "`$1packages/$NodeName/"
+    )
+
+    # The shared Waveshare base entry file is selected through a substitution
+    # and included as !include ${waveshare_base_package}:
+    #
+    #   waveshare_base_package: packages/shared/waveshare-base.yaml
+    #       ->
+    #   waveshare_base_package: packages/<node-name>/shared/waveshare-base.yaml
+    $content = [regex]::Replace(
+        $content,
+        '(?m)^(\s+waveshare_base_package:\s*["'']?)packages/',
         "`$1packages/$NodeName/"
     )
 
@@ -873,6 +901,7 @@ foreach ($relativePath in $ManagedFiles) {
         Get-RemoteManagedPath $relativePath $nodeName
 }
 $version = Get-ProjectVersion
+$baseRef = Assert-PublishedBaseRef @($projectPath, $hmiProjectPath)
 $BackupDir =
     "$RemoteDir/.deploy-backups/$nodeName/$Timestamp"
 $StagingDir =
@@ -882,6 +911,7 @@ $gitInfo = Get-GitInfo
 Write-Host ""
 Write-Host "Source:" -ForegroundColor White
 Write-Host "  Firmware version : $version"
+Write-Host "  Waveshare base   : $baseRef (loaded from GitHub by ESPHome)"
 Write-Host "  Charger name     : $nodeName"
 Write-Host "  Remote HMI name  : $hmiNodeName"
 Write-Host "  Git branch       : $($gitInfo.Branch)"
@@ -938,7 +968,7 @@ if ($DryRun) {
             (
                 $_ -match '!include' -or
                 $_ -match 'file:' -or
-                $_ -match 'trend_helpers'
+                $_ -match 'waveshare_base_package:'
             )
         } |
         ForEach-Object {
@@ -959,7 +989,7 @@ if ($DryRun) {
             (
                 $_ -match '!include' -or
                 $_ -match 'file:' -or
-                $_ -match 'trend_helpers'
+                $_ -match 'waveshare_base_package:'
             )
         } |
         ForEach-Object {
@@ -1144,6 +1174,7 @@ finally {
 Write-Host ""
 Write-Host "Deployment successful" -ForegroundColor Green
 Write-Host "  Firmware version : $version"
+Write-Host "  Waveshare base   : $baseRef (loaded from GitHub by ESPHome)"
 Write-Host "  Charger name     : $nodeName"
 Write-Host "  Remote HMI name  : $hmiNodeName"
 Write-Host "  Charger YAML     : $RemoteProjectFile"

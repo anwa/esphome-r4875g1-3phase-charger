@@ -41,7 +41,7 @@ widgets:
             width: 170
             text_align: CENTER
             text: "--.- °C"
-            text_font: montserrat_24
+            text_font: font_24
             text_color: 0xFFFFFF
 
         - label:
@@ -51,7 +51,7 @@ widgets:
             width: 170
             text_align: CENTER
             text: "--.- %"
-            text_font: montserrat_24
+            text_font: font_24
             text_color: 0xFFFFFF
 
         - label:
@@ -61,7 +61,7 @@ widgets:
             width: 180
             text_align: CENTER
             text: "----.- hPa"
-            text_font: montserrat_24
+            text_font: font_24
             text_color: 0xFFFFFF
 
   # ---------------------------------------------------------------------------
@@ -88,7 +88,7 @@ widgets:
             y: 38
             width: 230
             text: "OFFLINE"
-            text_font: montserrat_14
+            text_font: font_14
             text_color: 0x8B96A0
 
         - label:
@@ -98,7 +98,7 @@ widgets:
             width: 230
             text_align: CENTER
             text: "---- RPM"
-            text_font: montserrat_24
+            text_font: font_24
             text_color: 0xFFFFFF
 
         - label:
@@ -135,7 +135,7 @@ widgets:
             y: 164
             width: 110
             text: "--.- °C"
-            text_font: montserrat_16
+            text_font: font_16
             text_color: 0xDDE3E8
 
         - label:
@@ -145,7 +145,7 @@ widgets:
             width: 110
             text_align: RIGHT
             text: "--"
-            text_font: montserrat_16
+            text_font: font_16
             text_color: 0x8B96A0
 
         - button:
@@ -161,7 +161,7 @@ widgets:
               - label:
                   align: CENTER
                   text: "AUTO"
-                  text_font: montserrat_16
+                  text_font: font_16
 
             on_short_click:
               - script.execute:
@@ -181,7 +181,7 @@ widgets:
               - label:
                   align: CENTER
                   text: "FULL"
-                  text_font: montserrat_16
+                  text_font: font_16
 
             on_short_click:
               - script.execute:
@@ -212,7 +212,7 @@ widgets:
             y: 38
             width: 230
             text: "OFFLINE"
-            text_font: montserrat_14
+            text_font: font_14
             text_color: 0x8B96A0
 
         - label:
@@ -222,7 +222,7 @@ widgets:
             width: 230
             text_align: CENTER
             text: "---- RPM"
-            text_font: montserrat_24
+            text_font: font_24
             text_color: 0xFFFFFF
 
         - label:
@@ -259,7 +259,7 @@ widgets:
             y: 164
             width: 110
             text: "--.- °C"
-            text_font: montserrat_16
+            text_font: font_16
             text_color: 0xDDE3E8
 
         - label:
@@ -269,7 +269,7 @@ widgets:
             width: 110
             text_align: RIGHT
             text: "--"
-            text_font: montserrat_16
+            text_font: font_16
             text_color: 0x8B96A0
 
         - button:
@@ -285,7 +285,7 @@ widgets:
               - label:
                   align: CENTER
                   text: "AUTO"
-                  text_font: montserrat_16
+                  text_font: font_16
 
             on_short_click:
               - script.execute:
@@ -305,7 +305,7 @@ widgets:
               - label:
                   align: CENTER
                   text: "FULL"
-                  text_font: montserrat_16
+                  text_font: font_16
 
             on_short_click:
               - script.execute:
@@ -336,7 +336,7 @@ widgets:
             y: 38
             width: 230
             text: "OFFLINE"
-            text_font: montserrat_14
+            text_font: font_14
             text_color: 0x8B96A0
 
         - label:
@@ -346,7 +346,7 @@ widgets:
             width: 230
             text_align: CENTER
             text: "---- RPM"
-            text_font: montserrat_24
+            text_font: font_24
             text_color: 0xFFFFFF
 
         - label:
@@ -383,7 +383,7 @@ widgets:
             y: 164
             width: 110
             text: "--.- °C"
-            text_font: montserrat_16
+            text_font: font_16
             text_color: 0xDDE3E8
 
         - label:
@@ -393,7 +393,7 @@ widgets:
             width: 110
             text_align: RIGHT
             text: "--"
-            text_font: montserrat_16
+            text_font: font_16
             text_color: 0x8B96A0
 
         - button:
@@ -409,7 +409,7 @@ widgets:
               - label:
                   align: CENTER
                   text: "AUTO"
-                  text_font: montserrat_16
+                  text_font: font_16
 
             on_short_click:
               - script.execute:
@@ -429,7 +429,7 @@ widgets:
               - label:
                   align: CENTER
                   text: "FULL"
-                  text_font: montserrat_16
+                  text_font: font_16
 
             on_short_click:
               - script.execute:

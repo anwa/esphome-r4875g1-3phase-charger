@@ -46,8 +46,8 @@ packages/
 │   ├── battery-ui-unit-backend.yaml
 │   ├── core.yaml
 │   ├── local-diagnostics.yaml
-│   ├── hardware.yaml
-│   └── ui-model.yaml
+│   ├── ui-model.yaml
+│   └── waveshare-base.yaml
 │
 ├── controller/
 │   ├── encoder-ui.yaml
@@ -77,9 +77,6 @@ packages/
 ├── display/
 │   ├── ui-state.yaml
 │   ├── trend-state.yaml
-│   ├── chart-support.yaml
-│   ├── homeassistant-motion.yaml
-│   ├── header-ui.yaml
 │   ├── dashboard-ui.yaml
 │   ├── dashboard-command-state.yaml
 │   ├── rectifiers-ui.yaml
@@ -95,8 +92,6 @@ packages/
 │   ├── shared-system.yaml
 │   ├── shared-trends.yaml
 │   ├── shared-navigation.yaml
-│   ├── hardware.yaml
-│   ├── theme.yaml
 │   ├── header.yaml
 │   ├── command-state.yaml
 │   ├── battery.yaml
@@ -108,7 +103,6 @@ packages/
 │   ├── trends.yaml
 │   ├── shared-hmi.yaml
 │   ├── shared-dashboard.yaml
-│   ├── local-battery-header.yaml
 │   │
 │   └── pages/
 │       ├── dashboard.yaml
@@ -139,10 +133,12 @@ The main ownership boundaries are:
 
 ```text
 shared/core.yaml
-    target-neutral ESP32-S3 platform and network services
+    target-neutral network services
 
-shared/hardware.yaml
-    target-neutral Waveshare board peripherals
+shared/waveshare-base.yaml
+    loads the shared Waveshare base: ESP32-S3 platform, board peripherals,
+    display, LVGL, backup battery, fonts, theme, header frame, navigation
+    geometry, chart support and the Home Assistant motion source
 
 shared/local-diagnostics.yaml
     target-local network, ESP32 and runtime diagnostics shared by both V6 targets
@@ -237,15 +233,6 @@ display/ui-state.yaml
 display/trend-state.yaml
     shared local 60-minute HMI trend history sampled from the target-neutral UI model
 
-display/chart-support.yaml
-    shared LVGL chart build support used by both V6 HMI targets
-
-display/homeassistant-motion.yaml
-    optional target-specific Home Assistant motion source for shared display activity
-
-display/header-ui.yaml
-    shared persistent header layout
-
 display/dashboard-ui.yaml
     shared Dashboard page and Dashboard-specific dialogs
 
@@ -256,7 +243,7 @@ display/command-state.yaml
     shared per-rectifier START/STOP pending-state resolution
 
 display/shared-hmi.yaml
-    shared display infrastructure, chart support, persistent header, trend history and presentation state
+    shared presentation state, header runtime and trend history
 
 display/shared-dashboard.yaml
     shared Dashboard presentation and runtime consumed by both V6 firmware targets
@@ -309,9 +296,6 @@ display/fallback-dialog.yaml
 display/rectifier-power-dialogs.yaml
     parameterized shared per-unit START/STOP dialogs
 
-display/local-battery-header.yaml
-    shared local display-controller backup-battery header runtime
-
 display/pages/*.yaml
     static LVGL page layouts
 
@@ -341,12 +325,10 @@ Documentation-only and repository-cleanup commits do not require a firmware vers
 
 ## `shared/core.yaml`
 
-Owns target-neutral ESP32-S3 platform and network infrastructure shared by the Charger Controller and Remote HMI.
+Owns target-neutral network infrastructure shared by the Charger Controller and Remote HMI. The ESP32-S3 platform, framework, flash and PSRAM configuration come from the shared Waveshare base.
 
 Responsibilities include:
 
-- ESP32-S3 platform and framework configuration
-- Flash and PSRAM configuration
 - logging
 - Wi-Fi
 - ESPHome native API
@@ -378,18 +360,22 @@ The diagnostics describe the ESP32 running the current firmware target. They do 
 
 ---
 
-## `shared/hardware.yaml`
+## `shared/waveshare-base.yaml`
 
-Owns physical Waveshare ESP32-S3-Touch-LCD-7 hardware that is independent of the charger-side backend.
+Loads the shared base [waveshare-esphome-base](https://github.com/anwa/waveshare-esphome-base) and its `waveshare_ui` C++ component at the release pinned by `waveshare_base_ref` in both root configurations. The root configurations include it through the `waveshare_base_package` substitution, so a local working tree of the base can be selected during development.
 
-Responsibilities include:
+The base owns the Waveshare ESP32-S3-Touch-LCD-7 hardware that is independent of the charger-side backend:
 
-- onboard I2C bus
-- GT911 touchscreen
-- CH422G onboard I/O expander
+- ESP32-S3 platform, flash and PSRAM configuration
+- onboard I2C bus (`board_i2c`) and CH422G I/O expander (`io_expander`)
+- GT911 touchscreen, RGB display, backlight and LVGL, including the display idle timeout and the wake-only first touch
 - local display-controller backup-battery ADC and SOC estimate
+- Roboto fonts `font_14` to `font_48`, the dark theme and the named styles
+- the persistent header frame with title, version, clock, battery reading and status slot
+- the bottom navigation geometry and native LVGL chart support
+- the optional Home Assistant motion source, composed by both targets
 
-This package contains board hardware that can be reused by multiple firmware targets without requiring charger-side peripherals. Local backup-battery entity names use the target's `diagnostics_device_label`, while the internal runtime IDs remain target-neutral.
+Local backup-battery entity names use `battery_entity_prefix`, which both targets set to their `diagnostics_device_label`. The internal runtime IDs remain target-neutral. The base README documents every provided ID, style, font and substitution.
 
 ---
 
@@ -547,7 +533,7 @@ ESP32-S3
     └── EMC2101 @ 0x4C
 ```
 
-The onboard I2C bus is configured in `shared/hardware.yaml`. The charger-side external I2C bus and MCP23017 are configured in `controller/hardware.yaml`. The BME280 environment sensor is configured in `controller/environment.yaml`, while the EMC2101 fan controller is configured in `cooling.yaml`.
+The onboard I2C bus is configured by the shared Waveshare base. The charger-side external I2C bus and MCP23017 are configured in `controller/hardware.yaml`. The BME280 environment sensor is configured in `controller/environment.yaml`, while the EMC2101 fan controller is configured in `cooling.yaml`.
 
 ### Charger Controller Local I/O Allocation
 
@@ -941,53 +927,17 @@ It should contain package composition rather than page logic.
 
 ---
 
-## `display/hardware.yaml`
-
-Owns the Waveshare RGB display, backlight and LVGL hardware integration shared by both V6 targets.
-
-Responsibilities include:
-
-- 800 × 480 RGB panel configuration
-- framebuffer configuration
-- LVGL display binding
-- shared touchscreen binding
-- backlight control
-- boot-time display/LVGL ordering behind network recovery services
-
-The physical GT911 touchscreen is owned by `shared/hardware.yaml`; `display/hardware.yaml` binds that shared touchscreen to LVGL.
-
-The RGB display and LVGL use explicit setup priorities below Wi-Fi and the API/OTA services. This allows networking to reserve scarce internal and DMA-capable memory before the display stack starts while preserving the required display-before-LVGL dependency.
-
----
-
-## `display/theme.yaml`
-
-Owns reusable presentation definitions including:
-
-- fonts
-- card styles
-- page styles
-- header styles
-- navigation styles
-- common LVGL defaults
-
-It should not own live telemetry or control-state logic.
-
----
-
 ## `display/shared-hmi.yaml`
 
-Owns common display infrastructure and persistent presentation state used by all shared pages.
+Owns persistent presentation state used by all shared pages.
 
 Responsibilities include:
 
-- RGB display/LVGL integration
-- shared theme
-- native LVGL chart support
 - active-page and presentation state
 - local sixty-minute trend-history state
-- persistent shared header
-- local display-controller backup-battery presentation
+- the V6 header runtime
+
+Display hardware, LVGL, theme, fonts, chart support, the header frame and the backup-battery presentation come from the shared Waveshare base.
 
 Page-specific layout and runtime remain in the corresponding `shared-*.yaml` composition packages.
 
@@ -1008,22 +958,20 @@ Trends
 
 Rectifier Detail remains a hierarchical child page and is not a seventh main-navigation item.
 
+Button size and positions follow the navigation geometry of the shared Waveshare base for six buttons.
+
 ---
 
 # Persistent Display Runtime
 
 ## `display/header.yaml`
 
-Updates the persistent shared header independently of the active page.
+Updates the V6-specific parts of the persistent header and navigation independently of the active page:
 
-Typical header information includes:
+- the charger run state in the base header's status slot (`ui_header_status`)
+- the selected state of the bottom navigation button that matches `ui_active_page`; the Rectifier detail view marks the Rectifiers button
 
-- date/time
-- firmware identity
-- charger run state
-- local display-controller backup-battery indication
-
-The Remote HMI adds its Home Assistant connectivity state through the target-specific `remote-hmi/connection-status.yaml` fragment.
+The shared Waveshare base renders the header frame, the firmware version, the clock and the local backup-battery reading. The Remote HMI adds its Home Assistant connectivity state through the target-specific `remote-hmi/connection-status.yaml` fragment.
 
 ---
 
@@ -1034,14 +982,6 @@ Owns asynchronous per-rectifier START/STOP transition display state.
 Pending command state remains active even if the user leaves the page where the command originated.
 
 This prevents command-completion handling from depending on one visible page.
-
----
-
-## `display/local-battery-header.yaml`
-
-Updates the local Waveshare display-controller backup-battery presentation shared by both targets.
-
-Battery values change slowly and therefore use an independent low-rate refresh rather than being tied to faster page runtimes.
 
 ---
 
@@ -1057,7 +997,7 @@ Shared display infrastructure and persistent state are owned separately by `disp
 
 Composes the shared Trends page presentation and native chart runtime for both firmware targets.
 
-Trend history and native chart build support remain owned by `display/shared-hmi.yaml` through `trend-state.yaml` and `chart-support.yaml`.
+Trend history remains owned by `display/shared-hmi.yaml` through `trend-state.yaml`; native chart build support comes from the shared Waveshare base.
 
 ---
 
@@ -1141,7 +1081,7 @@ Updates target-local diagnostics and shared rectifier status including:
 - memory information
 - rectifier connectivity state
 
-Local display-controller battery values are updated separately by `display/local-battery-header.yaml`.
+The local display-controller battery reading in the header is updated by the shared Waveshare base.
 
 ---
 
@@ -1161,11 +1101,7 @@ The display runtime:
 - populates one or two LVGL series depending on the active trend
 - renders unavailable samples as gaps
 
-Native LVGL chart support is enabled by `display/chart-support.yaml`; the helper declarations remain in:
-
-```text
-../trend_helpers.h
-```
+Native LVGL chart support is enabled by the shared Waveshare base.
 
 ---
 

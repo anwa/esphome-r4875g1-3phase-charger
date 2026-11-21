@@ -53,7 +53,7 @@ lvgl:
                       width: 420
                       text_align: CENTER
                       text: "AC SETPOINTS"
-                      text_font: montserrat_20
+                      text_font: font_20
                       text_color: 0xFFFFFF
 
                   # AC current limit
@@ -73,7 +73,7 @@ lvgl:
                             x: 0
                             width: 115
                             text: "Current Limit"
-                            text_font: montserrat_16
+                            text_font: font_16
                             text_color: 0x8B96A0
 
                         - button:
@@ -85,7 +85,7 @@ lvgl:
                               - label:
                                   align: CENTER
                                   text: "-"
-                                  text_font: montserrat_20
+                                  text_font: font_20
 
                             on_press:
                               - lvgl.spinbox.decrement:
@@ -122,7 +122,7 @@ lvgl:
                               - label:
                                   align: CENTER
                                   text: "+"
-                                  text_font: montserrat_20
+                                  text_font: font_20
 
                             on_press:
                               - lvgl.spinbox.increment:
@@ -143,7 +143,7 @@ lvgl:
                         - label:
                             align: CENTER
                             text: "CANCEL"
-                            text_font: montserrat_16
+                            text_font: font_16
 
                       on_short_click:
                         - lvgl.widget.hide: ui_ac_setpoints_dialog
@@ -160,7 +160,7 @@ lvgl:
                         - label:
                             align: CENTER
                             text: "SAVE"
-                            text_font: montserrat_16
+                            text_font: font_16
 
                       on_short_click:
                         - script.execute:
@@ -206,7 +206,7 @@ lvgl:
                       width: 420
                       text_align: CENTER
                       text: "DC SETPOINTS"
-                      text_font: montserrat_20
+                      text_font: font_20
                       text_color: 0xFFFFFF
 
                   # DC voltage limit
@@ -226,7 +226,7 @@ lvgl:
                             x: 0
                             width: 115
                             text: "Voltage Limit"
-                            text_font: montserrat_16
+                            text_font: font_16
                             text_color: 0x8B96A0
 
                         - button:
@@ -238,7 +238,7 @@ lvgl:
                               - label:
                                   align: CENTER
                                   text: "-"
-                                  text_font: montserrat_20
+                                  text_font: font_20
 
                             on_press:
                               - lvgl.spinbox.decrement:
@@ -275,7 +275,7 @@ lvgl:
                               - label:
                                   align: CENTER
                                   text: "+"
-                                  text_font: montserrat_20
+                                  text_font: font_20
 
                             on_press:
                               - lvgl.spinbox.increment:
@@ -302,7 +302,7 @@ lvgl:
                             x: 0
                             width: 115
                             text: "Sum Power"
-                            text_font: montserrat_16
+                            text_font: font_16
                             text_color: 0x8B96A0
 
                         - button:
@@ -314,7 +314,7 @@ lvgl:
                               - label:
                                   align: CENTER
                                   text: "-"
-                                  text_font: montserrat_20
+                                  text_font: font_20
 
                             on_press:
                               - lvgl.spinbox.decrement:
@@ -351,7 +351,7 @@ lvgl:
                               - label:
                                   align: CENTER
                                   text: "+"
-                                  text_font: montserrat_20
+                                  text_font: font_20
 
                             on_press:
                               - lvgl.spinbox.increment:
@@ -372,7 +372,7 @@ lvgl:
                         - label:
                             align: CENTER
                             text: "CANCEL"
-                            text_font: montserrat_16
+                            text_font: font_16
 
                       on_short_click:
                         - lvgl.widget.hide: ui_dc_setpoints_dialog
@@ -389,7 +389,7 @@ lvgl:
                         - label:
                             align: CENTER
                             text: "SAVE"
-                            text_font: montserrat_16
+                            text_font: font_16
 
                       on_short_click:
                         - script.execute:
@@ -441,7 +441,7 @@ lvgl:
                       width: 420
                       text_align: CENTER
                       text: "START CHARGER"
-                      text_font: montserrat_20
+                      text_font: font_20
                       text_color: 0xFFFFFF
 
                   - label:
@@ -450,7 +450,7 @@ lvgl:
                       width: 390
                       text_align: CENTER
                       text: "Start all available and ready rectifier units?\n\nSafety checks are applied individually before startup."
-                      text_font: montserrat_18
+                      text_font: font_18
                       text_color: 0xDDE3E8
 
                   - button:
@@ -464,7 +464,7 @@ lvgl:
                         - label:
                             align: CENTER
                             text: "CANCEL"
-                            text_font: montserrat_16
+                            text_font: font_16
                             text_color: 0xFFFFFF
 
                       on_click:
@@ -482,7 +482,7 @@ lvgl:
                         - label:
                             align: CENTER
                             text: "START"
-                            text_font: montserrat_16
+                            text_font: font_16
                             text_color: 0xFFFFFF
 
                       on_click:
@@ -537,7 +537,7 @@ lvgl:
                       width: 420
                       text_align: CENTER
                       text: "STOP CHARGER"
-                      text_font: montserrat_20
+                      text_font: font_20
                       text_color: 0xFFFFFF
 
                   - label:
@@ -546,7 +546,7 @@ lvgl:
                       width: 390
                       text_align: CENTER
                       text: "Stop all rectifier units?"
-                      text_font: montserrat_18
+                      text_font: font_18
                       text_color: 0xDDE3E8
 
                   - button:
@@ -560,7 +560,7 @@ lvgl:
                         - label:
                             align: CENTER
                             text: "CANCEL"
-                            text_font: montserrat_16
+                            text_font: font_16
                             text_color: 0xFFFFFF
 
                       on_click:
@@ -578,7 +578,7 @@ lvgl:
                         - label:
                             align: CENTER
                             text: "STOP"
-                            text_font: montserrat_16
+                            text_font: font_16
                             text_color: 0xFFFFFF
 
                       on_click:

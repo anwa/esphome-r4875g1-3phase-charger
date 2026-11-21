@@ -18,7 +18,7 @@ lvgl:
           width: 55
           text_align: CENTER
           text: "HA OFF"
-          text_font: montserrat_14
+          text_font: font_14
           text_color: 0xFFC04A
 
 interval:

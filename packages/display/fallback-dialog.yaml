@@ -46,7 +46,7 @@ lvgl:
                       width: 420
                       text_align: CENTER
                       text: "FALLBACK SETTINGS"
-                      text_font: montserrat_20
+                      text_font: font_20
                       text_color: 0xFFFFFF
 
                   # -------------------------------------------------------------------
@@ -70,7 +70,7 @@ lvgl:
                             x: 0
                             width: 115
                             text: "DC Voltage"
-                            text_font: montserrat_16
+                            text_font: font_16
                             text_color: 0x8B96A0
 
                         - button:
@@ -82,7 +82,7 @@ lvgl:
                               - label:
                                   align: CENTER
                                   text: "-"
-                                  text_font: montserrat_20
+                                  text_font: font_20
 
                             on_press:
                               - lvgl.spinbox.decrement:
@@ -119,7 +119,7 @@ lvgl:
                               - label:
                                   align: CENTER
                                   text: "+"
-                                  text_font: montserrat_20
+                                  text_font: font_20
 
                             on_press:
                               - lvgl.spinbox.increment:
@@ -150,7 +150,7 @@ lvgl:
                             x: 0
                             width: 115
                             text: "DC Current"
-                            text_font: montserrat_16
+                            text_font: font_16
                             text_color: 0x8B96A0
 
                         - button:
@@ -162,7 +162,7 @@ lvgl:
                               - label:
                                   align: CENTER
                                   text: "-"
-                                  text_font: montserrat_20
+                                  text_font: font_20
 
                             on_press:
                               - lvgl.spinbox.decrement:
@@ -199,7 +199,7 @@ lvgl:
                               - label:
                                   align: CENTER
                                   text: "+"
-                                  text_font: montserrat_20
+                                  text_font: font_20
 
                             on_press:
                               - lvgl.spinbox.increment:
@@ -223,7 +223,7 @@ lvgl:
                         - label:
                             align: CENTER
                             text: "CANCEL"
-                            text_font: montserrat_16
+                            text_font: font_16
 
                       on_short_click:
                         - lvgl.widget.hide: ui_fallback_dialog
@@ -239,7 +239,7 @@ lvgl:
                         - label:
                             align: CENTER
                             text: "SAVE"
-                            text_font: montserrat_16
+                            text_font: font_16
 
                       on_short_click:
                         - script.execute:
