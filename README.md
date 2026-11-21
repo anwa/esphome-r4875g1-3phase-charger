@@ -357,15 +357,16 @@ conversion efficiency
 charger START/STOP state
 solar battery-bank SOC
 solar battery-bank power
+total PV power
+external charger output power
 solar battery-bank voltage
-solar battery-bank current
 solar battery-bank temperature
 solar battery-bank operating state
 ```
 
 AC and DC setpoints are edited through dedicated modal dialogs opened from the corresponding Dashboard cards.
 
-Solar battery-bank information is imported from Home Assistant for monitoring only. Missing Home Assistant battery telemetry is shown explicitly and does not affect charger control or safety behavior.
+Solar battery-bank information, the total PV power and the output power of a separate charger are imported from Home Assistant for monitoring only. Missing Home Assistant battery telemetry is shown explicitly and does not affect charger control or safety behavior.
 
 ### Rectifiers
 
@@ -642,7 +643,6 @@ The imported aggregate bank data includes:
 
 ```text
 voltage
-current
 power
 state of charge
 temperature
@@ -661,6 +661,8 @@ cell drift
 warning state
 fault state
 ```
+
+The same package imports the total PV power (`sensor.pv_power_summe`) and the output power of a separate charger (`sensor.t2hg_output`) for the Dashboard battery-bank card; both report watts and are normalized to kilowatts.
 
 The Home Assistant battery-bank and individual battery power entities are normalized internally from watts to kilowatts.
 

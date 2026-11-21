@@ -276,19 +276,35 @@ interval:
                   );
 
             # ---------------------------------------------------------------------------
-            # BATTERY BANK CURRENT
+            # PV POWER
             # ---------------------------------------------------------------------------
 
             - lvgl.label.update:
-                id: ui_dashboard_battery_current
+                id: ui_dashboard_pv_power
                 text: !lambda |-
-                  if (!id(ui_model_battery_data_available).state) {
-                    return std::string("--.- A");
+                  if (isnan(id(ui_model_pv_power).state)) {
+                    return std::string("--.--- kW");
                   }
 
                   return str_sprintf(
-                    "%.1f A",
-                    id(ui_model_battery_current).state
+                    "%.3f kW",
+                    id(ui_model_pv_power).state
+                  );
+
+            # ---------------------------------------------------------------------------
+            # EXTERNAL CHARGER POWER
+            # ---------------------------------------------------------------------------
+
+            - lvgl.label.update:
+                id: ui_dashboard_external_charger_power
+                text: !lambda |-
+                  if (isnan(id(ui_model_external_charger_power).state)) {
+                    return std::string("--.--- kW");
+                  }
+
+                  return str_sprintf(
+                    "%.3f kW",
+                    id(ui_model_external_charger_power).state
                   );
 
             # ---------------------------------------------------------------------------

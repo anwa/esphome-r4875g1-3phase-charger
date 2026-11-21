@@ -43,7 +43,7 @@ substitutions:
   # `esphome -s waveshare_base_package <file>`.
   # ---------------------------------------------------------------------------
 
-  waveshare_base_ref: v1.0.0
+  waveshare_base_ref: v1.0.1
   waveshare_base_package: packages/shared/waveshare-base.yaml
 
   ui_header_title: "R4875 Charger"
