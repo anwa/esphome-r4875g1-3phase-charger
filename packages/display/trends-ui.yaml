@@ -6,7 +6,7 @@
 # targets.
 #
 # Trend history is owned by display/trend-state.yaml, native chart support by
-# display/chart-support.yaml and shared bottom navigation by
+# the shared Waveshare base and shared bottom navigation by
 # display/shared-navigation.yaml.
 # ==============================================================================
 

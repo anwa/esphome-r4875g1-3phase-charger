@@ -41,7 +41,7 @@ widgets:
             width: 169
             text_align: CENTER
             text: "HA OFFLINE"
-            text_font: montserrat_18
+            text_font: font_18
             text_color: 0x8B96A0
 
         - label:
@@ -189,7 +189,7 @@ widgets:
             width: 169
             text_align: CENTER
             text: "HA OFFLINE"
-            text_font: montserrat_18
+            text_font: font_18
             text_color: 0x8B96A0
 
         - label:
@@ -337,7 +337,7 @@ widgets:
             width: 169
             text_align: CENTER
             text: "HA OFFLINE"
-            text_font: montserrat_18
+            text_font: font_18
             text_color: 0x8B96A0
 
         - label:
@@ -485,7 +485,7 @@ widgets:
             width: 169
             text_align: CENTER
             text: "HA OFFLINE"
-            text_font: montserrat_18
+            text_font: font_18
             text_color: 0x8B96A0
 
         - label:

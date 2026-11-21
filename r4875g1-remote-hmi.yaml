@@ -34,6 +34,23 @@ substitutions:
 
 
   # ---------------------------------------------------------------------------
+  # SHARED WAVESHARE BASE
+  # ---------------------------------------------------------------------------
+  #
+  # waveshare_base_ref pins the base release. waveshare_base_package selects
+  # the package entry file; scripts/use-local-base.ps1 of the base repository
+  # generates a local alternative for development, selected with
+  # `esphome -s waveshare_base_package <file>`.
+  # ---------------------------------------------------------------------------
+
+  waveshare_base_ref: v1.0.0
+  waveshare_base_package: packages/shared/waveshare-base.yaml
+
+  ui_header_title: "R4875 Charger"
+  ui_nav_count: "6"
+  battery_entity_prefix: ${diagnostics_device_label}
+
+  # ---------------------------------------------------------------------------
   # PAIRED CHARGER
   # ---------------------------------------------------------------------------
   #
@@ -45,15 +62,6 @@ substitutions:
   # ---------------------------------------------------------------------------
 
   ha_charger_entity_prefix: "hg_dg_technik_charger"
-
-  # ---------------------------------------------------------------------------
-  # SHARED WAVESHARE GPIO MAP
-  # ---------------------------------------------------------------------------
-
-  pin_touch_irq: "GPIO4"
-  pin_i2c_sda: "GPIO8"
-  pin_i2c_scl: "GPIO9"
-  pin_battery_adc: "GPIO6"
 
   # ---------------------------------------------------------------------------
   # DISPLAY DEFAULTS
@@ -77,9 +85,9 @@ packages:
   version: !include packages/version.yaml
   shared_ui_contract: !include packages/shared/ui-contract.yaml
 
+  waveshare_base: !include ${waveshare_base_package}
   shared_core: !include packages/shared/core.yaml
   shared_local_diagnostics: !include packages/shared/local-diagnostics.yaml
-  shared_hardware: !include packages/shared/hardware.yaml
   shared_ui_model: !include packages/shared/ui-model.yaml
   shared_ui_rectifier_1: !include
     file: packages/shared/ui-rectifier-unit.yaml
@@ -182,13 +190,6 @@ packages:
   display_shared_system: !include packages/display/shared-system.yaml
   display_shared_trends: !include packages/display/shared-trends.yaml
   display_shared_navigation: !include packages/display/shared-navigation.yaml
-
-  # Optional target-specific Home Assistant motion source for display activity.
-  # Remove this package entry to use only the original touch/idle behavior.
-  display_motion: !include
-    file: packages/display/homeassistant-motion.yaml
-    vars:
-      display_motion_entity: ${display_motion_entity}
 
   remote_connection_status: !include packages/remote-hmi/connection-status.yaml
 

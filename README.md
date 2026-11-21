@@ -313,6 +313,10 @@ This allows a partially available charger to remain controllable while preventin
 
 The controller uses the Waveshare 7-inch 800 × 480 RGB display with GT911 capacitive touch.
 
+Board, display, touch, backlight, LVGL, the local backup battery, the Roboto fonts, the dark theme, the persistent header frame and the navigation geometry come from the shared base [waveshare-esphome-base](https://github.com/anwa/waveshare-esphome-base), which all Waveshare HMIs of the maintainer use. See [Shared Waveshare Base](#shared-waveshare-base).
+
+The bottom navigation marks the button of the active page. The Rectifier detail view keeps the Rectifiers button marked.
+
 The display backlight is automatically disabled after the target-specific LVGL idle timeout while charger control and telemetry continue running normally. Touching and releasing the sleeping touchscreen always wakes the display without activating the control underneath the wake-up touch.
 
 Each V6 target may optionally import its own Home Assistant occupancy/motion entity. Active motion wakes the display immediately and keeps the existing LVGL inactivity timer alive. When motion ends, the same configured idle timeout starts again. If no motion package is composed for a target, the original touch and idle-timeout behavior is unchanged. Home Assistant `unknown`, `unavailable` or connection loss is treated as no motion.
@@ -691,7 +695,6 @@ The V6 generation is assembled from two root configurations plus shared and targ
 ```text
 r4875g1-3phase-charger.yaml
 r4875g1-remote-hmi.yaml
-trend_helpers.h
 
 packages/
 ├── version.yaml
@@ -703,7 +706,7 @@ packages/
 │
 ├── shared/
 │   ├── core.yaml
-│   ├── hardware.yaml
+│   ├── waveshare-base.yaml
 │   ├── local-diagnostics.yaml
 │   ├── ui-model.yaml
 │   ├── ui-contract.yaml
@@ -743,8 +746,8 @@ packages/
 | Package | Responsibility |
 | --- | --- |
 | `version.yaml` | coordinated V6 firmware version source of truth |
-| `shared/core.yaml` | shared ESP32 platform, network, API, web, OTA and time services |
-| `shared/hardware.yaml` | shared Waveshare board peripherals and local backup-battery monitoring |
+| `shared/core.yaml` | shared network, API, web, OTA and time services |
+| `shared/waveshare-base.yaml` | loads the shared Waveshare base: platform, board peripherals, display, LVGL, backup battery, fonts, theme, header frame, navigation geometry, chart support and motion source |
 | `shared/ui-model.yaml` | target-neutral state consumed by the shared HMI |
 | `shared/battery-monitoring.yaml` | shared Home Assistant solar-battery monitoring and UI-model backends |
 | `controller/hardware.yaml` | Charger Controller CAN, external I2C and charger-side hardware |
@@ -756,13 +759,12 @@ packages/
 | `controls.yaml` | charger-wide user setpoints and controls |
 | `cooling.yaml` | Charger Controller external chassis-fan control and RPM monitoring |
 | `display.yaml` | Charger Controller aggregation of the shared display packages |
-| `display/shared-hmi.yaml` | shared display infrastructure, presentation state, header and local trend history |
+| `display/shared-hmi.yaml` | shared presentation state, header runtime and local trend history |
 | `display/shared-*.yaml` | shared page presentation/runtime compositions for both V6 targets |
 | `display/shared-navigation.yaml` | shared six-page bottom navigation |
 | `rectifier-shared.yaml` | shared lifecycle, safety, discovery, CAN scheduling and control |
 | `rectifier-unit.yaml` | parameterized per-unit state and telemetry |
 | `rectifier-can/*.yaml` | parameterized CAN receive handlers |
-| `trend_helpers.h` | native LVGL chart declarations used by the shared Trends runtime |
 
 The detailed ownership model is documented in [`packages/README.md`](packages/README.md).
 
@@ -829,6 +831,19 @@ esphome compile r4875g1-remote-hmi.yaml
 On Windows, `scripts/validate.ps1` runs the same checks with the ESPHome version pinned in `requirements-dev.txt`. Run `scripts/validate.ps1 -Setup` once to create the local `.venv`, then `scripts/validate.ps1` to validate and compile both targets, or `-ConfigOnly` to skip compilation. When no `secrets.yaml` exists, the script creates one from `secrets.example.yaml` with dummy values. Details are in `rules/local-validation.md`.
 
 Changes to shared V6 HMI code or shared target contracts must be validated against both targets. Hardware-dependent behavior should also be tested on the affected physical target after successful compilation.
+
+### Shared Waveshare Base
+
+`waveshare_base_ref` in both root configurations pins the release of [waveshare-esphome-base](https://github.com/anwa/waveshare-esphome-base); both targets must use the same tag. `packages/shared/waveshare-base.yaml` loads the base and its `waveshare_ui` C++ component. ESPHome downloads the base from GitHub at build time, also in the Home Assistant ESPHome add-on, so the pinned tag must be published.
+
+To develop against a local working tree of the base, clone it as `../../waveshare-esphome-base` and run:
+
+```powershell
+..\..\waveshare-esphome-base\scripts\use-local-base.ps1 -Package packages/shared/waveshare-base.yaml
+.\scripts\validate.ps1 -LocalBase
+```
+
+The generated `packages/shared/waveshare-base.local.yaml` is ignored by Git and skipped by `scripts/deploy-ha.ps1`. Validate without `-LocalBase` before committing. `scripts/deploy-ha.ps1` refuses to deploy when the pinned tag is not published.
 
 ---
 

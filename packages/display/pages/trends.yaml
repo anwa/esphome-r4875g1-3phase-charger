@@ -43,7 +43,7 @@ widgets:
         border_width: 0
 
         items:
-          text_font: montserrat_14
+          text_font: font_14
           text_color: 0xDDE3E8
           bg_color: 0x202830
 
@@ -111,7 +111,7 @@ widgets:
             width: 45
             text_align: RIGHT
             text: "--"
-            text_font: montserrat_14
+            text_font: font_14
             text_color: 0x8B96A0
 
         - label:
@@ -121,7 +121,7 @@ widgets:
             width: 45
             text_align: RIGHT
             text: "--"
-            text_font: montserrat_14
+            text_font: font_14
             text_color: 0x8B96A0
 
         - label:
@@ -131,7 +131,7 @@ widgets:
             width: 45
             text_align: RIGHT
             text: "--"
-            text_font: montserrat_14
+            text_font: font_14
             text_color: 0x8B96A0
 
         # Secondary Y-axis labels are shown only by the combined DC I/V trend.
@@ -142,7 +142,7 @@ widgets:
             width: 48
             text_align: LEFT
             text: "--"
-            text_font: montserrat_14
+            text_font: font_14
             text_color: 0x4DB8FF
             hidden: true
 
@@ -153,7 +153,7 @@ widgets:
             width: 48
             text_align: LEFT
             text: "--"
-            text_font: montserrat_14
+            text_font: font_14
             text_color: 0x4DB8FF
             hidden: true
 
@@ -164,7 +164,7 @@ widgets:
             width: 48
             text_align: LEFT
             text: "--"
-            text_font: montserrat_14
+            text_font: font_14
             text_color: 0x4DB8FF
             hidden: true
 
@@ -175,7 +175,7 @@ widgets:
             width: 80
             text_align: LEFT
             text: "-60 min"
-            text_font: montserrat_14
+            text_font: font_14
             text_color: 0x8B96A0
 
         - label:
@@ -184,7 +184,7 @@ widgets:
             width: 80
             text_align: CENTER
             text: "-50 min"
-            text_font: montserrat_14
+            text_font: font_14
             text_color: 0x8B96A0
 
         - label:
@@ -193,7 +193,7 @@ widgets:
             width: 80
             text_align: CENTER
             text: "-40 min"
-            text_font: montserrat_14
+            text_font: font_14
             text_color: 0x8B96A0
 
         - label:
@@ -202,7 +202,7 @@ widgets:
             width: 80
             text_align: CENTER
             text: "-30 min"
-            text_font: montserrat_14
+            text_font: font_14
             text_color: 0x8B96A0
 
         - label:
@@ -211,7 +211,7 @@ widgets:
             width: 80
             text_align: CENTER
             text: "-20 min"
-            text_font: montserrat_14
+            text_font: font_14
             text_color: 0x8B96A0
 
         - label:
@@ -220,7 +220,7 @@ widgets:
             width: 80
             text_align: CENTER
             text: "-10 min"
-            text_font: montserrat_14
+            text_font: font_14
             text_color: 0x8B96A0
 
         - label:
@@ -229,7 +229,7 @@ widgets:
             width: 75
             text_align: RIGHT
             text: "now"
-            text_font: montserrat_14
+            text_font: font_14
             text_color: 0x8B96A0
 
   # ---------------------------------------------------------------------------

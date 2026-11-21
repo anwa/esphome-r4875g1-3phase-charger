@@ -1,0 +1,30 @@
+# ==============================================================================
+# SHARED WAVESHARE BASE
+# ==============================================================================
+#
+# Loads the shared Waveshare ESP32-S3-Touch-LCD-7 base and its waveshare_ui C++
+# component from GitHub at the release pinned by waveshare_base_ref.
+#
+# The base owns the ESP32-S3 platform, PSRAM, the onboard I2C bus, CH422G,
+# GT911 touch, the RGB display and backlight, LVGL with the display idle
+# timeout, the local backup battery, fonts, theme, the persistent header frame,
+# the navigation geometry, chart support and the optional Home Assistant motion
+# source used by both V6 targets.
+#
+# Keep the files list on one line: scripts/use-local-base.ps1 of the base
+# repository reads it to generate the local development alternative.
+#
+# Both targets compose optional/ha-motion.yaml. A target without a motion
+# source needs its own package file without that entry, selected through the
+# target's waveshare_base_package substitution.
+# ==============================================================================
+
+packages:
+  waveshare_base:
+    url: https://github.com/anwa/waveshare-esphome-base
+    ref: ${waveshare_base_ref}
+    files: [base.yaml, optional/ha-motion.yaml]
+
+external_components:
+  - source: github://anwa/waveshare-esphome-base@${waveshare_base_ref}
+    components: [waveshare_ui]

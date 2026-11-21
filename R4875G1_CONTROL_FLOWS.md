@@ -73,8 +73,8 @@ The V6 firmware keeps Charger Controller authority, Remote HMI transport, target
 |---|---|
 | `r4875g1-3phase-charger.yaml` | Charger Controller composition, substitutions, unit instances, identity, boot sequence and aggregate entities |
 | `r4875g1-remote-hmi.yaml` | Remote HMI composition and installation-specific Home Assistant pairing |
-| `packages/shared/core.yaml` | target-neutral ESP32-S3 platform, Wi-Fi, API, web, OTA and time services |
-| `packages/shared/hardware.yaml` | target-neutral Waveshare onboard I2C, CH422G, touch and local backup-battery hardware |
+| `packages/shared/core.yaml` | target-neutral Wi-Fi, API, web, OTA and time services |
+| `packages/shared/waveshare-base.yaml` | loads the shared Waveshare base: ESP32-S3 platform, onboard I2C, CH422G, touch, display, LVGL, local backup-battery hardware and the shared HMI frame |
 | `packages/shared/local-diagnostics.yaml` | target-local ESP32, network and runtime diagnostics shared by both V6 targets |
 | `packages/shared/ui-model.yaml` | target-neutral charger state consumed by shared HMI code |
 | `packages/shared/battery-monitoring.yaml` | shared Home Assistant solar-battery monitoring composition and UI backends |
@@ -360,7 +360,6 @@ This document describes the current V6 implementation from:
 r4875g1-3phase-charger.yaml
 r4875g1-remote-hmi.yaml
 packages/
-trend_helpers.h
 ```
 
 The firmware version is defined only in `packages/version.yaml`.

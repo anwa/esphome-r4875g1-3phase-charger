@@ -38,7 +38,7 @@ widgets:
             x: 10
             y: 43
             text: "OFFLINE"
-            text_font: montserrat_16
+            text_font: font_16
             text_color: 0x8B96A0
 
         - label:
@@ -48,7 +48,7 @@ widgets:
             width: 65
             text_align: RIGHT
             text: "--"
-            text_font: montserrat_16
+            text_font: font_16
             text_color: 0x8B96A0
 
         - label:
@@ -62,7 +62,7 @@ widgets:
             x: 65
             y: 80
             text: "230 V"
-            text_font: montserrat_18
+            text_font: font_18
             text_color: 0xDDE3E8
 
         - label:
@@ -70,7 +70,7 @@ widgets:
             x: 150
             y: 80
             text: "5.2 A"
-            text_font: montserrat_18
+            text_font: font_18
             text_color: 0xDDE3E8
 
         - label:
@@ -84,7 +84,7 @@ widgets:
             x: 65
             y: 120
             text: "53.1 V"
-            text_font: montserrat_18
+            text_font: font_18
             text_color: 0xDDE3E8
 
         - label:
@@ -92,7 +92,7 @@ widgets:
             x: 150
             y: 120
             text: "22.4 A"
-            text_font: montserrat_18
+            text_font: font_18
             text_color: 0xDDE3E8
 
         - label:
@@ -100,7 +100,7 @@ widgets:
             x: 65
             y: 151
             text: "--.-- kW"
-            text_font: montserrat_20
+            text_font: font_20
             text_color: 0xFFFFFF
 
         - label:
@@ -114,7 +114,7 @@ widgets:
             x: 65
             y: 192
             text: "--.- °C"
-            text_font: montserrat_18
+            text_font: font_18
             text_color: 0xDDE3E8
 
         - button:
@@ -129,7 +129,7 @@ widgets:
                   id: ui_rectifier_1_power_button_label
                   align: CENTER
                   text: "UNAVAILABLE"
-                  text_font: montserrat_16
+                  text_font: font_16
 
             on_short_click:
               - if:
@@ -156,7 +156,7 @@ widgets:
               - label:
                   align: CENTER
                   text: "DETAIL"
-                  text_font: montserrat_16
+                  text_font: font_16
 
             on_short_click:
               - lambda: |-
@@ -191,7 +191,7 @@ widgets:
             x: 10
             y: 43
             text: "OFFLINE"
-            text_font: montserrat_16
+            text_font: font_16
             text_color: 0x8B96A0
 
         - label:
@@ -201,7 +201,7 @@ widgets:
             width: 65
             text_align: RIGHT
             text: "--"
-            text_font: montserrat_16
+            text_font: font_16
             text_color: 0x8B96A0
 
         - label:
@@ -215,7 +215,7 @@ widgets:
             x: 65
             y: 80
             text: "--- V"
-            text_font: montserrat_18
+            text_font: font_18
             text_color: 0x8B96A0
 
         - label:
@@ -223,7 +223,7 @@ widgets:
             x: 150
             y: 80
             text: "--.- A"
-            text_font: montserrat_18
+            text_font: font_18
             text_color: 0x8B96A0
 
         - label:
@@ -237,7 +237,7 @@ widgets:
             x: 65
             y: 120
             text: "--.- V"
-            text_font: montserrat_18
+            text_font: font_18
             text_color: 0x8B96A0
 
         - label:
@@ -245,7 +245,7 @@ widgets:
             x: 150
             y: 120
             text: "--.- A"
-            text_font: montserrat_18
+            text_font: font_18
             text_color: 0x8B96A0
 
         - label:
@@ -253,7 +253,7 @@ widgets:
             x: 65
             y: 151
             text: "--.-- kW"
-            text_font: montserrat_20
+            text_font: font_20
             text_color: 0x8B96A0
 
         - label:
@@ -267,7 +267,7 @@ widgets:
             x: 65
             y: 192
             text: "--.- °C"
-            text_font: montserrat_18
+            text_font: font_18
             text_color: 0x8B96A0
 
         - button:
@@ -282,7 +282,7 @@ widgets:
                   id: ui_rectifier_2_power_button_label
                   align: CENTER
                   text: "UNAVAILABLE"
-                  text_font: montserrat_16
+                  text_font: font_16
 
             on_short_click:
               - if:
@@ -309,7 +309,7 @@ widgets:
               - label:
                   align: CENTER
                   text: "DETAIL"
-                  text_font: montserrat_16
+                  text_font: font_16
 
             on_short_click:
               - lambda: |-
@@ -344,7 +344,7 @@ widgets:
             x: 10
             y: 43
             text: "OFFLINE"
-            text_font: montserrat_16
+            text_font: font_16
             text_color: 0x8B96A0
 
         - label:
@@ -354,7 +354,7 @@ widgets:
             width: 65
             text_align: RIGHT
             text: "--"
-            text_font: montserrat_16
+            text_font: font_16
             text_color: 0x8B96A0
 
         - label:
@@ -368,7 +368,7 @@ widgets:
             x: 70
             y: 80
             text: "--- V"
-            text_font: montserrat_18
+            text_font: font_18
             text_color: 0x8B96A0
 
         - label:
@@ -376,7 +376,7 @@ widgets:
             x: 150
             y: 80
             text: "--.- A"
-            text_font: montserrat_18
+            text_font: font_18
             text_color: 0x8B96A0
 
         - label:
@@ -390,7 +390,7 @@ widgets:
             x: 70
             y: 120
             text: "--.- V"
-            text_font: montserrat_18
+            text_font: font_18
             text_color: 0x8B96A0
 
         - label:
@@ -398,7 +398,7 @@ widgets:
             x: 150
             y: 120
             text: "--.- A"
-            text_font: montserrat_18
+            text_font: font_18
             text_color: 0x8B96A0
 
         - label:
@@ -406,7 +406,7 @@ widgets:
             x: 70
             y: 151
             text: "--.-- kW"
-            text_font: montserrat_20
+            text_font: font_20
             text_color: 0x8B96A0
 
         - label:
@@ -420,7 +420,7 @@ widgets:
             x: 70
             y: 192
             text: "--.- °C"
-            text_font: montserrat_18
+            text_font: font_18
             text_color: 0x8B96A0
 
         - button:
@@ -435,7 +435,7 @@ widgets:
                   id: ui_rectifier_3_power_button_label
                   align: CENTER
                   text: "UNAVAILABLE"
-                  text_font: montserrat_16
+                  text_font: font_16
 
             on_short_click:
               - if:
@@ -462,7 +462,7 @@ widgets:
               - label:
                   align: CENTER
                   text: "DETAIL"
-                  text_font: montserrat_16
+                  text_font: font_16
 
             on_short_click:
               - lambda: |-

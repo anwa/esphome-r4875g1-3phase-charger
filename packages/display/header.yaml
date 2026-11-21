@@ -2,26 +2,26 @@
 # PERSISTENT HEADER RUNTIME
 # ==============================================================================
 #
-# Runtime updates for widgets that are permanently visible on every page.
+# Runtime updates for the V6-specific parts of the persistent header and
+# navigation, which stay visible on every page.
 #
-# Refresh rates:
-#   Charger run state -> 500 ms
-#   Clock             -> 10 s
+# The shared Waveshare base renders the header frame, the clock and the local
+# backup-battery reading. This runtime fills the base's status slot with the
+# charger run state and marks the active navigation button.
 #
-# Controller backup-battery voltage is maintained separately by
-# display/controller-battery.yaml.
-# ==============================================================================
-
-
-# ==============================================================================
-# CHARGER RUN STATE
+# Refresh rate: 500 ms
 # ==============================================================================
 
 interval:
   - interval: 500ms
     then:
+
+      # -----------------------------------------------------------------------
+      # CHARGER RUN STATE
+      # -----------------------------------------------------------------------
+
       - lvgl.label.update:
-          id: ui_header_run_state
+          id: ui_header_status
 
           text: !lambda |-
             const float running =
@@ -49,27 +49,40 @@ interval:
                 ? lv_color_hex(0x5CFF7A)
                 : lv_color_hex(0xFF3030);
 
-# ==============================================================================
-# CLOCK
-# ==============================================================================
+      # -----------------------------------------------------------------------
+      # ACTIVE NAVIGATION BUTTON
+      # -----------------------------------------------------------------------
+      #
+      # Derived from ui_active_page so every navigation path, including the
+      # Rectifier detail page opened from the Rectifiers page, marks the
+      # matching bottom button.
+      #
+      # ui_active_page -> button position:
+      #   0 Dashboard        -> 0
+      #   1 Rectifiers       -> 1
+      #   2 Rectifier detail -> 1
+      #   3 Battery          -> 2
+      #   5 System           -> 3
+      #   4 Cooling          -> 4
+      #   6 Trends           -> 5
+      # -----------------------------------------------------------------------
 
-  - interval: 10s
-    then:
-      - lvgl.label.update:
-          id: ui_header_clock
+      - lambda: |-
+          static const int button_for_page[] = {0, 1, 1, 2, 4, 3, 5};
+          const uint8_t page = id(ui_active_page);
+          const int active =
+            page < sizeof(button_for_page) / sizeof(button_for_page[0])
+              ? button_for_page[page]
+              : -1;
 
-          text: !lambda |-
-            auto now = id(sntp_time).now();
-
-            if (!now.is_valid()) {
-              return std::string("--.--.---- --:--");
-            }
-
-            return str_sprintf(
-              "%02d.%02d.%04d  %02d:%02d",
-              now.day_of_month,
-              now.month,
-              now.year,
-              now.hour,
-              now.minute
-            );
+          waveshare_ui::set_active_button(
+            {
+              id(ui_nav_dashboard),
+              id(ui_nav_rectifiers),
+              id(ui_nav_battery),
+              id(ui_nav_system),
+              id(ui_nav_cooling),
+              id(ui_nav_trends)
+            },
+            active
+          );
