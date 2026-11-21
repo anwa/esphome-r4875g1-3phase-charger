@@ -4,19 +4,7 @@ This rule defines how firmware configuration is validated and compiled on a loca
 
 ## Tooling
 
-Local validation uses ESPHome in a project-local Python virtual environment.
-
-The ESPHome version is pinned in:
-
-```text
-requirements-dev.txt
-```
-
-The pinned version SHOULD match the ESPHome version used by the Home Assistant ESPHome add-on that builds the deployed firmware.
-
-The pinned version MUST satisfy the `min_version` declared in the root configurations.
-
-The virtual environment is created in `.venv/` and MUST NOT be committed.
+The toolchain rules (pinned ESPHome version, `.venv`, `min_version`) are inherited from the workspace ESPHome rules. In this repository the ESPHome version is pinned in `requirements-dev.txt`, and both root configurations declare the matching `min_version`.
 
 ## Validation Script
 
@@ -78,18 +66,8 @@ The check proves that names and domains match. It does not check state formats. 
 
 ## Secrets
 
-The real `secrets.yaml` is never committed.
-
-`secrets.example.yaml` contains dummy values for every secret referenced by the configurations. When `secrets.yaml` is missing, the validation script creates it from the example file and prints a warning.
-
-Agents MUST NOT write real credentials into `secrets.yaml`, `secrets.example.yaml` or any other repository file.
-
-When a configuration references a new secret, add a dummy entry to `secrets.example.yaml` in the same change.
+The secret handling rules are inherited from the workspace ESPHome rules. `secrets.example.yaml` lists every secret referenced by both targets; `scripts/validate.ps1` creates `secrets.yaml` from it when the file is missing.
 
 ## Limits of Local Validation
 
-A successful local compile proves that the configuration is buildable with the pinned ESPHome version. It does not prove runtime correctness.
-
-Flashing, hardware tests and runtime-stability observation remain required where `rules/development-workflow.md` asks for them. They are performed by the user unless the current task explicitly says otherwise.
-
-Deployment to Home Assistant through `scripts/deploy-ha.ps1` is performed by the user.
+A successful local compile proves that the configuration is buildable with the pinned ESPHome version, not that it works at runtime. Flashing, hardware tests and deployment through `scripts/deploy-ha.ps1` follow the inherited ESPHome rules and are done by the user.

@@ -865,16 +865,7 @@ rules/
 
 All human-readable repository content created or substantially modified by the project is written in English.
 
-The repository rules define:
-
-```text
-development workflow
-Git workflow
-local validation
-versioning
-documentation
-YAML comment style
-```
+The repository rules define the repository-specific development workflow, Git workflow, local validation, versioning and documentation. Shared conventions such as language, Git authority, commit format, the ESPHome toolchain, YAML comment style and the Waveshare hardware and UI conventions come from the maintainer's workspace rule hierarchy that `AGENTS.md` lists; in a standalone clone only the repository rules apply.
 
 The Home Assistant integration ([homeassistant-r4875g1-charger](https://github.com/anwa/homeassistant-r4875g1-charger)) and the dashboard card ([r4875g1-charger-dashboard](https://github.com/anwa/r4875g1-charger-dashboard)) are maintained in separate repositories. `AGENTS.md` describes how changes to the shared entity contract are coordinated across them.
 

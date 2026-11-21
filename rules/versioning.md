@@ -95,42 +95,6 @@ MAJOR changes are exceptional and should be planned explicitly.
 
 The V6 dual-target architecture starts at `6.0.0` when the first functional V6 firmware state is created. Rule-only and documentation-only preparation for V6 does not itself require a firmware version bump.
 
-## Documentation-Only Changes
+## Bumps, Tags and Documentation-Only Changes
 
-Do NOT bump the firmware version for changes that do not alter the generated firmware behavior.
-
-Examples:
-
-- README updates
-- repository rules
-- comment-only cleanup
-- documentation corrections
-- Git housekeeping
-
-A sequence of documentation commits may therefore retain the same firmware version.
-
-## Version Bump Timing
-
-The version SHOULD be updated in the same commit as the functional change that creates that firmware version.
-
-Do not create arbitrary version bumps merely because another Git commit exists.
-
-## Tested Releases
-
-A version number indicates a firmware state, but not automatically a released or tagged build.
-
-A Git tag SHOULD only be created after the intended release state has been tested sufficiently for its risk level.
-
-## Tags
-
-Release tags use:
-
-`vMAJOR.MINOR.PATCH`
-
-Example:
-
-`v5.3.6`
-
-Tags MUST point to the intended release commit.
-
-Do not move an existing published release tag to unrelated history.
+Version-bump timing, documentation-only changes and tag format follow the inherited workspace rules. Which versions get a release tag is defined in `rules/git-workflow.md`.
