@@ -662,7 +662,7 @@ warning state
 fault state
 ```
 
-The same package imports the total PV power (`sensor.pv_power_summe`, reported in watts and normalized to kilowatts) and the output power of a separate charger (`sensor.t2hg_output`, reported in kilowatts) for the Dashboard battery-bank card.
+The same package imports the total PV power (`sensor.pv_power_summe`) and the output power of a separate charger (`sensor.t2hg_output`) for the Dashboard battery-bank card; both report watts and are normalized to kilowatts.
 
 The Home Assistant battery-bank and individual battery power entities are normalized internally from watts to kilowatts.
 
