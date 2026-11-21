@@ -36,11 +36,13 @@ substitutions:
   # SITE POWER ENTITY MAPPING
   # ---------------------------------------------------------------------------
   #
-  # Total PV power and the output power of a separate charger. Both Home
-  # Assistant entities report kW.
+  # Total PV power and the output power of a separate charger. The PV power
+  # entity reports W and is normalized to kW; the external charger entity
+  # reports kW.
   # ---------------------------------------------------------------------------
 
   pv_power_entity: "sensor.pv_power_summe"
+  pv_power_scale_to_kw: "0.001"
   external_charger_power_entity: "sensor.t2hg_output"
 
   # ---------------------------------------------------------------------------
@@ -150,6 +152,8 @@ sensor:
     internal: true
     unit_of_measurement: "kW"
     accuracy_decimals: 3
+    filters:
+      - multiply: ${pv_power_scale_to_kw}
 
   - platform: homeassistant
     id: external_charger_power
