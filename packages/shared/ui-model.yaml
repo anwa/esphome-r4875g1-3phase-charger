@@ -232,18 +232,33 @@ sensor:
     accuracy_decimals: 2
 
   - platform: template
-    id: ui_model_battery_current
-    internal: true
-    update_interval: never
-    unit_of_measurement: "A"
-    accuracy_decimals: 1
-
-  - platform: template
     id: ui_model_battery_temperature
     internal: true
     update_interval: never
     unit_of_measurement: "°C"
     accuracy_decimals: 1
+
+  # ---------------------------------------------------------------------------
+  # SITE POWER
+  # ---------------------------------------------------------------------------
+  #
+  # Each value is NAN while its Home Assistant source is unavailable; the two
+  # values do not depend on the battery-bank data availability.
+  # ---------------------------------------------------------------------------
+
+  - platform: template
+    id: ui_model_pv_power
+    internal: true
+    update_interval: never
+    unit_of_measurement: "kW"
+    accuracy_decimals: 3
+
+  - platform: template
+    id: ui_model_external_charger_power
+    internal: true
+    update_interval: never
+    unit_of_measurement: "kW"
+    accuracy_decimals: 3
 
 
 # ==============================================================================

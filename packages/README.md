@@ -385,7 +385,7 @@ Owns the target-neutral runtime state consumed by shared HMI code.
 
 The model isolates LVGL presentation from the source of charger data. Charger Controller and Remote HMI backends publish into the same model IDs so shared display code does not need target-specific telemetry paths.
 
-The current model includes Dashboard AC/DC aggregate telemetry, active and fallback charger setpoints, rectifier availability/run state, per-rectifier overview and detail telemetry, highest output temperature, conversion efficiency and aggregate solar-battery-bank monitoring state. Parameterized per-battery monitoring state is defined in `shared/ui-battery-unit.yaml`.
+The current model includes Dashboard AC/DC aggregate telemetry, active and fallback charger setpoints, rectifier availability/run state, per-rectifier overview and detail telemetry, highest output temperature, conversion efficiency and aggregate solar-battery-bank monitoring state including the site PV and external charger power. Parameterized per-battery monitoring state is defined in `shared/ui-battery-unit.yaml`.
 
 ---
 
@@ -626,7 +626,8 @@ The package centralizes all configurable Home Assistant entity mappings so displ
 
 Responsibilities include:
 
-- aggregate battery-bank voltage, current, power, state of charge, temperature and operating state
+- aggregate battery-bank voltage, power, state of charge, temperature and operating state
+- total PV power and external charger output power for the Dashboard battery-bank card
 - per-battery voltage, current, power, state of charge, temperature and cell drift
 - per-battery warning and fault states
 - power-unit normalization for imported battery telemetry

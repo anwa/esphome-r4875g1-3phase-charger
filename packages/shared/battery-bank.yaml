@@ -2,8 +2,9 @@
 # SOLAR BATTERY BANK DATA
 # ==============================================================================
 #
-# Imports the aggregate solar-battery bank telemetry and the individual values
-# of four parallel battery units from Home Assistant through the native API.
+# Imports the aggregate solar-battery bank telemetry, the individual values of
+# four parallel battery units and the site PV and external charger power shown
+# on the Dashboard battery-bank card from Home Assistant through the native API.
 #
 # This shared package is used by both V6 firmware targets.
 #
@@ -22,7 +23,6 @@ substitutions:
   # ---------------------------------------------------------------------------
 
   battery_bank_voltage_entity: "sensor.solar_battery_bank_reported_bank_voltage"
-  battery_bank_current_entity: "sensor.solar_battery_bank_reported_bank_current"
   battery_bank_power_entity: "sensor.solar_battery_bank_reported_bank_power"
   battery_bank_soc_entity: "sensor.solar_battery_bank_reported_bank_state_of_charge"
   battery_bank_temperature_entity: "sensor.solar_battery_bank_reported_bank_temperature"
@@ -31,6 +31,17 @@ substitutions:
   # The aggregate Home Assistant power entity reports W.
   # Normalize the imported value to kW for display use.
   battery_bank_power_scale_to_kw: "0.001"
+
+  # ---------------------------------------------------------------------------
+  # SITE POWER ENTITY MAPPING
+  # ---------------------------------------------------------------------------
+  #
+  # Total PV power and the output power of a separate charger. Both Home
+  # Assistant entities report kW.
+  # ---------------------------------------------------------------------------
+
+  pv_power_entity: "sensor.pv_power_summe"
+  external_charger_power_entity: "sensor.t2hg_output"
 
   # ---------------------------------------------------------------------------
   # BATTERY 1 ENTITY MAPPING
@@ -107,13 +118,6 @@ sensor:
     accuracy_decimals: 2
 
   - platform: homeassistant
-    id: battery_bank_current
-    entity_id: ${battery_bank_current_entity}
-    internal: true
-    unit_of_measurement: "A"
-    accuracy_decimals: 1
-
-  - platform: homeassistant
     id: battery_bank_power
     entity_id: ${battery_bank_power_entity}
     internal: true
@@ -135,6 +139,24 @@ sensor:
     internal: true
     unit_of_measurement: "°C"
     accuracy_decimals: 1
+
+  # ---------------------------------------------------------------------------
+  # SITE POWER
+  # ---------------------------------------------------------------------------
+
+  - platform: homeassistant
+    id: pv_power
+    entity_id: ${pv_power_entity}
+    internal: true
+    unit_of_measurement: "kW"
+    accuracy_decimals: 3
+
+  - platform: homeassistant
+    id: external_charger_power
+    entity_id: ${external_charger_power_entity}
+    internal: true
+    unit_of_measurement: "kW"
+    accuracy_decimals: 3
 
   # ---------------------------------------------------------------------------
   # BATTERY 1
@@ -449,7 +471,6 @@ binary_sensor:
 
       if (
         !id(battery_bank_voltage).has_state() ||
-        !id(battery_bank_current).has_state() ||
         !id(battery_bank_power).has_state() ||
         !id(battery_bank_soc).has_state() ||
         !id(battery_bank_temperature).has_state()
@@ -459,7 +480,6 @@ binary_sensor:
 
       if (
         isnan(id(battery_bank_voltage).state) ||
-        isnan(id(battery_bank_current).state) ||
         isnan(id(battery_bank_power).state) ||
         isnan(id(battery_bank_soc).state) ||
         isnan(id(battery_bank_temperature).state)

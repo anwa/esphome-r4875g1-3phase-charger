@@ -3,7 +3,7 @@
 # ==============================================================================
 #
 # Publishes validated Home Assistant-backed aggregate solar battery-bank state
-# into the shared V6 UI model.
+# and the site PV and external charger power into the shared V6 UI model.
 #
 # Per-unit battery state is handled by the parameterized
 # shared/battery-ui-unit-backend.yaml package.
@@ -23,6 +23,22 @@ interval:
             source_connected
           );
 
+          // Site power values are validated individually, independent of the
+          // battery-bank snapshot.
+          const auto site_power = [source_connected](esphome::sensor::Sensor *source) {
+            return source_connected && source->has_state() && !isnan(source->state)
+              ? source->state
+              : NAN;
+          };
+
+          id(ui_model_pv_power).publish_state(
+            site_power(id(pv_power))
+          );
+
+          id(ui_model_external_charger_power).publish_state(
+            site_power(id(external_charger_power))
+          );
+
           const bool data_available =
             source_connected &&
             id(battery_bank_data_available).state;
@@ -33,7 +49,6 @@ interval:
             id(ui_model_battery_soc).publish_state(NAN);
             id(ui_model_battery_power).publish_state(NAN);
             id(ui_model_battery_voltage).publish_state(NAN);
-            id(ui_model_battery_current).publish_state(NAN);
             id(ui_model_battery_temperature).publish_state(NAN);
 
             id(ui_model_battery_state).publish_state("");
@@ -53,9 +68,6 @@ interval:
             id(battery_bank_voltage).state
           );
 
-          id(ui_model_battery_current).publish_state(
-            id(battery_bank_current).state
-          );
 
           id(ui_model_battery_temperature).publish_state(
             id(battery_bank_temperature).state
